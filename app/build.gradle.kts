@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,20 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
+
+// Load version from properties file
+val versionProps = Properties().apply {
+    val versionFile = rootProject.file("version.properties")
+    if (versionFile.exists()) {
+        load(versionFile.inputStream())
+    }
+}
+
+val versionMajor = versionProps.getProperty("VERSION_MAJOR", "1").toInt()
+val versionMinor = versionProps.getProperty("VERSION_MINOR", "0").toInt()
+val versionPatch = versionProps.getProperty("VERSION_PATCH", "0").toInt()
+val appVersionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+val appVersionName = "$versionMajor.$versionMinor.$versionPatch"
 
 android {
     namespace = "com.paperless.scanner"
@@ -14,8 +30,8 @@ android {
         applicationId = "com.paperless.scanner"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "com.paperless.scanner.HiltTestRunner"
     }
