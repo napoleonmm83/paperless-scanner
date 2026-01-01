@@ -1,0 +1,5 @@
+# Fastlane Appfile for Paperless Scanner
+# https://docs.fastlane.tools/advanced/Appfile/
+
+json_key_file("fastlane/play-store-key.json") # Path to Google Play Service Account JSON
+package_name("com.paperless.scanner") # App Package Name

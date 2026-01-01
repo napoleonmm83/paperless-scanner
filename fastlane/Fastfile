@@ -1,0 +1,98 @@
+# Fastlane configuration for Paperless Scanner
+# https://docs.fastlane.tools
+
+default_platform(:android)
+
+platform :android do
+
+  desc "Run unit tests"
+  lane :test do
+    gradle(task: "testDebugUnitTest")
+  end
+
+  desc "Build debug APK"
+  lane :build_debug do
+    gradle(task: "assembleDebug")
+  end
+
+  desc "Build release APK"
+  lane :build_release do
+    gradle(task: "assembleRelease")
+  end
+
+  desc "Build release AAB (App Bundle)"
+  lane :build_bundle do
+    gradle(task: "bundleRelease")
+  end
+
+  desc "Bump patch version"
+  lane :bump_patch do
+    gradle(task: "versionBumpPatch")
+  end
+
+  desc "Bump minor version"
+  lane :bump_minor do
+    gradle(task: "versionBumpMinor")
+  end
+
+  desc "Bump major version"
+  lane :bump_major do
+    gradle(task: "versionBumpMajor")
+  end
+
+  desc "Deploy to internal testing track"
+  lane :internal do
+    gradle(task: "bundleRelease")
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to alpha track"
+  lane :alpha do
+    gradle(task: "bundleRelease")
+    upload_to_play_store(
+      track: "alpha",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Deploy to beta track"
+  lane :beta do
+    gradle(task: "bundleRelease")
+    upload_to_play_store(
+      track: "beta",
+      aab: "app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Deploy to production"
+  lane :production do
+    gradle(task: "bundleRelease")
+    upload_to_play_store(
+      track: "production",
+      aab: "app/build/outputs/bundle/release/app-release.aab"
+    )
+  end
+
+  desc "Upload metadata only (no APK/AAB)"
+  lane :metadata do
+    upload_to_play_store(
+      skip_upload_apk: true,
+      skip_upload_aab: true
+    )
+  end
+
+  desc "Take screenshots (requires connected device)"
+  lane :screenshots do
+    capture_android_screenshots
+  end
+
+end

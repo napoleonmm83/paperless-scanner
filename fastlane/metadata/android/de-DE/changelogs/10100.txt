@@ -1,0 +1,8 @@
+Erste Veröffentlichung!
+
+- Dokumente scannen mit automatischer Kantenerkennung
+- Multi-Page PDF Unterstützung
+- Galerie-Import
+- Biometrische Anmeldung
+- Home Screen Widget
+- Offline Upload-Queue

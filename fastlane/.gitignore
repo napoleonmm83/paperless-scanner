@@ -1,0 +1,11 @@
+# Sensitive files
+play-store-key.json
+*.jks
+*.keystore
+
+# Fastlane reports
+report.xml
+Preview.html
+
+# Screenshots (optional - can be large)
+# metadata/android/*/images/

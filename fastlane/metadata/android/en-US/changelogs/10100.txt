@@ -1,0 +1,8 @@
+Initial release!
+
+- Document scanning with automatic edge detection
+- Multi-page PDF support
+- Gallery import
+- Biometric authentication
+- Home screen widget
+- Offline upload queue
