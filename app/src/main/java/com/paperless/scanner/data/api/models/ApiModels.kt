@@ -70,3 +70,25 @@ data class UploadResponse(
     @SerializedName("task_id")
     val taskId: String
 )
+
+data class Correspondent(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("match")
+    val match: String? = null,
+    @SerializedName("matching_algorithm")
+    val matchingAlgorithm: Int? = null
+)
+
+data class CorrespondentsResponse(
+    @SerializedName("count")
+    val count: Int,
+    @SerializedName("next")
+    val next: String? = null,
+    @SerializedName("previous")
+    val previous: String? = null,
+    @SerializedName("results")
+    val results: List<Correspondent>
+)

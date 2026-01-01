@@ -3,6 +3,7 @@ package com.paperless.scanner.data.datastore
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -18,6 +19,7 @@ class TokenManager(private val context: Context) {
     companion object {
         private val TOKEN_KEY = stringPreferencesKey("auth_token")
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
+        private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -28,10 +30,20 @@ class TokenManager(private val context: Context) {
         preferences[SERVER_URL_KEY]
     }
 
+    val biometricEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[BIOMETRIC_ENABLED_KEY] ?: false
+    }
+
     suspend fun saveCredentials(serverUrl: String, token: String) {
         context.dataStore.edit { preferences ->
             preferences[SERVER_URL_KEY] = serverUrl.trimEnd('/')
             preferences[TOKEN_KEY] = token
+        }
+    }
+
+    suspend fun setBiometricEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[BIOMETRIC_ENABLED_KEY] = enabled
         }
     }
 
@@ -47,5 +59,13 @@ class TokenManager(private val context: Context) {
 
     fun getServerUrlSync(): String? = runBlocking {
         context.dataStore.data.first()[SERVER_URL_KEY]
+    }
+
+    fun isBiometricEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[BIOMETRIC_ENABLED_KEY] ?: false
+    }
+
+    fun hasStoredCredentials(): Boolean {
+        return getTokenSync() != null && getServerUrlSync() != null
     }
 }

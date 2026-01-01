@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.api
 
+import com.paperless.scanner.data.api.models.CorrespondentsResponse
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.Tag
@@ -36,12 +37,16 @@ interface PaperlessApi {
     @GET("api/document_types/")
     suspend fun getDocumentTypes(): DocumentTypesResponse
 
+    @GET("api/correspondents/")
+    suspend fun getCorrespondents(): CorrespondentsResponse
+
     @Multipart
     @POST("api/documents/post_document/")
     suspend fun uploadDocument(
         @Part document: MultipartBody.Part,
         @Part("title") title: RequestBody? = null,
         @Part("tags") tags: RequestBody? = null,
-        @Part("document_type") documentType: RequestBody? = null
+        @Part("document_type") documentType: RequestBody? = null,
+        @Part("correspondent") correspondent: RequestBody? = null
     ): ResponseBody
 }

@@ -1,11 +1,18 @@
 package com.paperless.scanner.di
 
 import android.content.Context
+import androidx.room.Room
 import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.RetryInterceptor
+import com.paperless.scanner.data.database.AppDatabase
+import com.paperless.scanner.data.database.PendingUploadDao
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
+import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -50,6 +57,7 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            .addInterceptor(RetryInterceptor(maxRetries = 3))
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
@@ -90,4 +98,38 @@ object AppModule {
         @ApplicationContext context: Context,
         api: PaperlessApi
     ): DocumentRepository = DocumentRepository(context, api)
+
+    @Provides
+    @Singleton
+    fun provideDocumentTypeRepository(
+        api: PaperlessApi
+    ): DocumentTypeRepository = DocumentTypeRepository(api)
+
+    @Provides
+    @Singleton
+    fun provideCorrespondentRepository(
+        api: PaperlessApi
+    ): CorrespondentRepository = CorrespondentRepository(api)
+
+    @Provides
+    @Singleton
+    fun provideAppDatabase(
+        @ApplicationContext context: Context
+    ): AppDatabase = Room.databaseBuilder(
+        context,
+        AppDatabase::class.java,
+        AppDatabase.DATABASE_NAME
+    ).build()
+
+    @Provides
+    @Singleton
+    fun providePendingUploadDao(
+        database: AppDatabase
+    ): PendingUploadDao = database.pendingUploadDao()
+
+    @Provides
+    @Singleton
+    fun provideUploadQueueRepository(
+        dao: PendingUploadDao
+    ): UploadQueueRepository = UploadQueueRepository(dao)
 }

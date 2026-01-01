@@ -29,4 +29,8 @@
     <string name="retry">Erneut versuchen</string>
     <string name="cancel">Abbrechen</string>
     <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Schnellzugriff zum Scannen von Dokumenten</string>
 </resources>

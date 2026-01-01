@@ -5,4 +5,9 @@
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="ic_launcher_background">#17541f</color>
+
+    <!-- Widget Colors -->
+    <color name="widget_background">#E8F5E9</color>
+    <color name="widget_text_primary">#1B5E20</color>
+    <color name="widget_text_secondary">#388E3C</color>
 </resources>

@@ -7,8 +7,10 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
 import com.paperless.scanner.ui.screens.login.LoginScreen
 import com.paperless.scanner.ui.screens.scan.ScanScreen
+import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
 
 @Composable
@@ -35,6 +37,12 @@ fun PaperlessNavGraph(
                 onDocumentScanned = { uri ->
                     navController.navigate(Screen.Upload.createRoute(uri))
                 },
+                onMultipleDocumentsScanned = { uris ->
+                    navController.navigate(Screen.MultiPageUpload.createRoute(uris))
+                },
+                onBatchImport = { uris ->
+                    navController.navigate(Screen.BatchImport.createRoute(uris))
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -58,6 +66,70 @@ fun PaperlessNavGraph(
                 UploadScreen(
                     documentUri = documentUri,
                     onUploadSuccess = {
+                        navController.navigate(Screen.Scan.route) {
+                            popUpTo(Screen.Scan.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.MultiPageUpload.route,
+            arguments = listOf(
+                navArgument("documentUris") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val documentUrisString = backStackEntry.arguments?.getString("documentUris")
+            val documentUris = documentUrisString?.split("|")?.mapNotNull { encodedUri ->
+                try {
+                    Uri.parse(Uri.decode(encodedUri))
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+
+            if (documentUris.isNotEmpty()) {
+                MultiPageUploadScreen(
+                    documentUris = documentUris,
+                    onUploadSuccess = {
+                        navController.navigate(Screen.Scan.route) {
+                            popUpTo(Screen.Scan.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.BatchImport.route,
+            arguments = listOf(
+                navArgument("imageUris") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val imageUrisString = backStackEntry.arguments?.getString("imageUris")
+            val imageUris = imageUrisString?.split("|")?.mapNotNull { encodedUri ->
+                try {
+                    Uri.parse(Uri.decode(encodedUri))
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+
+            if (imageUris.isNotEmpty()) {
+                BatchImportScreen(
+                    imageUris = imageUris,
+                    onImportSuccess = {
                         navController.navigate(Screen.Scan.route) {
                             popUpTo(Screen.Scan.route) { inclusive = true }
                         }

@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -37,12 +39,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
@@ -50,7 +54,10 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
     val uiState by viewModel.uiState.collectAsState()
+    val canUseBiometric by viewModel.canUseBiometric.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
 
@@ -58,6 +65,18 @@ fun LoginScreen(
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    // Auto-trigger biometric if available
+    LaunchedEffect(canUseBiometric) {
+        if (canUseBiometric && activity != null) {
+            viewModel.biometricHelper.authenticate(
+                activity = activity,
+                onSuccess = { viewModel.onBiometricSuccess() },
+                onError = { message -> viewModel.onBiometricError(message) },
+                onFallback = { /* Show password form */ }
+            )
+        }
+    }
 
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -201,6 +220,33 @@ fun LoginScreen(
                     )
                 } else {
                     Text("Login")
+                }
+            }
+
+            // Biometric login button
+            if (canUseBiometric && activity != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        viewModel.biometricHelper.authenticate(
+                            activity = activity,
+                            onSuccess = { viewModel.onBiometricSuccess() },
+                            onError = { message -> viewModel.onBiometricError(message) },
+                            onFallback = { /* Show password form */ }
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fingerprint,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Mit Biometrie anmelden")
                 }
             }
 
