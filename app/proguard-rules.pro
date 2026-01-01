@@ -24,3 +24,9 @@
 # Hilt
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
+
+# iText PDF - ignore optional BouncyCastle dependencies
+-dontwarn com.itextpdf.bouncycastle.**
+-dontwarn com.itextpdf.bouncycastlefips.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.spongycastle.**

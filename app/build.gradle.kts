@@ -22,6 +22,24 @@ val versionPatch = versionProps.getProperty("VERSION_PATCH", "0").toInt()
 val appVersionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
 val appVersionName = "$versionMajor.$versionMinor.$versionPatch"
 
+// Load signing config from environment or local file
+val signingPropsFile = rootProject.file("signing.properties")
+val signingProps = Properties()
+if (signingPropsFile.exists()) {
+    signingPropsFile.inputStream().use { signingProps.load(it) }
+}
+
+val signingKeystoreFile: File? = System.getenv("KEYSTORE_FILE")?.let { rootProject.file(it) }
+    ?: signingProps.getProperty("KEYSTORE_FILE")?.let { rootProject.file(it) }?.takeIf { it.exists() }
+val signingKeystorePassword: String? = System.getenv("KEYSTORE_PASSWORD")
+    ?: signingProps.getProperty("KEYSTORE_PASSWORD")
+val signingKeyAlias: String? = System.getenv("KEY_ALIAS")
+    ?: signingProps.getProperty("KEY_ALIAS")
+val signingKeyPassword: String? = System.getenv("KEY_PASSWORD")
+    ?: signingProps.getProperty("KEY_PASSWORD")
+
+val canSign = signingKeystoreFile != null && signingKeystorePassword != null && signingKeyAlias != null && signingKeyPassword != null
+
 android {
     namespace = "com.paperless.scanner"
     compileSdk = 35
@@ -36,6 +54,15 @@ android {
         testInstrumentationRunner = "com.paperless.scanner.HiltTestRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = signingKeystoreFile
+            storePassword = signingKeystorePassword ?: ""
+            keyAlias = signingKeyAlias ?: ""
+            keyPassword = signingKeyPassword ?: ""
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -44,6 +71,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (signingKeystoreFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
