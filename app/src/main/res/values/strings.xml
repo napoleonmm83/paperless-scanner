@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">Server URL</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_button">Login</string>
+    <string name="login_error">Login failed: %1$s</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Dokument scannen</string>
+    <string name="scan_button">Kamera öffnen</string>
+    <string name="scan_from_gallery">Aus Galerie</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Dokument hochladen</string>
+    <string name="upload_document_title">Titel (optional)</string>
+    <string name="upload_select_tags">Tags auswählen</string>
+    <string name="upload_button">Hochladen</string>
+    <string name="upload_success">Dokument erfolgreich hochgeladen</string>
+    <string name="upload_error">Upload fehlgeschlagen: %1$s</string>
+
+    <!-- General -->
+    <string name="loading">Laden...</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
+</resources>
