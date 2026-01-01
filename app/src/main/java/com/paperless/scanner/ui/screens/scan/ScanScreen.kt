@@ -236,7 +236,7 @@ private fun EmptyStateContent(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Fotografiere ein oder mehrere Dokumente.\nDie Kanten werden automatisch erkannt.",
+            text = "Scanne Dokumente mit der Kamera\noder importiere vorhandene Bilder.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -256,7 +256,7 @@ private fun EmptyStateContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Kamera öffnen",
+                text = "Dokument scannen",
                 style = MaterialTheme.typography.titleMedium
             )
         }
@@ -275,7 +275,7 @@ private fun EmptyStateContent(
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Galerie Import",
+                text = "Aus Galerie wählen",
                 style = MaterialTheme.typography.titleMedium
             )
         }
