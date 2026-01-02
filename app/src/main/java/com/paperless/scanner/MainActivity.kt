@@ -1,7 +1,9 @@
 package com.paperless.scanner
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -38,6 +40,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestNotificationPermission()
 
+        val sharedUris = handleShareIntent(intent)
+
         setContent {
             PaperlessScannerTheme {
                 Surface(
@@ -55,10 +59,49 @@ class MainActivity : ComponentActivity() {
 
                     PaperlessNavGraph(
                         navController = navController,
-                        startDestination = startDestination
+                        startDestination = startDestination,
+                        sharedUris = sharedUris
                     )
                 }
             }
+        }
+    }
+
+    private fun handleShareIntent(intent: Intent?): List<Uri> {
+        if (intent == null) return emptyList()
+
+        return when (intent.action) {
+            Intent.ACTION_SEND -> {
+                // Single image or PDF
+                if (intent.type?.startsWith("image/") == true ||
+                    intent.type == "application/pdf"
+                ) {
+                    @Suppress("DEPRECATION")
+                    val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    }
+                    listOfNotNull(uri)
+                } else {
+                    emptyList()
+                }
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                // Multiple images
+                if (intent.type?.startsWith("image/") == true) {
+                    @Suppress("DEPRECATION")
+                    val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                    } else {
+                        intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM)
+                    }
+                    uris?.filterNotNull() ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            }
+            else -> emptyList()
         }
     }
 

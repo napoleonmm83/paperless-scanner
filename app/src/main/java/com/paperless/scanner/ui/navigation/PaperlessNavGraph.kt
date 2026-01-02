@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -16,8 +17,19 @@ import com.paperless.scanner.ui.screens.upload.UploadScreen
 @Composable
 fun PaperlessNavGraph(
     navController: NavHostController,
-    startDestination: String
+    startDestination: String,
+    sharedUris: List<Uri> = emptyList()
 ) {
+    // Handle navigation to BatchImport when shared URIs are present
+    LaunchedEffect(sharedUris, startDestination) {
+        if (sharedUris.isNotEmpty() && startDestination == Screen.Scan.route) {
+            // User is logged in and has shared content - navigate to BatchImport
+            navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
+                popUpTo(Screen.Scan.route) { inclusive = false }
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination
@@ -25,8 +37,15 @@ fun PaperlessNavGraph(
         composable(route = Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(Screen.Scan.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                    if (sharedUris.isNotEmpty()) {
+                        // After login, go directly to BatchImport with shared content
+                        navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Scan.route) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
+                        }
                     }
                 }
             )
