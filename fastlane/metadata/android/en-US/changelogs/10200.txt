@@ -1,0 +1,5 @@
+New in Version 1.2.0:
+
+- Share Intent support: Share images and PDFs directly from other apps
+- Quick import without switching apps
+- Automatic navigation to upload after sharing
