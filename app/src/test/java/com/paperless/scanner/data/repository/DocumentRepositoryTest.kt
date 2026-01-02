@@ -85,11 +85,10 @@ class DocumentRepositoryTest {
     fun `uploadDocument with tags sends comma separated ids`() = runTest {
         val uri = mockk<Uri>()
         val testContent = "image".toByteArray()
-        val tagsSlot = slot<RequestBody?>()
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), capture(tagsSlot), any())
+            api.uploadDocument(any(), any(), any(), any())
         } returns "task-123".toResponseBody()
 
         val result = documentRepository.uploadDocument(
