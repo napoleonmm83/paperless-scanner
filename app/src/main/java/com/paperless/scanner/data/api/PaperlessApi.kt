@@ -67,6 +67,7 @@ interface PaperlessApi {
         @Query("page_size") pageSize: Int = 25,
         @Query("query") query: String? = null,
         @Query("tags__id__in") tagIds: String? = null,
+        @Query("tags__id__isnull") tagsIsNull: Boolean? = null,
         @Query("correspondent__id") correspondentId: Int? = null,
         @Query("document_type__id") documentTypeId: Int? = null,
         @Query("ordering") ordering: String = "-created"

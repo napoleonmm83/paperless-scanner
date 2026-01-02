@@ -99,29 +99,28 @@ fun MultiPageUploadScreen(
     }
 
     LaunchedEffect(uiState) {
-        when (uiState) {
+        when (val state = uiState) {
             is UploadUiState.Success -> {
                 snackbarHostState.showSnackbar("PDF mit ${documentUris.size} Seiten erfolgreich hochgeladen!")
                 onUploadSuccess()
             }
             is UploadUiState.Error -> {
-                snackbarHostState.showSnackbar((uiState as UploadUiState.Error).message)
+                snackbarHostState.showSnackbar(state.message)
             }
             else -> {}
         }
     }
 
     LaunchedEffect(createTagState) {
-        when (createTagState) {
+        when (val tagState = createTagState) {
             is CreateTagState.Success -> {
-                val newTag = (createTagState as CreateTagState.Success).tag
-                selectedTagIds.add(newTag.id)
+                selectedTagIds.add(tagState.tag.id)
                 showCreateTagDialog = false
                 viewModel.resetCreateTagState()
-                snackbarHostState.showSnackbar("Tag \"${newTag.name}\" erstellt")
+                snackbarHostState.showSnackbar("Tag \"${tagState.tag.name}\" erstellt")
             }
             is CreateTagState.Error -> {
-                snackbarHostState.showSnackbar((createTagState as CreateTagState.Error).message)
+                snackbarHostState.showSnackbar(tagState.message)
                 viewModel.resetCreateTagState()
             }
             else -> {}
@@ -405,7 +404,8 @@ fun MultiPageUploadScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // Error Card with Retry
-            if (uiState is UploadUiState.Error) {
+            val errorState = uiState as? UploadUiState.Error
+            if (errorState != null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -433,7 +433,7 @@ fun MultiPageUploadScreen(
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
                             Text(
-                                text = (uiState as UploadUiState.Error).message,
+                                text = errorState.message,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -454,20 +454,20 @@ fun MultiPageUploadScreen(
             }
 
             // Upload Progress
-            if (uiState is UploadUiState.Uploading) {
+            val uploadingState = uiState as? UploadUiState.Uploading
+            if (uploadingState != null) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    val progress = (uiState as UploadUiState.Uploading).progress
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = { uploadingState.progress },
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Hochladen: ${(progress * 100).toInt()}%",
+                        text = "Hochladen: ${(uploadingState.progress * 100).toInt()}%",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

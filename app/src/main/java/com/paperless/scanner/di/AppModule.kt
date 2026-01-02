@@ -2,6 +2,7 @@ package com.paperless.scanner.di
 
 import android.content.Context
 import androidx.room.Room
+import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.RetryInterceptor
 import com.paperless.scanner.data.database.AppDatabase
@@ -14,6 +15,7 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -46,7 +48,11 @@ object AppModule {
     @AuthClient
     fun provideAuthOkHttpClient(): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.HEADERS
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         return OkHttpClient.Builder()
@@ -58,16 +64,29 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(
+    fun provideDynamicBaseUrlInterceptor(
         tokenManager: TokenManager
+    ): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(tokenManager)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        tokenManager: TokenManager,
+        dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.HEADERS
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor { chain ->
+                // Token interceptor - runs on OkHttp thread pool, not main thread
                 val token = tokenManager.getTokenSync()
                 val request = if (token != null) {
                     chain.request().newBuilder()
@@ -88,13 +107,11 @@ object AppModule {
     @Provides
     @Singleton
     fun providePaperlessApi(
-        okHttpClient: OkHttpClient,
-        tokenManager: TokenManager
+        okHttpClient: OkHttpClient
     ): PaperlessApi {
-        val baseUrl = tokenManager.getServerUrlSync() ?: "http://localhost/"
-
+        // Use placeholder URL - DynamicBaseUrlInterceptor will set the actual URL
         return Retrofit.Builder()
-            .baseUrl(baseUrl.trimEnd('/') + "/")
+            .baseUrl("http://placeholder.local/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

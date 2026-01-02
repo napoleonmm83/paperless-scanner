@@ -161,16 +161,48 @@ class DocumentRepository @Inject constructor(
     }
 
     private fun getImageBytesFromUri(uri: Uri): ByteArray {
+        // First pass: Get image dimensions without loading into memory
+        val options = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        context.contentResolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, options)
+        }
+
+        // Calculate sample size for large images to prevent OOM
+        val maxPixels = 16_000_000L // 16MP max
+        val imagePixels = options.outWidth.toLong() * options.outHeight.toLong()
+        val sampleSize = if (imagePixels > maxPixels) {
+            var sample = 1
+            while ((options.outWidth / sample) * (options.outHeight / sample) > maxPixels) {
+                sample *= 2
+            }
+            sample
+        } else {
+            1
+        }
+
+        // Second pass: Load the actual bitmap with calculated sample size
+        val decodeOptions = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+        }
+
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: throw IllegalArgumentException("Cannot open input stream for URI: $uri")
 
-        return inputStream.use { stream ->
-            val bitmap = BitmapFactory.decodeStream(stream)
+        val bitmap = inputStream.use { stream ->
+            BitmapFactory.decodeStream(stream, null, decodeOptions)
+                ?: throw IllegalStateException("Failed to decode image from URI: $uri")
+        }
+
+        return try {
             val quality = calculateCompressionQuality(bitmap)
             ByteArrayOutputStream().use { outputStream ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
                 outputStream.toByteArray()
             }
+        } finally {
+            bitmap.recycle()
         }
     }
 
@@ -260,14 +292,11 @@ class DocumentRepository @Inject constructor(
 
     suspend fun getUntaggedCount(): Result<Int> {
         return try {
-            // Paperless-ngx API: tags__id__isnull=true for untagged documents
             val response = api.getDocuments(
                 page = 1,
                 pageSize = 1,
-                tagIds = null
+                tagsIsNull = true
             )
-            // Note: This is a workaround. Proper implementation would need
-            // a dedicated API endpoint or query parameter for untagged docs
             Result.success(response.count)
         } catch (e: Exception) {
             Result.failure(e)
