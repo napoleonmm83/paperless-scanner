@@ -25,28 +25,30 @@
 
 ---
 
-## Version 1.1.0 - Geplant
+## Version 1.1.0 - Abgeschlossen
 
-**Ziel:** Q1 2026
+**Release:** 2026-01-02
 
-### Neue Features
+### Implementierte Features
 
-- [ ] **Multi-Page Scan**
-  - Mehrere Seiten scannen
-  - Zu einem PDF zusammenfügen
+- [x] **Multi-Page Scan**
+  - Mehrere Seiten scannen (max. 20)
+  - PDF-Zusammenführung mit iText
   - Seiten neu anordnen/löschen
+  - Thumbnail-Vorschau
 
-- [ ] **Dokumenttyp-Auswahl**
+- [x] **Dokumenttyp-Auswahl**
   - Dropdown mit vorhandenen Typen
-  - Optional: Neuen Typ erstellen
+  - Alphabetisch sortiert
 
-- [ ] **Korrespondent-Auswahl**
+- [x] **Korrespondent-Auswahl**
   - Dropdown mit vorhandenen Korrespondenten
-  - Optional: Neuen Korrespondenten erstellen
+  - Alphabetisch sortiert
 
-- [ ] **Inline Tag-Erstellung**
+- [x] **Inline Tag-Erstellung**
   - Neuen Tag während Upload erstellen
-  - Farbauswahl für neuen Tag
+  - 12 Farben zur Auswahl
+  - Automatisches Hinzufügen zur Auswahl
 
 ### Verbesserungen
 
@@ -153,8 +155,8 @@
 ### Technisch
 
 - [ ] CI/CD Pipeline (GitHub Actions)
-- [ ] Automatische APK-Signierung
-- [ ] Play Store Deployment
+- [x] Automatische APK-Signierung (Release-Keystore)
+- [x] Play Store Deployment (Fastlane)
 - [ ] Crash-Reporting (Firebase)
 - [ ] Analytics (opt-in)
 
@@ -173,10 +175,11 @@
 
 ### Aktuell höchste Priorität
 
-1. **Multi-Page Scan** (P1) - Häufig angefragt
+1. ~~**Multi-Page Scan** (P1)~~ - ✅ Erledigt
 2. **Offline-Queue** (P1) - Kritisch für Mobile
-3. **Dokumenttyp-Auswahl** (P1) - Vervollständigt Upload
+3. ~~**Dokumenttyp-Auswahl** (P1)~~ - ✅ Erledigt
 4. **Biometrische Auth** (P2) - Sicherheit
+5. **Galerie-Import** (P2) - Häufig angefragt
 
 ---
 
