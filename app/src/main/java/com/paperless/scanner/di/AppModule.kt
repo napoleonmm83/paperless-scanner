@@ -23,7 +23,12 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class AuthClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -34,6 +39,21 @@ object AppModule {
     fun provideTokenManager(
         @ApplicationContext context: Context
     ): TokenManager = TokenManager(context)
+
+    @Provides
+    @Singleton
+    @AuthClient
+    fun provideAuthOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BODY
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 
     @Provides
     @Singleton
@@ -83,8 +103,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthRepository(
-        tokenManager: TokenManager
-    ): AuthRepository = AuthRepository(tokenManager)
+        tokenManager: TokenManager,
+        @AuthClient client: OkHttpClient
+    ): AuthRepository = AuthRepository(tokenManager, client)
 
     @Provides
     @Singleton

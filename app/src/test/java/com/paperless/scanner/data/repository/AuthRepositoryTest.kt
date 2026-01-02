@@ -5,6 +5,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -18,13 +19,15 @@ class AuthRepositoryTest {
     private lateinit var mockWebServer: MockWebServer
     private lateinit var tokenManager: TokenManager
     private lateinit var authRepository: AuthRepository
+    private lateinit var client: OkHttpClient
 
     @Before
     fun setup() {
         mockWebServer = MockWebServer()
         mockWebServer.start()
         tokenManager = mockk(relaxed = true)
-        authRepository = AuthRepository(tokenManager)
+        client = OkHttpClient.Builder().build()
+        authRepository = AuthRepository(tokenManager, client)
     }
 
     @After
