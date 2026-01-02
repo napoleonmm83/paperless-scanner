@@ -25,13 +25,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Badge
@@ -44,11 +44,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,8 +55,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -69,6 +69,9 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import com.paperless.scanner.ui.theme.PastelCyan
+import com.paperless.scanner.ui.theme.PastelPurple
+import com.paperless.scanner.ui.theme.PastelYellow
 import kotlinx.coroutines.launch
 
 private const val MAX_PAGES = 20
@@ -79,7 +82,6 @@ fun ScanScreen(
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
     onBatchImport: (List<Uri>) -> Unit,
-    onLogout: () -> Unit,
     viewModel: ScanViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -120,6 +122,14 @@ fun ScanScreen(
         }
     }
 
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            onBatchImport(uris)
+        }
+    }
+
     fun startScanner() {
         scanner.getStartScanIntent(context as Activity)
             .addOnSuccessListener { intentSender ->
@@ -136,44 +146,12 @@ fun ScanScreen(
             }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Paperless Scanner")
-                        if (uiState.hasPages) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Badge {
-                                Text("${uiState.pageCount}")
-                            }
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            viewModel.logout()
-                            onLogout()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Logout"
-                        )
-                    }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             if (uiState.hasPages) {
-                // Multi-Page View
+                // Multi-Page View with scanned pages
                 MultiPageContent(
                     uiState = uiState,
                     onAddMore = { startScanner() },
@@ -190,93 +168,146 @@ fun ScanScreen(
                     }
                 )
             } else {
-                // Empty State
-                EmptyStateContent(
-                    onStartScan = { startScanner() },
-                    onGalleryImport = {
+                // Mode Selection Screen (new design)
+                ModeSelectionContent(
+                    onScanClick = { startScanner() },
+                    onGalleryClick = {
                         photoPickerLauncher.launch(
                             androidx.activity.result.PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly
                             )
                         )
+                    },
+                    onFilesClick = {
+                        filePickerLauncher.launch(
+                            arrayOf("application/pdf", "image/*")
+                        )
                     }
                 )
             }
         }
+
+        // Snackbar Host
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
 @Composable
-private fun EmptyStateContent(
-    onStartScan: () -> Unit,
-    onGalleryImport: () -> Unit
+private fun ModeSelectionContent(
+    onScanClick: () -> Unit,
+    onGalleryClick: () -> Unit,
+    onFilesClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier.fillMaxSize()
     ) {
-        Icon(
-            imageVector = Icons.Default.DocumentScanner,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Dokument scannen",
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Scanne Dokumente mit der Kamera\noder importiere vorhandene Bilder.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = onStartScan,
+        // Header
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .padding(horizontal = 24.dp)
+                .padding(top = 24.dp, bottom = 16.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.CameraAlt,
-                contentDescription = null
-            )
-            Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Dokument scannen",
-                style = MaterialTheme.typography.titleMedium
+                text = "Neues Dokument",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Wähle eine Option",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedButton(
-            onClick = onGalleryImport,
+        // Options Row
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .weight(1f)
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.PhotoLibrary,
-                contentDescription = null
+            // Scan option
+            ScanOptionCard(
+                icon = Icons.Filled.CameraAlt,
+                label = "Scannen",
+                backgroundColor = PastelCyan,
+                onClick = onScanClick,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+
+            // Gallery option
+            ScanOptionCard(
+                icon = Icons.Filled.PhotoLibrary,
+                label = "Galerie",
+                backgroundColor = PastelYellow,
+                onClick = onGalleryClick,
+                modifier = Modifier.weight(1f)
+            )
+
+            // Files option
+            ScanOptionCard(
+                icon = Icons.Filled.FolderOpen,
+                label = "Dateien",
+                backgroundColor = PastelPurple,
+                onClick = onFilesClick,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(100.dp)) // Space for bottom nav
+    }
+}
+
+@Composable
+private fun ScanOptionCard(
+    icon: ImageVector,
+    label: String,
+    backgroundColor: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier
+            .aspectRatio(0.85f),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Text(
-                text = "Aus Galerie wählen",
-                style = MaterialTheme.typography.titleMedium
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
             )
         }
     }

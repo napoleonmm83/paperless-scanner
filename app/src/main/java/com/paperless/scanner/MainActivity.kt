@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                     val startDestination = if (token.isNullOrBlank()) {
                         Screen.Login.route
                     } else {
-                        Screen.Scan.route
+                        Screen.Home.route
                     }
 
                     PaperlessNavGraph(

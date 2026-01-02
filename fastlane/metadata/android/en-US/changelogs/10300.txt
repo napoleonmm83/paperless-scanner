@@ -1,0 +1,9 @@
+New Design Update v1.3.0:
+
+- New home screen with dashboard statistics
+- Floating pill navigation bar
+- Documents view with search and filters
+- Labels management with color picker
+- Settings page with dark mode option
+- Scan screen with 3 modes: Scan, Gallery, Files
+- Improved UI design with pastel colors

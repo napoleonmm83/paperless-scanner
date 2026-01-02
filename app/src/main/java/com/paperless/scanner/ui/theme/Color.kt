@@ -7,6 +7,15 @@ val PaperlessGreen = Color(0xFF17541f)
 val PaperlessGreenLight = Color(0xFF2e7d32)
 val PaperlessGreenDark = Color(0xFF0d3313)
 
+// Pastel Colors for Cards and Accents
+val PastelCyan = Color(0xFFB8E8E0)      // hsl(174 47% 81%)
+val PastelYellow = Color(0xFFFAE5B4)    // hsl(40 88% 84%)
+val PastelPurple = Color(0xFFE0D4F0)    // hsl(265 52% 89%)
+val PastelOrange = Color(0xFFFAD4B4)    // hsl(25 88% 84%)
+val PastelGreen = Color(0xFFD4F0D4)     // hsl(120 47% 89%)
+val PastelPink = Color(0xFFF0D4E0)      // hsl(330 47% 89%)
+val PastelBlue = Color(0xFFD4E4F0)      // hsl(210 47% 89%)
+
 // Material 3 Light Theme
 val md_theme_light_primary = PaperlessGreen
 val md_theme_light_onPrimary = Color.White

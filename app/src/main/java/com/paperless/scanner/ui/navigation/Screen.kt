@@ -4,7 +4,15 @@ import android.net.Uri
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
+
+    // Main navigation screens (bottom nav)
+    data object Home : Screen("home")
+    data object Documents : Screen("documents")
     data object Scan : Screen("scan")
+    data object Labels : Screen("labels")
+    data object Settings : Screen("settings")
+
+    // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {
         fun createRoute(documentUri: Uri): String {
             return "upload/${Uri.encode(documentUri.toString())}"

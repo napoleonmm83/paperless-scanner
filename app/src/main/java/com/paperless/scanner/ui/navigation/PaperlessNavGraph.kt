@@ -3,16 +3,27 @@ package com.paperless.scanner.ui.navigation
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
 import com.paperless.scanner.ui.screens.login.LoginScreen
-import com.paperless.scanner.ui.screens.scan.ScanScreen
+import com.paperless.scanner.ui.screens.main.MainScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
+
+// Main screens that use the bottom navigation
+private val mainScreenRoutes = listOf(
+    Screen.Home.route,
+    Screen.Documents.route,
+    Screen.Scan.route,
+    Screen.Labels.route,
+    Screen.Settings.route
+)
 
 @Composable
 fun PaperlessNavGraph(
@@ -20,12 +31,15 @@ fun PaperlessNavGraph(
     startDestination: String,
     sharedUris: List<Uri> = emptyList()
 ) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     // Handle navigation to BatchImport when shared URIs are present
     LaunchedEffect(sharedUris, startDestination) {
-        if (sharedUris.isNotEmpty() && startDestination == Screen.Scan.route) {
+        if (sharedUris.isNotEmpty() && startDestination == Screen.Home.route) {
             // User is logged in and has shared content - navigate to BatchImport
             navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
-                popUpTo(Screen.Scan.route) { inclusive = false }
+                popUpTo(Screen.Home.route) { inclusive = false }
             }
         }
     }
@@ -43,7 +57,7 @@ fun PaperlessNavGraph(
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     } else {
-                        navController.navigate(Screen.Scan.route) {
+                        navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
@@ -51,23 +65,28 @@ fun PaperlessNavGraph(
             )
         }
 
-        composable(route = Screen.Scan.route) {
-            ScanScreen(
-                onDocumentScanned = { uri ->
-                    navController.navigate(Screen.Upload.createRoute(uri))
-                },
-                onMultipleDocumentsScanned = { uris ->
-                    navController.navigate(Screen.MultiPageUpload.createRoute(uris))
-                },
-                onBatchImport = { uris ->
-                    navController.navigate(Screen.BatchImport.createRoute(uris))
-                },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+        // Main screens with bottom navigation
+        mainScreenRoutes.forEach { route ->
+            composable(route = route) {
+                MainScreen(
+                    navController = navController,
+                    currentRoute = route,
+                    onDocumentScanned = { uri ->
+                        navController.navigate(Screen.Upload.createRoute(uri))
+                    },
+                    onMultipleDocumentsScanned = { uris ->
+                        navController.navigate(Screen.MultiPageUpload.createRoute(uris))
+                    },
+                    onBatchImport = { uris ->
+                        navController.navigate(Screen.BatchImport.createRoute(uris))
+                    },
+                    onLogout = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }
-                }
-            )
+                )
+            }
         }
 
         composable(
@@ -85,8 +104,8 @@ fun PaperlessNavGraph(
                 UploadScreen(
                     documentUri = documentUri,
                     onUploadSuccess = {
-                        navController.navigate(Screen.Scan.route) {
-                            popUpTo(Screen.Scan.route) { inclusive = true }
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     },
                     onNavigateBack = {
@@ -117,8 +136,8 @@ fun PaperlessNavGraph(
                 MultiPageUploadScreen(
                     documentUris = documentUris,
                     onUploadSuccess = {
-                        navController.navigate(Screen.Scan.route) {
-                            popUpTo(Screen.Scan.route) { inclusive = true }
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     },
                     onNavigateBack = {
@@ -149,8 +168,8 @@ fun PaperlessNavGraph(
                 BatchImportScreen(
                     imageUris = imageUris,
                     onImportSuccess = {
-                        navController.navigate(Screen.Scan.route) {
-                            popUpTo(Screen.Scan.route) { inclusive = true }
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     },
                     onNavigateBack = {

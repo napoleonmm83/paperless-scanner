@@ -1,0 +1,9 @@
+Neues Design-Update v1.3.0:
+
+- Neue Startseite mit Dashboard-Statistiken
+- Floating-Pill Navigation am unteren Rand
+- Dokumenten-Ansicht mit Suche und Filter
+- Labels-Verwaltung mit Farbauswahl
+- Einstellungs-Seite mit Dark Mode Option
+- Scan-Screen mit 3 Modi: Scannen, Galerie, Dateien
+- Verbessertes UI-Design mit Pastellfarben
