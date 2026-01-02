@@ -114,7 +114,7 @@
   - Eingabe beim Upload
   - Verschiedene Feldtypen unterstützen
 
-- [ ] **Share-Intent**
+- [x] **Share-Intent**
   - Bilder von anderen Apps empfangen
   - PDF-Dateien importieren
   - Quick-Upload ohne App öffnen
@@ -232,8 +232,8 @@
 
 ### Nächste Prioritäten
 
-1. **Share-Intent** (P1) - Häufig angefragt
-2. **Benutzerdefinierte Felder** (P1) - Paperless Feature
+1. **Benutzerdefinierte Felder** (P1) - Paperless Feature
+2. **Verbesserte Bildvorschau** (P1) - Zoom, Rotation, Crop
 3. **Biometrische Auth** (P2) - Sicherheit
 4. **Dokumentensuche** (P2) - Komfort
 5. **i18n** (P2) - Breitere Nutzerbasis
