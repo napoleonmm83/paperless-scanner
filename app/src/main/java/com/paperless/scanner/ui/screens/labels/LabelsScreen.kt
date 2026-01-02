@@ -185,7 +185,7 @@ fun LabelsScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.labels) { label ->
+            items(uiState.labels, key = { it.id }) { label ->
                 LabelCard(
                     label = label,
                     onClick = {

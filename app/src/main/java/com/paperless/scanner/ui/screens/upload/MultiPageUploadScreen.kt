@@ -194,7 +194,7 @@ fun MultiPageUploadScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(documentUris) { index, uri ->
+                itemsIndexed(documentUris, key = { _, uri -> uri.toString() }) { index, uri ->
                     Card(
                         modifier = Modifier.width(100.dp),
                         shape = RoundedCornerShape(8.dp)

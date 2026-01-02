@@ -211,7 +211,7 @@ fun BatchImportScreen(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(0.dp)
             ) {
-                itemsIndexed(imageUris.take(9)) { index, uri ->
+                itemsIndexed(imageUris.take(9), key = { _, uri -> uri.toString() }) { index, uri ->
                     Box {
                         AsyncImage(
                             model = uri,
