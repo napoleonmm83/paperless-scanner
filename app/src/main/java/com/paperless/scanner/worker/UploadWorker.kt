@@ -65,8 +65,26 @@ class UploadWorker @AssistedInject constructor(
             uploadProgress = 0
         ))
 
+        // Track bereits verarbeitete Uploads um Endlosschleifen zu vermeiden
+        val processedIds = mutableSetOf<Long>()
+        val maxIterations = totalUploads + MAX_RETRIES * totalUploads + 10 // Safety limit
+
         while (true) {
             val pendingUpload = uploadQueueRepository.getNextPendingUpload() ?: break
+
+            // Safety check: bereits in diesem Run verarbeitet?
+            if (pendingUpload.id in processedIds) {
+                Log.w(TAG, "Upload ${pendingUpload.id} already processed in this run, skipping")
+                break
+            }
+            processedIds.add(pendingUpload.id)
+
+            // Safety check: zu viele Iterationen?
+            if (currentUpload >= maxIterations) {
+                Log.e(TAG, "Max iterations reached ($maxIterations), breaking loop")
+                break
+            }
+
             currentUpload++
 
             // Falls mehr Uploads hinzugekommen sind als initial gezählt

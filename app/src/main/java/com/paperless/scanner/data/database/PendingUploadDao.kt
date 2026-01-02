@@ -17,8 +17,8 @@ interface PendingUploadDao {
     @Query("SELECT * FROM pending_uploads WHERE status = :status ORDER BY createdAt ASC")
     fun getUploadsByStatus(status: UploadStatus): Flow<List<PendingUpload>>
 
-    @Query("SELECT * FROM pending_uploads WHERE status IN ('PENDING', 'FAILED') ORDER BY createdAt ASC")
-    suspend fun getPendingAndFailedUploads(): List<PendingUpload>
+    @Query("SELECT * FROM pending_uploads WHERE status = 'PENDING' OR (status = 'FAILED' AND retryCount < :maxRetries) ORDER BY createdAt ASC")
+    suspend fun getPendingAndFailedUploads(maxRetries: Int = 3): List<PendingUpload>
 
     @Query("SELECT * FROM pending_uploads WHERE id = :id")
     suspend fun getUploadById(id: Long): PendingUpload?
@@ -26,7 +26,7 @@ interface PendingUploadDao {
     @Query("SELECT COUNT(*) FROM pending_uploads WHERE status IN ('PENDING', 'UPLOADING')")
     fun getPendingCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM pending_uploads WHERE status IN ('PENDING', 'FAILED')")
+    @Query("SELECT COUNT(*) FROM pending_uploads WHERE status = 'PENDING' OR (status = 'FAILED' AND retryCount < 3)")
     suspend fun getPendingUploadCountSync(): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
