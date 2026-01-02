@@ -17,6 +17,10 @@
     @com.google.gson.annotations.SerializedName <fields>;
 }
 
+# Gson TypeToken - required for R8 full mode
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
 # OkHttp
 -dontwarn okhttp3.**
 -dontwarn okio.**
