@@ -43,6 +43,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -83,6 +86,7 @@ fun BatchImportScreen(
     var documentTypeExpanded by remember { mutableStateOf(false) }
     var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
     var correspondentExpanded by remember { mutableStateOf(false) }
+    var uploadAsSingleDocument by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadData()
@@ -92,7 +96,9 @@ fun BatchImportScreen(
         when (uiState) {
             is BatchImportUiState.Success -> {
                 val count = (uiState as BatchImportUiState.Success).count
-                snackbarHostState.showSnackbar("$count Bilder zur Warteschlange hinzugefügt!")
+                val message = if (count == 1) "Dokument zur Warteschlange hinzugefügt!"
+                              else "$count Dokumente zur Warteschlange hinzugefügt!"
+                snackbarHostState.showSnackbar(message)
                 onImportSuccess()
             }
             is BatchImportUiState.Error -> {
@@ -154,13 +160,37 @@ fun BatchImportScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = "Werden einzeln hochgeladen",
+                            text = if (uploadAsSingleDocument) "Als ein Dokument" else "Als einzelne Dokumente",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                 }
             }
+
+            // Upload Mode Selection
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                SegmentedButton(
+                    selected = !uploadAsSingleDocument,
+                    onClick = { uploadAsSingleDocument = false },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                ) {
+                    Text("Einzeln")
+                }
+                SegmentedButton(
+                    selected = uploadAsSingleDocument,
+                    onClick = { uploadAsSingleDocument = true },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                ) {
+                    Text("Als ein Dokument")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Image Grid Preview
             Text(
@@ -385,7 +415,8 @@ fun BatchImportScreen(
                         imageUris = imageUris,
                         tagIds = selectedTagIds.toList(),
                         documentTypeId = selectedDocumentTypeId,
-                        correspondentId = selectedCorrespondentId
+                        correspondentId = selectedCorrespondentId,
+                        uploadAsSingleDocument = uploadAsSingleDocument
                     )
                 },
                 enabled = uiState is BatchImportUiState.Idle,

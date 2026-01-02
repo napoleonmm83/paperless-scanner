@@ -59,27 +59,42 @@ class BatchImportViewModel @Inject constructor(
         tagIds: List<Int>,
         documentTypeId: Int?,
         correspondentId: Int?,
+        uploadAsSingleDocument: Boolean = false,
         uploadImmediately: Boolean = true
     ) {
-        Log.d(TAG, "queueBatchImport called with ${imageUris.size} images, uploadImmediately=$uploadImmediately")
+        Log.d(TAG, "queueBatchImport called with ${imageUris.size} images, asSingle=$uploadAsSingleDocument, uploadImmediately=$uploadImmediately")
         if (imageUris.isEmpty()) {
             Log.d(TAG, "No images to import, returning")
             return
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = BatchImportUiState.Queuing(0, imageUris.size)
-
             try {
-                imageUris.forEachIndexed { index, uri ->
-                    uploadQueueRepository.queueUpload(
-                        uri = uri,
+                if (uploadAsSingleDocument) {
+                    // Alle Bilder als ein Multi-Page Dokument
+                    _uiState.value = BatchImportUiState.Queuing(0, 1)
+                    uploadQueueRepository.queueMultiPageUpload(
+                        uris = imageUris,
                         title = null,
                         tagIds = tagIds,
                         documentTypeId = documentTypeId,
                         correspondentId = correspondentId
                     )
-                    _uiState.value = BatchImportUiState.Queuing(index + 1, imageUris.size)
+                    _uiState.value = BatchImportUiState.Queuing(1, 1)
+                    Log.d(TAG, "Multi-page document queued")
+                } else {
+                    // Jedes Bild einzeln hochladen
+                    _uiState.value = BatchImportUiState.Queuing(0, imageUris.size)
+                    imageUris.forEachIndexed { index, uri ->
+                        uploadQueueRepository.queueUpload(
+                            uri = uri,
+                            title = null,
+                            tagIds = tagIds,
+                            documentTypeId = documentTypeId,
+                            correspondentId = correspondentId
+                        )
+                        _uiState.value = BatchImportUiState.Queuing(index + 1, imageUris.size)
+                    }
                 }
 
                 Log.d(TAG, "All images queued, scheduling upload")
@@ -89,7 +104,8 @@ class BatchImportViewModel @Inject constructor(
                     uploadWorkManager.scheduleUpload()
                 }
 
-                _uiState.value = BatchImportUiState.Success(imageUris.size)
+                val successCount = if (uploadAsSingleDocument) 1 else imageUris.size
+                _uiState.value = BatchImportUiState.Success(successCount)
                 Log.d(TAG, "Batch import completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error in queueBatchImport", e)
