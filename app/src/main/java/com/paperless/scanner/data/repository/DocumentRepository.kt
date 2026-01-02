@@ -164,10 +164,21 @@ class DocumentRepository @Inject constructor(
 
         return inputStream.use { stream ->
             val bitmap = BitmapFactory.decodeStream(stream)
+            val quality = calculateCompressionQuality(bitmap)
             ByteArrayOutputStream().use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
                 outputStream.toByteArray()
             }
+        }
+    }
+
+    private fun calculateCompressionQuality(bitmap: Bitmap): Int {
+        val pixels = bitmap.width.toLong() * bitmap.height.toLong()
+        return when {
+            pixels > 12_000_000 -> 70  // >12MP: aggressive compression
+            pixels > 8_000_000 -> 75   // >8MP: moderate compression
+            pixels > 4_000_000 -> 80   // >4MP: light compression
+            else -> 85                  // <=4MP: high quality
         }
     }
 
