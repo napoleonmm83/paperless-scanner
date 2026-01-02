@@ -1,6 +1,7 @@
 package com.paperless.scanner.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -20,6 +21,7 @@ class UploadWorkManager @Inject constructor(
     private val workManager = WorkManager.getInstance(context)
 
     fun scheduleUpload() {
+        Log.d(TAG, "scheduleUpload() called")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .setRequiresBatteryNotLow(true)
@@ -31,12 +33,13 @@ class UploadWorkManager @Inject constructor(
 
         workManager.enqueueUniqueWork(
             UploadWorker.WORK_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             uploadRequest
         )
     }
 
     fun scheduleImmediateUpload() {
+        Log.d(TAG, "scheduleImmediateUpload() called")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
@@ -45,11 +48,13 @@ class UploadWorkManager @Inject constructor(
             .setConstraints(constraints)
             .build()
 
+        Log.d(TAG, "Enqueuing work with REPLACE policy, workId: ${uploadRequest.id}")
         workManager.enqueueUniqueWork(
             UploadWorker.WORK_NAME,
             ExistingWorkPolicy.REPLACE,
             uploadRequest
         )
+        Log.d(TAG, "Work enqueued successfully")
     }
 
     fun cancelUpload() {
@@ -85,3 +90,5 @@ sealed class UploadWorkStatus {
     data object Blocked : UploadWorkStatus()
     data object Cancelled : UploadWorkStatus()
 }
+
+private const val TAG = "UploadWorkManager"

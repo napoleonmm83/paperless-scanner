@@ -1,26 +1,43 @@
 Paperless Scanner is the mobile companion for your Paperless-ngx installation. Scan documents on the go and upload them directly to your paperless archive.
 
-FEATURES:
+📄 SMART SCANNING
+• Automatic edge detection
+• Perspective correction
+• Optimized image quality
 
-- Smart Scanning: Automatic edge detection and perspective correction
-- Multi-Page Support: Combine multiple pages into a single PDF
-- Gallery Import: Import existing photos as documents
-- Direct Upload: Seamless integration with Paperless-ngx
-- Biometric Security: Login with fingerprint or Face ID
-- Home Screen Widget: Quick access to scanning
-- Offline Queue: Documents upload when connection is available
+📑 MULTI-PAGE DOCUMENTS
+• Scan multiple pages (up to 20)
+• Reorder or delete pages
+• Automatic PDF creation
 
-REQUIREMENTS:
+🏷️ ORGANIZATION
+• Select or create new tags
+• Assign document type
+• Set correspondent
+• Add title
+
+📤 BATCH IMPORT
+• Import multiple images from gallery
+• Upload progress indicator
+• Background upload with notifications
+
+🎨 MODERN DESIGN
+• Material 3 design
+• Dark mode support
+• Easy to use
+
+REQUIREMENTS
 
 This app requires your own Paperless-ngx installation. Paperless-ngx is an open-source document management system that you can self-host.
 
 More information: https://docs.paperless-ngx.com
 
-PRIVACY:
+PRIVACY
 
-- No ads
-- No tracking
-- Your documents stay on your server
-- Credentials are stored securely on device
+• No ads
+• No tracking
+• No data collection
+• Your documents stay on your server
+• Credentials are stored securely on device
 
 Open Source: https://github.com/napoleonmm83/paperless-scanner

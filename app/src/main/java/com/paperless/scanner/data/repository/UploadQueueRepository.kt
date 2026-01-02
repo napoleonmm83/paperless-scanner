@@ -65,6 +65,10 @@ class UploadQueueRepository @Inject constructor(
         return pendingUploadDao.getPendingAndFailedUploads().firstOrNull()
     }
 
+    suspend fun getPendingUploadCount(): Int {
+        return pendingUploadDao.getPendingUploadCountSync()
+    }
+
     suspend fun getUploadById(id: Long): PendingUpload? {
         return pendingUploadDao.getUploadById(id)
     }

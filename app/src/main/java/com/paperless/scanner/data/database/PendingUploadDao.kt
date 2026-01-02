@@ -26,6 +26,9 @@ interface PendingUploadDao {
     @Query("SELECT COUNT(*) FROM pending_uploads WHERE status IN ('PENDING', 'UPLOADING')")
     fun getPendingCount(): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM pending_uploads WHERE status IN ('PENDING', 'FAILED')")
+    suspend fun getPendingUploadCountSync(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(upload: PendingUpload): Long
 

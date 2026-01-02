@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.batchimport
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.api.models.Correspondent
@@ -60,7 +61,11 @@ class BatchImportViewModel @Inject constructor(
         correspondentId: Int?,
         uploadImmediately: Boolean = true
     ) {
-        if (imageUris.isEmpty()) return
+        Log.d(TAG, "queueBatchImport called with ${imageUris.size} images, uploadImmediately=$uploadImmediately")
+        if (imageUris.isEmpty()) {
+            Log.d(TAG, "No images to import, returning")
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.value = BatchImportUiState.Queuing(0, imageUris.size)
@@ -77,6 +82,7 @@ class BatchImportViewModel @Inject constructor(
                     _uiState.value = BatchImportUiState.Queuing(index + 1, imageUris.size)
                 }
 
+                Log.d(TAG, "All images queued, scheduling upload")
                 if (uploadImmediately) {
                     uploadWorkManager.scheduleImmediateUpload()
                 } else {
@@ -84,12 +90,18 @@ class BatchImportViewModel @Inject constructor(
                 }
 
                 _uiState.value = BatchImportUiState.Success(imageUris.size)
+                Log.d(TAG, "Batch import completed successfully")
             } catch (e: Exception) {
+                Log.e(TAG, "Error in queueBatchImport", e)
                 _uiState.value = BatchImportUiState.Error(
                     e.message ?: "Fehler beim Hinzufügen zur Warteschlange"
                 )
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "BatchImportViewModel"
     }
 
     fun resetState() {

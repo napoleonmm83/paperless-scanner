@@ -1,1 +1,1 @@
-Scan documents and upload directly to Paperless-ngx
+Scan documents and upload directly to your Paperless-ngx server

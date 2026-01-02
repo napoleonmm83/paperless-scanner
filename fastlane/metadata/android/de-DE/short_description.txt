@@ -1,1 +1,1 @@
-Dokumente scannen und direkt zu Paperless-ngx hochladen
+Scanne Dokumente und lade sie direkt zu deinem Paperless-ngx Server
