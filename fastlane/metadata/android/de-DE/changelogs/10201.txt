@@ -1,0 +1,5 @@
+Version 1.2.1 - Bugfix:
+
+- Behoben: Endlosschleife im Upload-Zähler
+- Notification zählt nicht mehr unkontrolliert hoch
+- Verbesserte Stabilität bei fehlgeschlagenen Uploads
