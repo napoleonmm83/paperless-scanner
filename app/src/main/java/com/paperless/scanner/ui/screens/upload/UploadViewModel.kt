@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -53,7 +54,7 @@ class UploadViewModel @Inject constructor(
             tagRepository.getTags()
                 .onSuccess { tagList ->
                     Log.d(TAG, "Tags loaded: ${tagList.size}")
-                    _tags.value = tagList.sortedBy { it.name.lowercase() }
+                    _tags.update { tagList.sortedBy { it.name.lowercase() } }
                 }
                 .onFailure { e ->
                     Log.e(TAG, "Failed to load tags", e)
@@ -67,7 +68,7 @@ class UploadViewModel @Inject constructor(
             documentTypeRepository.getDocumentTypes()
                 .onSuccess { types ->
                     Log.d(TAG, "Document types loaded: ${types.size}")
-                    _documentTypes.value = types.sortedBy { it.name.lowercase() }
+                    _documentTypes.update { types.sortedBy { it.name.lowercase() } }
                 }
                 .onFailure { e ->
                     Log.e(TAG, "Failed to load document types", e)
@@ -81,7 +82,7 @@ class UploadViewModel @Inject constructor(
             correspondentRepository.getCorrespondents()
                 .onSuccess { correspondentList ->
                     Log.d(TAG, "Correspondents loaded: ${correspondentList.size}")
-                    _correspondents.value = correspondentList.sortedBy { it.name.lowercase() }
+                    _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
                 }
                 .onFailure { e ->
                     Log.e(TAG, "Failed to load correspondents", e)
@@ -106,11 +107,11 @@ class UploadViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             // Check network availability
             if (!networkUtils.isNetworkAvailable()) {
-                _uiState.value = UploadUiState.Error("Keine Netzwerkverbindung")
+                _uiState.update { UploadUiState.Error("Keine Netzwerkverbindung") }
                 return@launch
             }
 
-            _uiState.value = UploadUiState.Uploading(0f)
+            _uiState.update { UploadUiState.Uploading(0f) }
 
             documentRepository.uploadDocument(
                 uri = uri,
@@ -119,17 +120,17 @@ class UploadViewModel @Inject constructor(
                 documentTypeId = documentTypeId,
                 correspondentId = correspondentId,
                 onProgress = { progress ->
-                    _uiState.value = UploadUiState.Uploading(progress)
+                    _uiState.update { UploadUiState.Uploading(progress) }
                 }
             )
                 .onSuccess { taskId ->
                     lastUploadParams = null
-                    _uiState.value = UploadUiState.Success(taskId)
+                    _uiState.update { UploadUiState.Success(taskId) }
                 }
                 .onFailure { exception ->
-                    _uiState.value = UploadUiState.Error(
-                        exception.message ?: "Upload fehlgeschlagen"
-                    )
+                    _uiState.update {
+                        UploadUiState.Error(exception.message ?: "Upload fehlgeschlagen")
+                    }
                 }
         }
     }
@@ -147,11 +148,11 @@ class UploadViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             // Check network availability
             if (!networkUtils.isNetworkAvailable()) {
-                _uiState.value = UploadUiState.Error("Keine Netzwerkverbindung")
+                _uiState.update { UploadUiState.Error("Keine Netzwerkverbindung") }
                 return@launch
             }
 
-            _uiState.value = UploadUiState.Uploading(0f)
+            _uiState.update { UploadUiState.Uploading(0f) }
 
             documentRepository.uploadMultiPageDocument(
                 uris = uris,
@@ -160,17 +161,17 @@ class UploadViewModel @Inject constructor(
                 documentTypeId = documentTypeId,
                 correspondentId = correspondentId,
                 onProgress = { progress ->
-                    _uiState.value = UploadUiState.Uploading(progress)
+                    _uiState.update { UploadUiState.Uploading(progress) }
                 }
             )
                 .onSuccess { taskId ->
                     lastUploadParams = null
-                    _uiState.value = UploadUiState.Success(taskId)
+                    _uiState.update { UploadUiState.Success(taskId) }
                 }
                 .onFailure { exception ->
-                    _uiState.value = UploadUiState.Error(
-                        exception.message ?: "Upload fehlgeschlagen"
-                    )
+                    _uiState.update {
+                        UploadUiState.Error(exception.message ?: "Upload fehlgeschlagen")
+                    }
                 }
         }
     }
@@ -200,32 +201,33 @@ class UploadViewModel @Inject constructor(
     fun canRetry(): Boolean = lastUploadParams != null
 
     fun resetState() {
-        _uiState.value = UploadUiState.Idle
+        _uiState.update { UploadUiState.Idle }
     }
 
     fun createTag(name: String, color: String? = null) {
         viewModelScope.launch(Dispatchers.IO) {
-            _createTagState.value = CreateTagState.Creating
+            _createTagState.update { CreateTagState.Creating }
 
             tagRepository.createTag(name = name, color = color)
                 .onSuccess { newTag ->
                     Log.d(TAG, "Tag created: ${newTag.name}")
                     // Add new tag to list and sort
-                    val updatedTags = (_tags.value + newTag).sortedBy { it.name.lowercase() }
-                    _tags.value = updatedTags
-                    _createTagState.value = CreateTagState.Success(newTag)
+                    _tags.update { currentTags ->
+                        (currentTags + newTag).sortedBy { it.name.lowercase() }
+                    }
+                    _createTagState.update { CreateTagState.Success(newTag) }
                 }
                 .onFailure { e ->
                     Log.e(TAG, "Failed to create tag", e)
-                    _createTagState.value = CreateTagState.Error(
-                        e.message ?: "Tag konnte nicht erstellt werden"
-                    )
+                    _createTagState.update {
+                        CreateTagState.Error(e.message ?: "Tag konnte nicht erstellt werden")
+                    }
                 }
         }
     }
 
     fun resetCreateTagState() {
-        _createTagState.value = CreateTagState.Idle
+        _createTagState.update { CreateTagState.Idle }
     }
 }
 

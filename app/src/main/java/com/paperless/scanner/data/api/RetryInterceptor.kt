@@ -4,6 +4,7 @@ import android.util.Log
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlin.math.pow
 
 class RetryInterceptor(
@@ -63,6 +64,11 @@ class RetryInterceptor(
         val delayMs = (initialDelayMs * 2.0.pow(attempt.toDouble())).toLong()
             .coerceAtMost(maxDelayMs)
         Log.d(TAG, "Waiting ${delayMs}ms before retry")
-        Thread.sleep(delayMs)
+        try {
+            TimeUnit.MILLISECONDS.sleep(delayMs)
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IOException("Retry interrupted", e)
+        }
     }
 }

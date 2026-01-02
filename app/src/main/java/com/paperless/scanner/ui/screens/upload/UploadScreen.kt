@@ -1,10 +1,7 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,26 +15,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -60,9 +50,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
-import androidx.compose.material3.Button
+import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
+import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
+import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadScreen(
     documentUri: Uri,
@@ -81,9 +73,7 @@ fun UploadScreen(
     var title by rememberSaveable { mutableStateOf("") }
     val selectedTagIds = remember { mutableStateListOf<Int>() }
     var selectedDocumentTypeId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var documentTypeExpanded by remember { mutableStateOf(false) }
     var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var correspondentExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadTags()
@@ -182,150 +172,36 @@ fun UploadScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Document Type Dropdown
-            Text(
-                text = "Dokumententyp",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp)
+            DocumentTypeDropdown(
+                documentTypes = documentTypes,
+                selectedId = selectedDocumentTypeId,
+                onSelect = { selectedDocumentTypeId = it }
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = documentTypeExpanded,
-                onExpandedChange = { documentTypeExpanded = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                OutlinedTextField(
-                    value = documentTypes.find { it.id == selectedDocumentTypeId }?.name ?: "Nicht ausgewählt",
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = documentTypeExpanded) },
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = documentTypeExpanded,
-                    onDismissRequest = { documentTypeExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Nicht ausgewählt") },
-                        onClick = {
-                            selectedDocumentTypeId = null
-                            documentTypeExpanded = false
-                        }
-                    )
-                    documentTypes.forEach { docType ->
-                        DropdownMenuItem(
-                            text = { Text(docType.name) },
-                            onClick = {
-                                selectedDocumentTypeId = docType.id
-                                documentTypeExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
             // Correspondent Dropdown
-            Text(
-                text = "Korrespondent",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp)
+            CorrespondentDropdown(
+                correspondents = correspondents,
+                selectedId = selectedCorrespondentId,
+                onSelect = { selectedCorrespondentId = it }
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = correspondentExpanded,
-                onExpandedChange = { correspondentExpanded = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                OutlinedTextField(
-                    value = correspondents.find { it.id == selectedCorrespondentId }?.name ?: "Nicht ausgewählt",
-                    onValueChange = {},
-                    readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = correspondentExpanded) },
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                        .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = correspondentExpanded,
-                    onDismissRequest = { correspondentExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Nicht ausgewählt") },
-                        onClick = {
-                            selectedCorrespondentId = null
-                            correspondentExpanded = false
-                        }
-                    )
-                    correspondents.forEach { correspondent ->
-                        DropdownMenuItem(
-                            text = { Text(correspondent.name) },
-                            onClick = {
-                                selectedCorrespondentId = correspondent.id
-                                correspondentExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             // Tags Section
-            Text(
-                text = "Tags auswählen",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Add new tag button
-                AssistChip(
-                    onClick = { showCreateTagDialog = true },
-                    label = { Text("Neu") },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(AssistChipDefaults.IconSize)
-                        )
+            TagSelectionSection(
+                tags = tags,
+                selectedTagIds = selectedTagIds.toSet(),
+                onToggleTag = { tagId ->
+                    if (selectedTagIds.contains(tagId)) {
+                        selectedTagIds.remove(tagId)
+                    } else {
+                        selectedTagIds.add(tagId)
                     }
-                )
-
-                tags.forEach { tag ->
-                    FilterChip(
-                        selected = selectedTagIds.contains(tag.id),
-                        onClick = {
-                            if (selectedTagIds.contains(tag.id)) {
-                                selectedTagIds.remove(tag.id)
-                            } else {
-                                selectedTagIds.add(tag.id)
-                            }
-                        },
-                        label = { Text(tag.name) }
-                    )
-                }
-            }
+                },
+                onCreateNew = { showCreateTagDialog = true }
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 

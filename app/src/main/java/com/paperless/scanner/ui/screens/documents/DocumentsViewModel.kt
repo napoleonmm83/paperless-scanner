@@ -11,9 +11,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentsUiState(
@@ -48,7 +50,7 @@ class DocumentsViewModel @Inject constructor(
 
     private fun loadInitialData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
             // Load tags and correspondents first for name lookups
             val tagsResult = tagRepository.getTags()
@@ -56,7 +58,7 @@ class DocumentsViewModel @Inject constructor(
 
             tagsResult.onSuccess { tags ->
                 tagMap = tags.associateBy { it.id }
-                _uiState.value = _uiState.value.copy(availableTags = tags)
+                _uiState.update { it.copy(availableTags = tags) }
             }
 
             correspondentsResult.onSuccess { correspondents ->
@@ -70,10 +72,11 @@ class DocumentsViewModel @Inject constructor(
 
     fun loadDocuments() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val query = _uiState.value.searchQuery.takeIf { it.isNotBlank() }
-            val tagIds = _uiState.value.activeTagFilter?.let { listOf(it) }
+            val currentState = _uiState.value
+            val query = currentState.searchQuery.takeIf { it.isNotBlank() }
+            val tagIds = currentState.activeTagFilter?.let { listOf(it) }
 
             documentRepository.getDocuments(
                 page = 1,
@@ -90,29 +93,34 @@ class DocumentsViewModel @Inject constructor(
                         tags = doc.tags.mapNotNull { tagMap[it]?.name }
                     )
                 }
-                _uiState.value = _uiState.value.copy(
-                    documents = allDocuments,
-                    isLoading = false,
-                    totalCount = response.count,
-                    currentPage = 1,
-                    hasMorePages = response.next != null
-                )
+                _uiState.update {
+                    it.copy(
+                        documents = allDocuments,
+                        isLoading = false,
+                        totalCount = response.count,
+                        currentPage = 1,
+                        hasMorePages = response.next != null
+                    )
+                }
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = error.message ?: "Fehler beim Laden"
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = error.message ?: "Fehler beim Laden"
+                    )
+                }
             }
         }
     }
 
     fun loadNextPage() {
-        if (_uiState.value.isLoading || !_uiState.value.hasMorePages) return
+        val currentState = _uiState.value
+        if (currentState.isLoading || !currentState.hasMorePages) return
 
         viewModelScope.launch {
-            val nextPage = _uiState.value.currentPage + 1
-            val query = _uiState.value.searchQuery.takeIf { it.isNotBlank() }
-            val tagIds = _uiState.value.activeTagFilter?.let { listOf(it) }
+            val nextPage = currentState.currentPage + 1
+            val query = currentState.searchQuery.takeIf { it.isNotBlank() }
+            val tagIds = currentState.activeTagFilter?.let { listOf(it) }
 
             documentRepository.getDocuments(
                 page = nextPage,
@@ -130,22 +138,24 @@ class DocumentsViewModel @Inject constructor(
                     )
                 }
                 allDocuments = allDocuments + newDocuments
-                _uiState.value = _uiState.value.copy(
-                    documents = allDocuments,
-                    currentPage = nextPage,
-                    hasMorePages = response.next != null
-                )
+                _uiState.update {
+                    it.copy(
+                        documents = allDocuments,
+                        currentPage = nextPage,
+                        hasMorePages = response.next != null
+                    )
+                }
             }
         }
     }
 
     fun search(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
+        _uiState.update { it.copy(searchQuery = query) }
         loadDocuments()
     }
 
     fun filterByTag(tagId: Int?) {
-        _uiState.value = _uiState.value.copy(activeTagFilter = tagId)
+        _uiState.update { it.copy(activeTagFilter = tagId) }
         loadDocuments()
     }
 
@@ -155,11 +165,11 @@ class DocumentsViewModel @Inject constructor(
 
     private fun formatDate(dateString: String): String {
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-            val date = inputFormat.parse(dateString)
-            date?.let { outputFormat.format(it) } ?: dateString
-        } catch (e: Exception) {
+            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
+            dateTime.format(outputFormatter)
+        } catch (e: DateTimeParseException) {
             dateString.take(10)
         }
     }

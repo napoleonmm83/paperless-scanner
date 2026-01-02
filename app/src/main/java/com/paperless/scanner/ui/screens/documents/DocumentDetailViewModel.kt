@@ -16,9 +16,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentDetailUiState(
@@ -65,7 +67,7 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun loadDocument() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
             // Load lookup data in parallel
             tagRepository.getTags().onSuccess { tags ->
@@ -83,39 +85,43 @@ class DocumentDetailViewModel @Inject constructor(
                 val serverUrl = tokenManager.serverUrl.first()?.removeSuffix("/") ?: ""
                 val token = tokenManager.token.first() ?: ""
 
-                _uiState.value = DocumentDetailUiState(
-                    id = doc.id,
-                    title = doc.title,
-                    content = doc.content,
-                    created = formatDate(doc.created),
-                    added = formatDate(doc.added),
-                    modified = formatDate(doc.modified),
-                    correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
-                    documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
-                    tags = doc.tags.mapNotNull { tagMap[it] },
-                    thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/",
-                    downloadUrl = "$serverUrl/api/documents/$documentId/download/",
-                    authToken = token,
-                    originalFileName = doc.originalFileName,
-                    archiveSerialNumber = doc.archiveSerialNumber,
-                    isLoading = false
-                )
+                _uiState.update {
+                    DocumentDetailUiState(
+                        id = doc.id,
+                        title = doc.title,
+                        content = doc.content,
+                        created = formatDate(doc.created),
+                        added = formatDate(doc.added),
+                        modified = formatDate(doc.modified),
+                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
+                        documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
+                        tags = doc.tags.mapNotNull { tagMap[it] },
+                        thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/",
+                        downloadUrl = "$serverUrl/api/documents/$documentId/download/",
+                        authToken = token,
+                        originalFileName = doc.originalFileName,
+                        archiveSerialNumber = doc.archiveSerialNumber,
+                        isLoading = false
+                    )
+                }
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = error.message ?: "Fehler beim Laden"
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = error.message ?: "Fehler beim Laden"
+                    )
+                }
             }
         }
     }
 
     private fun formatDate(dateString: String): String {
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("dd.MM.yyyy, HH:mm", Locale.GERMAN)
-            val date = inputFormat.parse(dateString)
-            date?.let { outputFormat.format(it) } ?: dateString
-        } catch (e: Exception) {
+            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm")
+            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
+            dateTime.format(outputFormatter)
+        } catch (e: DateTimeParseException) {
             dateString.take(10)
         }
     }

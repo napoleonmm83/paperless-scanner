@@ -9,15 +9,18 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.concurrent.TimeUnit
+import java.time.Duration
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentStat(
@@ -79,7 +82,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadDashboardData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
             // Load tags first for name lookup
             tagRepository.getTags().onSuccess { tags ->
@@ -91,13 +94,15 @@ class HomeViewModel @Inject constructor(
             val tasks = loadProcessingTasks()
             val untagged = countUntaggedFromRecent(recentDocs)
 
-            _uiState.value = HomeUiState(
-                stats = stats,
-                recentDocuments = recentDocs,
-                processingTasks = tasks,
-                untaggedCount = untagged,
-                isLoading = false
-            )
+            _uiState.update {
+                HomeUiState(
+                    stats = stats,
+                    recentDocuments = recentDocs,
+                    processingTasks = tasks,
+                    untaggedCount = untagged,
+                    isLoading = false
+                )
+            }
 
             // Start polling for task updates if there are pending tasks
             if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
@@ -106,37 +111,43 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private var isPolling = false
+    private var pollingJob: Job? = null
 
     private fun startTaskPolling() {
-        if (isPolling) return
-        isPolling = true
+        // Cancel existing job if any
+        if (pollingJob?.isActive == true) return
 
-        viewModelScope.launch {
-            while (isPolling) {
-                delay(3000) // Poll every 3 seconds
+        pollingJob = viewModelScope.launch {
+            while (isActive) {
+                delay(POLLING_INTERVAL_MS)
                 val tasks = loadProcessingTasks()
-                _uiState.value = _uiState.value.copy(processingTasks = tasks)
+                _uiState.update { it.copy(processingTasks = tasks) }
 
                 // Stop polling if no more pending tasks
                 if (tasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                    isPolling = false
                     // Refresh recent documents when all tasks complete
                     val recentDocs = loadRecentDocuments()
                     val stats = loadStats()
-                    _uiState.value = _uiState.value.copy(
-                        recentDocuments = recentDocs,
-                        stats = stats
-                    )
+                    _uiState.update { it.copy(recentDocuments = recentDocs, stats = stats) }
+                    break
                 }
             }
         }
     }
 
+    private fun stopTaskPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    companion object {
+        private const val POLLING_INTERVAL_MS = 3000L
+    }
+
     fun refreshTasks() {
         viewModelScope.launch {
             val tasks = loadProcessingTasks()
-            _uiState.value = _uiState.value.copy(processingTasks = tasks)
+            _uiState.update { it.copy(processingTasks = tasks) }
 
             if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
                 startTaskPolling()
@@ -146,9 +157,9 @@ class HomeViewModel @Inject constructor(
 
     fun acknowledgeTask(taskId: Int) {
         // Optimistic update - remove task from UI immediately
-        _uiState.value = _uiState.value.copy(
-            processingTasks = _uiState.value.processingTasks.filter { it.id != taskId }
-        )
+        _uiState.update { state ->
+            state.copy(processingTasks = state.processingTasks.filter { it.id != taskId })
+        }
 
         // Then acknowledge on server
         viewModelScope.launch {
@@ -238,14 +249,14 @@ class HomeViewModel @Inject constructor(
 
     private fun formatTimeAgo(dateString: String): String {
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val date = inputFormat.parse(dateString) ?: return "Gerade eben"
-            val now = Date()
-            val diffMs = now.time - date.time
+            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
+            val now = LocalDateTime.now()
+            val duration = Duration.between(dateTime, now)
 
-            val diffMinutes = TimeUnit.MILLISECONDS.toMinutes(diffMs)
-            val diffHours = TimeUnit.MILLISECONDS.toHours(diffMs)
-            val diffDays = TimeUnit.MILLISECONDS.toDays(diffMs)
+            val diffMinutes = duration.toMinutes()
+            val diffHours = duration.toHours()
+            val diffDays = duration.toDays()
 
             when {
                 diffMinutes < 1 -> "Gerade eben"
@@ -253,11 +264,11 @@ class HomeViewModel @Inject constructor(
                 diffHours < 24 -> "vor $diffHours Std."
                 diffDays < 7 -> "vor $diffDays Tag${if (diffDays > 1) "en" else ""}"
                 else -> {
-                    val outputFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-                    outputFormat.format(date)
+                    val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+                    dateTime.format(outputFormatter)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: DateTimeParseException) {
             "Unbekannt"
         }
     }

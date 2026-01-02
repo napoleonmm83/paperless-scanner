@@ -8,9 +8,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Locale
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class LabelsUiState(
@@ -38,7 +40,7 @@ class LabelsViewModel @Inject constructor(
 
     fun loadLabels() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isLoading = true, error = null) }
 
             tagRepository.getTags().onSuccess { tags ->
                 allLabels = tags.map { tag ->
@@ -50,29 +52,31 @@ class LabelsViewModel @Inject constructor(
                     )
                 }
 
-                _uiState.value = _uiState.value.copy(
-                    labels = allLabels,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        labels = allLabels,
+                        isLoading = false
+                    )
+                }
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = error.message ?: "Fehler beim Laden"
-                )
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = error.message ?: "Fehler beim Laden"
+                    )
+                }
             }
         }
     }
 
     fun search(query: String) {
-        _uiState.value = _uiState.value.copy(searchQuery = query)
-
         val filtered = if (query.isBlank()) {
             allLabels
         } else {
             allLabels.filter { it.name.contains(query, ignoreCase = true) }
         }
 
-        _uiState.value = _uiState.value.copy(labels = filtered)
+        _uiState.update { it.copy(searchQuery = query, labels = filtered) }
     }
 
     fun createLabel(name: String, color: Color) {
@@ -81,9 +85,9 @@ class LabelsViewModel @Inject constructor(
             tagRepository.createTag(name, colorHex).onSuccess {
                 loadLabels()
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    error = error.message ?: "Fehler beim Erstellen"
-                )
+                _uiState.update {
+                    it.copy(error = error.message ?: "Fehler beim Erstellen")
+                }
             }
         }
     }
@@ -94,9 +98,9 @@ class LabelsViewModel @Inject constructor(
             tagRepository.updateTag(id, name, colorHex).onSuccess {
                 loadLabels()
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    error = error.message ?: "Fehler beim Aktualisieren"
-                )
+                _uiState.update {
+                    it.copy(error = error.message ?: "Fehler beim Aktualisieren")
+                }
             }
         }
     }
@@ -105,18 +109,18 @@ class LabelsViewModel @Inject constructor(
         viewModelScope.launch {
             tagRepository.deleteTag(id).onSuccess {
                 allLabels = allLabels.filter { it.id != id }
-                _uiState.value = _uiState.value.copy(labels = allLabels)
+                _uiState.update { it.copy(labels = allLabels) }
             }.onFailure { error ->
-                _uiState.value = _uiState.value.copy(
-                    error = error.message ?: "Fehler beim Löschen"
-                )
+                _uiState.update {
+                    it.copy(error = error.message ?: "Fehler beim Löschen")
+                }
             }
         }
     }
 
     fun loadDocumentsForLabel(labelId: Int) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoadingDocuments = true)
+            _uiState.update { it.copy(isLoadingDocuments = true) }
 
             tagRepository.getDocumentsForTag(labelId).onSuccess { documents ->
                 val labelDocs = documents.map { doc ->
@@ -127,26 +131,30 @@ class LabelsViewModel @Inject constructor(
                         pageCount = 1 // API doesn't provide page count
                     )
                 }
-                _uiState.value = _uiState.value.copy(
-                    documentsForLabel = labelDocs,
-                    isLoadingDocuments = false
-                )
+                _uiState.update {
+                    it.copy(
+                        documentsForLabel = labelDocs,
+                        isLoadingDocuments = false
+                    )
+                }
             }.onFailure {
-                _uiState.value = _uiState.value.copy(
-                    documentsForLabel = emptyList(),
-                    isLoadingDocuments = false
-                )
+                _uiState.update {
+                    it.copy(
+                        documentsForLabel = emptyList(),
+                        isLoadingDocuments = false
+                    )
+                }
             }
         }
     }
 
     private fun formatDate(dateString: String): String {
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val outputFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
-            val date = inputFormat.parse(dateString)
-            date?.let { outputFormat.format(it) } ?: dateString
-        } catch (e: Exception) {
+            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
+            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
+            dateTime.format(outputFormatter)
+        } catch (e: DateTimeParseException) {
             dateString.take(10)
         }
     }
