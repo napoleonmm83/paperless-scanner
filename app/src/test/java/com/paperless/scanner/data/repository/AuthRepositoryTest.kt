@@ -4,7 +4,7 @@ import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -36,7 +36,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login success returns token and saves credentials`() = runTest {
+    fun `login success returns token and saves credentials`() = runBlocking {
         val expectedToken = "test-token-12345"
         mockWebServer.enqueue(
             MockResponse()
@@ -58,7 +58,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with trailing slash normalizes url`() = runTest {
+    fun `login with trailing slash normalizes url`() = runBlocking {
         val expectedToken = "test-token"
         mockWebServer.enqueue(
             MockResponse()
@@ -74,7 +74,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login failure returns error with status code`() = runTest {
+    fun `login failure returns error with status code`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(401)
@@ -89,7 +89,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with empty token returns failure`() = runTest {
+    fun `login with empty token returns failure`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -104,7 +104,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with missing token field returns failure`() = runTest {
+    fun `login with missing token field returns failure`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -119,7 +119,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with network error returns failure`() = runTest {
+    fun `login with network error returns failure`() = runBlocking {
         mockWebServer.shutdown()
 
         val result = authRepository.login("http://localhost:9999", "user", "pass")
@@ -128,7 +128,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `logout clears credentials`() = runTest {
+    fun `logout clears credentials`() = runBlocking {
         coEvery { tokenManager.clearCredentials() } returns Unit
 
         authRepository.logout()
