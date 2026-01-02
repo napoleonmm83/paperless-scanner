@@ -50,65 +50,114 @@
   - 12 Farben zur Auswahl
   - Automatisches Hinzufügen zur Auswahl
 
+- [x] **Offline-Queue**
+  - Dokumente offline scannen
+  - Room Database für Persistenz
+  - Queue-Übersicht im UI
+
+- [x] **Hintergrund-Upload**
+  - WorkManager Integration
+  - Automatischer Retry bei Fehlern
+  - Fortschrittsanzeige
+
+- [x] **Benachrichtigungen**
+  - Upload-Fortschritt in Notification
+  - Erfolgs-/Fehlermeldungen
+  - Throttling für bessere UX
+
+- [x] **Home Screen Widget**
+  - Quick-Scan Button
+  - Ausstehende Uploads anzeigen
+  - Glance AppWidget
+
+- [x] **Galerie-Import**
+  - Bilder aus Galerie wählen
+  - Batch-Upload mehrerer Bilder
+  - Upload-Modus: Einzeln oder als ein Dokument
+
+---
+
+## Version 1.1.6 - Aktuell
+
+**Release:** 2026-01-02
+
 ### Verbesserungen
 
-- [ ] Bessere Fehlerbehandlung
-- [ ] Retry bei Netzwerkfehlern
-- [ ] Upload-Fortschrittsanzeige (Prozent)
-- [ ] Verbesserte Bildkompression
+- [x] **Batch Import Upload-Modus**
+  - Auswahl: Einzeln oder als ein PDF
+  - SegmentedButtonRow UI
+
+- [x] **CI/CD Pipeline**
+  - GitHub Actions für Build & Test
+  - Lint-Checks
+  - Automatische APK-Signierung
+
+- [x] **Play Store Deployment**
+  - Fastlane Integration
+  - Automatisches Deployment zu Internal/Production
+  - Metadata & Screenshots
+
+- [x] **ProGuard/R8 Optimierung**
+  - Gson TypeToken Fix für Release Builds
+  - Korrekte Keep-Rules
 
 ---
 
 ## Version 1.2.0 - Geplant
 
-**Ziel:** Q2 2026
+**Ziel:** Q1 2026
 
 ### Neue Features
 
-- [ ] **Offline-Queue**
-  - Dokumente offline scannen
-  - Automatischer Upload bei Netzwerk
-  - Queue-Übersicht
-
-- [ ] **Galerie-Import**
-  - Bilder aus Galerie wählen
-  - Batch-Upload mehrerer Bilder
-
 - [ ] **Benutzerdefinierte Felder**
-  - Custom Fields von Paperless
+  - Custom Fields von Paperless laden
   - Eingabe beim Upload
+  - Verschiedene Feldtypen unterstützen
+
+- [ ] **Share-Intent**
+  - Bilder von anderen Apps empfangen
+  - PDF-Dateien importieren
+  - Quick-Upload ohne App öffnen
+
+- [ ] **Verbesserte Bildvorschau**
+  - Zoom-Gesten
+  - Rotation
+  - Crop-Funktion
 
 ### Verbesserungen
 
-- [ ] Hintergrund-Upload (WorkManager)
-- [ ] Benachrichtigung bei Fertigstellung
-- [ ] Verbesserte Bildvorschau (Zoom, Rotate)
+- [ ] Upload-Fortschrittsanzeige (Prozent)
+- [ ] Verbesserte Bildkompression
+- [ ] Speicheroptimierung
 
 ---
 
 ## Version 1.3.0 - Geplant
 
-**Ziel:** Q3 2026
+**Ziel:** Q2 2026
 
 ### Neue Features
 
 - [ ] **Biometrische Authentifizierung**
   - Fingerprint / Face ID
   - Optional aktivierbar
-
-- [ ] **Quick-Scan Widget**
-  - Home Screen Widget
-  - Direkter Kamera-Zugriff
+  - App-Lock Funktion
 
 - [ ] **Dokumentensuche**
   - Volltextsuche in vorhandenen Dokumenten
   - Filter nach Tags, Typ, Datum
+  - Ergebnisvorschau
+
+- [ ] **Mehrsprachigkeit (i18n)**
+  - Englisch
+  - Deutsch
+  - Weitere Sprachen
 
 ### Verbesserungen
 
-- [ ] Speicheroptimierung
 - [ ] Schnellerer App-Start
 - [ ] Accessibility-Verbesserungen
+- [ ] Tablet-optimiertes Layout
 
 ---
 
@@ -136,7 +185,6 @@
 
 ### Plattform
 
-- [ ] Tablet-optimiertes Layout
 - [ ] Wear OS Companion (Quick-Status)
 
 ---
@@ -145,20 +193,29 @@
 
 ### Nice-to-Have
 
-- [ ] Share-Intent von anderen Apps
 - [ ] Automatischer Upload bei Foto
 - [ ] Ordner-Struktur in App
 - [ ] Export/Backup der App-Einstellungen
 - [ ] Themes (Custom Colors)
-- [ ] Sprach-Unterstützung (i18n)
 
 ### Technisch
 
-- [ ] CI/CD Pipeline (GitHub Actions)
-- [x] Automatische APK-Signierung (Release-Keystore)
-- [x] Play Store Deployment (Fastlane)
-- [ ] Crash-Reporting (Firebase)
+- [ ] Crash-Reporting (Firebase Crashlytics)
 - [ ] Analytics (opt-in)
+- [ ] End-to-End Tests (Espresso)
+
+---
+
+## Abgeschlossene Meilensteine
+
+| Version | Datum | Highlights |
+|---------|-------|------------|
+| 1.0.0 | 2026-01-01 | MVP: Scan, Upload, Tags |
+| 1.1.0 | 2026-01-02 | Multi-Page, Dokumenttypen, Korrespondenten |
+| 1.1.3 | 2026-01-02 | Erstes Play Store Release |
+| 1.1.4 | 2026-01-02 | Batch Import Upload-Modus |
+| 1.1.5 | 2026-01-02 | ProGuard Fix (Release Builds) |
+| 1.1.6 | 2026-01-02 | CI/CD Fixes, Lint-Korrekturen |
 
 ---
 
@@ -173,20 +230,20 @@
 | P2 | Could-Have, Verbesserung |
 | P3 | Won't-Have (this release) |
 
-### Aktuell höchste Priorität
+### Nächste Prioritäten
 
-1. ~~**Multi-Page Scan** (P1)~~ - ✅ Erledigt
-2. **Offline-Queue** (P1) - Kritisch für Mobile
-3. ~~**Dokumenttyp-Auswahl** (P1)~~ - ✅ Erledigt
-4. **Biometrische Auth** (P2) - Sicherheit
-5. **Galerie-Import** (P2) - Häufig angefragt
+1. **Share-Intent** (P1) - Häufig angefragt
+2. **Benutzerdefinierte Felder** (P1) - Paperless Feature
+3. **Biometrische Auth** (P2) - Sicherheit
+4. **Dokumentensuche** (P2) - Komfort
+5. **i18n** (P2) - Breitere Nutzerbasis
 
 ---
 
 ## Feedback
 
 Feature-Requests und Bugs:
-- GitHub Issues: `<repository>/issues`
-- Diskussionen: `<repository>/discussions`
+- GitHub Issues: https://github.com/napoleonmm83/paperless-scanner/issues
+- Diskussionen: https://github.com/napoleonmm83/paperless-scanner/discussions
 
 Bitte vor Erstellung prüfen, ob Feature bereits geplant oder als Issue vorhanden.
