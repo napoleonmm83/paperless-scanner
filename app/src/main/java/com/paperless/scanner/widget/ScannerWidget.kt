@@ -1,5 +1,8 @@
+@file:SuppressLint("RestrictedApi")
+
 package com.paperless.scanner.widget
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
