@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
 
                     val startDestination = if (token.isNullOrBlank()) {
-                        Screen.Login.route
+                        Screen.Welcome.route
                     } else {
                         Screen.Home.route
                     }

@@ -58,6 +58,35 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun loginWithToken(serverUrl: String, token: String) {
+        if (serverUrl.isBlank() || token.isBlank()) {
+            _uiState.value = LoginUiState.Error("Bitte alle Felder ausfüllen")
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = LoginUiState.Loading
+
+            try {
+                // Validate the token by trying to fetch something from the API
+                authRepository.validateToken(serverUrl, token)
+                    .onSuccess {
+                        tokenManager.saveCredentials(serverUrl, token)
+                        _uiState.value = LoginUiState.Success
+                    }
+                    .onFailure { exception ->
+                        _uiState.value = LoginUiState.Error(
+                            exception.message ?: "Token ungültig"
+                        )
+                    }
+            } catch (e: Exception) {
+                _uiState.value = LoginUiState.Error(
+                    e.message ?: "Verbindungsfehler"
+                )
+            }
+        }
+    }
+
     fun onBiometricSuccess() {
         _uiState.value = LoginUiState.Success
     }

@@ -20,6 +20,8 @@ class TokenManager(private val context: Context) {
         private val TOKEN_KEY = stringPreferencesKey("auth_token")
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
         private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
+        private val UPLOAD_NOTIFICATIONS_KEY = booleanPreferencesKey("upload_notifications")
+        private val UPLOAD_QUALITY_KEY = stringPreferencesKey("upload_quality")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -34,6 +36,14 @@ class TokenManager(private val context: Context) {
         preferences[BIOMETRIC_ENABLED_KEY] ?: false
     }
 
+    val uploadNotificationsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[UPLOAD_NOTIFICATIONS_KEY] ?: true
+    }
+
+    val uploadQuality: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[UPLOAD_QUALITY_KEY] ?: "auto"
+    }
+
     suspend fun saveCredentials(serverUrl: String, token: String) {
         context.dataStore.edit { preferences ->
             preferences[SERVER_URL_KEY] = serverUrl.trimEnd('/')
@@ -44,6 +54,18 @@ class TokenManager(private val context: Context) {
     suspend fun setBiometricEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[BIOMETRIC_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setUploadNotificationsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[UPLOAD_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    suspend fun setUploadQuality(quality: String) {
+        context.dataStore.edit { preferences ->
+            preferences[UPLOAD_QUALITY_KEY] = quality
         }
     }
 

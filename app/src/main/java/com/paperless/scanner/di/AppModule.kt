@@ -12,6 +12,7 @@ import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.Module
 import dagger.Provides
@@ -153,4 +154,10 @@ object AppModule {
     fun provideUploadQueueRepository(
         dao: PendingUploadDao
     ): UploadQueueRepository = UploadQueueRepository(dao)
+
+    @Provides
+    @Singleton
+    fun provideTaskRepository(
+        api: PaperlessApi
+    ): TaskRepository = TaskRepository(api)
 }

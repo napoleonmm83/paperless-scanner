@@ -11,8 +11,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
-import com.paperless.scanner.ui.screens.login.LoginScreen
+import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
+import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
+import com.paperless.scanner.ui.screens.onboarding.ServerSetupScreen
+import com.paperless.scanner.ui.screens.onboarding.SuccessScreen
+import com.paperless.scanner.ui.screens.onboarding.WelcomeScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
 
@@ -48,17 +52,61 @@ fun PaperlessNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(route = Screen.Login.route) {
-            LoginScreen(
+        // Onboarding flow
+        composable(route = Screen.Welcome.route) {
+            WelcomeScreen(
+                onContinue = {
+                    navController.navigate(Screen.ServerSetup.route)
+                }
+            )
+        }
+
+        composable(route = Screen.ServerSetup.route) {
+            ServerSetupScreen(
+                onBack = {
+                    navController.popBackStack()
+                },
+                onContinue = { serverUrl ->
+                    navController.navigate(Screen.Login.createRoute(serverUrl))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Login.route,
+            arguments = listOf(
+                navArgument("serverUrl") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val serverUrl = backStackEntry.arguments?.getString("serverUrl")?.let {
+                Uri.decode(it)
+            } ?: ""
+
+            OnboardingLoginScreen(
+                serverUrl = serverUrl,
+                onBack = {
+                    navController.popBackStack()
+                },
                 onLoginSuccess = {
+                    navController.navigate(Screen.Success.route) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(route = Screen.Success.route) {
+            SuccessScreen(
+                onComplete = {
                     if (sharedUris.isNotEmpty()) {
-                        // After login, go directly to BatchImport with shared content
                         navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Success.route) { inclusive = true }
                         }
                     } else {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Login.route) { inclusive = true }
+                            popUpTo(Screen.Success.route) { inclusive = true }
                         }
                     }
                 }
@@ -80,13 +128,32 @@ fun PaperlessNavGraph(
                     onBatchImport = { uris ->
                         navController.navigate(Screen.BatchImport.createRoute(uris))
                     },
+                    onDocumentClick = { documentId ->
+                        navController.navigate(Screen.DocumentDetail.createRoute(documentId))
+                    },
                     onLogout = {
-                        navController.navigate(Screen.Login.route) {
+                        navController.navigate(Screen.Welcome.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     }
                 )
             }
+        }
+
+        // Document Detail Screen
+        composable(
+            route = Screen.DocumentDetail.route,
+            arguments = listOf(
+                navArgument("documentId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            DocumentDetailScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
         }
 
         composable(

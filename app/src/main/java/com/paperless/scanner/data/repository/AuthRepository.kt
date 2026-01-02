@@ -47,6 +47,31 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    suspend fun validateToken(serverUrl: String, token: String): Result<Unit> {
+        return try {
+            val normalizedUrl = serverUrl.trimEnd('/')
+
+            // Try to fetch tags to validate the token
+            val request = Request.Builder()
+                .url("$normalizedUrl/api/tags/?page_size=1")
+                .header("Authorization", "Token $token")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else if (response.code == 401 || response.code == 403) {
+                Result.failure(Exception("Ungültiger Token"))
+            } else {
+                Result.failure(Exception("Serverfehler: ${response.code}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Verbindung fehlgeschlagen: ${e.message}"))
+        }
+    }
+
     suspend fun logout() {
         tokenManager.clearCredentials()
     }

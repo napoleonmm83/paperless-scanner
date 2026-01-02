@@ -11,11 +11,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class UploadQuality(val key: String, val displayName: String) {
+    AUTO("auto", "Automatisch"),
+    LOW("low", "Niedrig (schneller Upload)"),
+    MEDIUM("medium", "Mittel"),
+    HIGH("high", "Hoch (beste Qualität)")
+}
+
 data class SettingsUiState(
     val serverUrl: String = "",
     val isConnected: Boolean = false,
     val showUploadNotifications: Boolean = true,
-    val darkMode: Boolean = false
+    val uploadQuality: UploadQuality = UploadQuality.AUTO
 )
 
 @HiltViewModel
@@ -34,24 +41,31 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val serverUrl = tokenManager.serverUrl.first() ?: ""
             val token = tokenManager.token.first()
+            val uploadNotifications = tokenManager.uploadNotificationsEnabled.first()
+            val qualityKey = tokenManager.uploadQuality.first()
+            val quality = UploadQuality.entries.find { it.key == qualityKey } ?: UploadQuality.AUTO
 
             _uiState.value = SettingsUiState(
                 serverUrl = serverUrl,
                 isConnected = !token.isNullOrBlank(),
-                showUploadNotifications = true, // TODO: Store in DataStore
-                darkMode = false // TODO: Store in DataStore
+                showUploadNotifications = uploadNotifications,
+                uploadQuality = quality
             )
         }
     }
 
     fun setShowUploadNotifications(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(showUploadNotifications = enabled)
-        // TODO: Persist to DataStore
+        viewModelScope.launch {
+            tokenManager.setUploadNotificationsEnabled(enabled)
+        }
     }
 
-    fun setDarkMode(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(darkMode = enabled)
-        // TODO: Persist to DataStore and apply theme
+    fun setUploadQuality(quality: UploadQuality) {
+        _uiState.value = _uiState.value.copy(uploadQuality = quality)
+        viewModelScope.launch {
+            tokenManager.setUploadQuality(quality.key)
+        }
     }
 
     fun logout() {

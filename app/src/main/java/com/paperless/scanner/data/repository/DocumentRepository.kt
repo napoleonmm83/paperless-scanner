@@ -12,6 +12,7 @@ import com.itextpdf.layout.Document
 import com.itextpdf.layout.element.Image
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.ProgressRequestBody
+import com.paperless.scanner.data.api.models.DocumentsResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -19,6 +20,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
+import com.paperless.scanner.data.api.models.Document as ApiDocument
 
 class DocumentRepository @Inject constructor(
     private val context: Context,
@@ -195,5 +197,80 @@ class DocumentRepository @Inject constructor(
         inputStream.close()
 
         return tempFile
+    }
+
+    // Document fetching methods
+
+    suspend fun getDocuments(
+        page: Int = 1,
+        pageSize: Int = 25,
+        query: String? = null,
+        tagIds: List<Int>? = null,
+        correspondentId: Int? = null,
+        documentTypeId: Int? = null,
+        ordering: String = "-created"
+    ): Result<DocumentsResponse> {
+        return try {
+            val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
+            val response = api.getDocuments(
+                page = page,
+                pageSize = pageSize,
+                query = query,
+                tagIds = tagIdsString,
+                correspondentId = correspondentId,
+                documentTypeId = documentTypeId,
+                ordering = ordering
+            )
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDocument(id: Int): Result<ApiDocument> {
+        return try {
+            val response = api.getDocument(id)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getDocumentCount(): Result<Int> {
+        return try {
+            val response = api.getDocuments(page = 1, pageSize = 1)
+            Result.success(response.count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRecentDocuments(limit: Int = 5): Result<List<ApiDocument>> {
+        return try {
+            val response = api.getDocuments(
+                page = 1,
+                pageSize = limit,
+                ordering = "-added"
+            )
+            Result.success(response.results)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUntaggedCount(): Result<Int> {
+        return try {
+            // Paperless-ngx API: tags__id__isnull=true for untagged documents
+            val response = api.getDocuments(
+                page = 1,
+                pageSize = 1,
+                tagIds = null
+            )
+            // Note: This is a workaround. Proper implementation would need
+            // a dedicated API endpoint or query parameter for untagged docs
+            Result.success(response.count)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

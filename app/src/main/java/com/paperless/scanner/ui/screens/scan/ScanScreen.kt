@@ -160,6 +160,8 @@ fun ScanScreen(
                     onClear = { viewModel.clearPages() },
                     onUpload = {
                         val uris = viewModel.getPageUris()
+                        // Clear pages before navigating to upload
+                        viewModel.clearPages()
                         if (uris.size == 1) {
                             onDocumentScanned(uris.first())
                         } else {

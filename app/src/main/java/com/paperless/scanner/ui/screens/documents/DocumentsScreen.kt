@@ -23,7 +23,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -60,13 +59,12 @@ data class DocumentItem(
 
 @Composable
 fun DocumentsScreen(
+    onDocumentClick: (Int) -> Unit = {},
     viewModel: DocumentsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf<String?>(null) }
-
-    val filterOptions = listOf("Alle", "Rechnungen", "Verträge", "Steuer", "Versicherung")
+    var selectedTagId by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -84,7 +82,7 @@ fun DocumentsScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "${uiState.documents.size} Dokumente",
+                text = if (uiState.isLoading) "Lade..." else "${uiState.totalCount} Dokumente",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -135,7 +133,7 @@ fun DocumentsScreen(
             singleLine = true
         )
 
-        // Filter Chips
+        // Filter Chips - dynamically loaded from available tags
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -143,17 +141,37 @@ fun DocumentsScreen(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            filterOptions.forEach { filter ->
-                val isSelected = selectedFilter == filter || (filter == "Alle" && selectedFilter == null)
+            // "All" chip
+            FilterChip(
+                selected = selectedTagId == null,
+                onClick = {
+                    selectedTagId = null
+                    viewModel.filterByTag(null)
+                },
+                label = {
+                    Text(
+                        text = "Alle",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                )
+            )
+
+            // Dynamic tag chips
+            uiState.availableTags.take(10).forEach { tag ->
+                val isSelected = selectedTagId == tag.id
                 FilterChip(
                     selected = isSelected,
                     onClick = {
-                        selectedFilter = if (filter == "Alle") null else filter
-                        viewModel.filter(selectedFilter)
+                        selectedTagId = if (isSelected) null else tag.id
+                        viewModel.filterByTag(selectedTagId)
                     },
                     label = {
                         Text(
-                            text = filter,
+                            text = tag.name,
                             style = MaterialTheme.typography.labelMedium
                         )
                     },
@@ -211,7 +229,7 @@ fun DocumentsScreen(
                 items(uiState.documents) { document ->
                     DocumentCard(
                         document = document,
-                        onClick = { /* Navigate to document detail */ }
+                        onClick = { onDocumentClick(document.id) }
                     )
                 }
             }

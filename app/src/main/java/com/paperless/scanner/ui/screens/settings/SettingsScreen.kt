@@ -19,17 +19,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -58,6 +58,8 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var showLicensesDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -141,11 +143,10 @@ fun SettingsScreen(
 
         // Server Section
         SettingsSection(title = "Server") {
-            SettingsItem(
+            SettingsInfoItem(
                 icon = Icons.Filled.Cloud,
                 title = "Server-URL",
-                subtitle = uiState.serverUrl.ifEmpty { "Nicht konfiguriert" },
-                onClick = { /* Navigate to server config */ }
+                value = uiState.serverUrl.ifEmpty { "Nicht konfiguriert" }
             )
         }
 
@@ -159,40 +160,37 @@ fun SettingsScreen(
                 onCheckedChange = { viewModel.setShowUploadNotifications(it) }
             )
 
-            SettingsItem(
-                icon = Icons.Filled.Storage,
-                title = "Upload-Qualität",
-                subtitle = "Automatisch (basierend auf Bildgröße)",
-                onClick = { /* Configure quality */ }
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
             )
-        }
 
-        // Appearance Section
-        SettingsSection(title = "Darstellung") {
-            SettingsToggleItem(
-                icon = Icons.Filled.ColorLens,
-                title = "Dunkelmodus",
-                subtitle = "System-Einstellung folgen",
-                checked = uiState.darkMode,
-                onCheckedChange = { viewModel.setDarkMode(it) }
+            SettingsClickableItem(
+                icon = Icons.Filled.HighQuality,
+                title = "Upload-Qualität",
+                value = uiState.uploadQuality.displayName,
+                onClick = { showQualityDialog = true }
             )
         }
 
         // About Section
         SettingsSection(title = "Über") {
-            SettingsItem(
+            SettingsInfoItem(
                 icon = Icons.Filled.Info,
                 title = "App-Version",
-                subtitle = BuildConfig.VERSION_NAME,
-                showChevron = false,
-                onClick = { }
+                value = BuildConfig.VERSION_NAME
             )
 
-            SettingsItem(
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingsClickableItem(
                 icon = Icons.Filled.Description,
                 title = "Lizenzen",
-                subtitle = "Open Source Lizenzen",
-                onClick = { /* Show licenses */ }
+                value = "Open Source Lizenzen",
+                onClick = { showLicensesDialog = true }
             )
         }
 
@@ -259,6 +257,95 @@ fun SettingsScreen(
             }
         )
     }
+
+    // Quality Selection Dialog
+    if (showQualityDialog) {
+        AlertDialog(
+            onDismissRequest = { showQualityDialog = false },
+            title = { Text("Upload-Qualität") },
+            text = {
+                Column {
+                    UploadQuality.entries.forEach { quality ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setUploadQuality(quality)
+                                    showQualityDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = quality.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (quality == uiState.uploadQuality) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = "Ausgewählt",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQualityDialog = false }) {
+                    Text("Schliessen")
+                }
+            }
+        )
+    }
+
+    // Licenses Dialog
+    if (showLicensesDialog) {
+        AlertDialog(
+            onDismissRequest = { showLicensesDialog = false },
+            title = { Text("Open Source Lizenzen") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState())
+                ) {
+                    LicenseItem("Jetpack Compose", "Apache License 2.0")
+                    LicenseItem("Material 3", "Apache License 2.0")
+                    LicenseItem("Retrofit", "Apache License 2.0")
+                    LicenseItem("OkHttp", "Apache License 2.0")
+                    LicenseItem("Hilt", "Apache License 2.0")
+                    LicenseItem("MLKit Document Scanner", "Apache License 2.0")
+                    LicenseItem("Coil", "Apache License 2.0")
+                    LicenseItem("DataStore", "Apache License 2.0")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLicensesDialog = false }) {
+                    Text("Schliessen")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun LicenseItem(name: String, license: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = license,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 @Composable
@@ -295,11 +382,46 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsItem(
+private fun SettingsInfoItem(
     icon: ImageVector,
     title: String,
-    subtitle: String,
-    showChevron: Boolean = true,
+    value: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsClickableItem(
+    icon: ImageVector,
+    title: String,
+    value: String,
     onClick: () -> Unit
 ) {
     Row(
@@ -325,18 +447,9 @@ private fun SettingsItem(
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = subtitle,
+                text = value,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        if (showChevron) {
-            Icon(
-                imageVector = Icons.Filled.ChevronRight,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

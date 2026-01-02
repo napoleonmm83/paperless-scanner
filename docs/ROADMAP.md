@@ -77,7 +77,7 @@
 
 ---
 
-## Version 1.1.6 - Aktuell
+## Version 1.1.6 - Abgeschlossen
 
 **Release:** 2026-01-02
 
@@ -103,7 +103,64 @@
 
 ---
 
-## Version 1.2.0 - Geplant
+## Version 1.3.0 - Aktuell
+
+**Release:** 2026-01-02
+
+### Neue Features
+
+- [x] **Neues UI-Design mit Bottom Navigation**
+  - 5-Tab Navigation: Home, Dokumente, Scan, Labels, Einstellungen
+  - Moderne Pastel-Farbpalette
+  - Durchgängiges Material 3 Design
+
+- [x] **Home Dashboard**
+  - Dokumenten-Statistiken (Gesamt, Diesen Monat, Ausstehend)
+  - Schnellzugriff-Buttons für Scan und Dokumente
+  - Liste der zuletzt hinzugefügten Dokumente
+  - Task-Verarbeitung mit Live-Status
+  - Hinweis-Banner für ungetaggte Dokumente
+
+- [x] **Dokumenten-Übersicht**
+  - Vollständige Dokumentenliste mit Pagination
+  - Suche und Filter
+  - Pull-to-Refresh
+  - Unendliches Scrollen
+
+- [x] **Dokument-Detailansicht**
+  - Vollständige Dokumentinformationen
+  - Tags, Korrespondent, Dokumenttyp
+  - Direktlink zum Web-Interface
+
+- [x] **Labels/Tags-Verwaltung**
+  - Tags bearbeiten und löschen
+  - Farbauswahl (12 Farben)
+  - Dokumente pro Tag anzeigen
+
+- [x] **Einstellungen (vollständig funktional)**
+  - Server-URL Anzeige
+  - Upload-Benachrichtigungen Toggle
+  - Upload-Qualität Auswahl
+  - Open Source Lizenzen Dialog
+
+- [x] **Task-Tracking**
+  - Upload-Status in Echtzeit
+  - Automatisches Polling
+  - Bestätigen/Ausblenden von Tasks
+
+- [x] **Onboarding-Flow**
+  - 3-stufige Einführung für neue Benutzer
+
+### Verbesserungen
+
+- [x] Navigation-Fixes (Home-Button, Lifecycle-aware)
+- [x] Sofortige Navigation nach Upload
+- [x] Verzögerter Task-Refresh
+- [x] Höherer Kontrast für Task-Status
+
+---
+
+## Version 1.4.0 - Geplant
 
 **Ziel:** Q1 2026
 
@@ -132,7 +189,7 @@
 
 ---
 
-## Version 1.3.0 - Geplant
+## Version 1.5.0 - Geplant
 
 **Ziel:** Q2 2026
 
@@ -216,6 +273,7 @@
 | 1.1.4 | 2026-01-02 | Batch Import Upload-Modus |
 | 1.1.5 | 2026-01-02 | ProGuard Fix (Release Builds) |
 | 1.1.6 | 2026-01-02 | CI/CD Fixes, Lint-Korrekturen |
+| 1.3.0 | 2026-01-02 | Neues UI, Home Dashboard, Task-Tracking, Settings |
 
 ---
 
@@ -234,8 +292,8 @@
 
 1. **Benutzerdefinierte Felder** (P1) - Paperless Feature
 2. **Verbesserte Bildvorschau** (P1) - Zoom, Rotation, Crop
-3. **Biometrische Auth** (P2) - Sicherheit
-4. **Dokumentensuche** (P2) - Komfort
+3. **Volltextsuche** (P1) - Suche in Dokumenten
+4. **Biometrische Auth** (P2) - Sicherheit
 5. **i18n** (P2) - Breitere Nutzerbasis
 
 ---

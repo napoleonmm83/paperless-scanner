@@ -86,6 +86,7 @@ val labelColorOptions = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LabelsScreen(
+    onDocumentClick: (Int) -> Unit = {},
     viewModel: LabelsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -102,7 +103,8 @@ fun LabelsScreen(
         LabelDetailView(
             label = selectedLabel!!,
             documents = uiState.documentsForLabel,
-            onBack = { selectedLabel = null }
+            onBack = { selectedLabel = null },
+            onDocumentClick = onDocumentClick
         )
         return
     }
@@ -564,7 +566,8 @@ private fun CreateLabelSheet(
 private fun LabelDetailView(
     label: LabelItem,
     documents: List<LabelDocument>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDocumentClick: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize()
@@ -657,6 +660,7 @@ private fun LabelDetailView(
             ) {
                 items(documents, key = { it.id }) { doc ->
                     Card(
+                        onClick = { onDocumentClick(doc.id) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(

@@ -94,7 +94,7 @@ fun UploadScreen(
     LaunchedEffect(uiState) {
         when (uiState) {
             is UploadUiState.Success -> {
-                snackbarHostState.showSnackbar("Dokument erfolgreich hochgeladen!")
+                // Navigate immediately - don't wait for snackbar
                 onUploadSuccess()
             }
             is UploadUiState.Error -> {

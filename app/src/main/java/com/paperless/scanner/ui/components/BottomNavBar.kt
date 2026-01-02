@@ -5,32 +5,38 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.paperless.scanner.ui.navigation.Screen
 
 enum class NavItem(
@@ -41,9 +47,9 @@ enum class NavItem(
 ) {
     Home(Screen.Home, Icons.Filled.Home, Icons.Outlined.Home, "Home"),
     Documents(Screen.Documents, Icons.Filled.Description, Icons.Outlined.Description, "Dokumente"),
-    Scan(Screen.Scan, Icons.Filled.Add, Icons.Filled.Add, "Scannen"),
+    Scan(Screen.Scan, Icons.Filled.Add, Icons.Filled.Add, "Scan"),
     Labels(Screen.Labels, Icons.Filled.Tag, Icons.Outlined.Tag, "Labels"),
-    Settings(Screen.Settings, Icons.Filled.Person, Icons.Outlined.Person, "Profil")
+    Settings(Screen.Settings, Icons.Filled.Settings, Icons.Outlined.Settings, "Einstellungen")
 }
 
 @Composable
@@ -52,44 +58,34 @@ fun BottomNavBar(
     onNavigate: (Screen) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-        contentAlignment = Alignment.Center
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        shadowElevation = 8.dp
     ) {
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 8.dp,
-            modifier = Modifier.shadow(
-                elevation = 16.dp,
-                shape = RoundedCornerShape(50),
-                ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-            )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                NavItem.entries.forEach { item ->
-                    val isSelected = currentRoute == item.screen.route
-                    val isScanButton = item == NavItem.Scan
+            NavItem.entries.forEach { item ->
+                val isSelected = currentRoute == item.screen.route
+                val isScanButton = item == NavItem.Scan
 
-                    if (isScanButton) {
-                        // Central FAB-style button
-                        ScanNavButton(
-                            isSelected = isSelected,
-                            onClick = { onNavigate(item.screen) }
-                        )
-                    } else {
-                        // Regular nav buttons
-                        NavButton(
-                            item = item,
-                            isSelected = isSelected,
-                            onClick = { onNavigate(item.screen) }
-                        )
-                    }
+                if (isScanButton) {
+                    ScanNavButton(
+                        isSelected = isSelected,
+                        onClick = { onNavigate(item.screen) }
+                    )
+                } else {
+                    NavButton(
+                        item = item,
+                        isSelected = isSelected,
+                        onClick = { onNavigate(item.screen) }
+                    )
                 }
             }
         }
@@ -104,29 +100,35 @@ private fun NavButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    Box(
+    Column(
         modifier = Modifier
-            .size(44.dp)
             .clip(CircleShape)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.surface
-                else MaterialTheme.colorScheme.primary
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
+            )
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = if (isSelected) item.iconFilled else item.iconOutlined,
             contentDescription = item.label,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(24.dp),
             tint = if (isSelected)
-                MaterialTheme.colorScheme.onSurface
+                MaterialTheme.colorScheme.inverseOnSurface
             else
-                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f)
+        )
+        Text(
+            text = item.label,
+            fontSize = 10.sp,
+            textAlign = TextAlign.Center,
+            color = if (isSelected)
+                MaterialTheme.colorScheme.inverseOnSurface
+            else
+                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f),
+            maxLines = 1
         )
     }
 }
@@ -138,30 +140,39 @@ private fun ScanNavButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    Box(
+    Column(
         modifier = Modifier
-            .padding(horizontal = 4.dp)
-            .size(56.dp)
-            .clip(CircleShape)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.surface
-                else MaterialTheme.colorScheme.onPrimary
-            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
-        contentAlignment = Alignment.Center
+            )
+            .padding(horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Filled.Add,
-            contentDescription = "Scannen",
-            modifier = Modifier.size(28.dp),
-            tint = if (isSelected)
-                MaterialTheme.colorScheme.onSurface
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = "Scan",
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+        }
+        Text(
+            text = "Scan",
+            fontSize = 10.sp,
+            textAlign = TextAlign.Center,
+            color = if (isSelected)
+                MaterialTheme.colorScheme.inverseOnSurface
             else
-                MaterialTheme.colorScheme.primary
+                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f),
+            maxLines = 1
         )
     }
 }

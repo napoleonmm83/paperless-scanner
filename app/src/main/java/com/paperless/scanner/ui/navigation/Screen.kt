@@ -3,7 +3,15 @@ package com.paperless.scanner.ui.navigation
 import android.net.Uri
 
 sealed class Screen(val route: String) {
-    data object Login : Screen("login")
+    // Onboarding flow
+    data object Welcome : Screen("welcome")
+    data object ServerSetup : Screen("server-setup")
+    data object Login : Screen("login/{serverUrl}") {
+        fun createRoute(serverUrl: String): String {
+            return "login/${Uri.encode(serverUrl)}"
+        }
+    }
+    data object Success : Screen("success")
 
     // Main navigation screens (bottom nav)
     data object Home : Screen("home")
@@ -11,6 +19,13 @@ sealed class Screen(val route: String) {
     data object Scan : Screen("scan")
     data object Labels : Screen("labels")
     data object Settings : Screen("settings")
+
+    // Document detail
+    data object DocumentDetail : Screen("document/{documentId}") {
+        fun createRoute(documentId: Int): String {
+            return "document/$documentId"
+        }
+    }
 
     // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {

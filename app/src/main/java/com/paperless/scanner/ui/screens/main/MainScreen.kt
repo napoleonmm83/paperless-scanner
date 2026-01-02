@@ -2,15 +2,15 @@ package com.paperless.scanner.ui.screens.main
 
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import com.paperless.scanner.ui.components.BottomNavBar
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.screens.documents.DocumentsScreen
@@ -26,23 +26,22 @@ fun MainScreen(
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
     onBatchImport: (List<Uri>) -> Unit,
+    onDocumentClick: (Int) -> Unit,
     onLogout: () -> Unit
 ) {
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
             BottomNavBar(
                 currentRoute = currentRoute,
                 onNavigate = { screen ->
                     if (screen.route != currentRoute) {
                         navController.navigate(screen.route) {
-                            // Pop up to home to avoid building up a large back stack
+                            // Pop up to Home, keeping Home in the back stack
                             popUpTo(Screen.Home.route) {
-                                saveState = true
+                                inclusive = false
                             }
-                            // Avoid multiple copies of the same destination
                             launchSingleTop = true
-                            // Restore state when reselecting a previously selected item
-                            restoreState = true
                         }
                     }
                 }
@@ -52,6 +51,7 @@ fun MainScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
                 .padding(paddingValues)
         ) {
             when (currentRoute) {
@@ -61,15 +61,20 @@ fun MainScreen(
                     },
                     onNavigateToDocuments = {
                         navController.navigate(Screen.Documents.route)
-                    }
+                    },
+                    onDocumentClick = onDocumentClick
                 )
-                Screen.Documents.route -> DocumentsScreen()
+                Screen.Documents.route -> DocumentsScreen(
+                    onDocumentClick = onDocumentClick
+                )
                 Screen.Scan.route -> ScanScreen(
                     onDocumentScanned = onDocumentScanned,
                     onMultipleDocumentsScanned = onMultipleDocumentsScanned,
                     onBatchImport = onBatchImport
                 )
-                Screen.Labels.route -> LabelsScreen()
+                Screen.Labels.route -> LabelsScreen(
+                    onDocumentClick = onDocumentClick
+                )
                 Screen.Settings.route -> SettingsScreen(
                     onLogout = onLogout
                 )

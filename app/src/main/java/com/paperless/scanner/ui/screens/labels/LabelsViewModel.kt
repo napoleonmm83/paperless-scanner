@@ -9,12 +9,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 
 data class LabelsUiState(
     val labels: List<LabelItem> = emptyList(),
     val documentsForLabel: List<LabelDocument> = emptyList(),
     val isLoading: Boolean = true,
+    val isLoadingDocuments: Boolean = false,
+    val error: String? = null,
     val searchQuery: String = ""
 )
 
@@ -34,25 +38,27 @@ class LabelsViewModel @Inject constructor(
 
     fun loadLabels() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
-            try {
-                val tags = tagRepository.getTags()
-                allLabels = tags.getOrNull()?.map { tag ->
+            tagRepository.getTags().onSuccess { tags ->
+                allLabels = tags.map { tag ->
                     LabelItem(
                         id = tag.id,
                         name = tag.name,
                         color = parseColor(tag.color),
-                        documentCount = 0 // TODO: Fetch document count from API
+                        documentCount = tag.documentCount ?: 0
                     )
-                } ?: emptyList()
+                }
 
-                _uiState.value = LabelsUiState(
+                _uiState.value = _uiState.value.copy(
                     labels = allLabels,
                     isLoading = false
                 )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = error.message ?: "Fehler beim Laden"
+                )
             }
         }
     }
@@ -71,33 +77,77 @@ class LabelsViewModel @Inject constructor(
 
     fun createLabel(name: String, color: Color) {
         viewModelScope.launch {
-            try {
-                val colorHex = colorToHex(color)
-                tagRepository.createTag(name, colorHex)
+            val colorHex = colorToHex(color)
+            tagRepository.createTag(name, colorHex).onSuccess {
                 loadLabels()
-            } catch (e: Exception) {
-                // Handle error
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    error = error.message ?: "Fehler beim Erstellen"
+                )
             }
         }
     }
 
     fun updateLabel(id: Int, name: String, color: Color) {
-        // TODO: Implement update tag API
-        // For now, just reload labels
-        loadLabels()
+        viewModelScope.launch {
+            val colorHex = colorToHex(color)
+            tagRepository.updateTag(id, name, colorHex).onSuccess {
+                loadLabels()
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    error = error.message ?: "Fehler beim Aktualisieren"
+                )
+            }
+        }
     }
 
     fun deleteLabel(id: Int) {
-        // TODO: Implement delete tag API
-        // For now, remove locally
-        allLabels = allLabels.filter { it.id != id }
-        _uiState.value = _uiState.value.copy(labels = allLabels)
+        viewModelScope.launch {
+            tagRepository.deleteTag(id).onSuccess {
+                allLabels = allLabels.filter { it.id != id }
+                _uiState.value = _uiState.value.copy(labels = allLabels)
+            }.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    error = error.message ?: "Fehler beim Löschen"
+                )
+            }
+        }
     }
 
     fun loadDocumentsForLabel(labelId: Int) {
         viewModelScope.launch {
-            // TODO: Implement API call to fetch documents with this tag
-            _uiState.value = _uiState.value.copy(documentsForLabel = emptyList())
+            _uiState.value = _uiState.value.copy(isLoadingDocuments = true)
+
+            tagRepository.getDocumentsForTag(labelId).onSuccess { documents ->
+                val labelDocs = documents.map { doc ->
+                    LabelDocument(
+                        id = doc.id,
+                        title = doc.title,
+                        date = formatDate(doc.created),
+                        pageCount = 1 // API doesn't provide page count
+                    )
+                }
+                _uiState.value = _uiState.value.copy(
+                    documentsForLabel = labelDocs,
+                    isLoadingDocuments = false
+                )
+            }.onFailure {
+                _uiState.value = _uiState.value.copy(
+                    documentsForLabel = emptyList(),
+                    isLoadingDocuments = false
+                )
+            }
+        }
+    }
+
+    private fun formatDate(dateString: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("dd.MM.yyyy", Locale.GERMAN)
+            val date = inputFormat.parse(dateString)
+            date?.let { outputFormat.format(it) } ?: dateString
+        } catch (e: Exception) {
+            dateString.take(10)
         }
     }
 
