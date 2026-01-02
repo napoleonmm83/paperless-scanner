@@ -1,0 +1,5 @@
+Version 1.2.3 - Verbesserungen:
+
+- Automatische Cache-Bereinigung beim App-Start
+- Adaptive Bildkompression für schnellere Uploads
+- Reduzierte Speichernutzung
