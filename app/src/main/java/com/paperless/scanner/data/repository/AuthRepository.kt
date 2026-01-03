@@ -199,23 +199,36 @@ class AuthRepository @Inject constructor(
     suspend fun validateToken(serverUrl: String, token: String): Result<Unit> {
         return try {
             val normalizedUrl = serverUrl.trimEnd('/')
+            // Clean the token - remove any whitespace or line breaks from OCR
+            val cleanToken = token.trim().replace("\\s+".toRegex(), "")
+
+            Log.d(TAG, "Validating token (length: ${cleanToken.length}) against: $normalizedUrl")
 
             val request = Request.Builder()
                 .url("$normalizedUrl/api/tags/?page_size=1")
-                .header("Authorization", "Token $token")
+                .header("Authorization", "Token $cleanToken")
                 .get()
                 .build()
 
             val response = client.newCall(request).execute()
+            Log.d(TAG, "Token validation response: ${response.code}")
 
             if (response.isSuccessful) {
                 Result.success(Unit)
             } else {
-                Result.failure(PaperlessException.fromHttpCode(response.code))
+                // Provide better error message for token validation failures
+                val errorMessage = when (response.code) {
+                    401 -> "Schlüssel ungültig. Bitte prüfe, ob du den richtigen Schlüssel verwendest."
+                    403 -> "Zugriff verweigert. Dieser Schlüssel hat keine Berechtigung."
+                    else -> "Verbindung fehlgeschlagen (${response.code})"
+                }
+                Result.failure(PaperlessException.AuthError(response.code, errorMessage))
             }
         } catch (e: IOException) {
+            Log.e(TAG, "Token validation network error", e)
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
+            Log.e(TAG, "Token validation error", e)
             Result.failure(PaperlessException.from(e))
         }
     }

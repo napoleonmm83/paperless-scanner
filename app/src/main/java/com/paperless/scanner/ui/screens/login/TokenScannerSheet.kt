@@ -2,22 +2,23 @@ package com.paperless.scanner.ui.screens.login
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Matrix
 import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +31,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,11 +79,11 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "TokenScanner"
+private const val STABILITY_DELAY_MS = 500L
 
-@OptIn(ExperimentalMaterial3Api::class)
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TokenScannerSheet(
     onDismiss: () -> Unit,
@@ -109,21 +113,95 @@ fun TokenScannerSheet(
         }
     }
 
-    var isScanning by remember { mutableStateOf(true) }
+    var isProcessing by remember { mutableStateOf(false) }
     var foundToken by remember { mutableStateOf<String?>(null) }
     var scanStatus by remember { mutableStateOf("Positioniere den Schlüssel im Rahmen") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // Live detection state
+    var liveTokenDetected by remember { mutableStateOf(false) }
+    var detectedTokenCandidate by remember { mutableStateOf<String?>(null) }
+    var detectionStartTime by remember { mutableLongStateOf(0L) }
+    var shouldAutoCapture by remember { mutableStateOf(false) }
+
+    val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val textRecognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
-    val isProcessing = remember { AtomicBoolean(false) }
+
+    // Auto-capture when token is stable
+    LaunchedEffect(shouldAutoCapture) {
+        if (shouldAutoCapture && !isProcessing && foundToken == null) {
+            Log.d(TAG, "Auto-capture triggered after stability period")
+            isProcessing = true
+            scanStatus = "Erfasse hochauflösendes Foto..."
+
+            imageCapture.takePicture(
+                cameraExecutor,
+                object : ImageCapture.OnImageCapturedCallback() {
+                    @OptIn(ExperimentalGetImage::class)
+                    override fun onCaptureSuccess(imageProxy: ImageProxy) {
+                        val mediaImage = imageProxy.image
+                        if (mediaImage != null) {
+                            val image = InputImage.fromMediaImage(
+                                mediaImage,
+                                imageProxy.imageInfo.rotationDegrees
+                            )
+
+                            textRecognizer.process(image)
+                                .addOnSuccessListener { visionText ->
+                                    val tokens = extractTokens(visionText.text)
+                                    Log.d(TAG, "High-res OCR found tokens: $tokens")
+
+                                    if (tokens.isNotEmpty()) {
+                                        foundToken = tokens.first()
+                                        scanStatus = "Schlüssel gefunden!"
+                                        errorMessage = null
+                                    } else {
+                                        // Reset for another try
+                                        errorMessage = "Kein gültiger Schlüssel erkannt"
+                                        scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                        liveTokenDetected = false
+                                        detectedTokenCandidate = null
+                                        shouldAutoCapture = false
+                                    }
+                                    isProcessing = false
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e(TAG, "High-res OCR failed", e)
+                                    errorMessage = "Fehler bei der Erkennung"
+                                    isProcessing = false
+                                    liveTokenDetected = false
+                                    shouldAutoCapture = false
+                                }
+                        }
+                        imageProxy.close()
+                    }
+
+                    override fun onError(exception: ImageCaptureException) {
+                        Log.e(TAG, "Auto-capture failed", exception)
+                        errorMessage = "Aufnahme fehlgeschlagen"
+                        isProcessing = false
+                        liveTokenDetected = false
+                        shouldAutoCapture = false
+                    }
+                }
+            )
+        }
+    }
 
     // Auto-dismiss after token found
     LaunchedEffect(foundToken) {
         foundToken?.let { token ->
-            // Haptic feedback
             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-            delay(1500) // Show success state briefly
+            delay(1000)
             onTokenFound(token)
+        }
+    }
+
+    // Haptic feedback when token detected in live view
+    LaunchedEffect(liveTokenDetected) {
+        if (liveTokenDetected) {
+            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         }
     }
 
@@ -132,6 +210,13 @@ fun TokenScannerSheet(
             cameraExecutor.shutdown()
             textRecognizer.close()
         }
+    }
+
+    // ImageAnalysis for live token detection
+    val imageAnalysis = remember {
+        ImageAnalysis.Builder()
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .build()
     }
 
     ModalBottomSheet(
@@ -224,30 +309,41 @@ fun TokenScannerSheet(
                                 it.surfaceProvider = previewView.surfaceProvider
                             }
 
-                            // Image Analysis for live scanning
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .build()
-                                .also { analysis ->
-                                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                                        if (isScanning && foundToken == null && !isProcessing.getAndSet(true)) {
-                                            processImage(
-                                                imageProxy = imageProxy,
-                                                textRecognizer = textRecognizer,
-                                                onTokenFound = { token ->
-                                                    foundToken = token
-                                                    isScanning = false
-                                                    scanStatus = "Schlüssel gefunden!"
-                                                },
-                                                onProcessed = {
-                                                    isProcessing.set(false)
+                            // Set up live analysis for token detection
+                            imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                                processLiveFrame(
+                                    imageProxy = imageProxy,
+                                    textRecognizer = textRecognizer,
+                                    onTokenDetected = { candidate ->
+                                        if (!isProcessing && foundToken == null) {
+                                            if (candidate != null) {
+                                                if (detectedTokenCandidate == candidate) {
+                                                    // Same token detected again - check stability
+                                                    val elapsed = System.currentTimeMillis() - detectionStartTime
+                                                    if (elapsed >= STABILITY_DELAY_MS && !shouldAutoCapture) {
+                                                        Log.d(TAG, "Token stable for ${elapsed}ms, triggering capture")
+                                                        shouldAutoCapture = true
+                                                    }
+                                                } else {
+                                                    // New token candidate
+                                                    detectedTokenCandidate = candidate
+                                                    detectionStartTime = System.currentTimeMillis()
+                                                    liveTokenDetected = true
+                                                    scanStatus = "Schlüssel erkannt, halte still..."
+                                                    errorMessage = null
                                                 }
-                                            )
-                                        } else {
-                                            imageProxy.close()
+                                            } else {
+                                                // No token in frame
+                                                if (liveTokenDetected && !shouldAutoCapture) {
+                                                    liveTokenDetected = false
+                                                    detectedTokenCandidate = null
+                                                    scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                                }
+                                            }
                                         }
                                     }
-                                }
+                                )
+                            }
 
                             try {
                                 cameraProvider.unbindAll()
@@ -255,6 +351,7 @@ fun TokenScannerSheet(
                                     lifecycleOwner,
                                     CameraSelector.DEFAULT_BACK_CAMERA,
                                     preview,
+                                    imageCapture,
                                     imageAnalysis
                                 )
                             } catch (e: Exception) {
@@ -263,21 +360,35 @@ fun TokenScannerSheet(
                         }, ContextCompat.getMainExecutor(context))
                     }
 
-                    // Focus Frame Overlay
+                    // Focus Frame Overlay - green when token detected
                     ScannerOverlay(
-                        isSuccess = foundToken != null
+                        isSuccess = foundToken != null,
+                        isDetecting = liveTokenDetected && foundToken == null
                     )
 
-                    // Status indicator at bottom of scan area
+                    // Processing overlay
+                    if (isProcessing) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color.White)
+                        }
+                    }
+
+                    // Status indicator
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .offset(y = (-80).dp)
                             .background(
-                                color = if (foundToken != null) {
-                                    MaterialTheme.colorScheme.primaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                                color = when {
+                                    foundToken != null -> MaterialTheme.colorScheme.primaryContainer
+                                    liveTokenDetected -> MaterialTheme.colorScheme.tertiaryContainer
+                                    errorMessage != null -> MaterialTheme.colorScheme.errorContainer
+                                    else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                                 },
                                 shape = RoundedCornerShape(20.dp)
                             )
@@ -297,12 +408,13 @@ fun TokenScannerSheet(
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
                             Text(
-                                text = scanStatus,
+                                text = errorMessage ?: scanStatus,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = if (foundToken != null) {
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
+                                color = when {
+                                    foundToken != null -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    liveTokenDetected -> MaterialTheme.colorScheme.onTertiaryContainer
+                                    errorMessage != null -> MaterialTheme.colorScheme.onErrorContainer
+                                    else -> MaterialTheme.colorScheme.onSurface
                                 }
                             )
                         }
@@ -311,29 +423,141 @@ fun TokenScannerSheet(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Instructions
+                // Manual capture button (fallback)
+                IconButton(
+                    onClick = {
+                        isProcessing = true
+                        errorMessage = null
+                        scanStatus = "Text wird erkannt..."
+
+                        imageCapture.takePicture(
+                            cameraExecutor,
+                            object : ImageCapture.OnImageCapturedCallback() {
+                                @OptIn(ExperimentalGetImage::class)
+                                override fun onCaptureSuccess(imageProxy: ImageProxy) {
+                                    val mediaImage = imageProxy.image
+                                    if (mediaImage != null) {
+                                        val image = InputImage.fromMediaImage(
+                                            mediaImage,
+                                            imageProxy.imageInfo.rotationDegrees
+                                        )
+
+                                        textRecognizer.process(image)
+                                            .addOnSuccessListener { visionText ->
+                                                val tokens = extractTokens(visionText.text)
+                                                Log.d(TAG, "Manual capture found tokens: $tokens")
+
+                                                if (tokens.isNotEmpty()) {
+                                                    foundToken = tokens.first()
+                                                    scanStatus = "Schlüssel gefunden!"
+                                                    errorMessage = null
+                                                } else {
+                                                    errorMessage = "Kein Schlüssel erkannt"
+                                                    scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                                }
+                                                isProcessing = false
+                                            }
+                                            .addOnFailureListener { e ->
+                                                Log.e(TAG, "Text recognition failed", e)
+                                                errorMessage = "Fehler bei der Erkennung"
+                                                isProcessing = false
+                                            }
+                                    }
+                                    imageProxy.close()
+                                }
+
+                                override fun onError(exception: ImageCaptureException) {
+                                    Log.e(TAG, "Capture failed", exception)
+                                    errorMessage = "Aufnahme fehlgeschlagen"
+                                    isProcessing = false
+                                }
+                            }
+                        )
+                    },
+                    enabled = !isProcessing && foundToken == null,
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(
+                            if (isProcessing || foundToken != null) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Foto aufnehmen",
+                        tint = if (isProcessing || foundToken != null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onPrimary
+                        },
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
-                    text = "Halte die Kamera ruhig auf den Bildschirm mit dem Schlüssel",
+                    text = if (liveTokenDetected) {
+                        "Halte die Kamera ruhig - Automatische Erkennung läuft"
+                    } else {
+                        "Automatische Erkennung aktiv • Manuell tippen als Fallback"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
+/**
+ * Process live camera frame for quick token detection (low-res, fast).
+ */
+@OptIn(ExperimentalGetImage::class)
+private fun processLiveFrame(
+    imageProxy: ImageProxy,
+    textRecognizer: com.google.mlkit.vision.text.TextRecognizer,
+    onTokenDetected: (String?) -> Unit
+) {
+    val mediaImage = imageProxy.image
+    if (mediaImage != null) {
+        val image = InputImage.fromMediaImage(
+            mediaImage,
+            imageProxy.imageInfo.rotationDegrees
+        )
+
+        textRecognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                val tokens = extractTokensQuick(visionText.text)
+                onTokenDetected(tokens.firstOrNull())
+                imageProxy.close()
+            }
+            .addOnFailureListener {
+                onTokenDetected(null)
+                imageProxy.close()
+            }
+    } else {
+        imageProxy.close()
+    }
+}
+
 @Composable
 private fun ScannerOverlay(
-    isSuccess: Boolean
+    isSuccess: Boolean,
+    isDetecting: Boolean = false
 ) {
     val overlayColor = Color.Black.copy(alpha = 0.6f)
-    val frameColor = if (isSuccess) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        Color.White
+    val frameColor = when {
+        isSuccess -> Color(0xFF4CAF50) // Green - success
+        isDetecting -> Color(0xFF2196F3) // Blue - detecting
+        else -> Color.White // White - idle
     }
     val cornerRadius = 12.dp
 
@@ -341,9 +565,9 @@ private fun ScannerOverlay(
         val canvasWidth = size.width
         val canvasHeight = size.height
 
-        // Calculate scan window dimensions (centered, 80% width, aspect ratio for token)
+        // Calculate scan window dimensions (centered, 85% width, aspect ratio for token)
         val windowWidth = canvasWidth * 0.85f
-        val windowHeight = windowWidth * 0.25f // Token is usually wide and short
+        val windowHeight = windowWidth * 0.25f
         val windowLeft = (canvasWidth - windowWidth) / 2
         val windowTop = (canvasHeight - windowHeight) / 2
 
@@ -374,116 +598,93 @@ private fun ScannerOverlay(
             style = Stroke(width = 3.dp.toPx())
         )
 
-        // Draw corner accents for better visibility
+        // Draw corner accents
         val accentLength = 30.dp.toPx()
         val accentWidth = 4.dp.toPx()
 
-        // Top-left corner
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft, windowTop + cornerRadius.toPx()),
-            end = Offset(windowLeft, windowTop + cornerRadius.toPx() + accentLength),
-            strokeWidth = accentWidth
-        )
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + cornerRadius.toPx(), windowTop),
-            end = Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop),
-            strokeWidth = accentWidth
-        )
+        // Top-left
+        drawLine(frameColor, Offset(windowLeft, windowTop + cornerRadius.toPx()), Offset(windowLeft, windowTop + cornerRadius.toPx() + accentLength), accentWidth)
+        drawLine(frameColor, Offset(windowLeft + cornerRadius.toPx(), windowTop), Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop), accentWidth)
 
-        // Top-right corner
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx()),
-            end = Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx() + accentLength),
-            strokeWidth = accentWidth
-        )
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop),
-            end = Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop),
-            strokeWidth = accentWidth
-        )
+        // Top-right
+        drawLine(frameColor, Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx()), Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx() + accentLength), accentWidth)
+        drawLine(frameColor, Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop), Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop), accentWidth)
 
-        // Bottom-left corner
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx()),
-            end = Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx() - accentLength),
-            strokeWidth = accentWidth
-        )
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + cornerRadius.toPx(), windowTop + windowHeight),
-            end = Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop + windowHeight),
-            strokeWidth = accentWidth
-        )
+        // Bottom-left
+        drawLine(frameColor, Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx()), Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx() - accentLength), accentWidth)
+        drawLine(frameColor, Offset(windowLeft + cornerRadius.toPx(), windowTop + windowHeight), Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop + windowHeight), accentWidth)
 
-        // Bottom-right corner
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx()),
-            end = Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx() - accentLength),
-            strokeWidth = accentWidth
-        )
-        drawLine(
-            color = frameColor,
-            start = Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop + windowHeight),
-            end = Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop + windowHeight),
-            strokeWidth = accentWidth
-        )
-    }
-}
-
-private fun processImage(
-    imageProxy: ImageProxy,
-    textRecognizer: com.google.mlkit.vision.text.TextRecognizer,
-    onTokenFound: (String) -> Unit,
-    onProcessed: () -> Unit
-) {
-    val mediaImage = imageProxy.image
-    if (mediaImage != null) {
-        val image = InputImage.fromMediaImage(
-            mediaImage,
-            imageProxy.imageInfo.rotationDegrees
-        )
-
-        textRecognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                val tokens = extractTokens(visionText.text)
-                if (tokens.isNotEmpty()) {
-                    Log.d(TAG, "Found token: ${tokens.first()}")
-                    onTokenFound(tokens.first())
-                }
-                onProcessed()
-            }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "Text recognition failed", e)
-                onProcessed()
-            }
-            .addOnCompleteListener {
-                imageProxy.close()
-            }
-    } else {
-        imageProxy.close()
-        onProcessed()
+        // Bottom-right
+        drawLine(frameColor, Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx()), Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx() - accentLength), accentWidth)
+        drawLine(frameColor, Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop + windowHeight), Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop + windowHeight), accentWidth)
     }
 }
 
 /**
- * Extracts potential API tokens from recognized text.
- * Paperless-ngx tokens are 40 characters, alphanumeric (lowercase hex).
+ * Quick token detection for live preview (less strict, faster).
+ * Just checks if something token-like is visible.
  */
-private fun extractTokens(text: String): List<String> {
-    // Remove whitespace and newlines for better matching
+private fun extractTokensQuick(text: String): List<String> {
     val cleanText = text.replace("\\s+".toRegex(), "")
 
-    // Pattern for Paperless-ngx API tokens: 40 hex characters
-    val tokenPattern = "[a-fA-F0-9]{40}".toRegex()
+    // Look for any 40+ character hex-like sequence
+    val pattern = "[a-fA-F0-9OoIlLsSBbZzGg]{38,45}".toRegex()
+    return pattern.findAll(cleanText)
+        .map { it.value }
+        .filter { it.length >= 38 }
+        .distinct()
+        .toList()
+}
 
-    return tokenPattern.findAll(cleanText)
+/**
+ * Extracts potential API tokens from recognized text (high-res, accurate).
+ * Paperless-ngx tokens are 40 characters, lowercase hex.
+ * Handles common OCR errors like O/0, l/1/I, S/5, B/8, Z/2.
+ */
+private fun extractTokens(text: String): List<String> {
+    Log.d(TAG, "Raw OCR text: $text")
+
+    // Remove whitespace and newlines
+    val cleanText = text.replace("\\s+".toRegex(), "")
+
+    // First try exact hex match
+    val exactPattern = "[a-fA-F0-9]{40}".toRegex()
+    val exactMatches = exactPattern.findAll(cleanText)
         .map { it.value.lowercase() }
         .distinct()
         .toList()
+
+    if (exactMatches.isNotEmpty()) {
+        Log.d(TAG, "Found exact token match: ${exactMatches.first()}")
+        return exactMatches
+    }
+
+    // Try to find 40-char sequences and fix OCR errors
+    val fuzzyPattern = "[a-fA-F0-9OoIlLsSBbZzGg]{40,42}".toRegex()
+    val fuzzyMatches = fuzzyPattern.findAll(cleanText)
+        .map { fixOcrErrors(it.value) }
+        .filter { it.length == 40 && it.matches("[a-f0-9]{40}".toRegex()) }
+        .distinct()
+        .toList()
+
+    if (fuzzyMatches.isNotEmpty()) {
+        Log.d(TAG, "Found token after OCR correction: ${fuzzyMatches.first()}")
+    } else {
+        Log.d(TAG, "No token found in text (length: ${cleanText.length})")
+    }
+
+    return fuzzyMatches
+}
+
+/**
+ * Fixes common OCR errors in hex strings.
+ */
+private fun fixOcrErrors(text: String): String {
+    return text.lowercase()
+        .replace('o', '0')
+        .replace('i', '1')
+        .replace('l', '1')
+        .replace('s', '5')
+        .replace('z', '2')
+        .replace('g', '9')
 }
