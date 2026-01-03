@@ -7,6 +7,7 @@ import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +18,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +35,7 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -40,25 +45,37 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
@@ -154,16 +171,20 @@ fun ScanScreen(
                     uiState = uiState,
                     onAddMore = { startScanner() },
                     onRemovePage = { viewModel.removePage(it) },
+                    onRotatePage = { viewModel.rotatePage(it) },
                     onMovePage = { from, to -> viewModel.movePage(from, to) },
                     onClear = { viewModel.clearPages() },
                     onUpload = {
-                        val uris = viewModel.getPageUris()
-                        // Clear pages before navigating to upload
-                        viewModel.clearPages()
-                        if (uris.size == 1) {
-                            onDocumentScanned(uris.first())
-                        } else {
-                            onMultipleDocumentsScanned(uris)
+                        // Get rotated URIs in coroutine scope
+                        scope.launch {
+                            val uris = viewModel.getRotatedPageUris()
+                            // Clear pages before navigating to upload
+                            viewModel.clearPages()
+                            if (uris.size == 1) {
+                                onDocumentScanned(uris.first())
+                            } else {
+                                onMultipleDocumentsScanned(uris)
+                            }
                         }
                     }
                 )
@@ -318,19 +339,81 @@ private fun MultiPageContent(
     uiState: ScanUiState,
     onAddMore: () -> Unit,
     onRemovePage: (String) -> Unit,
+    onRotatePage: (String) -> Unit,
     onMovePage: (Int, Int) -> Unit,
     onClear: () -> Unit,
     onUpload: () -> Unit
 ) {
+    val isNearLimit = uiState.pageCount >= 18
+    val isAtLimit = uiState.pageCount >= MAX_PAGES
+    val progressColor = when {
+        uiState.pageCount >= 19 -> MaterialTheme.colorScheme.error
+        uiState.pageCount >= 15 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    // Preview dialog state
+    var previewPageIndex by remember { mutableStateOf<Int?>(null) }
+
+    // Show preview dialog
+    previewPageIndex?.let { index ->
+        PagePreviewDialog(
+            pages = uiState.pages,
+            initialPageIndex = index,
+            onDismiss = { previewPageIndex = null },
+            onRotate = onRotatePage,
+            onRemove = { pageId ->
+                onRemovePage(pageId)
+                // Close dialog if no pages left
+                if (uiState.pageCount <= 1) {
+                    previewPageIndex = null
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Page thumbnails
-        Text(
-            text = "${uiState.pageCount} Seite${if (uiState.pageCount != 1) "n" else ""} gescannt",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
+        // Page count header with progress
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${uiState.pageCount} / $MAX_PAGES Seiten",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (isNearLimit) {
+                    Text(
+                        text = if (isAtLimit) "Maximum erreicht" else "Fast voll",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (isAtLimit) MaterialTheme.colorScheme.error
+                               else MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LinearProgressIndicator(
+                progress = { uiState.pageCount.toFloat() / MAX_PAGES },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = progressColor,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = StrokeCap.Round
+            )
+        }
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
@@ -347,7 +430,9 @@ private fun MultiPageContent(
                     page = page,
                     index = index,
                     totalPages = uiState.pageCount,
+                    onClick = { previewPageIndex = index },
                     onRemove = { onRemovePage(page.id) },
+                    onRotate = { onRotatePage(page.id) },
                     onMoveLeft = {
                         if (index > 0) onMovePage(index, index - 1)
                     },
@@ -357,9 +442,11 @@ private fun MultiPageContent(
                 )
             }
 
-            // Add more button
-            item {
-                AddPageCard(onClick = onAddMore)
+            // Add more button (only show if not at limit)
+            if (!isAtLimit) {
+                item {
+                    AddPageCard(onClick = onAddMore)
+                }
             }
         }
 
@@ -393,6 +480,7 @@ private fun MultiPageContent(
             ) {
                 Button(
                     onClick = onAddMore,
+                    enabled = !isAtLimit,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp),
@@ -407,7 +495,7 @@ private fun MultiPageContent(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Weitere Seiten")
+                    Text(if (isAtLimit) "Maximum" else "Weitere Seiten")
                 }
 
                 OutlinedButton(
@@ -434,7 +522,9 @@ private fun PageThumbnail(
     page: ScannedPage,
     index: Int,
     totalPages: Int,
+    onClick: () -> Unit,
     onRemove: () -> Unit,
+    onRotate: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit
 ) {
@@ -451,7 +541,9 @@ private fun PageThumbnail(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(0.7f)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .rotate(page.rotation.toFloat())
+                        .clickable { onClick() },
                     contentScale = ContentScale.Crop
                 )
 
@@ -474,25 +566,50 @@ private fun PageThumbnail(
                     )
                 }
 
-                // Remove button
-                Box(
+                // Top right buttons (Rotate + Remove)
+                Row(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(28.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = CircleShape
-                        )
-                        .clickable { onRemove() },
-                    contentAlignment = Alignment.Center
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Entfernen",
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    // Rotate button
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = CircleShape
+                            )
+                            .clickable { onRotate() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RotateRight,
+                            contentDescription = "Drehen",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
+
+                    // Remove button
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = CircleShape
+                            )
+                            .clickable { onRemove() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Entfernen",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
 
@@ -566,5 +683,194 @@ private fun AddPageCard(onClick: () -> Unit) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PagePreviewDialog(
+    pages: List<ScannedPage>,
+    initialPageIndex: Int,
+    onDismiss: () -> Unit,
+    onRotate: (String) -> Unit,
+    onRemove: (String) -> Unit
+) {
+    val pagerState = rememberPagerState(
+        initialPage = initialPageIndex,
+        pageCount = { pages.size }
+    )
+    val scope = rememberCoroutineScope()
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.95f))
+        ) {
+            // Pager for swiping between pages
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { pageIndex ->
+                val page = pages[pageIndex]
+                ZoomableImage(
+                    uri = page.uri,
+                    rotation = page.rotation,
+                    contentDescription = "Seite ${page.pageNumber}"
+                )
+            }
+
+            // Top bar with close button and page indicator
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .align(Alignment.TopCenter),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Close button
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Schließen",
+                        tint = Color.White
+                    )
+                }
+
+                // Page indicator
+                Text(
+                    text = "${pagerState.currentPage + 1} / ${pages.size}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                // Spacer for symmetry
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+
+            // Bottom action buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .align(Alignment.BottomCenter),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+            ) {
+                // Rotate button
+                IconButton(
+                    onClick = {
+                        val currentPage = pages[pagerState.currentPage]
+                        onRotate(currentPage.id)
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RotateRight,
+                        contentDescription = "Drehen",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Delete button
+                IconButton(
+                    onClick = {
+                        val currentPage = pages[pagerState.currentPage]
+                        onRemove(currentPage.id)
+                        // If only one page left, close dialog
+                        if (pages.size <= 1) {
+                            onDismiss()
+                        } else {
+                            // Navigate to previous page if at end
+                            if (pagerState.currentPage >= pages.size - 1) {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(
+                                        (pagerState.currentPage - 1).coerceAtLeast(0)
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Löschen",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoomableImage(
+    uri: Uri,
+    rotation: Int,
+    contentDescription: String
+) {
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (scale * zoom).coerceIn(1f, 5f)
+                    if (scale > 1f) {
+                        offsetX += pan.x
+                        offsetY += pan.y
+                    } else {
+                        offsetX = 0f
+                        offsetY = 0f
+                    }
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = uri,
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offsetX,
+                    translationY = offsetY,
+                    rotationZ = rotation.toFloat()
+                ),
+            contentScale = ContentScale.Fit
+        )
     }
 }
