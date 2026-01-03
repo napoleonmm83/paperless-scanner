@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -338,7 +338,7 @@ fun LoginScreen(
                     trailingIcon = {
                         IconButton(onClick = { showTokenScanner = true }) {
                             Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
+                                imageVector = Icons.Default.CameraAlt,
                                 contentDescription = "Schlüssel scannen"
                             )
                         }
