@@ -17,7 +17,7 @@ sealed class PaperlessException(
      */
     data class NetworkError(
         val originalException: IOException,
-        override val message: String = "Netzwerkfehler: Überprüfe deine Internetverbindung"
+        override val message: String = originalException.message ?: "Netzwerkfehler: Überprüfe deine Internetverbindung"
     ) : PaperlessException(message, originalException)
 
     /**

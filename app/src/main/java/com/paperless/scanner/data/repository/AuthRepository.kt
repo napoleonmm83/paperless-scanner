@@ -78,15 +78,48 @@ class AuthRepository @Inject constructor(
 
         Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
 
-        // Prioritize specific errors
+        // Return the most specific error message
+        // Priority: specific errors > generic errors
+        val httpsMsg = httpsError?.message ?: ""
+        val httpMsg = httpError?.message ?: ""
+
         return when {
-            httpsError is PaperlessException.NetworkError &&
-                httpsError.message?.contains("nicht gefunden") == true -> Result.failure(httpsError)
-            httpError is PaperlessException.NetworkError &&
-                httpError.message?.contains("nicht gefunden") == true -> Result.failure(httpError)
+            // Server not found errors
+            httpsMsg.contains("nicht gefunden") -> Result.failure(httpsError!!)
+            httpMsg.contains("nicht gefunden") -> Result.failure(httpError!!)
+
+            // Not a Paperless server
+            httpsMsg.contains("Kein Paperless") -> Result.failure(httpsError!!)
+            httpMsg.contains("Kein Paperless") -> Result.failure(httpError!!)
+
+            // SSL specific errors (prefer these as they're actionable)
+            httpsMsg.contains("SSL") || httpsMsg.contains("Zertifikat") -> Result.failure(httpsError!!)
+
+            // Connection refused (server might be down)
+            httpsMsg.contains("abgelehnt") || httpMsg.contains("abgelehnt") -> {
+                Result.failure(PaperlessException.NetworkError(
+                    IOException("Verbindung abgelehnt. Prüfe ob der Server läuft und erreichbar ist.")
+                ))
+            }
+
+            // Timeout
+            httpsMsg.contains("Zeitüberschreitung") || httpMsg.contains("Zeitüberschreitung") -> {
+                Result.failure(PaperlessException.NetworkError(
+                    IOException("Zeitüberschreitung. Server ist nicht erreichbar oder zu langsam.")
+                ))
+            }
+
+            // Network issues
+            httpsMsg.contains("Netzwerk") || httpMsg.contains("Netzwerk") -> {
+                Result.failure(PaperlessException.NetworkError(
+                    IOException("Keine Netzwerkverbindung. Prüfe deine Internetverbindung.")
+                ))
+            }
+
+            // Fallback with more context
             else -> Result.failure(
                 PaperlessException.NetworkError(
-                    IOException("Server nicht erreichbar. Prüfe die Adresse und Internetverbindung.")
+                    IOException("Server nicht erreichbar unter \"$cleanHost\". Prüfe die Adresse und Netzwerkverbindung.")
                 )
             )
         }
@@ -97,34 +130,194 @@ class AuthRepository @Inject constructor(
         Log.d(TAG, "Trying $protocol: $url")
 
         return try {
-            val request = Request.Builder()
+            // First, try to verify this is actually a Paperless server
+            // by checking /api/ response for Paperless-specific endpoints
+            val apiRequest = Request.Builder()
                 .url("$url/api/")
-                .head()
+                .get()
+                .build()
+
+            detectionClient.newCall(apiRequest).execute().use { response ->
+                Log.d(TAG, "$protocol /api/ response: ${response.code}")
+
+                when (response.code) {
+                    in 200..299 -> {
+                        // Got a response - check if it's actually Paperless
+                        val body = response.body?.string() ?: ""
+                        if (isPaperlessApiResponse(body)) {
+                            Log.d(TAG, "$protocol - Verified as Paperless server")
+                            return Result.success(url)
+                        } else {
+                            Log.d(TAG, "$protocol - /api/ exists but not Paperless format")
+                            // Fall through to secondary check
+                        }
+                    }
+                    401, 403 -> {
+                        // Auth required at /api/ - verify with documents endpoint
+                        return verifyPaperlessWithDocumentsEndpoint(url, protocol)
+                    }
+                    404 -> {
+                        Log.d(TAG, "$protocol - /api/ not found")
+                        return Result.failure(PaperlessException.NetworkError(
+                            IOException("Kein Paperless-Server. Die /api/ Schnittstelle wurde nicht gefunden.")
+                        ))
+                    }
+                    502 -> {
+                        return Result.failure(PaperlessException.NetworkError(
+                            IOException("Server antwortet nicht (Bad Gateway). Ist Paperless gestartet?")
+                        ))
+                    }
+                    503 -> {
+                        return Result.failure(PaperlessException.NetworkError(
+                            IOException("Server vorübergehend nicht verfügbar. Bitte später erneut versuchen.")
+                        ))
+                    }
+                    504 -> {
+                        return Result.failure(PaperlessException.NetworkError(
+                            IOException("Server-Timeout. Der Server braucht zu lange zum Antworten.")
+                        ))
+                    }
+                    else -> {
+                        Log.d(TAG, "$protocol - Unexpected response: ${response.code}")
+                        // Fall through to secondary check
+                    }
+                }
+            }
+
+            // Secondary check: try /api/documents/ endpoint
+            // This is more specific to Paperless and should return 401 if it's Paperless
+            verifyPaperlessWithDocumentsEndpoint(url, protocol)
+
+        } catch (e: UnknownHostException) {
+            Log.e(TAG, "$protocol - Unknown host: ${e.message}")
+            val suggestion = if (host.contains(".local") || !host.contains(".")) {
+                "Server \"$host\" nicht gefunden. Prüfe, ob du im richtigen Netzwerk bist."
+            } else {
+                "Server \"$host\" nicht gefunden. Prüfe die Adresse auf Tippfehler."
+            }
+            Result.failure(PaperlessException.NetworkError(IOException(suggestion)))
+        } catch (e: SSLHandshakeException) {
+            Log.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(
+                IOException("SSL-Zertifikat ungültig oder abgelaufen. Prüfe die Server-Konfiguration.")
+            ))
+        } catch (e: SSLException) {
+            Log.d(TAG, "$protocol - SSL error: ${e.message}")
+            val message = e.message?.lowercase() ?: ""
+            val errorText = when {
+                message.contains("handshake") -> "SSL-Verbindung fehlgeschlagen. Server unterstützt möglicherweise kein HTTPS."
+                message.contains("certificate") -> "SSL-Zertifikat konnte nicht überprüft werden."
+                else -> "Sichere Verbindung nicht möglich. Prüfe die SSL-Konfiguration."
+            }
+            Result.failure(PaperlessException.NetworkError(IOException(errorText)))
+        } catch (e: SocketTimeoutException) {
+            Log.d(TAG, "$protocol - Timeout: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(
+                IOException("Zeitüberschreitung. Server antwortet nicht oder ist zu langsam.")
+            ))
+        } catch (e: ConnectException) {
+            Log.d(TAG, "$protocol - Connection refused: ${e.message}")
+            val message = e.message?.lowercase() ?: ""
+            val errorText = when {
+                message.contains("refused") -> "Verbindung abgelehnt. Läuft der Server auf diesem Port?"
+                message.contains("reset") -> "Verbindung zurückgesetzt. Der Server hat die Verbindung unterbrochen."
+                else -> "Verbindung fehlgeschlagen. Prüfe ob der Server läuft."
+            }
+            Result.failure(PaperlessException.NetworkError(IOException(errorText)))
+        } catch (e: IOException) {
+            Log.d(TAG, "$protocol - IO error: ${e.message}")
+            val message = e.message?.lowercase() ?: ""
+            val errorText = when {
+                message.contains("network") -> "Keine Netzwerkverbindung. Prüfe deine Internetverbindung."
+                message.contains("host") -> "Server-Adresse ungültig."
+                else -> "Verbindungsfehler: ${e.message ?: "Unbekannter Fehler"}"
+            }
+            Result.failure(PaperlessException.NetworkError(IOException(errorText)))
+        }
+    }
+
+    /**
+     * Checks if the API response body contains Paperless-specific endpoints.
+     * Paperless-ngx /api/ returns JSON with links to: documents, tags, correspondents, etc.
+     */
+    private fun isPaperlessApiResponse(body: String): Boolean {
+        if (body.isBlank()) return false
+
+        val lowerBody = body.lowercase()
+
+        // Check for multiple Paperless-specific API endpoints
+        val paperlessEndpoints = listOf(
+            "documents",
+            "tags",
+            "correspondents",
+            "document_types",
+            "saved_views"
+        )
+
+        // Must contain at least 3 of these endpoints to be considered Paperless
+        val matchCount = paperlessEndpoints.count { lowerBody.contains("\"$it\"") || lowerBody.contains("/$it/") }
+        Log.d(TAG, "Paperless endpoint match count: $matchCount")
+
+        return matchCount >= 3
+    }
+
+    /**
+     * Secondary verification using /api/documents/ endpoint.
+     * This endpoint is specific to Paperless and should return:
+     * - 401/403 if auth required (valid Paperless)
+     * - 200 with results array if public (valid Paperless)
+     * - 404 if not Paperless
+     */
+    private fun verifyPaperlessWithDocumentsEndpoint(url: String, protocol: String): Result<String> {
+        Log.d(TAG, "$protocol - Verifying with /api/documents/ endpoint")
+
+        return try {
+            val request = Request.Builder()
+                .url("$url/api/documents/?page_size=1")
+                .get()
                 .build()
 
             detectionClient.newCall(request).execute().use { response ->
-                // Any response (even 401/403/404) means server is reachable
-                Log.d(TAG, "$protocol successful: ${response.code}")
-                Result.success(url)
+                Log.d(TAG, "$protocol /api/documents/ response: ${response.code}")
+
+                when (response.code) {
+                    in 200..299 -> {
+                        // Check if response has Paperless document structure
+                        val body = response.body?.string() ?: ""
+                        if (body.contains("\"results\"") && (body.contains("\"count\"") || body.contains("\"id\""))) {
+                            Log.d(TAG, "$protocol - Verified as Paperless via documents endpoint")
+                            Result.success(url)
+                        } else {
+                            Log.d(TAG, "$protocol - /api/documents/ exists but wrong format")
+                            Result.failure(PaperlessException.NetworkError(
+                                IOException("Server hat eine /api/ Schnittstelle, aber es ist kein Paperless-ngx Server.")
+                            ))
+                        }
+                    }
+                    401, 403 -> {
+                        // Auth required - this is expected for Paperless
+                        Log.d(TAG, "$protocol - Verified as Paperless (auth required)")
+                        Result.success(url)
+                    }
+                    404 -> {
+                        Log.d(TAG, "$protocol - /api/documents/ not found - not Paperless")
+                        Result.failure(PaperlessException.NetworkError(
+                            IOException("Server hat eine /api/ Schnittstelle, aber es ist kein Paperless-ngx Server.")
+                        ))
+                    }
+                    else -> {
+                        Log.d(TAG, "$protocol - Unexpected documents response: ${response.code}")
+                        Result.failure(PaperlessException.NetworkError(
+                            IOException("Unerwartete Antwort vom Server (${response.code}). Ist dies ein Paperless-ngx Server?")
+                        ))
+                    }
+                }
             }
-        } catch (e: UnknownHostException) {
-            Log.e(TAG, "$protocol - Unknown host: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("Server nicht gefunden: $host")))
-        } catch (e: SSLHandshakeException) {
-            Log.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("SSL-Zertifikat ungültig")))
-        } catch (e: SSLException) {
-            Log.d(TAG, "$protocol - SSL error: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("SSL-Fehler")))
-        } catch (e: SocketTimeoutException) {
-            Log.d(TAG, "$protocol - Timeout: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("Zeitüberschreitung")))
-        } catch (e: ConnectException) {
-            Log.d(TAG, "$protocol - Connection refused: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("Verbindung abgelehnt")))
         } catch (e: IOException) {
-            Log.d(TAG, "$protocol - IO error: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(e))
+            Log.e(TAG, "$protocol - Documents endpoint check failed", e)
+            Result.failure(PaperlessException.NetworkError(
+                IOException("Verbindungsfehler bei der Server-Überprüfung.")
+            ))
         }
     }
 
