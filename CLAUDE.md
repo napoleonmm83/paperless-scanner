@@ -6,6 +6,14 @@ Android-Client für Paperless-ngx zum Scannen und Hochladen von Dokumenten.
 
 ---
 
+## Archon Projekt-Management
+
+**Archon Project ID:** `bf5f5402-7de2-4a5d-b4f2-5f18e2cd599a`
+
+Alle Tasks und Dokumentation werden in diesem Archon-Projekt verwaltet.
+
+---
+
 ## Projektkontext
 
 ### Tech Stack

@@ -157,7 +157,6 @@ class LoginViewModel @Inject constructor(
         }
 
         // Get URL from serverStatus (preferred), cached value, or use the passed serverUrl directly
-        // The passed serverUrl is already validated when coming from ServerSetupScreen
         val urlToUse = when (val status = _serverStatus.value) {
             is ServerStatus.Success -> status.url
             else -> detectedServerUrl ?: serverUrl.trimEnd('/')
@@ -169,29 +168,20 @@ class LoginViewModel @Inject constructor(
                 _uiState.value = LoginUiState.Loading
             }
 
-            try {
-                // Validate the token by trying to fetch something from the API
-                authRepository.validateToken(urlToUse, token)
-                    .onSuccess {
-                        tokenManager.saveCredentials(urlToUse, token)
-                        withContext(Dispatchers.Main) {
-                            _uiState.value = LoginUiState.Success
-                        }
+            authRepository.validateToken(urlToUse, token)
+                .onSuccess {
+                    tokenManager.saveCredentials(urlToUse, token)
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = LoginUiState.Success
                     }
-                    .onFailure { exception ->
-                        withContext(Dispatchers.Main) {
-                            _uiState.value = LoginUiState.Error(
-                                exception.message ?: "Token ungültig"
-                            )
-                        }
-                    }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _uiState.value = LoginUiState.Error(
-                        e.message ?: "Verbindungsfehler"
-                    )
                 }
-            }
+                .onFailure { exception ->
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = LoginUiState.Error(
+                            exception.message ?: "Token ungültig"
+                        )
+                    }
+                }
         }
     }
 
