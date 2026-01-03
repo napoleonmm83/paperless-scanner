@@ -29,6 +29,7 @@ mockk = "1.13.13"
 coroutinesTest = "1.9.0"
 turbine = "1.2.0"
 robolectric = "4.14.1"
+reorderable = "0.9.6"
 
 [libraries]
 # AndroidX Core
@@ -85,6 +86,9 @@ biometric = { group = "androidx.biometric", name = "biometric", version.ref = "b
 
 # Image Loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# Drag & Drop Reordering
+reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version.ref = "reorderable" }
 
 # MLKit Document Scanner
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }

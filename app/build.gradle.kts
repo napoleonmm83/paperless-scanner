@@ -159,6 +159,9 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // Drag & Drop Reordering
+    implementation(libs.reorderable)
+
     // MLKit Document Scanner
     implementation(libs.mlkit.document.scanner)
 

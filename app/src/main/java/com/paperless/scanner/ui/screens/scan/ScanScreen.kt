@@ -24,16 +24,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -71,12 +71,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorderAfterLongPress
+import org.burnoutcrew.reorderable.rememberReorderableLazyListState
+import org.burnoutcrew.reorderable.reorderable
 import coil.compose.AsyncImage
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
@@ -355,6 +362,25 @@ private fun MultiPageContent(
     // Preview dialog state
     var previewPageIndex by remember { mutableStateOf<Int?>(null) }
 
+    // Haptic feedback
+    val haptic = LocalHapticFeedback.current
+
+    // Reorderable state
+    val reorderableState = rememberReorderableLazyListState(
+        onMove = { from, to ->
+            // Adjust for the "Add" button at the end
+            val fromIndex = from.index
+            val toIndex = to.index
+            if (fromIndex < uiState.pageCount && toIndex < uiState.pageCount) {
+                onMovePage(fromIndex, toIndex)
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+        },
+        onDragEnd = { _, _ ->
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    )
+
     // Show preview dialog
     previewPageIndex?.let { index ->
         PagePreviewDialog(
@@ -386,11 +412,18 @@ private fun MultiPageContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${uiState.pageCount} / $MAX_PAGES Seiten",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Column {
+                    Text(
+                        text = "${uiState.pageCount} / $MAX_PAGES Seiten",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Gedrückt halten zum Sortieren",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 if (isNearLimit) {
                     Text(
                         text = if (isAtLimit) "Maximum erreicht" else "Fast voll",
@@ -416,35 +449,37 @@ private fun MultiPageContent(
         }
 
         LazyRow(
+            state = reorderableState.listState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
+                .reorderable(reorderableState)
         ) {
             itemsIndexed(
                 items = uiState.pages,
                 key = { _, page -> page.id }
             ) { index, page ->
-                PageThumbnail(
-                    page = page,
-                    index = index,
-                    totalPages = uiState.pageCount,
-                    onClick = { previewPageIndex = index },
-                    onRemove = { onRemovePage(page.id) },
-                    onRotate = { onRotatePage(page.id) },
-                    onMoveLeft = {
-                        if (index > 0) onMovePage(index, index - 1)
-                    },
-                    onMoveRight = {
-                        if (index < uiState.pageCount - 1) onMovePage(index, index + 1)
-                    }
-                )
+                ReorderableItem(
+                    reorderableState = reorderableState,
+                    key = page.id
+                ) { isDragging ->
+                    PageThumbnail(
+                        page = page,
+                        index = index,
+                        isDragging = isDragging,
+                        onClick = { previewPageIndex = index },
+                        onRemove = { onRemovePage(page.id) },
+                        onRotate = { onRotatePage(page.id) },
+                        modifier = Modifier.detectReorderAfterLongPress(reorderableState)
+                    )
+                }
             }
 
             // Add more button (only show if not at limit)
             if (!isAtLimit) {
-                item {
+                item(key = "add_button") {
                     AddPageCard(onClick = onAddMore)
                 }
             }
@@ -521,126 +556,121 @@ private fun MultiPageContent(
 private fun PageThumbnail(
     page: ScannedPage,
     index: Int,
-    totalPages: Int,
+    isDragging: Boolean,
     onClick: () -> Unit,
     onRemove: () -> Unit,
     onRotate: () -> Unit,
-    onMoveLeft: () -> Unit,
-    onMoveRight: () -> Unit
+    modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = Modifier.width(160.dp),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column {
-            Box {
-                AsyncImage(
-                    model = page.uri,
-                    contentDescription = "Seite ${page.pageNumber}",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(0.7f)
-                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                        .rotate(page.rotation.toFloat())
-                        .clickable { onClick() },
-                    contentScale = ContentScale.Crop
-                )
+    val elevation = if (isDragging) 8.dp else 2.dp
+    val scale = if (isDragging) 1.05f else 1f
 
-                // Page number badge
+    Card(
+        modifier = modifier
+            .width(160.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .zIndex(if (isDragging) 1f else 0f),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation)
+    ) {
+        Box {
+            AsyncImage(
+                model = page.uri,
+                contentDescription = "Seite ${page.pageNumber}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.7f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .rotate(page.rotation.toFloat())
+                    .clickable { onClick() },
+                contentScale = ContentScale.Crop
+            )
+
+            // Page number badge
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .size(28.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "${page.pageNumber}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+
+            // Top right buttons (Rotate + Remove)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Rotate button
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
                         .size(28.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.primaryContainer,
+                            color = MaterialTheme.colorScheme.secondaryContainer,
                             shape = CircleShape
-                        ),
+                        )
+                        .clickable { onRotate() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "${page.pageNumber}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    Icon(
+                        imageVector = Icons.Default.RotateRight,
+                        contentDescription = "Drehen",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
 
-                // Top right buttons (Rotate + Remove)
-                Row(
+                // Remove button
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .size(28.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = CircleShape
+                        )
+                        .clickable { onRemove() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Rotate button
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                shape = CircleShape
-                            )
-                            .clickable { onRotate() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.RotateRight,
-                            contentDescription = "Drehen",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                    }
-
-                    // Remove button
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.errorContainer,
-                                shape = CircleShape
-                            )
-                            .clickable { onRemove() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Entfernen",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Entfernen",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onErrorContainer
+                    )
                 }
             }
 
-            // Move buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                IconButton(
-                    onClick = onMoveLeft,
-                    enabled = index > 0,
-                    modifier = Modifier.size(36.dp)
+            // Drag indicator at bottom
+            if (!isDragging) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 4.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Nach links",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = onMoveRight,
-                    enabled = index < totalPages - 1,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "Nach rechts",
-                        modifier = Modifier.size(20.dp)
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = "Zum Sortieren gedrückt halten",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
