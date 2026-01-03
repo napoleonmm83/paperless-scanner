@@ -155,20 +155,44 @@ class AuthRepository @Inject constructor(
                     Result.failure(PaperlessException.ParseError("Token nicht in Antwort gefunden"))
                 }
             } else {
-                val errorBody = response.body?.string()
-                val exception = when (response.code) {
-                    401, 403 -> PaperlessException.AuthError(
-                        code = response.code,
-                        message = "Ungültige Anmeldedaten"
-                    )
-                    else -> PaperlessException.fromHttpCode(response.code, errorBody)
-                }
+                val errorBody = response.body?.string() ?: ""
+                val errorMessage = parseLoginError(errorBody, response.code)
+                val exception = PaperlessException.AuthError(
+                    code = response.code,
+                    message = errorMessage
+                )
                 Result.failure(exception)
             }
         } catch (e: IOException) {
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    /**
+     * Parses login error response and returns a user-friendly message
+     */
+    private fun parseLoginError(errorBody: String, responseCode: Int): String {
+        val lowerBody = errorBody.lowercase()
+
+        // Check for MFA/2FA related errors
+        return when {
+            lowerBody.contains("otp") ||
+            lowerBody.contains("mfa") ||
+            lowerBody.contains("totp") ||
+            lowerBody.contains("two-factor") ||
+            lowerBody.contains("2fa") ||
+            lowerBody.contains("authenticator") -> {
+                "Du hast eine zusätzliche Anmeldeschutz aktiviert. " +
+                "Bitte wechsle oben auf \"Schlüssel\" und melde dich mit deinem Zugangsschlüssel an."
+            }
+            responseCode == 401 || responseCode == 403 -> {
+                "Benutzername oder Passwort ist falsch"
+            }
+            else -> {
+                "Anmeldung fehlgeschlagen"
+            }
         }
     }
 

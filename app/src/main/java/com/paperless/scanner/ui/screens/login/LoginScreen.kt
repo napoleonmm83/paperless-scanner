@@ -168,7 +168,7 @@ fun LoginScreen(
                 Tab(
                     selected = selectedTabIndex == 1,
                     onClick = { selectedTabIndex = 1 },
-                    text = { Text("API-Token") }
+                    text = { Text("Schlüssel") }
                 )
             }
 
@@ -322,10 +322,10 @@ fun LoginScreen(
                 OutlinedTextField(
                     value = apiToken,
                     onValueChange = { apiToken = it },
-                    label = { Text("API-Token") },
-                    placeholder = { Text("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") },
+                    label = { Text("Zugangsschlüssel") },
+                    placeholder = { Text("Hier einfügen...") },
                     supportingText = {
-                        Text("Token findest du unter: Einstellungen → Mein Profil")
+                        Text("Findest du in Paperless unter: Einstellungen → Mein Profil")
                     },
                     leadingIcon = {
                         Icon(
@@ -354,7 +354,7 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "💡 Verwende einen API-Token wenn du 2FA aktiviert hast oder OAuth nutzt.",
+                    text = "Nutze diese Option, wenn du dich nicht mit Passwort anmelden kannst – zum Beispiel weil du eine zusätzliche Sicherheitsabfrage eingerichtet hast.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -385,7 +385,7 @@ fun LoginScreen(
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
-                        Text("Mit Token anmelden")
+                        Text("Anmelden")
                     }
                 }
             }
