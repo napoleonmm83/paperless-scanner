@@ -2,18 +2,22 @@ package com.paperless.scanner.ui.screens.login
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.util.Log
+import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,15 +26,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,7 +53,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ClipOp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -57,7 +73,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "TokenScanner"
 
@@ -68,6 +86,7 @@ fun TokenScannerSheet(
     onTokenFound: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -84,20 +103,29 @@ fun TokenScannerSheet(
         hasPermission = isGranted
     }
 
-    // Request permission on first show
     LaunchedEffect(Unit) {
         if (!hasPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    var isProcessing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var detectedTokens by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isScanning by remember { mutableStateOf(true) }
+    var foundToken by remember { mutableStateOf<String?>(null) }
+    var scanStatus by remember { mutableStateOf("Positioniere den Schlüssel im Rahmen") }
 
-    val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     val textRecognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+    val isProcessing = remember { AtomicBoolean(false) }
+
+    // Auto-dismiss after token found
+    LaunchedEffect(foundToken) {
+        foundToken?.let { token ->
+            // Haptic feedback
+            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            delay(1500) // Show success state briefly
+            onTokenFound(token)
+        }
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -134,15 +162,6 @@ fun TokenScannerSheet(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Halte die Kamera auf deinen Bildschirm, wo der Schlüssel angezeigt wird",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (!hasPermission) {
                 // Permission needed
                 Column(
@@ -176,15 +195,15 @@ fun TokenScannerSheet(
                     }
                 }
             } else {
-                // Camera Preview
+                // Camera Preview with Focus Frame
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                        .clip(RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Camera Preview
                     AndroidView(
                         factory = { ctx ->
                             PreviewView(ctx).apply {
@@ -205,13 +224,38 @@ fun TokenScannerSheet(
                                 it.surfaceProvider = previewView.surfaceProvider
                             }
 
+                            // Image Analysis for live scanning
+                            val imageAnalysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
+                                .also { analysis ->
+                                    analysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                                        if (isScanning && foundToken == null && !isProcessing.getAndSet(true)) {
+                                            processImage(
+                                                imageProxy = imageProxy,
+                                                textRecognizer = textRecognizer,
+                                                onTokenFound = { token ->
+                                                    foundToken = token
+                                                    isScanning = false
+                                                    scanStatus = "Schlüssel gefunden!"
+                                                },
+                                                onProcessed = {
+                                                    isProcessing.set(false)
+                                                }
+                                            )
+                                        } else {
+                                            imageProxy.close()
+                                        }
+                                    }
+                                }
+
                             try {
                                 cameraProvider.unbindAll()
                                 cameraProvider.bindToLifecycle(
                                     lifecycleOwner,
                                     CameraSelector.DEFAULT_BACK_CAMERA,
                                     preview,
-                                    imageCapture
+                                    imageAnalysis
                                 )
                             } catch (e: Exception) {
                                 Log.e(TAG, "Camera binding failed", e)
@@ -219,127 +263,211 @@ fun TokenScannerSheet(
                         }, ContextCompat.getMainExecutor(context))
                     }
 
-                    if (isProcessing) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)),
-                            contentAlignment = Alignment.Center
+                    // Focus Frame Overlay
+                    ScannerOverlay(
+                        isSuccess = foundToken != null
+                    )
+
+                    // Status indicator at bottom of scan area
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = (-80).dp)
+                            .background(
+                                color = if (foundToken != null) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                                },
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Text wird erkannt...",
-                                    color = MaterialTheme.colorScheme.onPrimary
+                            if (foundToken != null) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
                             }
+                            Text(
+                                text = scanStatus,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (foundToken != null) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Error message
-                errorMessage?.let { error ->
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // Detected tokens
-                if (detectedTokens.isNotEmpty()) {
-                    Text(
-                        text = "Gefundene Schlüssel:",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    detectedTokens.forEach { token ->
-                        Button(
-                            onClick = { onTokenFound(token) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "${token.take(8)}...${token.takeLast(8)}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                // Capture button
-                IconButton(
-                    onClick = {
-                        isProcessing = true
-                        errorMessage = null
-                        detectedTokens = emptyList()
-
-                        imageCapture.takePicture(
-                            cameraExecutor,
-                            object : ImageCapture.OnImageCapturedCallback() {
-                                override fun onCaptureSuccess(imageProxy: ImageProxy) {
-                                    val mediaImage = imageProxy.image
-                                    if (mediaImage != null) {
-                                        val image = InputImage.fromMediaImage(
-                                            mediaImage,
-                                            imageProxy.imageInfo.rotationDegrees
-                                        )
-
-                                        textRecognizer.process(image)
-                                            .addOnSuccessListener { visionText ->
-                                                val tokens = extractTokens(visionText.text)
-                                                Log.d(TAG, "Detected text: ${visionText.text}")
-                                                Log.d(TAG, "Found tokens: $tokens")
-
-                                                if (tokens.isNotEmpty()) {
-                                                    detectedTokens = tokens
-                                                    errorMessage = null
-                                                } else {
-                                                    errorMessage = "Kein Schlüssel gefunden. Versuche es nochmal."
-                                                }
-                                                isProcessing = false
-                                            }
-                                            .addOnFailureListener { e ->
-                                                Log.e(TAG, "Text recognition failed", e)
-                                                errorMessage = "Fehler bei der Texterkennung"
-                                                isProcessing = false
-                                            }
-                                    }
-                                    imageProxy.close()
-                                }
-
-                                override fun onError(exception: ImageCaptureException) {
-                                    Log.e(TAG, "Capture failed", exception)
-                                    errorMessage = "Aufnahme fehlgeschlagen"
-                                    isProcessing = false
-                                }
-                            }
-                        )
-                    },
-                    enabled = !isProcessing,
-                    modifier = Modifier
-                        .size(72.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Foto aufnehmen",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                // Instructions
+                Text(
+                    text = "Halte die Kamera ruhig auf den Bildschirm mit dem Schlüssel",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ScannerOverlay(
+    isSuccess: Boolean
+) {
+    val overlayColor = Color.Black.copy(alpha = 0.6f)
+    val frameColor = if (isSuccess) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color.White
+    }
+    val cornerRadius = 12.dp
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        // Calculate scan window dimensions (centered, 80% width, aspect ratio for token)
+        val windowWidth = canvasWidth * 0.85f
+        val windowHeight = windowWidth * 0.25f // Token is usually wide and short
+        val windowLeft = (canvasWidth - windowWidth) / 2
+        val windowTop = (canvasHeight - windowHeight) / 2
+
+        // Create path for the scan window
+        val scanWindowPath = Path().apply {
+            addRoundRect(
+                RoundRect(
+                    rect = Rect(
+                        offset = Offset(windowLeft, windowTop),
+                        size = Size(windowWidth, windowHeight)
+                    ),
+                    cornerRadius = CornerRadius(cornerRadius.toPx())
+                )
+            )
+        }
+
+        // Draw dark overlay with cutout
+        clipPath(scanWindowPath, clipOp = ClipOp.Difference) {
+            drawRect(color = overlayColor)
+        }
+
+        // Draw frame border
+        drawRoundRect(
+            color = frameColor,
+            topLeft = Offset(windowLeft, windowTop),
+            size = Size(windowWidth, windowHeight),
+            cornerRadius = CornerRadius(cornerRadius.toPx()),
+            style = Stroke(width = 3.dp.toPx())
+        )
+
+        // Draw corner accents for better visibility
+        val accentLength = 30.dp.toPx()
+        val accentWidth = 4.dp.toPx()
+
+        // Top-left corner
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft, windowTop + cornerRadius.toPx()),
+            end = Offset(windowLeft, windowTop + cornerRadius.toPx() + accentLength),
+            strokeWidth = accentWidth
+        )
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + cornerRadius.toPx(), windowTop),
+            end = Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop),
+            strokeWidth = accentWidth
+        )
+
+        // Top-right corner
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx()),
+            end = Offset(windowLeft + windowWidth, windowTop + cornerRadius.toPx() + accentLength),
+            strokeWidth = accentWidth
+        )
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop),
+            end = Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop),
+            strokeWidth = accentWidth
+        )
+
+        // Bottom-left corner
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx()),
+            end = Offset(windowLeft, windowTop + windowHeight - cornerRadius.toPx() - accentLength),
+            strokeWidth = accentWidth
+        )
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + cornerRadius.toPx(), windowTop + windowHeight),
+            end = Offset(windowLeft + cornerRadius.toPx() + accentLength, windowTop + windowHeight),
+            strokeWidth = accentWidth
+        )
+
+        // Bottom-right corner
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx()),
+            end = Offset(windowLeft + windowWidth, windowTop + windowHeight - cornerRadius.toPx() - accentLength),
+            strokeWidth = accentWidth
+        )
+        drawLine(
+            color = frameColor,
+            start = Offset(windowLeft + windowWidth - cornerRadius.toPx(), windowTop + windowHeight),
+            end = Offset(windowLeft + windowWidth - cornerRadius.toPx() - accentLength, windowTop + windowHeight),
+            strokeWidth = accentWidth
+        )
+    }
+}
+
+private fun processImage(
+    imageProxy: ImageProxy,
+    textRecognizer: com.google.mlkit.vision.text.TextRecognizer,
+    onTokenFound: (String) -> Unit,
+    onProcessed: () -> Unit
+) {
+    val mediaImage = imageProxy.image
+    if (mediaImage != null) {
+        val image = InputImage.fromMediaImage(
+            mediaImage,
+            imageProxy.imageInfo.rotationDegrees
+        )
+
+        textRecognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                val tokens = extractTokens(visionText.text)
+                if (tokens.isNotEmpty()) {
+                    Log.d(TAG, "Found token: ${tokens.first()}")
+                    onTokenFound(tokens.first())
+                }
+                onProcessed()
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Text recognition failed", e)
+                onProcessed()
+            }
+            .addOnCompleteListener {
+                imageProxy.close()
+            }
+    } else {
+        imageProxy.close()
+        onProcessed()
     }
 }
 
