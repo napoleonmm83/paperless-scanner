@@ -19,8 +19,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentStat(
@@ -224,17 +225,20 @@ class HomeViewModel @Inject constructor(
     private suspend fun loadProcessingTasks(): List<ProcessingTask> {
         val result = taskRepository.getUnacknowledgedTasks()
 
-        return result.getOrNull()?.map { task ->
-            ProcessingTask(
-                id = task.id,
-                taskId = task.taskId,
-                fileName = task.taskFileName ?: "Unbekanntes Dokument",
-                status = mapTaskStatus(task.status),
-                timeAgo = formatTimeAgo(task.dateCreated),
-                resultMessage = task.result,
-                documentId = task.relatedDocument?.toIntOrNull()
-            )
-        }?.sortedByDescending { it.id }?.take(10) ?: emptyList()
+        return result.getOrNull()
+            // Only show document processing tasks, not system tasks like train_classifier
+            ?.filter { task -> task.taskFileName != null }
+            ?.map { task ->
+                ProcessingTask(
+                    id = task.id,
+                    taskId = task.taskId,
+                    fileName = task.taskFileName ?: "Unbekanntes Dokument",
+                    status = mapTaskStatus(task.status),
+                    timeAgo = formatTimeAgo(task.dateCreated),
+                    resultMessage = task.result,
+                    documentId = task.relatedDocument?.toIntOrNull()
+                )
+            }?.sortedByDescending { it.id }?.take(10) ?: emptyList()
     }
 
     private fun mapTaskStatus(status: String): TaskStatus {
@@ -249,10 +253,13 @@ class HomeViewModel @Inject constructor(
 
     private fun formatTimeAgo(dateString: String): String {
         return try {
-            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
+            // API returns ISO 8601 timestamp with timezone offset (e.g., "2026-01-03T10:05:00.156005+01:00")
+            val zonedDateTime = ZonedDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+
+            // Convert to local timezone for comparison
+            val localDateTime = zonedDateTime.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
             val now = LocalDateTime.now()
-            val duration = Duration.between(dateTime, now)
+            val duration = Duration.between(localDateTime, now)
 
             val diffMinutes = duration.toMinutes()
             val diffHours = duration.toHours()
@@ -265,10 +272,10 @@ class HomeViewModel @Inject constructor(
                 diffDays < 7 -> "vor $diffDays Tag${if (diffDays > 1) "en" else ""}"
                 else -> {
                     val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                    dateTime.format(outputFormatter)
+                    localDateTime.format(outputFormatter)
                 }
             }
-        } catch (e: DateTimeParseException) {
+        } catch (e: Exception) {
             "Unbekannt"
         }
     }
