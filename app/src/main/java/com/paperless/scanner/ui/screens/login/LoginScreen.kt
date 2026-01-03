@@ -240,7 +240,11 @@ fun LoginScreen(
                 keyboardActions = KeyboardActions(
                     onDone = {
                         focusManager.clearFocus()
-                        if (serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()) {
+                        // Only login if server was successfully detected
+                        if (serverUrl.isNotBlank() &&
+                            username.isNotBlank() &&
+                            password.isNotBlank() &&
+                            serverStatus is ServerStatus.Success) {
                             viewModel.login(serverUrl, username, password)
                         }
                     }

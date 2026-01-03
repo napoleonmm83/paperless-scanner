@@ -82,11 +82,16 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        // Use cached detected URL or detect now
-        val urlToUse = detectedServerUrl
+        // Get URL from serverStatus (preferred) or cached value
+        val urlToUse = when (val status = _serverStatus.value) {
+            is ServerStatus.Success -> status.url
+            else -> detectedServerUrl
+        }
 
         if (urlToUse == null) {
-            _uiState.value = LoginUiState.Error("Server konnte nicht erkannt werden")
+            // Don't show snackbar error - the URL field already shows the status
+            // Just trigger a new detection
+            detectServer(serverUrl)
             return
         }
 
@@ -111,11 +116,15 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        // Use cached detected URL
-        val urlToUse = detectedServerUrl
+        // Get URL from serverStatus (preferred) or cached value
+        val urlToUse = when (val status = _serverStatus.value) {
+            is ServerStatus.Success -> status.url
+            else -> detectedServerUrl
+        }
 
         if (urlToUse == null) {
-            _uiState.value = LoginUiState.Error("Server konnte nicht erkannt werden")
+            // Don't show snackbar error - trigger detection instead
+            detectServer(serverUrl)
             return
         }
 
