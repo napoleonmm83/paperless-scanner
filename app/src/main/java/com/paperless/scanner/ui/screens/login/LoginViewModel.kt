@@ -121,16 +121,11 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        // Get URL from serverStatus (preferred) or cached value
+        // Get URL from serverStatus (preferred), cached value, or use the passed serverUrl directly
+        // The passed serverUrl is already validated when coming from ServerSetupScreen
         val urlToUse = when (val status = _serverStatus.value) {
             is ServerStatus.Success -> status.url
-            else -> detectedServerUrl
-        }
-
-        if (urlToUse == null) {
-            Log.d(TAG, "No detected URL, triggering detection")
-            onServerUrlChanged(serverUrl)
-            return
+            else -> detectedServerUrl ?: serverUrl.trimEnd('/')
         }
 
         Log.d(TAG, "Starting login with URL: $urlToUse")
@@ -161,16 +156,11 @@ class LoginViewModel @Inject constructor(
             return
         }
 
-        // Get URL from serverStatus (preferred) or cached value
+        // Get URL from serverStatus (preferred), cached value, or use the passed serverUrl directly
+        // The passed serverUrl is already validated when coming from ServerSetupScreen
         val urlToUse = when (val status = _serverStatus.value) {
             is ServerStatus.Success -> status.url
-            else -> detectedServerUrl
-        }
-
-        if (urlToUse == null) {
-            Log.d(TAG, "No detected URL for token login, triggering detection")
-            onServerUrlChanged(serverUrl)
-            return
+            else -> detectedServerUrl ?: serverUrl.trimEnd('/')
         }
 
         Log.d(TAG, "Starting token login with URL: $urlToUse")
