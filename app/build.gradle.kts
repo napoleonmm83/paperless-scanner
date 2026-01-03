@@ -162,6 +162,15 @@ dependencies {
     // MLKit Document Scanner
     implementation(libs.mlkit.document.scanner)
 
+    // MLKit Text Recognition (OCR)
+    implementation(libs.mlkit.text.recognition)
+
+    // CameraX
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+
     // PDF Generation
     implementation(libs.itext.kernel)
     implementation(libs.itext.io)

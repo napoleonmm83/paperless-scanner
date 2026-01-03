@@ -18,6 +18,8 @@ glance = "1.1.1"
 biometric = "1.2.0-alpha05"
 coil = "2.7.0"
 mlkitDocumentScanner = "16.0.0-beta1"
+mlkitTextRecognition = "16.0.1"
+cameraX = "1.4.1"
 itext = "9.0.0"
 ksp = "2.0.21-1.0.28"
 junit = "4.13.2"
@@ -86,6 +88,15 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # MLKit Document Scanner
 mlkit-document-scanner = { group = "com.google.android.gms", name = "play-services-mlkit-document-scanner", version.ref = "mlkitDocumentScanner" }
+
+# MLKit Text Recognition
+mlkit-text-recognition = { group = "com.google.mlkit", name = "text-recognition", version.ref = "mlkitTextRecognition" }
+
+# CameraX
+camerax-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+camerax-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+camerax-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+camerax-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
 
 # PDF Generation
 itext-kernel = { group = "com.itextpdf", name = "kernel", version.ref = "itext" }

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -76,6 +77,7 @@ fun LoginScreen(
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var apiToken by rememberSaveable { mutableStateOf("") }
     var selectedTabIndex by rememberSaveable { mutableStateOf(0) } // 0 = Password, 1 = Token
+    var showTokenScanner by remember { mutableStateOf(false) }
 
     // Pre-compute supporting text based on server status
     val serverSupportingText = when (serverStatus) {
@@ -333,6 +335,14 @@ fun LoginScreen(
                             contentDescription = null
                         )
                     },
+                    trailingIcon = {
+                        IconButton(onClick = { showTokenScanner = true }) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "Schlüssel scannen"
+                            )
+                        }
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
@@ -419,5 +429,16 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
         }
+    }
+
+    // Token Scanner Sheet
+    if (showTokenScanner) {
+        TokenScannerSheet(
+            onDismiss = { showTokenScanner = false },
+            onTokenFound = { token ->
+                apiToken = token
+                showTokenScanner = false
+            }
+        )
     }
 }
