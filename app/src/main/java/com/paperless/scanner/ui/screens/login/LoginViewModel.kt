@@ -44,9 +44,20 @@ class LoginViewModel @Inject constructor(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = LoginUiState.DetectingProtocol
+
+            // Auto-detect HTTP/HTTPS if no protocol specified
+            val detectedUrl = authRepository.detectServerProtocol(serverUrl)
+                .getOrElse { exception ->
+                    _uiState.value = LoginUiState.Error(
+                        exception.message ?: "Server nicht erreichbar"
+                    )
+                    return@launch
+                }
+
             _uiState.value = LoginUiState.Loading
 
-            authRepository.login(serverUrl, username, password)
+            authRepository.login(detectedUrl, username, password)
                 .onSuccess {
                     _uiState.value = LoginUiState.Success
                 }
@@ -65,13 +76,24 @@ class LoginViewModel @Inject constructor(
         }
 
         viewModelScope.launch(Dispatchers.IO) {
+            _uiState.value = LoginUiState.DetectingProtocol
+
+            // Auto-detect HTTP/HTTPS if no protocol specified
+            val detectedUrl = authRepository.detectServerProtocol(serverUrl)
+                .getOrElse { exception ->
+                    _uiState.value = LoginUiState.Error(
+                        exception.message ?: "Server nicht erreichbar"
+                    )
+                    return@launch
+                }
+
             _uiState.value = LoginUiState.Loading
 
             try {
                 // Validate the token by trying to fetch something from the API
-                authRepository.validateToken(serverUrl, token)
+                authRepository.validateToken(detectedUrl, token)
                     .onSuccess {
-                        tokenManager.saveCredentials(serverUrl, token)
+                        tokenManager.saveCredentials(detectedUrl, token)
                         _uiState.value = LoginUiState.Success
                     }
                     .onFailure { exception ->
@@ -111,6 +133,7 @@ class LoginViewModel @Inject constructor(
 
 sealed class LoginUiState {
     data object Idle : LoginUiState()
+    data object DetectingProtocol : LoginUiState()
     data object Loading : LoginUiState()
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()

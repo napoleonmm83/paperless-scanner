@@ -128,8 +128,9 @@ fun LoginScreen(
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
-                label = { Text("Server URL") },
-                placeholder = { Text("https://paperless.example.com") },
+                label = { Text("Server") },
+                placeholder = { Text("paperless.example.com") },
+                supportingText = { Text("HTTP/HTTPS wird automatisch erkannt") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
@@ -208,18 +209,32 @@ fun LoginScreen(
                 enabled = serverUrl.isNotBlank() &&
                         username.isNotBlank() &&
                         password.isNotBlank() &&
-                        uiState !is LoginUiState.Loading,
+                        uiState !is LoginUiState.Loading &&
+                        uiState !is LoginUiState.DetectingProtocol,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                if (uiState is LoginUiState.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Login")
+                when (uiState) {
+                    is LoginUiState.DetectingProtocol -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Server wird gesucht...")
+                    }
+                    is LoginUiState.Loading -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text("Anmelden...")
+                    }
+                    else -> {
+                        Text("Login")
+                    }
                 }
             }
 
