@@ -13,7 +13,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -26,10 +28,12 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,6 +64,7 @@ fun LoginScreen(
     val activity = context as? FragmentActivity
     val uiState by viewModel.uiState.collectAsState()
     val canUseBiometric by viewModel.canUseBiometric.collectAsState()
+    val serverStatus by viewModel.serverStatus.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val focusManager = LocalFocusManager.current
 
@@ -67,6 +72,16 @@ fun LoginScreen(
     var username by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+
+    // Auto-detect server protocol with debounce (800ms after typing stops)
+    LaunchedEffect(serverUrl) {
+        if (serverUrl.length >= 4) {
+            delay(800)
+            viewModel.detectServer(serverUrl)
+        } else {
+            viewModel.clearServerStatus()
+        }
+    }
 
     // Auto-trigger biometric if available
     LaunchedEffect(canUseBiometric) {
@@ -132,7 +147,52 @@ fun LoginScreen(
                 onValueChange = { serverUrl = it },
                 label = { Text("Server") },
                 placeholder = { Text("paperless.example.com") },
-                supportingText = { Text("HTTP/HTTPS wird automatisch erkannt") },
+                supportingText = {
+                    when (serverStatus) {
+                        is ServerStatus.Idle -> Text("HTTP/HTTPS wird automatisch erkannt")
+                        is ServerStatus.Checking -> Text("Server wird geprüft...")
+                        is ServerStatus.Success -> {
+                            val status = serverStatus as ServerStatus.Success
+                            Text(
+                                text = if (status.isHttps) "✓ Sichere Verbindung (HTTPS)" else "✓ Verbindung hergestellt (HTTP)",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is ServerStatus.Error -> {
+                            Text(
+                                text = (serverStatus as ServerStatus.Error).message,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                },
+                trailingIcon = {
+                    when (serverStatus) {
+                        is ServerStatus.Checking -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                        is ServerStatus.Success -> {
+                            val status = serverStatus as ServerStatus.Success
+                            Icon(
+                                imageVector = if (status.isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
+                                contentDescription = if (status.isHttps) "HTTPS" else "HTTP",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is ServerStatus.Error -> {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = "Fehler",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        else -> {}
+                    }
+                },
+                isError = serverStatus is ServerStatus.Error,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
@@ -211,48 +271,21 @@ fun LoginScreen(
                 enabled = serverUrl.isNotBlank() &&
                         username.isNotBlank() &&
                         password.isNotBlank() &&
-                        uiState !is LoginUiState.Loading &&
-                        uiState !is LoginUiState.DetectingProtocol &&
-                        uiState !is LoginUiState.ProtocolDetected,
+                        serverStatus is ServerStatus.Success &&
+                        uiState !is LoginUiState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                when (uiState) {
-                    is LoginUiState.DetectingProtocol -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("Server wird gesucht...")
-                    }
-                    is LoginUiState.ProtocolDetected -> {
-                        val detected = uiState as LoginUiState.ProtocolDetected
-                        Icon(
-                            imageVector = if (detected.isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp),
-                            tint = if (detected.isHttps) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
-                            }
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text(if (detected.isHttps) "HTTPS erkannt ✓" else "HTTP erkannt")
-                    }
-                    is LoginUiState.Loading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        Text("Anmelden...")
-                    }
-                    else -> {
-                        Text("Login")
-                    }
+                if (uiState is LoginUiState.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Anmelden...")
+                } else {
+                    Text("Login")
                 }
             }
 

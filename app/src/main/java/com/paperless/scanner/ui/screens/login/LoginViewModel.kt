@@ -26,8 +26,47 @@ class LoginViewModel @Inject constructor(
     private val _canUseBiometric = MutableStateFlow(false)
     val canUseBiometric: StateFlow<Boolean> = _canUseBiometric.asStateFlow()
 
+    private val _serverStatus = MutableStateFlow<ServerStatus>(ServerStatus.Idle)
+    val serverStatus: StateFlow<ServerStatus> = _serverStatus.asStateFlow()
+
+    // Cached detected URL for login
+    private var detectedServerUrl: String? = null
+
     init {
         checkBiometricAvailability()
+    }
+
+    /**
+     * Detect server protocol - called automatically after URL input with debounce
+     */
+    fun detectServer(serverUrl: String) {
+        if (serverUrl.isBlank() || serverUrl.length < 4) {
+            _serverStatus.value = ServerStatus.Idle
+            detectedServerUrl = null
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            _serverStatus.value = ServerStatus.Checking
+
+            authRepository.detectServerProtocol(serverUrl)
+                .onSuccess { url ->
+                    val isHttps = url.startsWith("https://")
+                    detectedServerUrl = url
+                    _serverStatus.value = ServerStatus.Success(url, isHttps)
+                }
+                .onFailure { exception ->
+                    detectedServerUrl = null
+                    _serverStatus.value = ServerStatus.Error(
+                        exception.message ?: "Server nicht erreichbar"
+                    )
+                }
+        }
+    }
+
+    fun clearServerStatus() {
+        _serverStatus.value = ServerStatus.Idle
+        detectedServerUrl = null
     }
 
     private fun checkBiometricAvailability() {
@@ -43,28 +82,18 @@ class LoginViewModel @Inject constructor(
             return
         }
 
+        // Use cached detected URL or detect now
+        val urlToUse = detectedServerUrl
+
+        if (urlToUse == null) {
+            _uiState.value = LoginUiState.Error("Server konnte nicht erkannt werden")
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = LoginUiState.DetectingProtocol
-
-            // Auto-detect HTTP/HTTPS if no protocol specified
-            val detectedUrl = authRepository.detectServerProtocol(serverUrl)
-                .getOrElse { exception ->
-                    _uiState.value = LoginUiState.Error(
-                        exception.message ?: "Server nicht erreichbar"
-                    )
-                    return@launch
-                }
-
-            // Show detected protocol briefly
-            val isHttps = detectedUrl.startsWith("https://")
-            _uiState.value = LoginUiState.ProtocolDetected(detectedUrl, isHttps)
-
-            // Small delay to show the detection result
-            kotlinx.coroutines.delay(500)
-
             _uiState.value = LoginUiState.Loading
 
-            authRepository.login(detectedUrl, username, password)
+            authRepository.login(urlToUse, username, password)
                 .onSuccess {
                     _uiState.value = LoginUiState.Success
                 }
@@ -82,32 +111,22 @@ class LoginViewModel @Inject constructor(
             return
         }
 
+        // Use cached detected URL
+        val urlToUse = detectedServerUrl
+
+        if (urlToUse == null) {
+            _uiState.value = LoginUiState.Error("Server konnte nicht erkannt werden")
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = LoginUiState.DetectingProtocol
-
-            // Auto-detect HTTP/HTTPS if no protocol specified
-            val detectedUrl = authRepository.detectServerProtocol(serverUrl)
-                .getOrElse { exception ->
-                    _uiState.value = LoginUiState.Error(
-                        exception.message ?: "Server nicht erreichbar"
-                    )
-                    return@launch
-                }
-
-            // Show detected protocol briefly
-            val isHttps = detectedUrl.startsWith("https://")
-            _uiState.value = LoginUiState.ProtocolDetected(detectedUrl, isHttps)
-
-            // Small delay to show the detection result
-            kotlinx.coroutines.delay(500)
-
             _uiState.value = LoginUiState.Loading
 
             try {
                 // Validate the token by trying to fetch something from the API
-                authRepository.validateToken(detectedUrl, token)
+                authRepository.validateToken(urlToUse, token)
                     .onSuccess {
-                        tokenManager.saveCredentials(detectedUrl, token)
+                        tokenManager.saveCredentials(urlToUse, token)
                         _uiState.value = LoginUiState.Success
                     }
                     .onFailure { exception ->
@@ -147,9 +166,14 @@ class LoginViewModel @Inject constructor(
 
 sealed class LoginUiState {
     data object Idle : LoginUiState()
-    data object DetectingProtocol : LoginUiState()
-    data class ProtocolDetected(val url: String, val isHttps: Boolean) : LoginUiState()
     data object Loading : LoginUiState()
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()
+}
+
+sealed class ServerStatus {
+    data object Idle : ServerStatus()
+    data object Checking : ServerStatus()
+    data class Success(val url: String, val isHttps: Boolean) : ServerStatus()
+    data class Error(val message: String) : ServerStatus()
 }
