@@ -185,7 +185,7 @@ fun OnboardingLoginScreen(
                 FilterChip(
                     selected = authMethod == AuthMethod.CREDENTIALS,
                     onClick = { authMethod = AuthMethod.CREDENTIALS },
-                    label = { Text("Anmeldedaten") },
+                    label = { Text("Passwort") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Person,
@@ -198,7 +198,7 @@ fun OnboardingLoginScreen(
                 FilterChip(
                     selected = authMethod == AuthMethod.TOKEN,
                     onClick = { authMethod = AuthMethod.TOKEN },
-                    label = { Text("API Token") },
+                    label = { Text("Schlüssel") },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Key,
@@ -278,9 +278,9 @@ fun OnboardingLoginScreen(
                     singleLine = true
                 )
             } else {
-                // API Token
+                // Zugangsschlüssel
                 Text(
-                    text = "API Token",
+                    text = "Zugangsschlüssel",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -289,7 +289,7 @@ fun OnboardingLoginScreen(
                 OutlinedTextField(
                     value = apiToken,
                     onValueChange = { apiToken = it; errorMessage = null },
-                    placeholder = { Text("Dein API Token") },
+                    placeholder = { Text("Hier einfügen...") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -317,7 +317,7 @@ fun OnboardingLoginScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Du findest deinen API Token in den Paperless-ngx Einstellungen unter \"API Token\".",
+                    text = "Findest du in Paperless unter: Einstellungen → Mein Profil",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
