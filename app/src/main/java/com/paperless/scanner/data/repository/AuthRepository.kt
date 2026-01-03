@@ -8,10 +8,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
+import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
 
 class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
@@ -19,6 +22,15 @@ class AuthRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AuthRepository"
+        private const val DETECTION_TIMEOUT_SECONDS = 10L
+    }
+
+    // Dedicated client with shorter timeout for protocol detection
+    private val detectionClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
     }
 
     /**
@@ -29,67 +41,90 @@ class AuthRepository @Inject constructor(
      * @return The full URL with detected protocol (e.g., "https://paperless.example.com")
      */
     suspend fun detectServerProtocol(host: String): Result<String> {
-        // Clean the host - remove any existing protocol
+        // Clean the host - remove any existing protocol and path
         val cleanHost = host
             .trim()
             .removePrefix("https://")
             .removePrefix("http://")
+            .split("/").first()  // Remove any path
             .trimEnd('/')
 
         if (cleanHost.isBlank()) {
             return Result.failure(PaperlessException.ContentError("Server-Adresse fehlt"))
         }
 
+        // Validate host format
+        if (cleanHost.contains(" ")) {
+            return Result.failure(PaperlessException.ContentError("Ungültige Server-Adresse"))
+        }
+
+        Log.d(TAG, "Detecting protocol for: $cleanHost")
+
         // Try HTTPS first (preferred)
-        val httpsUrl = "https://$cleanHost"
-        Log.d(TAG, "Trying HTTPS: $httpsUrl")
-
-        try {
-            val request = Request.Builder()
-                .url("$httpsUrl/api/")
-                .head()
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                // Any response (even 401/403) means server is reachable via HTTPS
-                Log.d(TAG, "HTTPS successful: ${response.code}")
-                return Result.success(httpsUrl)
-            }
-        } catch (e: SSLException) {
-            Log.d(TAG, "HTTPS SSL error, trying HTTP: ${e.message}")
-            // SSL error - try HTTP
-        } catch (e: SocketTimeoutException) {
-            Log.d(TAG, "HTTPS timeout, trying HTTP: ${e.message}")
-            // Timeout - might be wrong protocol, try HTTP
-        } catch (e: UnknownHostException) {
-            // Host not found - don't try HTTP, fail immediately
-            Log.e(TAG, "Unknown host: ${e.message}")
-            return Result.failure(PaperlessException.NetworkError(IOException("Server nicht gefunden: $cleanHost")))
-        } catch (e: IOException) {
-            Log.d(TAG, "HTTPS IO error, trying HTTP: ${e.message}")
-            // Other IO error - try HTTP
+        val httpsResult = tryProtocol("https", cleanHost)
+        if (httpsResult.isSuccess) {
+            return httpsResult
         }
 
         // Try HTTP as fallback
-        val httpUrl = "http://$cleanHost"
-        Log.d(TAG, "Trying HTTP: $httpUrl")
+        val httpResult = tryProtocol("http", cleanHost)
+        if (httpResult.isSuccess) {
+            return httpResult
+        }
+
+        // Both failed - return the most informative error
+        val httpsError = httpsResult.exceptionOrNull()
+        val httpError = httpResult.exceptionOrNull()
+
+        Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
+
+        // Prioritize specific errors
+        return when {
+            httpsError is PaperlessException.NetworkError &&
+                httpsError.message?.contains("nicht gefunden") == true -> Result.failure(httpsError)
+            httpError is PaperlessException.NetworkError &&
+                httpError.message?.contains("nicht gefunden") == true -> Result.failure(httpError)
+            else -> Result.failure(
+                PaperlessException.NetworkError(
+                    IOException("Server nicht erreichbar. Prüfe die Adresse und Internetverbindung.")
+                )
+            )
+        }
+    }
+
+    private fun tryProtocol(protocol: String, host: String): Result<String> {
+        val url = "$protocol://$host"
+        Log.d(TAG, "Trying $protocol: $url")
 
         return try {
             val request = Request.Builder()
-                .url("$httpUrl/api/")
+                .url("$url/api/")
                 .head()
                 .build()
 
-            client.newCall(request).execute().use { response ->
-                Log.d(TAG, "HTTP successful: ${response.code}")
-                Result.success(httpUrl)
+            detectionClient.newCall(request).execute().use { response ->
+                // Any response (even 401/403/404) means server is reachable
+                Log.d(TAG, "$protocol successful: ${response.code}")
+                Result.success(url)
             }
         } catch (e: UnknownHostException) {
-            Log.e(TAG, "Unknown host on HTTP: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("Server nicht gefunden: $cleanHost")))
+            Log.e(TAG, "$protocol - Unknown host: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(IOException("Server nicht gefunden: $host")))
+        } catch (e: SSLHandshakeException) {
+            Log.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(IOException("SSL-Zertifikat ungültig")))
+        } catch (e: SSLException) {
+            Log.d(TAG, "$protocol - SSL error: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(IOException("SSL-Fehler")))
+        } catch (e: SocketTimeoutException) {
+            Log.d(TAG, "$protocol - Timeout: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(IOException("Zeitüberschreitung")))
+        } catch (e: ConnectException) {
+            Log.d(TAG, "$protocol - Connection refused: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(IOException("Verbindung abgelehnt")))
         } catch (e: IOException) {
-            Log.e(TAG, "Both protocols failed: ${e.message}")
-            Result.failure(PaperlessException.NetworkError(IOException("Server nicht erreichbar: $cleanHost")))
+            Log.d(TAG, "$protocol - IO error: ${e.message}")
+            Result.failure(PaperlessException.NetworkError(e))
         }
     }
 
