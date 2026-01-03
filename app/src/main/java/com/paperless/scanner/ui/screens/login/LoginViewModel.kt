@@ -55,6 +55,13 @@ class LoginViewModel @Inject constructor(
                     return@launch
                 }
 
+            // Show detected protocol briefly
+            val isHttps = detectedUrl.startsWith("https://")
+            _uiState.value = LoginUiState.ProtocolDetected(detectedUrl, isHttps)
+
+            // Small delay to show the detection result
+            kotlinx.coroutines.delay(500)
+
             _uiState.value = LoginUiState.Loading
 
             authRepository.login(detectedUrl, username, password)
@@ -86,6 +93,13 @@ class LoginViewModel @Inject constructor(
                     )
                     return@launch
                 }
+
+            // Show detected protocol briefly
+            val isHttps = detectedUrl.startsWith("https://")
+            _uiState.value = LoginUiState.ProtocolDetected(detectedUrl, isHttps)
+
+            // Small delay to show the detection result
+            kotlinx.coroutines.delay(500)
 
             _uiState.value = LoginUiState.Loading
 
@@ -134,6 +148,7 @@ class LoginViewModel @Inject constructor(
 sealed class LoginUiState {
     data object Idle : LoginUiState()
     data object DetectingProtocol : LoginUiState()
+    data class ProtocolDetected(val url: String, val isHttps: Boolean) : LoginUiState()
     data object Loading : LoginUiState()
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()

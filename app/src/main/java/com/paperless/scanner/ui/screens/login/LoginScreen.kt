@@ -15,6 +15,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -210,7 +212,8 @@ fun LoginScreen(
                         username.isNotBlank() &&
                         password.isNotBlank() &&
                         uiState !is LoginUiState.Loading &&
-                        uiState !is LoginUiState.DetectingProtocol,
+                        uiState !is LoginUiState.DetectingProtocol &&
+                        uiState !is LoginUiState.ProtocolDetected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
@@ -223,6 +226,21 @@ fun LoginScreen(
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text("Server wird gesucht...")
+                    }
+                    is LoginUiState.ProtocolDetected -> {
+                        val detected = uiState as LoginUiState.ProtocolDetected
+                        Icon(
+                            imageVector = if (detected.isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = if (detected.isHttps) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
+                            }
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(if (detected.isHttps) "HTTPS erkannt ✓" else "HTTP erkannt")
                     }
                     is LoginUiState.Loading -> {
                         CircularProgressIndicator(
