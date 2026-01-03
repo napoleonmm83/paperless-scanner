@@ -200,6 +200,7 @@ class HomeViewModelTest {
                 taskId = "task-123",
                 taskFileName = "document.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_SUCCESS,
                 acknowledged = false
             )
@@ -228,6 +229,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = "pending.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_PENDING,
                 acknowledged = false
             )
@@ -254,6 +256,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = "processing.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_STARTED,
                 acknowledged = false
             )
@@ -280,6 +283,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = "failed.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_FAILURE,
                 acknowledged = false,
                 result = "Parsing error"
@@ -308,6 +312,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = null,
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_SUCCESS,
                 acknowledged = false
             )
@@ -331,8 +336,8 @@ class HomeViewModelTest {
         val dateString = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
 
         val tasks = listOf(
-            PaperlessTask(id = 1, taskId = "task-1", taskFileName = "doc1.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
-            PaperlessTask(id = 2, taskId = "task-2", taskFileName = "doc2.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
+            PaperlessTask(id = 1, taskId = "task-1", taskFileName = "doc1.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
+            PaperlessTask(id = 2, taskId = "task-2", taskFileName = "doc2.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
         )
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
         coEvery { taskRepository.acknowledgeTasks(any()) } returns Result.success(Unit)
@@ -359,7 +364,7 @@ class HomeViewModelTest {
         val dateString = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
 
         val tasks = listOf(
-            PaperlessTask(id = 5, taskId = "task-5", taskFileName = "doc.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
+            PaperlessTask(id = 5, taskId = "task-5", taskFileName = "doc.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
         )
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
         coEvery { taskRepository.acknowledgeTasks(any()) } returns Result.success(Unit)
@@ -388,7 +393,7 @@ class HomeViewModelTest {
 
         // Now mock new tasks
         val newTasks = listOf(
-            PaperlessTask(id = 1, taskId = "new-task", taskFileName = "new.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_PENDING, acknowledged = false)
+            PaperlessTask(id = 1, taskId = "new-task", taskFileName = "new.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_PENDING, acknowledged = false)
         )
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(newTasks)
 
@@ -566,6 +571,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = "doc.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_SUCCESS,
                 acknowledged = false,
                 relatedDocument = "42"
@@ -593,6 +599,7 @@ class HomeViewModelTest {
                 taskId = "task-1",
                 taskFileName = "doc.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_PENDING,
                 acknowledged = false,
                 relatedDocument = null
@@ -617,9 +624,9 @@ class HomeViewModelTest {
         val dateString = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
 
         val tasks = listOf(
-            PaperlessTask(id = 1, taskId = "task-1", taskFileName = "first.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
-            PaperlessTask(id = 3, taskId = "task-3", taskFileName = "third.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
-            PaperlessTask(id = 2, taskId = "task-2", taskFileName = "second.pdf", dateCreated = dateString, status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
+            PaperlessTask(id = 1, taskId = "task-1", taskFileName = "first.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
+            PaperlessTask(id = 3, taskId = "task-3", taskFileName = "third.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false),
+            PaperlessTask(id = 2, taskId = "task-2", taskFileName = "second.pdf", dateCreated = dateString, type = "file", status = PaperlessTask.STATUS_SUCCESS, acknowledged = false)
         )
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
@@ -645,6 +652,7 @@ class HomeViewModelTest {
                 taskId = "task-$id",
                 taskFileName = "doc$id.pdf",
                 dateCreated = dateString,
+                type = "file",
                 status = PaperlessTask.STATUS_SUCCESS,
                 acknowledged = false
             )
