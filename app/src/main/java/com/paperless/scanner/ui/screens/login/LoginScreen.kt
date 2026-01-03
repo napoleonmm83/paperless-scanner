@@ -339,7 +339,8 @@ fun LoginScreen(
                         IconButton(onClick = { showTokenScanner = true }) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Schlüssel scannen"
+                                contentDescription = "Schlüssel scannen",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     },
@@ -361,6 +362,22 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Scan button - clearly visible
+                OutlinedButton(
+                    onClick = { showTokenScanner = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Schlüssel mit Kamera scannen")
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
@@ -369,7 +386,7 @@ fun LoginScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
                     onClick = { viewModel.loginWithToken(serverUrl, apiToken) },
