@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.runtime.remember
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -57,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.ui.screens.login.LoginUiState
 import com.paperless.scanner.ui.screens.login.LoginViewModel
+import com.paperless.scanner.ui.screens.login.TokenScannerSheet
 
 enum class AuthMethod {
     CREDENTIALS, TOKEN
@@ -78,6 +81,7 @@ fun OnboardingLoginScreen(
     var showPassword by rememberSaveable { mutableStateOf(false) }
     var showToken by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showTokenScanner by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
         when (uiState) {
@@ -317,6 +321,23 @@ fun OnboardingLoginScreen(
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Scan button
+                Button(
+                    onClick = { showTokenScanner = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Token mit Kamera scannen")
+                }
             }
 
             // Error message
@@ -391,6 +412,17 @@ fun OnboardingLoginScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
         }
+    }
+
+    // Token Scanner Sheet
+    if (showTokenScanner) {
+        TokenScannerSheet(
+            onDismiss = { showTokenScanner = false },
+            onTokenFound = { token ->
+                apiToken = token
+                showTokenScanner = false
+            }
+        )
     }
 }
 
