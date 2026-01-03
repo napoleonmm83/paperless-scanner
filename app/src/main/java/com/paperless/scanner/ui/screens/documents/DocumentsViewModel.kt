@@ -163,6 +163,21 @@ class DocumentsViewModel @Inject constructor(
         loadInitialData()
     }
 
+    fun clearFilters() {
+        _uiState.update { it.copy(searchQuery = "", activeTagFilter = null) }
+        loadDocuments()
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun resetState() {
+        _uiState.update { DocumentsUiState() }
+        allDocuments = emptyList()
+        loadInitialData()
+    }
+
     private fun formatDate(dateString: String): String {
         return try {
             val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")

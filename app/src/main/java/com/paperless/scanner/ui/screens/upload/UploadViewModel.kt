@@ -202,6 +202,18 @@ class UploadViewModel @Inject constructor(
 
     fun resetState() {
         _uiState.update { UploadUiState.Idle }
+        lastUploadParams = null
+    }
+
+    fun clearError() {
+        if (_uiState.value is UploadUiState.Error) {
+            _uiState.update { UploadUiState.Idle }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        lastUploadParams = null
     }
 
     fun createTag(name: String, color: String? = null) {

@@ -299,4 +299,18 @@ class HomeViewModel @Inject constructor(
             null
         }
     }
+
+    fun resetState() {
+        stopTaskPolling()
+        _uiState.update { HomeUiState() }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopTaskPolling()
+    }
 }

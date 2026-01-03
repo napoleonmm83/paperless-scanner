@@ -179,4 +179,22 @@ class LabelsViewModel @Inject constructor(
         val blue = (color.blue * 255).toInt()
         return String.format("#%02X%02X%02X", red, green, blue)
     }
+
+    fun clearDocumentsForLabel() {
+        _uiState.update { it.copy(documentsForLabel = emptyList()) }
+    }
+
+    fun clearSearch() {
+        _uiState.update { it.copy(searchQuery = "", labels = allLabels) }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun resetState() {
+        _uiState.update { LabelsUiState() }
+        allLabels = emptyList()
+        loadLabels()
+    }
 }
