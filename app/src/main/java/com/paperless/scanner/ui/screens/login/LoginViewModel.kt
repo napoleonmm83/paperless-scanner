@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.login
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.datastore.TokenManager
@@ -7,10 +8,13 @@ import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,41 +36,76 @@ class LoginViewModel @Inject constructor(
     // Cached detected URL for login
     private var detectedServerUrl: String? = null
 
+    // Debounce job for server detection
+    private var detectionJob: Job? = null
+
+    companion object {
+        private const val TAG = "LoginViewModel"
+        private const val DEBOUNCE_MS = 800L
+    }
+
     init {
         checkBiometricAvailability()
     }
 
     /**
-     * Detect server protocol - called automatically after URL input with debounce
+     * Called on every URL change - handles debouncing internally
      */
-    fun detectServer(serverUrl: String) {
+    fun onServerUrlChanged(serverUrl: String) {
+        // Cancel previous detection job
+        detectionJob?.cancel()
+
         if (serverUrl.isBlank() || serverUrl.length < 4) {
             _serverStatus.value = ServerStatus.Idle
             detectedServerUrl = null
+            Log.d(TAG, "URL too short, status = Idle")
             return
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            _serverStatus.value = ServerStatus.Checking
+        // Start new debounced detection
+        detectionJob = viewModelScope.launch {
+            delay(DEBOUNCE_MS)
+            detectServerInternal(serverUrl)
+        }
+    }
 
+    private suspend fun detectServerInternal(serverUrl: String) {
+        Log.d(TAG, "Starting detection for: $serverUrl")
+
+        // Update status on Main thread
+        withContext(Dispatchers.Main) {
+            _serverStatus.value = ServerStatus.Checking
+            Log.d(TAG, "Status = Checking")
+        }
+
+        // Do network call on IO
+        val result = withContext(Dispatchers.IO) {
             authRepository.detectServerProtocol(serverUrl)
+        }
+
+        // Update status on Main thread
+        withContext(Dispatchers.Main) {
+            result
                 .onSuccess { url ->
                     val isHttps = url.startsWith("https://")
                     detectedServerUrl = url
                     _serverStatus.value = ServerStatus.Success(url, isHttps)
+                    Log.d(TAG, "Status = Success, url = $url, isHttps = $isHttps")
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
-                    _serverStatus.value = ServerStatus.Error(
-                        exception.message ?: "Server nicht erreichbar"
-                    )
+                    val message = exception.message ?: "Server nicht erreichbar"
+                    _serverStatus.value = ServerStatus.Error(message)
+                    Log.d(TAG, "Status = Error, message = $message")
                 }
         }
     }
 
     fun clearServerStatus() {
+        detectionJob?.cancel()
         _serverStatus.value = ServerStatus.Idle
         detectedServerUrl = null
+        Log.d(TAG, "Status cleared to Idle")
     }
 
     private fun checkBiometricAvailability() {
@@ -89,23 +128,29 @@ class LoginViewModel @Inject constructor(
         }
 
         if (urlToUse == null) {
-            // Don't show snackbar error - the URL field already shows the status
-            // Just trigger a new detection
-            detectServer(serverUrl)
+            Log.d(TAG, "No detected URL, triggering detection")
+            onServerUrlChanged(serverUrl)
             return
         }
 
+        Log.d(TAG, "Starting login with URL: $urlToUse")
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = LoginUiState.Loading
+            withContext(Dispatchers.Main) {
+                _uiState.value = LoginUiState.Loading
+            }
 
             authRepository.login(urlToUse, username, password)
                 .onSuccess {
-                    _uiState.value = LoginUiState.Success
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = LoginUiState.Success
+                    }
                 }
                 .onFailure { exception ->
-                    _uiState.value = LoginUiState.Error(
-                        exception.message ?: "Login fehlgeschlagen"
-                    )
+                    withContext(Dispatchers.Main) {
+                        _uiState.value = LoginUiState.Error(
+                            exception.message ?: "Login fehlgeschlagen"
+                        )
+                    }
                 }
         }
     }
@@ -123,30 +168,39 @@ class LoginViewModel @Inject constructor(
         }
 
         if (urlToUse == null) {
-            // Don't show snackbar error - trigger detection instead
-            detectServer(serverUrl)
+            Log.d(TAG, "No detected URL for token login, triggering detection")
+            onServerUrlChanged(serverUrl)
             return
         }
 
+        Log.d(TAG, "Starting token login with URL: $urlToUse")
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.value = LoginUiState.Loading
+            withContext(Dispatchers.Main) {
+                _uiState.value = LoginUiState.Loading
+            }
 
             try {
                 // Validate the token by trying to fetch something from the API
                 authRepository.validateToken(urlToUse, token)
                     .onSuccess {
                         tokenManager.saveCredentials(urlToUse, token)
-                        _uiState.value = LoginUiState.Success
+                        withContext(Dispatchers.Main) {
+                            _uiState.value = LoginUiState.Success
+                        }
                     }
                     .onFailure { exception ->
-                        _uiState.value = LoginUiState.Error(
-                            exception.message ?: "Token ungültig"
-                        )
+                        withContext(Dispatchers.Main) {
+                            _uiState.value = LoginUiState.Error(
+                                exception.message ?: "Token ungültig"
+                            )
+                        }
                     }
             } catch (e: Exception) {
-                _uiState.value = LoginUiState.Error(
-                    e.message ?: "Verbindungsfehler"
-                )
+                withContext(Dispatchers.Main) {
+                    _uiState.value = LoginUiState.Error(
+                        e.message ?: "Verbindungsfehler"
+                    )
+                }
             }
         }
     }

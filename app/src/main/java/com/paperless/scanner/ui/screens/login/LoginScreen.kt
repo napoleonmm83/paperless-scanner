@@ -33,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import kotlinx.coroutines.delay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -73,14 +72,23 @@ fun LoginScreen(
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
-    // Auto-detect server protocol with debounce (800ms after typing stops)
-    LaunchedEffect(serverUrl) {
-        if (serverUrl.length >= 4) {
-            delay(800)
-            viewModel.detectServer(serverUrl)
-        } else {
-            viewModel.clearServerStatus()
+    // Pre-compute supporting text based on server status
+    val serverSupportingText = when (serverStatus) {
+        is ServerStatus.Idle -> "HTTP/HTTPS wird automatisch erkannt"
+        is ServerStatus.Checking -> "Server wird geprüft..."
+        is ServerStatus.Success -> {
+            if ((serverStatus as ServerStatus.Success).isHttps) {
+                "✓ Sichere Verbindung (HTTPS)"
+            } else {
+                "✓ Verbindung hergestellt (HTTP)"
+            }
         }
+        is ServerStatus.Error -> (serverStatus as ServerStatus.Error).message
+    }
+    val serverSupportingTextColor = when (serverStatus) {
+        is ServerStatus.Success -> MaterialTheme.colorScheme.primary
+        is ServerStatus.Error -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     // Auto-trigger biometric if available
@@ -144,27 +152,17 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = serverUrl,
-                onValueChange = { serverUrl = it },
+                onValueChange = {
+                    serverUrl = it
+                    viewModel.onServerUrlChanged(it)
+                },
                 label = { Text("Server") },
                 placeholder = { Text("paperless.example.com") },
                 supportingText = {
-                    when (serverStatus) {
-                        is ServerStatus.Idle -> Text("HTTP/HTTPS wird automatisch erkannt")
-                        is ServerStatus.Checking -> Text("Server wird geprüft...")
-                        is ServerStatus.Success -> {
-                            val status = serverStatus as ServerStatus.Success
-                            Text(
-                                text = if (status.isHttps) "✓ Sichere Verbindung (HTTPS)" else "✓ Verbindung hergestellt (HTTP)",
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        is ServerStatus.Error -> {
-                            Text(
-                                text = (serverStatus as ServerStatus.Error).message,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
+                    Text(
+                        text = serverSupportingText,
+                        color = serverSupportingTextColor
+                    )
                 },
                 trailingIcon = {
                     when (serverStatus) {
