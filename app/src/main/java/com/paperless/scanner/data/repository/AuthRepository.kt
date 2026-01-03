@@ -1,10 +1,12 @@
 package com.paperless.scanner.data.repository
 
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.io.IOException
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
@@ -36,14 +38,23 @@ class AuthRepository @Inject constructor(
                     tokenManager.saveCredentials(normalizedUrl, token)
                     Result.success(token)
                 } else {
-                    Result.failure(Exception("Token not found in response"))
+                    Result.failure(PaperlessException.ParseError("Token nicht in Antwort gefunden"))
                 }
             } else {
                 val errorBody = response.body?.string()
-                Result.failure(Exception("Login failed: ${response.code} - $errorBody"))
+                val exception = when (response.code) {
+                    401, 403 -> PaperlessException.AuthError(
+                        code = response.code,
+                        message = "Ungültige Anmeldedaten"
+                    )
+                    else -> PaperlessException.fromHttpCode(response.code, errorBody)
+                }
+                Result.failure(exception)
             }
+        } catch (e: IOException) {
+            Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(PaperlessException.from(e))
         }
     }
 
@@ -51,7 +62,6 @@ class AuthRepository @Inject constructor(
         return try {
             val normalizedUrl = serverUrl.trimEnd('/')
 
-            // Try to fetch tags to validate the token
             val request = Request.Builder()
                 .url("$normalizedUrl/api/tags/?page_size=1")
                 .header("Authorization", "Token $token")
@@ -62,13 +72,13 @@ class AuthRepository @Inject constructor(
 
             if (response.isSuccessful) {
                 Result.success(Unit)
-            } else if (response.code == 401 || response.code == 403) {
-                Result.failure(Exception("Ungültiger Token"))
             } else {
-                Result.failure(Exception("Serverfehler: ${response.code}"))
+                Result.failure(PaperlessException.fromHttpCode(response.code))
             }
+        } catch (e: IOException) {
+            Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
-            Result.failure(Exception("Verbindung fehlgeschlagen: ${e.message}"))
+            Result.failure(PaperlessException.from(e))
         }
     }
 

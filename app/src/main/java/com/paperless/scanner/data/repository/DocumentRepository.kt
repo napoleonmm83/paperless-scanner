@@ -11,7 +11,10 @@ import com.itextpdf.kernel.pdf.PdfWriter
 import com.itextpdf.layout.Document
 import com.itextpdf.layout.element.Image
 import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
+import com.paperless.scanner.data.api.safeApiCall
+import java.io.IOException
 import com.paperless.scanner.data.api.models.DocumentsResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -71,8 +74,14 @@ class DocumentRepository @Inject constructor(
 
             val taskId = response.string().trim().removeSurrounding("\"")
             Result.success(taskId)
+        } catch (e: IOException) {
+            Result.failure(PaperlessException.NetworkError(e))
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(PaperlessException.ContentError(e.message ?: "Datei konnte nicht gelesen werden"))
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(PaperlessException.from(e))
         }
     }
 
@@ -122,8 +131,16 @@ class DocumentRepository @Inject constructor(
 
             val taskId = response.string().trim().removeSurrounding("\"")
             Result.success(taskId)
+        } catch (e: IOException) {
+            Result.failure(PaperlessException.NetworkError(e))
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(PaperlessException.ContentError(e.message ?: "PDF konnte nicht erstellt werden"))
+        } catch (e: IllegalStateException) {
+            Result.failure(PaperlessException.ContentError(e.message ?: "Bild konnte nicht verarbeitet werden"))
         } catch (e: Exception) {
-            Result.failure(e)
+            Result.failure(PaperlessException.from(e))
         }
     }
 
@@ -241,65 +258,40 @@ class DocumentRepository @Inject constructor(
         correspondentId: Int? = null,
         documentTypeId: Int? = null,
         ordering: String = "-created"
-    ): Result<DocumentsResponse> {
-        return try {
-            val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
-            val response = api.getDocuments(
-                page = page,
-                pageSize = pageSize,
-                query = query,
-                tagIds = tagIdsString,
-                correspondentId = correspondentId,
-                documentTypeId = documentTypeId,
-                ordering = ordering
-            )
-            Result.success(response)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    ): Result<DocumentsResponse> = safeApiCall {
+        val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
+        api.getDocuments(
+            page = page,
+            pageSize = pageSize,
+            query = query,
+            tagIds = tagIdsString,
+            correspondentId = correspondentId,
+            documentTypeId = documentTypeId,
+            ordering = ordering
+        )
     }
 
-    suspend fun getDocument(id: Int): Result<ApiDocument> {
-        return try {
-            val response = api.getDocument(id)
-            Result.success(response)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun getDocument(id: Int): Result<ApiDocument> = safeApiCall {
+        api.getDocument(id)
     }
 
-    suspend fun getDocumentCount(): Result<Int> {
-        return try {
-            val response = api.getDocuments(page = 1, pageSize = 1)
-            Result.success(response.count)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun getDocumentCount(): Result<Int> = safeApiCall {
+        api.getDocuments(page = 1, pageSize = 1).count
     }
 
-    suspend fun getRecentDocuments(limit: Int = 5): Result<List<ApiDocument>> {
-        return try {
-            val response = api.getDocuments(
-                page = 1,
-                pageSize = limit,
-                ordering = "-added"
-            )
-            Result.success(response.results)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun getRecentDocuments(limit: Int = 5): Result<List<ApiDocument>> = safeApiCall {
+        api.getDocuments(
+            page = 1,
+            pageSize = limit,
+            ordering = "-added"
+        ).results
     }
 
-    suspend fun getUntaggedCount(): Result<Int> {
-        return try {
-            val response = api.getDocuments(
-                page = 1,
-                pageSize = 1,
-                tagsIsNull = true
-            )
-            Result.success(response.count)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    suspend fun getUntaggedCount(): Result<Int> = safeApiCall {
+        api.getDocuments(
+            page = 1,
+            pageSize = 1,
+            tagsIsNull = true
+        ).count
     }
 }
