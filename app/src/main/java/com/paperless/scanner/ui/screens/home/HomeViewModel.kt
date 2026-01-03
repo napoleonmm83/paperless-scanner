@@ -22,6 +22,8 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.logging.Level
+import java.util.logging.Logger
 import javax.inject.Inject
 
 data class DocumentStat(
@@ -71,6 +73,11 @@ class HomeViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository
 ) : ViewModel() {
+
+    companion object {
+        private val logger = Logger.getLogger(HomeViewModel::class.java.name)
+        private const val POLLING_INTERVAL_MS = 3000L
+    }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -141,10 +148,6 @@ class HomeViewModel @Inject constructor(
         pollingJob = null
     }
 
-    companion object {
-        private const val POLLING_INTERVAL_MS = 3000L
-    }
-
     fun refreshTasks() {
         viewModelScope.launch {
             val tasks = loadProcessingTasks()
@@ -166,10 +169,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             taskRepository.acknowledgeTasks(listOf(taskId))
                 .onSuccess {
-                    android.util.Log.d("HomeViewModel", "Task $taskId acknowledged successfully")
+                    logger.log(Level.FINE, "Task $taskId acknowledged successfully")
                 }
                 .onFailure { error ->
-                    android.util.Log.e("HomeViewModel", "Failed to acknowledge task $taskId: ${error.message}")
+                    logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
                 }
         }
     }
@@ -253,11 +256,16 @@ class HomeViewModel @Inject constructor(
 
     private fun formatTimeAgo(dateString: String): String {
         return try {
-            // API returns ISO 8601 timestamp with timezone offset (e.g., "2026-01-03T10:05:00.156005+01:00")
-            val zonedDateTime = ZonedDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+            // Try parsing with timezone offset first (API format: "2026-01-03T10:05:00.156005+01:00")
+            // Then fall back to local datetime format for tests
+            val localDateTime = try {
+                val zonedDateTime = ZonedDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                zonedDateTime.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
+            } catch (e: Exception) {
+                // Fallback for datetime without timezone (test format: "2026-01-03T10:05:00")
+                LocalDateTime.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            }
 
-            // Convert to local timezone for comparison
-            val localDateTime = zonedDateTime.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
             val now = LocalDateTime.now()
             val duration = Duration.between(localDateTime, now)
 

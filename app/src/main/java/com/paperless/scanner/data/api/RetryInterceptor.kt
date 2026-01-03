@@ -1,10 +1,11 @@
 package com.paperless.scanner.data.api
 
-import android.util.Log
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlin.math.pow
 
 class RetryInterceptor(
@@ -14,7 +15,7 @@ class RetryInterceptor(
 ) : Interceptor {
 
     companion object {
-        private const val TAG = "RetryInterceptor"
+        private val logger = Logger.getLogger(RetryInterceptor::class.java.name)
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
@@ -36,7 +37,7 @@ class RetryInterceptor(
 
                 // Server error (5xx) - might be temporary, retry
                 if (response.code in 500..599 && attempt < maxRetries) {
-                    Log.w(TAG, "Server error ${response.code}, attempt ${attempt + 1}/$maxRetries")
+                    logger.log(Level.WARNING, "Server error ${response.code}, attempt ${attempt + 1}/$maxRetries")
                     response.close()
                     delay(attempt)
                     continue
@@ -46,7 +47,7 @@ class RetryInterceptor(
 
             } catch (e: IOException) {
                 lastException = e
-                Log.w(TAG, "Network error on attempt ${attempt + 1}/$maxRetries: ${e.message}")
+                logger.log(Level.WARNING, "Network error on attempt ${attempt + 1}/$maxRetries: ${e.message}")
 
                 if (attempt < maxRetries) {
                     delay(attempt)
@@ -63,7 +64,7 @@ class RetryInterceptor(
     private fun delay(attempt: Int) {
         val delayMs = (initialDelayMs * 2.0.pow(attempt.toDouble())).toLong()
             .coerceAtMost(maxDelayMs)
-        Log.d(TAG, "Waiting ${delayMs}ms before retry")
+        logger.log(Level.FINE, "Waiting ${delayMs}ms before retry")
         try {
             TimeUnit.MILLISECONDS.sleep(delayMs)
         } catch (e: InterruptedException) {
