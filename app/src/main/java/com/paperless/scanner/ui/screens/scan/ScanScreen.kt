@@ -50,7 +50,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -149,6 +153,25 @@ fun ScanScreen(
     ) { uris ->
         if (uris.isNotEmpty()) {
             onBatchImport(uris)
+        }
+    }
+
+    // Handle undo snackbar for removed pages
+    LaunchedEffect(uiState.lastRemovedPage) {
+        uiState.lastRemovedPage?.let { removedInfo ->
+            val result = snackbarHostState.showSnackbar(
+                message = "Seite ${removedInfo.page.pageNumber} entfernt",
+                actionLabel = "Rückgängig",
+                withDismissAction = true
+            )
+            when (result) {
+                SnackbarResult.ActionPerformed -> {
+                    viewModel.undoRemovePage()
+                }
+                SnackbarResult.Dismissed -> {
+                    viewModel.clearLastRemovedPage()
+                }
+            }
         }
     }
 
@@ -562,6 +585,7 @@ private fun PageThumbnail(
     onRotate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
     val elevation = if (isDragging) 8.dp else 2.dp
     val scale = if (isDragging) 1.05f else 1f
 
@@ -642,7 +666,10 @@ private fun PageThumbnail(
                             color = MaterialTheme.colorScheme.errorContainer,
                             shape = CircleShape
                         )
-                        .clickable { onRemove() },
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onRemove()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

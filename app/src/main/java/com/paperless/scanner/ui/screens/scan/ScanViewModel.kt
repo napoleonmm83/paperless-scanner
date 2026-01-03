@@ -28,9 +28,15 @@ data class ScannedPage(
     val rotation: Int = 0  // 0, 90, 180, 270
 )
 
+data class RemovedPageInfo(
+    val page: ScannedPage,
+    val originalIndex: Int
+)
+
 data class ScanUiState(
     val pages: List<ScannedPage> = emptyList(),
-    val isProcessing: Boolean = false
+    val isProcessing: Boolean = false,
+    val lastRemovedPage: RemovedPageInfo? = null
 ) {
     val pageCount: Int get() = pages.size
     val hasPages: Boolean get() = pages.isNotEmpty()
@@ -60,12 +66,40 @@ class ScanViewModel @Inject constructor(
 
     fun removePage(pageId: String) {
         _uiState.update { state ->
+            val removedIndex = state.pages.indexOfFirst { it.id == pageId }
+            if (removedIndex == -1) return@update state
+
+            val removedPage = state.pages[removedIndex]
             val filteredPages = state.pages.filter { it.id != pageId }
             val renumberedPages = filteredPages.mapIndexed { index, page ->
                 page.copy(pageNumber = index + 1)
             }
-            state.copy(pages = renumberedPages)
+            state.copy(
+                pages = renumberedPages,
+                lastRemovedPage = RemovedPageInfo(removedPage, removedIndex)
+            )
         }
+    }
+
+    fun undoRemovePage() {
+        _uiState.update { state ->
+            val removedPageInfo = state.lastRemovedPage ?: return@update state
+
+            val mutablePages = state.pages.toMutableList()
+            mutablePages.add(removedPageInfo.originalIndex, removedPageInfo.page)
+
+            val renumberedPages = mutablePages.mapIndexed { index, page ->
+                page.copy(pageNumber = index + 1)
+            }
+            state.copy(
+                pages = renumberedPages,
+                lastRemovedPage = null
+            )
+        }
+    }
+
+    fun clearLastRemovedPage() {
+        _uiState.update { it.copy(lastRemovedPage = null) }
     }
 
     fun movePage(fromIndex: Int, toIndex: Int) {
