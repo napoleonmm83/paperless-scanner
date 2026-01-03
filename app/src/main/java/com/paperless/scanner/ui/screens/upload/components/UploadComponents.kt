@@ -40,9 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.paperless.scanner.data.api.models.Correspondent
-import com.paperless.scanner.data.api.models.DocumentType
-import com.paperless.scanner.data.api.models.Tag
+import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.DocumentType
+import com.paperless.scanner.domain.model.Tag
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

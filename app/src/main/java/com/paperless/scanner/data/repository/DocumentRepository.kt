@@ -8,14 +8,16 @@ import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.geom.PageSize
 import com.itextpdf.kernel.pdf.PdfDocument
 import com.itextpdf.kernel.pdf.PdfWriter
-import com.itextpdf.layout.Document
+import com.itextpdf.layout.Document as ITextDocument
 import com.itextpdf.layout.element.Image
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
 import com.paperless.scanner.data.api.safeApiCall
+import com.paperless.scanner.domain.mapper.toDomain
+import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.domain.model.DocumentsResponse
 import java.io.IOException
-import com.paperless.scanner.data.api.models.DocumentsResponse
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -23,7 +25,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
-import com.paperless.scanner.data.api.models.Document as ApiDocument
 
 class DocumentRepository @Inject constructor(
     private val context: Context,
@@ -150,7 +151,7 @@ class DocumentRepository @Inject constructor(
 
         PdfWriter(pdfFile).use { writer ->
             PdfDocument(writer).use { pdfDoc ->
-                Document(pdfDoc).use { document ->
+                ITextDocument(pdfDoc).use { document ->
                     uris.forEachIndexed { index, uri ->
                         val imageBytes = getImageBytesFromUri(uri)
                         val imageData = ImageDataFactory.create(imageBytes)
@@ -268,23 +269,23 @@ class DocumentRepository @Inject constructor(
             correspondentId = correspondentId,
             documentTypeId = documentTypeId,
             ordering = ordering
-        )
+        ).toDomain()
     }
 
-    suspend fun getDocument(id: Int): Result<ApiDocument> = safeApiCall {
-        api.getDocument(id)
+    suspend fun getDocument(id: Int): Result<Document> = safeApiCall {
+        api.getDocument(id).toDomain()
     }
 
     suspend fun getDocumentCount(): Result<Int> = safeApiCall {
         api.getDocuments(page = 1, pageSize = 1).count
     }
 
-    suspend fun getRecentDocuments(limit: Int = 5): Result<List<ApiDocument>> = safeApiCall {
+    suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> = safeApiCall {
         api.getDocuments(
             page = 1,
             pageSize = limit,
             ordering = "-added"
-        ).results
+        ).results.toDomain()
     }
 
     suspend fun getUntaggedCount(): Result<Int> = safeApiCall {

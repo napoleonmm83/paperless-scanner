@@ -2,8 +2,8 @@ package com.paperless.scanner.ui.screens.documents
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperless.scanner.data.api.models.Correspondent
-import com.paperless.scanner.data.api.models.Tag
+import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.TagRepository
