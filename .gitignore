@@ -91,3 +91,4 @@ lint/tmp/
 
 # Backup files
 *.bak
+gradle.properties.local
