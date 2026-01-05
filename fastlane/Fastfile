@@ -42,7 +42,11 @@ platform :android do
 
   desc "Deploy to internal testing track"
   lane :internal do
-    gradle(task: "bundleRelease")
+    # Skip build if AAB already exists
+    # gradle(
+    #   task: "bundleRelease",
+    #   gradle_path: "./gradlew.bat"
+    # )
     upload_to_play_store(
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
