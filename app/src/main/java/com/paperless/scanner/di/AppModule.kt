@@ -7,15 +7,24 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.RetryInterceptor
 import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.PendingUploadDao
+import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
+import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
+import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.dao.SyncMetadataDao
+import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
-import com.paperless.scanner.BuildConfig
+import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.sync.SyncManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -128,43 +137,100 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTagRepository(
-        api: PaperlessApi
-    ): TagRepository = TagRepository(api)
+        api: PaperlessApi,
+        cachedTagDao: CachedTagDao,
+        pendingChangeDao: PendingChangeDao,
+        networkMonitor: NetworkMonitor
+    ): TagRepository = TagRepository(api, cachedTagDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton
     fun provideDocumentRepository(
         @ApplicationContext context: Context,
-        api: PaperlessApi
-    ): DocumentRepository = DocumentRepository(context, api)
+        api: PaperlessApi,
+        cachedDocumentDao: CachedDocumentDao,
+        pendingChangeDao: PendingChangeDao,
+        networkMonitor: NetworkMonitor
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton
     fun provideDocumentTypeRepository(
-        api: PaperlessApi
-    ): DocumentTypeRepository = DocumentTypeRepository(api)
+        api: PaperlessApi,
+        cachedDocumentTypeDao: CachedDocumentTypeDao,
+        pendingChangeDao: PendingChangeDao,
+        networkMonitor: NetworkMonitor
+    ): DocumentTypeRepository = DocumentTypeRepository(api, cachedDocumentTypeDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton
     fun provideCorrespondentRepository(
-        api: PaperlessApi
-    ): CorrespondentRepository = CorrespondentRepository(api)
+        api: PaperlessApi,
+        cachedCorrespondentDao: CachedCorrespondentDao,
+        pendingChangeDao: PendingChangeDao,
+        networkMonitor: NetworkMonitor
+    ): CorrespondentRepository = CorrespondentRepository(api, cachedCorrespondentDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton
     fun provideAppDatabase(
         @ApplicationContext context: Context
-    ): AppDatabase = Room.databaseBuilder(
-        context,
-        AppDatabase::class.java,
-        AppDatabase.DATABASE_NAME
-    ).build()
+    ): AppDatabase {
+        val builder = Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            AppDatabase.DATABASE_NAME
+        ).addMigrations(MIGRATION_1_2)
+
+        // For debug builds, allow destructive migration if migration fails
+        if (BuildConfig.DEBUG) {
+            builder.fallbackToDestructiveMigration()
+        }
+
+        return builder.build()
+    }
 
     @Provides
     @Singleton
     fun providePendingUploadDao(
         database: AppDatabase
     ): PendingUploadDao = database.pendingUploadDao()
+
+    @Provides
+    @Singleton
+    fun provideCachedDocumentDao(
+        database: AppDatabase
+    ): CachedDocumentDao = database.cachedDocumentDao()
+
+    @Provides
+    @Singleton
+    fun provideCachedTagDao(
+        database: AppDatabase
+    ): CachedTagDao = database.cachedTagDao()
+
+    @Provides
+    @Singleton
+    fun provideCachedCorrespondentDao(
+        database: AppDatabase
+    ): CachedCorrespondentDao = database.cachedCorrespondentDao()
+
+    @Provides
+    @Singleton
+    fun provideCachedDocumentTypeDao(
+        database: AppDatabase
+    ): CachedDocumentTypeDao = database.cachedDocumentTypeDao()
+
+    @Provides
+    @Singleton
+    fun providePendingChangeDao(
+        database: AppDatabase
+    ): PendingChangeDao = database.pendingChangeDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncMetadataDao(
+        database: AppDatabase
+    ): SyncMetadataDao = database.syncMetadataDao()
 
     @Provides
     @Singleton
@@ -177,4 +243,31 @@ object AppModule {
     fun provideTaskRepository(
         api: PaperlessApi
     ): TaskRepository = TaskRepository(api)
+
+    @Provides
+    @Singleton
+    fun provideSyncManager(
+        api: PaperlessApi,
+        cachedDocumentDao: CachedDocumentDao,
+        cachedTagDao: CachedTagDao,
+        cachedCorrespondentDao: CachedCorrespondentDao,
+        cachedDocumentTypeDao: CachedDocumentTypeDao,
+        pendingChangeDao: PendingChangeDao,
+        syncMetadataDao: SyncMetadataDao
+    ): SyncManager = SyncManager(
+        api,
+        cachedDocumentDao,
+        cachedTagDao,
+        cachedCorrespondentDao,
+        cachedDocumentTypeDao,
+        pendingChangeDao,
+        syncMetadataDao
+    )
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(
+        @ApplicationContext context: Context,
+        syncManager: SyncManager
+    ): NetworkMonitor = NetworkMonitor(context, syncManager)
 }

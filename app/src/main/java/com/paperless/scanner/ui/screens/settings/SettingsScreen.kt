@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
@@ -49,11 +50,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.BuildConfig
-import com.paperless.scanner.ui.theme.PastelCyan
 
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
+    onNavigateToDemo: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -74,9 +75,9 @@ fun SettingsScreen(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "Einstellungen",
+                text = "EINSTELLUNGEN",
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -84,10 +85,11 @@ fun SettingsScreen(
             // Profile Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -99,14 +101,14 @@ fun SettingsScreen(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(PastelCyan),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Person,
                             contentDescription = null,
                             modifier = Modifier.size(28.dp),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
 
@@ -173,6 +175,16 @@ fun SettingsScreen(
             )
         }
 
+        // Design Section
+        SettingsSection(title = "Design") {
+            SettingsClickableItem(
+                icon = Icons.Filled.ColorLens,
+                title = "Design System Demo",
+                value = "Neues Dark Tech Design ausprobieren",
+                onClick = onNavigateToDemo
+            )
+        }
+
         // About Section
         SettingsSection(title = "Über") {
             SettingsInfoItem(
@@ -201,10 +213,11 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
             ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             onClick = { showLogoutDialog = true }
         ) {
             Row(
@@ -360,19 +373,20 @@ private fun SettingsSection(
             .padding(top = 16.dp)
     ) {
         Text(
-            text = title,
+            text = title.uppercase(),
             style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surface
-            )
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Column {
                 content()

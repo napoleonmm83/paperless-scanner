@@ -6,16 +6,46 @@ import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.api.safeApiResponse
+import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.mappers.toCachedEntity
+import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
+import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.Tag
 import javax.inject.Inject
 
 class TagRepository @Inject constructor(
-    private val api: PaperlessApi
+    private val api: PaperlessApi,
+    private val cachedTagDao: CachedTagDao,
+    private val pendingChangeDao: PendingChangeDao,
+    private val networkMonitor: NetworkMonitor
 ) {
-    suspend fun getTags(): Result<List<Tag>> = safeApiCall {
-        api.getTags().results.toDomain()
+    suspend fun getTags(forceRefresh: Boolean = false): Result<List<Tag>> {
+        return try {
+            // Offline-First: Try cache first unless forceRefresh
+            if (!forceRefresh || !networkMonitor.checkOnlineStatus()) {
+                val cachedTags = cachedTagDao.getAllTags()
+                if (cachedTags.isNotEmpty()) {
+                    return Result.success(cachedTags.map { it.toCachedDomain() })
+                }
+            }
+
+            // Network fetch (if online and forceRefresh or cache empty)
+            if (networkMonitor.checkOnlineStatus()) {
+                val response = api.getTags(page = 1, pageSize = 100)
+                // Update cache
+                val cachedEntities = response.results.map { it.toCachedEntity() }
+                cachedTagDao.insertAll(cachedEntities)
+                Result.success(response.results.toDomain())
+            } else {
+                // Offline, no cache
+                Result.success(emptyList())
+            }
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
     }
 
     suspend fun createTag(name: String, color: String? = null): Result<Tag> = safeApiCall {

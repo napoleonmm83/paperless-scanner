@@ -102,6 +102,27 @@ app/src/main/java/com/paperless/scanner/
 - `remember` und `rememberSaveable` korrekt nutzen
 - Material 3 Components verwenden
 
+### UI Style Guide (ZWINGEND!)
+**Dark Tech Precision Pro** - Dieser Style Guide MUSS bei allen UI-Anpassungen eingehalten werden:
+- **Farben:**
+  - Primary: `#E1FF8D` (neon-gelb) für Akzente und wichtige Elemente
+  - Background: `#0A0A0A` (tiefes Schwarz)
+  - Surface: `#141414` (dunkelgrau)
+  - Surface Variant: `#1F1F1F` (etwas heller)
+  - Outline: `#27272A` (für Rahmen)
+- **Cards:**
+  - Corner Radius: `20dp`
+  - Border Width: `1dp` mit `outline` Farbe
+  - **KEINE Schatten** (`elevation = 0.dp`)
+  - Content Padding: `16dp`
+- **Typography:**
+  - Headlines: ExtraBold, Uppercase
+  - Labels: Medium, Uppercase, Letter Spacing `0.1em`
+- **Prinzipien:**
+  - Hoher Kontrast zwischen tiefem Schwarz und neon-gelb
+  - Subtile Outlines statt Elevation/Schatten
+  - Minimalistisch und präzise
+
 ### Naming
 - ViewModels: `{Feature}ViewModel`
 - Screens: `{Feature}Screen`
@@ -197,6 +218,7 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 - Keine hardcodierten Strings (→ strings.xml)
 - Keine Logs mit sensiblen Daten
 - Keine sensiblen Daten in ByteRover speichern (API Keys, Tokens, etc.)
+- **NIEMALS vom Dark Tech Precision Pro Style Guide abweichen bei UI-Komponenten**
 
 ---
 

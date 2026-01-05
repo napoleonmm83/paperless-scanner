@@ -20,12 +20,26 @@ sealed class Screen(val route: String) {
     data object Labels : Screen("labels")
     data object Settings : Screen("settings")
 
+    // Demo screen
+    data object Demo : Screen("demo")
+
     // Document detail
     data object DocumentDetail : Screen("document/{documentId}") {
         fun createRoute(documentId: Int): String {
             return "document/$documentId"
         }
     }
+
+    // PDF Viewer
+    data object PdfViewer : Screen("pdf-viewer/{documentId}/{documentTitle}") {
+        fun createRoute(documentId: Int, documentTitle: String): String {
+            val encodedTitle = Uri.encode(documentTitle)
+            return "pdf-viewer/$documentId/$encodedTitle"
+        }
+    }
+
+    // Pending Sync Debug
+    data object PendingSync : Screen("pending-sync")
 
     // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {

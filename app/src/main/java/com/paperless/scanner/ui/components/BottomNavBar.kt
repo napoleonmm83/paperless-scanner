@@ -60,8 +60,8 @@ fun BottomNavBar(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.inverseSurface,
-        shadowElevation = 8.dp
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier
@@ -116,18 +116,18 @@ private fun NavButton(
             contentDescription = item.label,
             modifier = Modifier.size(24.dp),
             tint = if (isSelected)
-                MaterialTheme.colorScheme.inverseOnSurface
+                MaterialTheme.colorScheme.primary
             else
-                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f)
+                MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = item.label,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
             color = if (isSelected)
-                MaterialTheme.colorScheme.inverseOnSurface
+                MaterialTheme.colorScheme.primary
             else
-                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f),
+                MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
     }
@@ -169,9 +169,9 @@ private fun ScanNavButton(
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
             color = if (isSelected)
-                MaterialTheme.colorScheme.inverseOnSurface
+                MaterialTheme.colorScheme.primary
             else
-                MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.6f),
+                MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
     }

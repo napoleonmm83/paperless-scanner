@@ -62,7 +62,10 @@ fun MainScreen(
                     onNavigateToDocuments = {
                         navController.navigate(Screen.Documents.route)
                     },
-                    onDocumentClick = onDocumentClick
+                    onDocumentClick = onDocumentClick,
+                    onNavigateToPendingSync = {
+                        navController.navigate(Screen.PendingSync.route)
+                    }
                 )
                 Screen.Documents.route -> DocumentsScreen(
                     onDocumentClick = onDocumentClick
@@ -76,7 +79,10 @@ fun MainScreen(
                     onDocumentClick = onDocumentClick
                 )
                 Screen.Settings.route -> SettingsScreen(
-                    onLogout = onLogout
+                    onLogout = onLogout,
+                    onNavigateToDemo = {
+                        navController.navigate(Screen.Demo.route)
+                    }
                 )
             }
         }

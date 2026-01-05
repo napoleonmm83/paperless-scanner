@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,8 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -57,13 +58,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.paperless.scanner.ui.theme.PastelBlue
-import com.paperless.scanner.ui.theme.PastelCyan
-import com.paperless.scanner.ui.theme.PastelGreen
-import com.paperless.scanner.ui.theme.PastelOrange
-import com.paperless.scanner.ui.theme.PastelPink
-import com.paperless.scanner.ui.theme.PastelPurple
-import com.paperless.scanner.ui.theme.PastelYellow
 import kotlinx.coroutines.launch
 
 data class LabelItem(
@@ -73,14 +67,15 @@ data class LabelItem(
     val documentCount: Int
 )
 
+// Dark Tech Precision label color palette
 val labelColorOptions = listOf(
-    PastelCyan,
-    PastelYellow,
-    PastelPurple,
-    PastelBlue,
-    PastelGreen,
-    PastelOrange,
-    PastelPink
+    Color(0xFFE1FF8D), // Neon Yellow/Green (Primary)
+    Color(0xFF8DD7FF), // Electric Blue
+    Color(0xFFFF8D8D), // Coral Red
+    Color(0xFFB88DFF), // Electric Purple
+    Color(0xFF8DFFB8), // Mint Green
+    Color(0xFFFFB88D), // Warm Orange
+    Color(0xFFFF8DFF)  // Hot Pink
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -121,9 +116,9 @@ fun LabelsScreen(
                 .padding(top = 24.dp, bottom = 8.dp)
         ) {
             Text(
-                text = "Labels",
+                text = "LABELS",
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
             Text(
                 text = "Verwalte deine Labels",
@@ -167,7 +162,7 @@ fun LabelsScreen(
                     }
                 }
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(8.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
@@ -257,10 +252,11 @@ private fun LabelCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -353,11 +349,11 @@ private fun AddLabelCard(onClick: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.primary
         ),
-        border = CardDefaults.outlinedCardBorder()
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -370,14 +366,14 @@ private fun AddLabelCard(onClick: () -> Unit) {
                 imageVector = Icons.Filled.Add,
                 contentDescription = null,
                 modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Neues Label",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     }
@@ -395,6 +391,7 @@ private fun CreateLabelSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
             .padding(24.dp)
     ) {
         Text(
@@ -417,7 +414,7 @@ private fun CreateLabelSheet(
             onValueChange = { name = it },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text("Label-Name eingeben...") },
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(8.dp),
             singleLine = true
         )
 
@@ -584,7 +581,7 @@ private fun LabelDetailView(
                 modifier = Modifier.clickable { onBack() }
             ) {
                 Icon(
-                    imageVector = Icons.Filled.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Zurück",
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -612,7 +609,7 @@ private fun LabelDetailView(
                 Text(
                     text = label.name,
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
             Text(
@@ -662,10 +659,11 @@ private fun LabelDetailView(
                     Card(
                         onClick = { onDocumentClick(doc.id) },
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
-                        )
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
                             modifier = Modifier

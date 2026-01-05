@@ -95,6 +95,10 @@ fun MultiPageUploadScreen(
                 snackbarHostState.showSnackbar("PDF mit ${documentUris.size} Seiten erfolgreich hochgeladen!")
                 onUploadSuccess()
             }
+            is UploadUiState.Queued -> {
+                snackbarHostState.showSnackbar("Upload wird synchronisiert, sobald Verbindung besteht")
+                onUploadSuccess() // Navigate back
+            }
             is UploadUiState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
             }

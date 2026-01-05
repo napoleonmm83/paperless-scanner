@@ -14,6 +14,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -71,21 +73,42 @@ class HomeViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
-    private val uploadQueueRepository: UploadQueueRepository
+    private val uploadQueueRepository: UploadQueueRepository,
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val syncManager: com.paperless.scanner.data.sync.SyncManager
 ) : ViewModel() {
 
     companion object {
         private val logger = Logger.getLogger(HomeViewModel::class.java.name)
         private const val POLLING_INTERVAL_MS = 3000L
+        private const val NETWORK_CHECK_INTERVAL_MS = 1000L
     }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    // Live network status from NetworkMonitor
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+
+    // Combined pending changes: Upload Queue + Sync Pending Changes
+    val pendingChangesCount: StateFlow<Int> = kotlinx.coroutines.flow.combine(
+        uploadQueueRepository.pendingCount,
+        syncManager.pendingChangesCount
+    ) { uploadQueueCount, syncPendingCount ->
+        val total = uploadQueueCount + syncPendingCount
+        if (total > 0) {
+            logger.log(Level.INFO, "Pending changes - Upload Queue: $uploadQueueCount, Sync Pending: $syncPendingCount, Total: $total")
+        }
+        total
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), 0)
+
     private var tagMap: Map<Int, Tag> = emptyMap()
+    private var wasOffline = false
 
     init {
         loadDashboardData()
+        startNetworkMonitoring()
+        observePendingUploads()
     }
 
     fun loadDashboardData() {
@@ -178,7 +201,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadStats(): DocumentStat {
-        val pendingCount = uploadQueueRepository.getPendingUploadCount()
+        val pendingCount = pendingChangesCount.value // Use live flow value
         var totalDocuments = 0
         var thisMonth = 0
 
@@ -307,6 +330,33 @@ class HomeViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    private fun startNetworkMonitoring() {
+        viewModelScope.launch {
+            networkMonitor.isOnline.collect { currentlyOnline ->
+                // Auto-refresh when coming back online
+                if (currentlyOnline && wasOffline) {
+                    logger.log(Level.INFO, "Network reconnected - auto-refreshing data")
+                    loadDashboardData()
+                }
+
+                wasOffline = !currentlyOnline
+            }
+        }
+    }
+
+    private fun observePendingUploads() {
+        viewModelScope.launch {
+            pendingChangesCount.collect { count ->
+                // Update stats with new pending count
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        stats = currentState.stats.copy(pendingUploads = count)
+                    )
+                }
+            }
+        }
     }
 
     override fun onCleared() {

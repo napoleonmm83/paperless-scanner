@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -27,7 +29,6 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Tag
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,7 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,20 +57,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.paperless.scanner.ui.theme.PastelCyan
-import com.paperless.scanner.ui.theme.PastelGreen
-import com.paperless.scanner.ui.theme.PastelOrange
-import com.paperless.scanner.ui.theme.PastelPurple
-import com.paperless.scanner.ui.theme.PastelYellow
+import com.paperless.scanner.ui.theme.DarkTechPrimary
+import com.paperless.scanner.ui.theme.DarkTechSurfaceVariant
+import com.paperless.scanner.ui.theme.DarkTechOutline
 
 @Composable
 fun HomeScreen(
     onNavigateToScan: () -> Unit,
     onNavigateToDocuments: () -> Unit,
     onDocumentClick: (Int) -> Unit = {},
+    onNavigateToPendingSync: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val pendingChanges by viewModel.pendingChangesCount.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Counter to trigger delayed refresh after resume
@@ -103,6 +105,13 @@ fun HomeScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
+        // Offline Indicator
+        com.paperless.scanner.ui.components.OfflineIndicator(
+            isOnline = isOnline,
+            pendingChanges = pendingChanges,
+            onClickShowDetails = onNavigateToPendingSync
+        )
+
         // Header
         Column(
             modifier = Modifier
@@ -111,14 +120,16 @@ fun HomeScreen(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "Willkommen zurück",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "WILLKOMMEN ZURÜCK",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Dein Archiv",
+                text = "DEIN ARCHIV",
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
         }
 
@@ -133,22 +144,23 @@ fun HomeScreen(
                 icon = Icons.Filled.Description,
                 value = "${uiState.stats.totalDocuments}",
                 label = "Dokumente",
-                backgroundColor = PastelCyan,
+                isPrimary = true,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Filled.CalendarMonth,
                 value = "${uiState.stats.thisMonth}",
                 label = "Diesen Monat",
-                backgroundColor = PastelYellow,
+                isPrimary = false,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Filled.Inbox,
                 value = "${uiState.stats.pendingUploads}",
                 label = "Ausstehend",
-                backgroundColor = PastelPurple,
-                modifier = Modifier.weight(1f)
+                isPrimary = false,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateToPendingSync
             )
         }
 
@@ -170,7 +182,8 @@ fun HomeScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primary
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -180,7 +193,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.TrendingUp,
+                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
@@ -204,7 +217,8 @@ fun HomeScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -369,10 +383,11 @@ fun HomeScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = PastelOrange.copy(alpha = 0.5f)
-                )
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -410,13 +425,34 @@ private fun StatCard(
     icon: ImageVector,
     value: String,
     label: String,
-    backgroundColor: Color,
-    modifier: Modifier = Modifier
+    isPrimary: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
+    // Dark Tech Precision Pro Style Guide:
+    // - Surface background (#141414)
+    // - 1dp border with outline (#27272A) or primary (#E1FF8D) for primary card
+    // - No elevation
+    // - 20dp corner radius, 16dp padding
+    val borderColor = if (isPrimary) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+
     Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        modifier = modifier.border(
+            width = 1.dp,
+            color = borderColor,
+            shape = RoundedCornerShape(20.dp)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -427,21 +463,26 @@ private fun StatCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                modifier = Modifier.size(28.dp),
+                tint = if (isPrimary) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = label,
+                text = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                fontSize = 11.sp
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
             )
         }
     }
@@ -455,10 +496,11 @@ private fun RecentDocumentCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -471,14 +513,14 @@ private fun RecentDocumentCard(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(PastelGreen),
+                    .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Filled.Description,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    tint = MaterialTheme.colorScheme.onPrimary
                 )
             }
 
@@ -546,38 +588,33 @@ private fun ProcessingTaskCard(
     onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    // Use contrasting text colors - darker variants for better readability
-    val successTextColor = Color(0xFF1B5E20) // Dark green for text
-    val pendingTextColor = Color(0xFF7D6608) // Dark amber/yellow for text
-    val processingTextColor = Color(0xFF00695C) // Dark teal for text
-
     val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when (task.status) {
         TaskStatus.PENDING -> Quintuple(
-            PastelYellow.copy(alpha = 0.3f),
+            MaterialTheme.colorScheme.surfaceVariant,
             null,
-            PastelYellow,
-            pendingTextColor,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurface,
             "Warte..."
         )
         TaskStatus.PROCESSING -> Quintuple(
-            PastelCyan.copy(alpha = 0.3f),
+            MaterialTheme.colorScheme.primaryContainer,
             null,
-            PastelCyan,
-            processingTextColor,
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.onSurface,
             "Verarbeite..."
         )
         TaskStatus.SUCCESS -> Quintuple(
-            PastelGreen.copy(alpha = 0.3f),
+            MaterialTheme.colorScheme.primary,
             Icons.Filled.CheckCircle,
-            Color(0xFF2E7D32), // Darker green for icon
-            successTextColor,
+            MaterialTheme.colorScheme.onPrimary,
+            MaterialTheme.colorScheme.onPrimary,
             "Erfolgreich"
         )
         TaskStatus.FAILURE -> Quintuple(
             MaterialTheme.colorScheme.errorContainer,
             Icons.Filled.Error,
             MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.error,
+            MaterialTheme.colorScheme.onSurface,
             "Fehlgeschlagen"
         )
     }
@@ -585,10 +622,11 @@ private fun ProcessingTaskCard(
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = backgroundColor
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         enabled = task.status == TaskStatus.SUCCESS && task.documentId != null
     ) {
         Column(

@@ -62,6 +62,7 @@ import coil.request.ImageRequest
 @Composable
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
+    onOpenPdf: (Int, String) -> Unit,
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -314,30 +315,25 @@ fun DocumentDetailScreen(
                         }
                     }
 
-                    // Download Button
+                    // PDF Viewer Button
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = {
-                            if (uiState.downloadUrl != null && uiState.authToken != null) {
-                                val downloadUrlWithAuth = "${uiState.downloadUrl}?auth_token=${uiState.authToken}"
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrlWithAuth))
-                                context.startActivity(intent)
-                            }
+                            onOpenPdf(uiState.id, uiState.title)
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = uiState.downloadUrl != null && uiState.authToken != null
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Download,
+                            imageVector = Icons.Filled.Description,
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Dokument öffnen",
+                            text = "PDF anzeigen",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )

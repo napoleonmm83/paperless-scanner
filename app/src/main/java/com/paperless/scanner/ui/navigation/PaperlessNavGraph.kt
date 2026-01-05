@@ -11,12 +11,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
+import com.paperless.scanner.ui.screens.demo.DemoScreen
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
 import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
 import com.paperless.scanner.ui.screens.onboarding.ServerSetupScreen
 import com.paperless.scanner.ui.screens.onboarding.SuccessScreen
 import com.paperless.scanner.ui.screens.onboarding.WelcomeScreen
+import com.paperless.scanner.ui.screens.pdfviewer.PdfViewerScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
 
@@ -151,6 +153,46 @@ fun PaperlessNavGraph(
         ) {
             DocumentDetailScreen(
                 onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onOpenPdf = { documentId, documentTitle ->
+                    navController.navigate(Screen.PdfViewer.createRoute(documentId, documentTitle))
+                }
+            )
+        }
+
+        // PDF Viewer Screen
+        composable(
+            route = Screen.PdfViewer.route,
+            arguments = listOf(
+                navArgument("documentId") {
+                    type = NavType.StringType
+                },
+                navArgument("documentTitle") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            PdfViewerScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Pending Sync Screen
+        composable(route = Screen.PendingSync.route) {
+            com.paperless.scanner.ui.screens.pendingsync.PendingSyncScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Demo Screen
+        composable(route = Screen.Demo.route) {
+            DemoScreen(
+                onBackClick = {
                     navController.popBackStack()
                 }
             )

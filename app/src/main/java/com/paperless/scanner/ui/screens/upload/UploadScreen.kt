@@ -87,6 +87,10 @@ fun UploadScreen(
                 // Navigate immediately - don't wait for snackbar
                 onUploadSuccess()
             }
+            is UploadUiState.Queued -> {
+                snackbarHostState.showSnackbar("Upload wird synchronisiert, sobald Verbindung besteht")
+                onUploadSuccess() // Navigate back
+            }
             is UploadUiState.Error -> {
                 snackbarHostState.showSnackbar(state.message)
             }

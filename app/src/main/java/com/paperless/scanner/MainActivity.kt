@@ -3,6 +3,7 @@ package com.paperless.scanner
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -17,6 +18,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.navigation.PaperlessNavGraph
@@ -38,6 +40,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Set dark navigation bar with light icons globally
+        @Suppress("DEPRECATION")
+        window.navigationBarColor = Color.BLACK
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = false
+
         requestNotificationPermission()
 
         val sharedUris = handleShareIntent(intent)

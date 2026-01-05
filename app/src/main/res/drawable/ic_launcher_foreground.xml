@@ -4,20 +4,20 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Document icon -->
+    <!-- Document icon - Dark Tech Precision -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="#E1FF8D"
         android:pathData="M38,22h22l14,14v44c0,2.2 -1.8,4 -4,4H38c-2.2,0 -4,-1.8 -4,-4V26c0,-2.2 1.8,-4 4,-4z"/>
     <path
-        android:fillColor="#17541f"
+        android:fillColor="#000000"
         android:pathData="M58,22v12c0,1.1 0.9,2 2,2h12"/>
     <path
-        android:fillColor="#17541f"
+        android:fillColor="#000000"
         android:pathData="M42,48h24v2h-24z"/>
     <path
-        android:fillColor="#17541f"
+        android:fillColor="#000000"
         android:pathData="M42,54h24v2h-24z"/>
     <path
-        android:fillColor="#17541f"
+        android:fillColor="#000000"
         android:pathData="M42,60h16v2h-16z"/>
 </vector>

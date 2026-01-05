@@ -27,7 +27,9 @@ class UploadViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
     private val correspondentRepository: CorrespondentRepository,
-    private val networkUtils: NetworkUtils
+    private val networkUtils: NetworkUtils,
+    private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
@@ -105,9 +107,18 @@ class UploadViewModel @Inject constructor(
         lastUploadParams = UploadParams.Single(uri, title, tagIds, documentTypeId, correspondentId)
 
         viewModelScope.launch(Dispatchers.IO) {
-            // Check network availability
-            if (!networkUtils.isNetworkAvailable()) {
-                _uiState.update { UploadUiState.Error("Keine Netzwerkverbindung") }
+            // Check network availability - if offline, queue the upload
+            if (!networkMonitor.checkOnlineStatus()) {
+                Log.d(TAG, "Offline detected - queueing upload for later sync")
+                uploadQueueRepository.queueUpload(
+                    uri = uri,
+                    title = title,
+                    tagIds = tagIds,
+                    documentTypeId = documentTypeId,
+                    correspondentId = correspondentId
+                )
+                lastUploadParams = null
+                _uiState.update { UploadUiState.Queued }
                 return@launch
             }
 
@@ -146,9 +157,18 @@ class UploadViewModel @Inject constructor(
         lastUploadParams = UploadParams.MultiPage(uris, title, tagIds, documentTypeId, correspondentId)
 
         viewModelScope.launch(Dispatchers.IO) {
-            // Check network availability
-            if (!networkUtils.isNetworkAvailable()) {
-                _uiState.update { UploadUiState.Error("Keine Netzwerkverbindung") }
+            // Check network availability - if offline, queue the upload
+            if (!networkMonitor.checkOnlineStatus()) {
+                Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
+                uploadQueueRepository.queueMultiPageUpload(
+                    uris = uris,
+                    title = title,
+                    tagIds = tagIds,
+                    documentTypeId = documentTypeId,
+                    correspondentId = correspondentId
+                )
+                lastUploadParams = null
+                _uiState.update { UploadUiState.Queued }
                 return@launch
             }
 
@@ -266,6 +286,7 @@ sealed class UploadUiState {
     data class Uploading(val progress: Float = 0f) : UploadUiState()
     data class Success(val taskId: String) : UploadUiState()
     data class Error(val message: String) : UploadUiState()
+    data object Queued : UploadUiState() // Upload in Queue, wird später synchronisiert
 }
 
 sealed class CreateTagState {

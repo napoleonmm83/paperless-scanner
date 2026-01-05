@@ -30,12 +30,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.RotateRight
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Button
@@ -95,9 +95,6 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
-import com.paperless.scanner.ui.theme.PastelCyan
-import com.paperless.scanner.ui.theme.PastelPurple
-import com.paperless.scanner.ui.theme.PastelYellow
 import kotlinx.coroutines.launch
 
 private const val MAX_PAGES = 20
@@ -263,9 +260,9 @@ private fun ModeSelectionContent(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "Neues Dokument",
+                text = "NEUES DOKUMENT",
                 style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
             Text(
                 text = "Wähle eine Option",
@@ -287,7 +284,7 @@ private fun ModeSelectionContent(
             ScanOptionCard(
                 icon = Icons.Filled.CameraAlt,
                 label = "Scannen",
-                backgroundColor = PastelCyan,
+                backgroundColor = MaterialTheme.colorScheme.primary,
                 onClick = onScanClick,
                 modifier = Modifier.weight(1f)
             )
@@ -296,7 +293,7 @@ private fun ModeSelectionContent(
             ScanOptionCard(
                 icon = Icons.Filled.PhotoLibrary,
                 label = "Galerie",
-                backgroundColor = PastelYellow,
+                backgroundColor = Color(0xFF8DD7FF),
                 onClick = onGalleryClick,
                 modifier = Modifier.weight(1f)
             )
@@ -305,7 +302,7 @@ private fun ModeSelectionContent(
             ScanOptionCard(
                 icon = Icons.Filled.FolderOpen,
                 label = "Dateien",
-                backgroundColor = PastelPurple,
+                backgroundColor = Color(0xFFB88DFF),
                 onClick = onFilesClick,
                 modifier = Modifier.weight(1f)
             )
@@ -327,8 +324,9 @@ private fun ScanOptionCard(
         onClick = onClick,
         modifier = modifier
             .aspectRatio(0.85f),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = backgroundColor)
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -341,14 +339,14 @@ private fun ScanOptionCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                    .background(Color.Black.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    tint = Color.Black.copy(alpha = 0.8f)
                 )
             }
 
@@ -358,7 +356,7 @@ private fun ScanOptionCard(
                 text = label,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
+                color = Color.Black.copy(alpha = 0.85f)
             )
         }
     }
@@ -651,7 +649,7 @@ private fun PageThumbnail(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.RotateRight,
+                        imageVector = Icons.AutoMirrored.Filled.RotateRight,
                         contentDescription = "Drehen",
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer
@@ -843,7 +841,7 @@ private fun PagePreviewDialog(
                         )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.RotateRight,
+                        imageVector = Icons.AutoMirrored.Filled.RotateRight,
                         contentDescription = "Drehen",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)

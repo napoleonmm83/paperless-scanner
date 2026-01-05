@@ -2,48 +2,104 @@ package com.paperless.scanner.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand Color Palette
-val BrandTeal = Color(0xFF31A2AC)           // Primary - Teal
-val BrandTealLight = Color(0xFF5FC4CD)      // Primary lighter
-val BrandTealDark = Color(0xFF1D7A82)       // Primary darker
-val BrandRed = Color(0xFFAF1C1C)            // Accent/Error - Dark Red
-val BrandRedLight = Color(0xFFD64545)       // Error lighter
-val BrandLavender = Color(0xFFF0EFFE)       // Background - Light Lavender
-val BrandCharcoal = Color(0xFF2F2F28)       // Text - Dark Charcoal
+// ============================================
+// Dark Tech Precision Color Palette
+// ============================================
 
-// Material 3 Light Theme
-val md_theme_light_primary = BrandTeal
-val md_theme_light_onPrimary = Color.White
-val md_theme_light_primaryContainer = Color(0xFFB8E8EB)
-val md_theme_light_onPrimaryContainer = Color(0xFF0A3033)
-val md_theme_light_secondary = BrandCharcoal
-val md_theme_light_onSecondary = Color.White
-val md_theme_light_secondaryContainer = Color(0xFFE0E0DC)
-val md_theme_light_onSecondaryContainer = BrandCharcoal
-val md_theme_light_tertiary = Color(0xFF6B5C8A)
-val md_theme_light_onTertiary = Color.White
-val md_theme_light_tertiaryContainer = Color(0xFFE8DDFF)
-val md_theme_light_onTertiaryContainer = Color(0xFF251942)
-val md_theme_light_error = BrandRed
-val md_theme_light_onError = Color.White
-val md_theme_light_errorContainer = Color(0xFFFFDAD6)
-val md_theme_light_onErrorContainer = Color(0xFF410002)
-val md_theme_light_background = BrandLavender
-val md_theme_light_onBackground = BrandCharcoal
-val md_theme_light_surface = Color.White
-val md_theme_light_onSurface = BrandCharcoal
-val md_theme_light_surfaceVariant = Color(0xFFE8E6F0)
-val md_theme_light_onSurfaceVariant = Color(0xFF49474E)
-val md_theme_light_outline = Color(0xFF7A777F)
-val md_theme_light_outlineVariant = Color(0xFFCBC9D0)
-val md_theme_light_inverseSurface = BrandCharcoal
-val md_theme_light_inverseOnSurface = BrandLavender
+// Primary Brand Color - Neon Yellow/Green
+val DarkTechPrimary = Color(0xFFE1FF8D)
+val DarkTechOnPrimary = Color(0xFF000000)
 
-// Pastel Colors for UI Elements (based on brand palette)
-val PastelCyan = Color(0xFFB8E8EB)      // Based on BrandTeal
-val PastelGreen = Color(0xFFB8E8D0)     // Soft green
-val PastelBlue = Color(0xFFB8D8EB)      // Soft blue
-val PastelPurple = Color(0xFFD8D0EB)    // Based on Lavender
-val PastelYellow = Color(0xFFF5ECD0)    // Soft yellow
-val PastelOrange = Color(0xFFF5DCC0)    // Soft orange
-val PastelPink = Color(0xFFF5D0E0)      // Soft pink
+// Background Colors - Deep Blacks
+val DarkTechBackground = Color(0xFF0A0A0A)
+val DarkTechSurface = Color(0xFF141414)
+val DarkTechSurfaceVariant = Color(0xFF1F1F1F)
+
+// Text Colors
+val DarkTechOnBackground = Color(0xFFFFFFFF)
+val DarkTechOnSurface = Color(0xFFFFFFFF)
+val DarkTechOnSurfaceMuted = Color(0xFFA1A1AA)
+
+// Outline/Border Colors
+val DarkTechOutline = Color(0xFF27272A)
+val DarkTechOutlineVariant = Color(0xFF3F3F46)
+
+// Accent Color
+val DarkTechAccentBlue = Color(0xFF2E3A59)
+
+// Status Colors
+val DarkTechSuccess = Color(0xFF10B981)
+val DarkTechWarning = Color(0xFFF59E0B)
+val DarkTechError = Color(0xFFEF4444)
+val DarkTechInfo = Color(0xFF3B82F6)
+
+// ============================================
+// Material 3 Dark Theme Color Scheme
+// ============================================
+
+val md_theme_dark_primary = DarkTechPrimary
+val md_theme_dark_onPrimary = DarkTechOnPrimary
+val md_theme_dark_primaryContainer = Color(0xFF2A3310)  // Dark variant of primary
+val md_theme_dark_onPrimaryContainer = DarkTechPrimary
+
+val md_theme_dark_secondary = DarkTechPrimary
+val md_theme_dark_onSecondary = DarkTechOnPrimary
+val md_theme_dark_secondaryContainer = DarkTechSurfaceVariant
+val md_theme_dark_onSecondaryContainer = DarkTechOnSurface
+
+val md_theme_dark_tertiary = DarkTechAccentBlue
+val md_theme_dark_onTertiary = DarkTechOnSurface
+val md_theme_dark_tertiaryContainer = Color(0xFF1E293F)
+val md_theme_dark_onTertiaryContainer = DarkTechAccentBlue
+
+val md_theme_dark_error = DarkTechError
+val md_theme_dark_onError = Color.White
+val md_theme_dark_errorContainer = Color(0xFF4C1D1D)
+val md_theme_dark_onErrorContainer = DarkTechError
+
+val md_theme_dark_background = DarkTechBackground
+val md_theme_dark_onBackground = DarkTechOnBackground
+
+val md_theme_dark_surface = DarkTechSurface
+val md_theme_dark_onSurface = DarkTechOnSurface
+val md_theme_dark_surfaceVariant = DarkTechSurfaceVariant
+val md_theme_dark_onSurfaceVariant = DarkTechOnSurfaceMuted
+
+val md_theme_dark_outline = DarkTechOutline
+val md_theme_dark_outlineVariant = DarkTechOutlineVariant
+
+val md_theme_dark_inverseSurface = DarkTechOnSurface
+val md_theme_dark_inverseOnSurface = DarkTechSurface
+val md_theme_dark_inversePrimary = DarkTechOnPrimary
+
+val md_theme_dark_surfaceTint = DarkTechPrimary
+val md_theme_dark_scrim = Color(0xFF000000)
+
+// ============================================
+// Legacy Colors (kept for backwards compatibility)
+// Will be removed during screen migration
+// ============================================
+
+@Deprecated("Use MaterialTheme.colorScheme.primary instead", ReplaceWith("MaterialTheme.colorScheme.primary"))
+val BrandTeal = Color(0xFF31A2AC)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelCyan = Color(0xFFB8E8EB)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelGreen = Color(0xFFB8E8D0)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelBlue = Color(0xFFB8D8EB)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelPurple = Color(0xFFD8D0EB)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelYellow = Color(0xFFF5ECD0)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelOrange = Color(0xFFF5DCC0)
+
+@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
+val PastelPink = Color(0xFFF5D0E0)

@@ -26,6 +26,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface PaperlessApi {
 
@@ -37,7 +38,10 @@ interface PaperlessApi {
     ): TokenResponse
 
     @GET("api/tags/")
-    suspend fun getTags(): TagsResponse
+    suspend fun getTags(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 25
+    ): TagsResponse
 
     @POST("api/tags/")
     suspend fun createTag(
@@ -45,10 +49,16 @@ interface PaperlessApi {
     ): Tag
 
     @GET("api/document_types/")
-    suspend fun getDocumentTypes(): DocumentTypesResponse
+    suspend fun getDocumentTypes(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 25
+    ): DocumentTypesResponse
 
     @GET("api/correspondents/")
-    suspend fun getCorrespondents(): CorrespondentsResponse
+    suspend fun getCorrespondents(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 25
+    ): CorrespondentsResponse
 
     @Multipart
     @POST("api/documents/post_document/")
@@ -76,6 +86,13 @@ interface PaperlessApi {
     @GET("api/documents/{id}/")
     suspend fun getDocument(@Path("id") id: Int): Document
 
+    @GET("api/documents/{id}/download/")
+    @Streaming
+    suspend fun downloadDocument(@Path("id") id: Int): ResponseBody
+
+    @DELETE("api/documents/{id}/")
+    suspend fun deleteDocument(@Path("id") id: Int): Response<Unit>
+
     // Tag update/delete
     @PUT("api/tags/{id}/")
     suspend fun updateTag(
@@ -85,6 +102,14 @@ interface PaperlessApi {
 
     @DELETE("api/tags/{id}/")
     suspend fun deleteTag(@Path("id") id: Int): Response<Unit>
+
+    // Correspondent delete
+    @DELETE("api/correspondents/{id}/")
+    suspend fun deleteCorrespondent(@Path("id") id: Int): Response<Unit>
+
+    // DocumentType delete
+    @DELETE("api/document_types/{id}/")
+    suspend fun deleteDocumentType(@Path("id") id: Int): Response<Unit>
 
     // Task tracking endpoints
     @GET("api/tasks/")

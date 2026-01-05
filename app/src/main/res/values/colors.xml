@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Legacy colors -->
     <color name="paperless_green">#17541f</color>
     <color name="paperless_green_light">#2e7d32</color>
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
-    <color name="ic_launcher_background">#17541f</color>
+
+    <!-- Dark Tech Precision -->
+    <color name="splash_background">#0A0A0A</color>
+    <color name="ic_launcher_background">#0A0A0A</color>
 
     <!-- Widget Colors -->
     <color name="widget_background">#E8F5E9</color>

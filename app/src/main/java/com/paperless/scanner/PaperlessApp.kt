@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.sync.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,9 +18,30 @@ class PaperlessApp : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
 
+    @Inject
+    lateinit var networkMonitor: NetworkMonitor
+
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize offline mode infrastructure
+        initializeOfflineMode()
+
         cleanupOldCacheFiles()
+    }
+
+    private fun initializeOfflineMode() {
+        try {
+            // Start network monitoring for auto-sync on reconnect
+            networkMonitor.startMonitoring()
+            Log.d(TAG, "Network monitoring started")
+
+            // Schedule periodic sync with WorkManager
+            SyncWorker.schedule(this)
+            Log.d(TAG, "Periodic sync scheduled")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize offline mode", e)
+        }
     }
 
     override val workManagerConfiguration: Configuration
