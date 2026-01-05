@@ -4,6 +4,9 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
+import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -17,12 +20,23 @@ import java.io.IOException
 class TagRepositoryTest {
 
     private lateinit var api: PaperlessApi
+    private lateinit var cachedTagDao: CachedTagDao
+    private lateinit var pendingChangeDao: PendingChangeDao
+    private lateinit var networkMonitor: NetworkMonitor
     private lateinit var tagRepository: TagRepository
 
     @Before
     fun setup() {
         api = mockk()
-        tagRepository = TagRepository(api)
+        cachedTagDao = mockk(relaxed = true)
+        pendingChangeDao = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
+        tagRepository = TagRepository(
+            api,
+            cachedTagDao,
+            pendingChangeDao,
+            networkMonitor
+        )
     }
 
     @Test

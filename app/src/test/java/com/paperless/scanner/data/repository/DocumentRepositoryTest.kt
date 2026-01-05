@@ -4,6 +4,9 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
+import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -32,6 +35,9 @@ class DocumentRepositoryTest {
     private lateinit var context: Context
     private lateinit var contentResolver: ContentResolver
     private lateinit var api: PaperlessApi
+    private lateinit var cachedDocumentDao: CachedDocumentDao
+    private lateinit var pendingChangeDao: PendingChangeDao
+    private lateinit var networkMonitor: NetworkMonitor
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -40,12 +46,21 @@ class DocumentRepositoryTest {
         context = mockk(relaxed = true)
         contentResolver = mockk(relaxed = true)
         api = mockk()
+        cachedDocumentDao = mockk(relaxed = true)
+        pendingChangeDao = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
         every { context.contentResolver } returns contentResolver
         every { context.cacheDir } returns cacheDir
 
-        documentRepository = DocumentRepository(context, api)
+        documentRepository = DocumentRepository(
+            context,
+            api,
+            cachedDocumentDao,
+            pendingChangeDao,
+            networkMonitor
+        )
     }
 
     @Test

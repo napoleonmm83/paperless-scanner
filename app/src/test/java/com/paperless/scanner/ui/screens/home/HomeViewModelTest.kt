@@ -1,19 +1,23 @@
 package com.paperless.scanner.ui.screens.home
 
 import app.cash.turbine.test
-import com.paperless.scanner.data.api.models.Document
-import com.paperless.scanner.data.api.models.DocumentsResponse
-import com.paperless.scanner.data.api.models.PaperlessTask
-import com.paperless.scanner.data.api.models.Tag
+import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.domain.model.DocumentsResponse
+import com.paperless.scanner.domain.model.PaperlessTask
+import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.sync.SyncManager
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -36,6 +40,8 @@ class HomeViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
+    private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var syncManager: SyncManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -46,8 +52,11 @@ class HomeViewModelTest {
         tagRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
+        syncManager = mockk(relaxed = true)
 
         // Default mock responses
+        every { networkMonitor.isConnected } returns flowOf(true)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any()) } returns
@@ -67,7 +76,9 @@ class HomeViewModelTest {
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             taskRepository = taskRepository,
-            uploadQueueRepository = uploadQueueRepository
+            uploadQueueRepository = uploadQueueRepository,
+            networkMonitor = networkMonitor,
+            syncManager = syncManager
         )
     }
 

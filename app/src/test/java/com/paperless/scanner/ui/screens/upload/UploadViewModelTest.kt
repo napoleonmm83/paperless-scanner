@@ -2,13 +2,15 @@ package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
 import app.cash.turbine.test
-import com.paperless.scanner.data.api.models.Correspondent
-import com.paperless.scanner.data.api.models.DocumentType
-import com.paperless.scanner.data.api.models.Tag
+import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.DocumentType
+import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.NetworkUtils
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -17,6 +19,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -37,6 +40,8 @@ class UploadViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var correspondentRepository: CorrespondentRepository
+    private lateinit var uploadQueueRepository: UploadQueueRepository
+    private lateinit var networkMonitor: NetworkMonitor
     private lateinit var networkUtils: NetworkUtils
 
     private val testDispatcher = StandardTestDispatcher()
@@ -48,13 +53,19 @@ class UploadViewModelTest {
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
+        uploadQueueRepository = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
         networkUtils = mockk()
+
+        every { networkMonitor.isConnected } returns flowOf(true)
 
         viewModel = UploadViewModel(
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            uploadQueueRepository = uploadQueueRepository,
+            networkMonitor = networkMonitor,
             networkUtils = networkUtils
         )
     }
