@@ -17,7 +17,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -56,7 +56,7 @@ class HomeViewModelTest {
         syncManager = mockk(relaxed = true)
 
         // Default mock responses
-        every { networkMonitor.isOnline } returns flowOf(true)
+        every { networkMonitor.isOnline } returns MutableStateFlow(true)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any()) } returns

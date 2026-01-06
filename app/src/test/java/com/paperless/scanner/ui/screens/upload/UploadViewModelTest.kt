@@ -19,7 +19,7 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -57,7 +57,7 @@ class UploadViewModelTest {
         networkMonitor = mockk(relaxed = true)
         networkUtils = mockk()
 
-        every { networkMonitor.isOnline } returns flowOf(true)
+        every { networkMonitor.isOnline } returns MutableStateFlow(true)
 
         viewModel = UploadViewModel(
             documentRepository = documentRepository,
