@@ -20,6 +20,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -57,6 +58,8 @@ class HomeViewModelTest {
 
         // Default mock responses
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
+        every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
+        every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any()) } returns
@@ -87,7 +90,7 @@ class HomeViewModelTest {
     @Test
     fun `loadDashboardData sets isLoading true then false`() = runTest {
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -100,7 +103,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getDocumentCount() } returns Result.success(150)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -113,7 +116,7 @@ class HomeViewModelTest {
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 5
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -139,7 +142,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -169,7 +172,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -190,7 +193,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -219,7 +222,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -248,7 +251,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -275,7 +278,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -303,7 +306,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -331,7 +334,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -354,7 +357,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.acknowledgeTasks(any()) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         // Verify initial state has 2 tasks
         assertEquals(2, viewModel.uiState.value.processingTasks.size)
@@ -381,10 +384,10 @@ class HomeViewModelTest {
         coEvery { taskRepository.acknowledgeTasks(any()) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.acknowledgeTask(5)
-        advanceUntilIdle()
+        runCurrent()
 
         coVerify { taskRepository.acknowledgeTasks(listOf(5)) }
     }
@@ -400,7 +403,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         // Now mock new tasks
         val newTasks = listOf(
@@ -409,7 +412,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(newTasks)
 
         viewModel.refreshTasks()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -431,7 +434,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -450,7 +453,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -469,7 +472,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -493,7 +496,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -517,7 +520,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(documents)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -545,7 +548,7 @@ class HomeViewModelTest {
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.failure(Exception("Network error"))
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -560,7 +563,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -591,7 +594,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -619,7 +622,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -642,7 +645,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -671,7 +674,7 @@ class HomeViewModelTest {
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(tasks)
 
         val viewModel = createViewModel()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()

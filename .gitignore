@@ -92,3 +92,9 @@ lint/tmp/
 # Backup files
 *.bak
 gradle.properties.local
+
+# ByteRover context tree
+.brv/
+
+# Claude local settings
+.claude/settings.local.json

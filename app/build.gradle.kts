@@ -104,6 +104,16 @@ android {
             excludes += "/META-INF/LICENSE-notice.md"
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all {
+                it.maxHeapSize = "4096m"
+                it.jvmArgs("-XX:MaxMetaspaceSize=1024m", "-XX:+HeapDumpOnOutOfMemoryError")
+            }
+        }
+    }
 }
 
 dependencies {

@@ -20,6 +20,7 @@ import io.mockk.slot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -87,7 +88,7 @@ class UploadViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.success(unsortedTags)
 
         viewModel.loadTags()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.tags.test {
             val tags = awaitItem()
@@ -103,7 +104,7 @@ class UploadViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.failure(Exception("Network error"))
 
         viewModel.loadTags()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.tags.test {
             assertTrue(awaitItem().isEmpty())
@@ -122,7 +123,7 @@ class UploadViewModelTest {
         coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(unsortedTypes)
 
         viewModel.loadDocumentTypes()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.documentTypes.test {
             val types = awaitItem()
@@ -138,7 +139,7 @@ class UploadViewModelTest {
         coEvery { documentTypeRepository.getDocumentTypes() } returns Result.failure(Exception("Error"))
 
         viewModel.loadDocumentTypes()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.documentTypes.test {
             assertTrue(awaitItem().isEmpty())
@@ -157,7 +158,7 @@ class UploadViewModelTest {
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(unsortedCorrespondents)
 
         viewModel.loadCorrespondents()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.correspondents.test {
             val correspondents = awaitItem()
@@ -173,7 +174,7 @@ class UploadViewModelTest {
         coEvery { correspondentRepository.getCorrespondents() } returns Result.failure(Exception("Error"))
 
         viewModel.loadCorrespondents()
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.correspondents.test {
             assertTrue(awaitItem().isEmpty())
@@ -188,7 +189,7 @@ class UploadViewModelTest {
         every { networkUtils.isNetworkAvailable() } returns false
 
         viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -213,7 +214,7 @@ class UploadViewModelTest {
         } returns Result.success("task-123")
 
         viewModel.uploadDocument(uri = mockUri, title = "Test Document")
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -238,7 +239,7 @@ class UploadViewModelTest {
         } returns Result.failure(Exception("Server error"))
 
         viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -270,7 +271,7 @@ class UploadViewModelTest {
             documentTypeId = 5,
             correspondentId = 10
         )
-        advanceUntilIdle()
+        runCurrent()
 
         coVerify {
             documentRepository.uploadDocument(
@@ -292,7 +293,7 @@ class UploadViewModelTest {
         every { networkUtils.isNetworkAvailable() } returns false
 
         viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -317,7 +318,7 @@ class UploadViewModelTest {
         } returns Result.success("task-456")
 
         viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -342,7 +343,7 @@ class UploadViewModelTest {
         } returns Result.failure(Exception("PDF conversion failed"))
 
         viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.uiState.test {
             val state = awaitItem()
@@ -364,7 +365,7 @@ class UploadViewModelTest {
         every { networkUtils.isNetworkAvailable() } returns false
 
         viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.canRetry())
     }
@@ -375,7 +376,7 @@ class UploadViewModelTest {
         every { networkUtils.isNetworkAvailable() } returns false
 
         viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(viewModel.canRetry())
     }
@@ -396,7 +397,7 @@ class UploadViewModelTest {
         } returns Result.success("task-123")
 
         viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        runCurrent()
 
         assertFalse(viewModel.canRetry())
     }
@@ -415,7 +416,7 @@ class UploadViewModelTest {
             documentTypeId = 3,
             correspondentId = 4
         )
-        advanceUntilIdle()
+        runCurrent()
 
         // Retry with network available
         every { networkUtils.isNetworkAvailable() } returns true
@@ -431,7 +432,7 @@ class UploadViewModelTest {
         } returns Result.success("task-retry")
 
         viewModel.retry()
-        advanceUntilIdle()
+        runCurrent()
 
         coVerify {
             documentRepository.uploadDocument(
@@ -453,7 +454,7 @@ class UploadViewModelTest {
         every { networkUtils.isNetworkAvailable() } returns false
 
         viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        runCurrent()
 
         // Verify we're in error state
         assertTrue(viewModel.uiState.value is UploadUiState.Error)
@@ -474,7 +475,7 @@ class UploadViewModelTest {
         coEvery { tagRepository.createTag(name = "NewTag", color = "#FF0000") } returns Result.success(newTag)
 
         viewModel.createTag(name = "NewTag", color = "#FF0000")
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.createTagState.test {
             val state = awaitItem()
@@ -494,7 +495,7 @@ class UploadViewModelTest {
                 Result.failure(Exception("Tag already exists"))
 
         viewModel.createTag(name = "Duplicate")
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.createTagState.test {
             val state = awaitItem()
@@ -512,13 +513,13 @@ class UploadViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.success(existingTags)
 
         viewModel.loadTags()
-        advanceUntilIdle()
+        runCurrent()
 
         val newTag = Tag(id = 3, name = "Middle")
         coEvery { tagRepository.createTag(name = "Middle", color = null) } returns Result.success(newTag)
 
         viewModel.createTag(name = "Middle")
-        advanceUntilIdle()
+        runCurrent()
 
         viewModel.tags.test {
             val tags = awaitItem()
@@ -535,7 +536,7 @@ class UploadViewModelTest {
                 Result.failure(Exception("Error"))
 
         viewModel.createTag(name = "Test")
-        advanceUntilIdle()
+        runCurrent()
 
         // Verify we're in error state
         assertTrue(viewModel.createTagState.value is CreateTagState.Error)
