@@ -4,15 +4,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class LabelsUiState(
@@ -166,7 +164,7 @@ class LabelsViewModel @Inject constructor(
                     LabelDocument(
                         id = doc.id,
                         title = doc.title,
-                        date = formatDate(doc.created),
+                        date = DateFormatter.formatDateShort(doc.created),
                         pageCount = 1 // API doesn't provide page count
                     )
                 }
@@ -187,16 +185,6 @@ class LabelsViewModel @Inject constructor(
         }
     }
 
-    private fun formatDate(dateString: String): String {
-        return try {
-            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
-            dateTime.format(outputFormatter)
-        } catch (e: DateTimeParseException) {
-            dateString.take(10)
-        }
-    }
 
     private fun parseColor(colorString: String?): Color {
         if (colorString == null) return labelColorOptions.first()

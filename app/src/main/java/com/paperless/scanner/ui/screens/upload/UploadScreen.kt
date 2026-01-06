@@ -47,9 +47,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -79,6 +81,9 @@ fun UploadScreen(
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
     // Dropdowns automatically populate and update when metadata changes.
 
+    val queuedMessage = stringResource(R.string.upload_queued)
+    val tagCreatedMessage = stringResource(R.string.upload_tag_created)
+
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is UploadUiState.Success -> {
@@ -86,7 +91,7 @@ fun UploadScreen(
                 onUploadSuccess()
             }
             is UploadUiState.Queued -> {
-                snackbarHostState.showSnackbar("Upload wird synchronisiert, sobald Verbindung besteht")
+                snackbarHostState.showSnackbar(queuedMessage)
                 onUploadSuccess() // Navigate back
             }
             is UploadUiState.Error -> {
@@ -102,7 +107,7 @@ fun UploadScreen(
                 selectedTagIds.add(tagState.tag.id)
                 showCreateTagDialog = false
                 viewModel.resetCreateTagState()
-                snackbarHostState.showSnackbar("Tag \"${tagState.tag.name}\" erstellt")
+                snackbarHostState.showSnackbar(tagCreatedMessage.format(tagState.tag.name))
             }
             is CreateTagState.Error -> {
                 snackbarHostState.showSnackbar(tagState.message)
@@ -128,12 +133,12 @@ fun UploadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Dokument hochladen") },
+                title = { Text(stringResource(R.string.upload_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück"
+                            contentDescription = stringResource(R.string.upload_back)
                         )
                     }
                 }
@@ -150,7 +155,7 @@ fun UploadScreen(
             // Document Preview
             AsyncImage(
                 model = documentUri,
-                contentDescription = "Document Preview",
+                contentDescription = stringResource(R.string.upload_document_preview),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,8 +168,8 @@ fun UploadScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Titel (optional)") },
-                placeholder = { Text("z.B. Rechnung Dezember 2024") },
+                label = { Text(stringResource(R.string.upload_title_label)) },
+                placeholder = { Text(stringResource(R.string.upload_title_placeholder)) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -232,7 +237,7 @@ fun UploadScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Upload fehlgeschlagen",
+                                text = stringResource(R.string.upload_failed_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -251,7 +256,7 @@ fun UploadScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Retry")
+                            Text(stringResource(R.string.upload_retry_button))
                         }
                     }
                 }
@@ -271,7 +276,7 @@ fun UploadScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Hochladen: ${(uploadingState.progress * 100).toInt()}%",
+                        text = stringResource(R.string.upload_progress, (uploadingState.progress * 100).toInt()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -303,7 +308,7 @@ fun UploadScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Wird hochgeladen...",
+                        text = stringResource(R.string.upload_uploading),
                         style = MaterialTheme.typography.titleMedium
                     )
                 } else {
@@ -313,7 +318,7 @@ fun UploadScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Hochladen",
+                        text = stringResource(R.string.upload_button),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

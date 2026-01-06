@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -55,7 +56,7 @@ class BatchImportViewModel @Inject constructor(
     private fun observeTagsReactively() {
         viewModelScope.launch {
             tagRepository.observeTags().collect { tagList ->
-                _tags.value = tagList.sortedBy { it.name.lowercase() }
+                _tags.update { tagList.sortedBy { it.name.lowercase() } }
             }
         }
     }
@@ -67,7 +68,7 @@ class BatchImportViewModel @Inject constructor(
     private fun observeDocumentTypesReactively() {
         viewModelScope.launch {
             documentTypeRepository.observeDocumentTypes().collect { types ->
-                _documentTypes.value = types.sortedBy { it.name.lowercase() }
+                _documentTypes.update { types.sortedBy { it.name.lowercase() } }
             }
         }
     }
@@ -79,23 +80,15 @@ class BatchImportViewModel @Inject constructor(
     private fun observeCorrespondentsReactively() {
         viewModelScope.launch {
             correspondentRepository.observeCorrespondents().collect { correspondentList ->
-                _correspondents.value = correspondentList.sortedBy { it.name.lowercase() }
+                _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
             }
         }
     }
 
-    fun loadData() {
-        viewModelScope.launch(Dispatchers.IO) {
-            tagRepository.getTags()
-                .onSuccess { _tags.value = it.sortedBy { tag -> tag.name.lowercase() } }
-
-            documentTypeRepository.getDocumentTypes()
-                .onSuccess { _documentTypes.value = it.sortedBy { type -> type.name.lowercase() } }
-
-            correspondentRepository.getCorrespondents()
-                .onSuccess { _correspondents.value = it.sortedBy { c -> c.name.lowercase() } }
-        }
-    }
+    // REMOVED: loadData()
+    // This method is no longer needed because reactive Flows automatically
+    // populate dropdown state via observeTagsReactively(), observeDocumentTypesReactively(),
+    // and observeCorrespondentsReactively() in init{}
 
     fun queueBatchImport(
         imageUris: List<Uri>,
@@ -115,7 +108,7 @@ class BatchImportViewModel @Inject constructor(
             try {
                 if (uploadAsSingleDocument) {
                     // Alle Bilder als ein Multi-Page Dokument
-                    _uiState.value = BatchImportUiState.Queuing(0, 1)
+                    _uiState.update { BatchImportUiState.Queuing(0, 1) }
                     uploadQueueRepository.queueMultiPageUpload(
                         uris = imageUris,
                         title = null,
@@ -123,11 +116,11 @@ class BatchImportViewModel @Inject constructor(
                         documentTypeId = documentTypeId,
                         correspondentId = correspondentId
                     )
-                    _uiState.value = BatchImportUiState.Queuing(1, 1)
+                    _uiState.update { BatchImportUiState.Queuing(1, 1) }
                     Log.d(TAG, "Multi-page document queued")
                 } else {
                     // Jedes Bild einzeln hochladen
-                    _uiState.value = BatchImportUiState.Queuing(0, imageUris.size)
+                    _uiState.update { BatchImportUiState.Queuing(0, imageUris.size) }
                     imageUris.forEachIndexed { index, uri ->
                         uploadQueueRepository.queueUpload(
                             uri = uri,
@@ -136,7 +129,7 @@ class BatchImportViewModel @Inject constructor(
                             documentTypeId = documentTypeId,
                             correspondentId = correspondentId
                         )
-                        _uiState.value = BatchImportUiState.Queuing(index + 1, imageUris.size)
+                        _uiState.update { BatchImportUiState.Queuing(index + 1, imageUris.size) }
                     }
                 }
 
@@ -148,13 +141,15 @@ class BatchImportViewModel @Inject constructor(
                 }
 
                 val successCount = if (uploadAsSingleDocument) 1 else imageUris.size
-                _uiState.value = BatchImportUiState.Success(successCount)
+                _uiState.update { BatchImportUiState.Success(successCount) }
                 Log.d(TAG, "Batch import completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error in queueBatchImport", e)
-                _uiState.value = BatchImportUiState.Error(
-                    e.message ?: "Fehler beim Hinzufügen zur Warteschlange"
-                )
+                _uiState.update {
+                    BatchImportUiState.Error(
+                        e.message ?: "Fehler beim Hinzufügen zur Warteschlange"
+                    )
+                }
             }
         }
     }
@@ -164,7 +159,7 @@ class BatchImportViewModel @Inject constructor(
     }
 
     fun resetState() {
-        _uiState.value = BatchImportUiState.Idle
+        _uiState.update { BatchImportUiState.Idle }
     }
 }
 

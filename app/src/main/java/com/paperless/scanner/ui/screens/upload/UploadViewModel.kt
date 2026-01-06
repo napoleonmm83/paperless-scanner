@@ -13,6 +13,7 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +30,8 @@ class UploadViewModel @Inject constructor(
     private val correspondentRepository: CorrespondentRepository,
     private val networkUtils: NetworkUtils,
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
@@ -93,47 +95,10 @@ class UploadViewModel @Inject constructor(
         }
     }
 
-    fun loadTags() {
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Loading tags...")
-            tagRepository.getTags()
-                .onSuccess { tagList ->
-                    Log.d(TAG, "Tags loaded: ${tagList.size}")
-                    _tags.update { tagList.sortedBy { it.name.lowercase() } }
-                }
-                .onFailure { e ->
-                    Log.e(TAG, "Failed to load tags", e)
-                }
-        }
-    }
-
-    fun loadDocumentTypes() {
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Loading document types...")
-            documentTypeRepository.getDocumentTypes()
-                .onSuccess { types ->
-                    Log.d(TAG, "Document types loaded: ${types.size}")
-                    _documentTypes.update { types.sortedBy { it.name.lowercase() } }
-                }
-                .onFailure { e ->
-                    Log.e(TAG, "Failed to load document types", e)
-                }
-        }
-    }
-
-    fun loadCorrespondents() {
-        viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Loading correspondents...")
-            correspondentRepository.getCorrespondents()
-                .onSuccess { correspondentList ->
-                    Log.d(TAG, "Correspondents loaded: ${correspondentList.size}")
-                    _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
-                }
-                .onFailure { e ->
-                    Log.e(TAG, "Failed to load correspondents", e)
-                }
-        }
-    }
+    // REMOVED: loadTags(), loadDocumentTypes(), loadCorrespondents()
+    // These methods are no longer needed because reactive Flows automatically
+    // populate dropdown state via observeTagsReactively(), observeDocumentTypesReactively(),
+    // and observeCorrespondentsReactively() in init{}
 
     companion object {
         private const val TAG = "UploadViewModel"
@@ -149,7 +114,7 @@ class UploadViewModel @Inject constructor(
         // Store params for potential retry
         lastUploadParams = UploadParams.Single(uri, title, tagIds, documentTypeId, correspondentId)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing upload for later sync")
@@ -199,7 +164,7 @@ class UploadViewModel @Inject constructor(
         // Store params for potential retry
         lastUploadParams = UploadParams.MultiPage(uris, title, tagIds, documentTypeId, correspondentId)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
@@ -280,7 +245,7 @@ class UploadViewModel @Inject constructor(
     }
 
     fun createTag(name: String, color: String? = null) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             _createTagState.update { CreateTagState.Creating }
 
             tagRepository.createTag(name = name, color = color)

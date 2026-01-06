@@ -46,10 +46,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.BuildConfig
+import com.paperless.scanner.R
 
 @Composable
 fun SettingsScreen(
@@ -75,7 +77,7 @@ fun SettingsScreen(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "EINSTELLUNGEN",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -116,12 +118,12 @@ fun SettingsScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Paperless-ngx",
+                            text = stringResource(R.string.settings_paperless_ngx),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            text = uiState.serverUrl.ifEmpty { "Nicht verbunden" },
+                            text = uiState.serverUrl.ifEmpty { stringResource(R.string.settings_not_connected) },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
@@ -144,20 +146,20 @@ fun SettingsScreen(
         }
 
         // Server Section
-        SettingsSection(title = "Server") {
+        SettingsSection(title = stringResource(R.string.settings_section_server)) {
             SettingsInfoItem(
                 icon = Icons.Filled.Cloud,
-                title = "Server-URL",
-                value = uiState.serverUrl.ifEmpty { "Nicht konfiguriert" }
+                title = stringResource(R.string.settings_server_url),
+                value = uiState.serverUrl.ifEmpty { stringResource(R.string.settings_not_configured) }
             )
         }
 
         // Upload Section
-        SettingsSection(title = "Upload") {
+        SettingsSection(title = stringResource(R.string.settings_section_upload)) {
             SettingsToggleItem(
                 icon = Icons.Filled.Notifications,
-                title = "Upload-Benachrichtigungen",
-                subtitle = "Zeige Benachrichtigung während des Uploads",
+                title = stringResource(R.string.settings_upload_notifications),
+                subtitle = stringResource(R.string.settings_upload_notifications_subtitle),
                 checked = uiState.showUploadNotifications,
                 onCheckedChange = { viewModel.setShowUploadNotifications(it) }
             )
@@ -169,27 +171,27 @@ fun SettingsScreen(
 
             SettingsClickableItem(
                 icon = Icons.Filled.HighQuality,
-                title = "Upload-Qualität",
+                title = stringResource(R.string.settings_upload_quality),
                 value = uiState.uploadQuality.displayName,
                 onClick = { showQualityDialog = true }
             )
         }
 
         // Design Section
-        SettingsSection(title = "Design") {
+        SettingsSection(title = stringResource(R.string.settings_section_design)) {
             SettingsClickableItem(
                 icon = Icons.Filled.ColorLens,
-                title = "Design System Demo",
-                value = "Neues Dark Tech Design ausprobieren",
+                title = stringResource(R.string.settings_design_demo),
+                value = stringResource(R.string.settings_design_demo_subtitle),
                 onClick = onNavigateToDemo
             )
         }
 
         // About Section
-        SettingsSection(title = "Über") {
+        SettingsSection(title = stringResource(R.string.settings_section_about)) {
             SettingsInfoItem(
                 icon = Icons.Filled.Info,
-                title = "App-Version",
+                title = stringResource(R.string.settings_app_version),
                 value = BuildConfig.VERSION_NAME
             )
 
@@ -200,8 +202,8 @@ fun SettingsScreen(
 
             SettingsClickableItem(
                 icon = Icons.Filled.Description,
-                title = "Lizenzen",
-                value = "Open Source Lizenzen",
+                title = stringResource(R.string.settings_licenses),
+                value = stringResource(R.string.settings_open_source_licenses),
                 onClick = { showLicensesDialog = true }
             )
         }
@@ -235,7 +237,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Abmelden",
+                    text = stringResource(R.string.settings_logout),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.error
@@ -250,8 +252,8 @@ fun SettingsScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Abmelden") },
-            text = { Text("Möchtest du dich wirklich abmelden? Du musst dich danach erneut anmelden.") },
+            title = { Text(stringResource(R.string.settings_logout)) },
+            text = { Text(stringResource(R.string.settings_logout_confirm_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -260,12 +262,12 @@ fun SettingsScreen(
                         onLogout()
                     }
                 ) {
-                    Text("Abmelden", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.settings_logout), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Abbrechen")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -275,7 +277,7 @@ fun SettingsScreen(
     if (showQualityDialog) {
         AlertDialog(
             onDismissRequest = { showQualityDialog = false },
-            title = { Text("Upload-Qualität") },
+            title = { Text(stringResource(R.string.settings_upload_quality)) },
             text = {
                 Column {
                     UploadQuality.entries.forEach { quality ->
@@ -297,7 +299,7 @@ fun SettingsScreen(
                             if (quality == uiState.uploadQuality) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
-                                    contentDescription = "Ausgewählt",
+                                    contentDescription = stringResource(R.string.settings_selected),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -307,7 +309,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showQualityDialog = false }) {
-                    Text("Schliessen")
+                    Text(stringResource(R.string.settings_close))
                 }
             }
         )
@@ -317,7 +319,7 @@ fun SettingsScreen(
     if (showLicensesDialog) {
         AlertDialog(
             onDismissRequest = { showLicensesDialog = false },
-            title = { Text("Open Source Lizenzen") },
+            title = { Text(stringResource(R.string.settings_open_source_licenses)) },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState())
@@ -334,7 +336,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showLicensesDialog = false }) {
-                    Text("Schliessen")
+                    Text(stringResource(R.string.settings_close))
                 }
             }
         )

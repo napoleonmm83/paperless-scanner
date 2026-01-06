@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -20,14 +21,16 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 
+@RunWith(RobolectricTestRunner::class)
 class DocumentRepositoryTest {
 
     @get:Rule
@@ -64,7 +67,6 @@ class DocumentRepositoryTest {
         )
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument success returns task id`() = runTest {
         val uri = mockk<Uri>()
@@ -82,7 +84,6 @@ class DocumentRepositoryTest {
         assertEquals(expectedTaskId, result.getOrNull())
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument with quoted response strips quotes`() = runTest {
         val uri = mockk<Uri>()
@@ -99,7 +100,6 @@ class DocumentRepositoryTest {
         assertEquals("quoted-task-id", result.getOrNull())
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument with tags sends comma separated ids`() = runTest {
         val uri = mockk<Uri>()
@@ -126,7 +126,6 @@ class DocumentRepositoryTest {
         }
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument without optional params sends nulls`() = runTest {
         val uri = mockk<Uri>()
@@ -150,7 +149,6 @@ class DocumentRepositoryTest {
         }
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument with document type sends type id`() = runTest {
         val uri = mockk<Uri>()
@@ -170,7 +168,6 @@ class DocumentRepositoryTest {
         assertTrue(result.isSuccess)
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument cleans up temp file after upload`() = runTest {
         val uri = mockk<Uri>()
@@ -187,7 +184,6 @@ class DocumentRepositoryTest {
         assertTrue(remainingFiles.isNullOrEmpty())
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument with invalid uri returns failure`() = runTest {
         val uri = mockk<Uri>()
@@ -196,10 +192,10 @@ class DocumentRepositoryTest {
         val result = documentRepository.uploadDocument(uri)
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        // DocumentRepository wraps IllegalArgumentException in PaperlessException.ContentError
+        assertTrue(result.exceptionOrNull() is PaperlessException.ContentError)
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument network error returns failure`() = runTest {
         val uri = mockk<Uri>()
@@ -213,10 +209,10 @@ class DocumentRepositoryTest {
         val result = documentRepository.uploadDocument(uri)
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IOException)
+        // DocumentRepository wraps IOException in PaperlessException.NetworkError
+        assertTrue(result.exceptionOrNull() is PaperlessException.NetworkError)
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `uploadDocument creates file with jpg extension`() = runTest {
         val uri = mockk<Uri>()

@@ -63,9 +63,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.paperless.scanner.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -88,16 +90,19 @@ fun BatchImportScreen(
     var correspondentExpanded by remember { mutableStateOf(false) }
     var uploadAsSingleDocument by rememberSaveable { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
-    }
+    // BEST PRACTICE: No manual loading needed!
+    // BatchImportViewModel observes tags/types/correspondents via reactive Flows.
+    // Dropdowns automatically populate and update when metadata changes.
+
+    val successSingleMessage = stringResource(R.string.batch_import_success_single)
+    val successMultipleMessage = stringResource(R.string.batch_import_success_multiple)
 
     LaunchedEffect(uiState) {
         when (uiState) {
             is BatchImportUiState.Success -> {
                 val count = (uiState as BatchImportUiState.Success).count
-                val message = if (count == 1) "Dokument zur Warteschlange hinzugefügt!"
-                              else "$count Dokumente zur Warteschlange hinzugefügt!"
+                val message = if (count == 1) successSingleMessage
+                              else successMultipleMessage.format(count)
                 snackbarHostState.showSnackbar(message)
                 onImportSuccess()
             }
@@ -112,12 +117,12 @@ fun BatchImportScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Batch Import") },
+                title = { Text(stringResource(R.string.batch_import_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück"
+                            contentDescription = stringResource(R.string.batch_import_back)
                         )
                     }
                 }
@@ -155,12 +160,15 @@ fun BatchImportScreen(
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            text = "${imageUris.size} Bilder ausgewählt",
+                            text = stringResource(R.string.batch_import_images_selected, imageUris.size),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = if (uploadAsSingleDocument) "Als ein Dokument" else "Als einzelne Dokumente",
+                            text = if (uploadAsSingleDocument)
+                                stringResource(R.string.batch_import_mode_single)
+                            else
+                                stringResource(R.string.batch_import_mode_individual),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -179,14 +187,14 @@ fun BatchImportScreen(
                     onClick = { uploadAsSingleDocument = false },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                 ) {
-                    Text("Einzeln")
+                    Text(stringResource(R.string.batch_import_button_individual))
                 }
                 SegmentedButton(
                     selected = uploadAsSingleDocument,
                     onClick = { uploadAsSingleDocument = true },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                 ) {
-                    Text("Als ein Dokument")
+                    Text(stringResource(R.string.batch_import_button_single))
                 }
             }
 
@@ -194,7 +202,7 @@ fun BatchImportScreen(
 
             // Image Grid Preview
             Text(
-                text = "Vorschau",
+                text = stringResource(R.string.batch_import_preview),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -215,7 +223,7 @@ fun BatchImportScreen(
                     Box {
                         AsyncImage(
                             model = uri,
-                            contentDescription = "Bild ${index + 1}",
+                            contentDescription = stringResource(R.string.batch_import_image_description, index + 1),
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(8.dp)),
@@ -229,7 +237,7 @@ fun BatchImportScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "+${imageUris.size - 9}",
+                                    text = stringResource(R.string.batch_import_more_images, imageUris.size - 9),
                                     style = MaterialTheme.typography.titleLarge,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
@@ -243,7 +251,7 @@ fun BatchImportScreen(
 
             // Document Type Dropdown
             Text(
-                text = "Dokumententyp (für alle)",
+                text = stringResource(R.string.batch_import_document_type),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -258,7 +266,7 @@ fun BatchImportScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 OutlinedTextField(
-                    value = documentTypes.find { it.id == selectedDocumentTypeId }?.name ?: "Nicht ausgewählt",
+                    value = documentTypes.find { it.id == selectedDocumentTypeId }?.name ?: stringResource(R.string.batch_import_not_selected),
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = documentTypeExpanded) },
@@ -272,7 +280,7 @@ fun BatchImportScreen(
                     onDismissRequest = { documentTypeExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Nicht ausgewählt") },
+                        text = { Text(stringResource(R.string.batch_import_not_selected)) },
                         onClick = {
                             selectedDocumentTypeId = null
                             documentTypeExpanded = false
@@ -294,7 +302,7 @@ fun BatchImportScreen(
 
             // Correspondent Dropdown
             Text(
-                text = "Korrespondent (für alle)",
+                text = stringResource(R.string.batch_import_correspondent),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -309,7 +317,7 @@ fun BatchImportScreen(
                     .padding(horizontal = 16.dp)
             ) {
                 OutlinedTextField(
-                    value = correspondents.find { it.id == selectedCorrespondentId }?.name ?: "Nicht ausgewählt",
+                    value = correspondents.find { it.id == selectedCorrespondentId }?.name ?: stringResource(R.string.batch_import_not_selected),
                     onValueChange = {},
                     readOnly = true,
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = correspondentExpanded) },
@@ -323,7 +331,7 @@ fun BatchImportScreen(
                     onDismissRequest = { correspondentExpanded = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Nicht ausgewählt") },
+                        text = { Text(stringResource(R.string.batch_import_not_selected)) },
                         onClick = {
                             selectedCorrespondentId = null
                             correspondentExpanded = false
@@ -345,7 +353,7 @@ fun BatchImportScreen(
 
             // Tags Section
             Text(
-                text = "Tags (für alle)",
+                text = stringResource(R.string.batch_import_tags),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -399,7 +407,7 @@ fun BatchImportScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Hinzufügen: ${state.current} / ${state.total}",
+                                text = stringResource(R.string.batch_import_adding_progress, state.current, state.total),
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -431,7 +439,7 @@ fun BatchImportScreen(
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Wird hinzugefügt...")
+                    Text(stringResource(R.string.batch_import_adding))
                 } else {
                     Icon(
                         imageVector = Icons.Default.CloudUpload,
@@ -439,7 +447,7 @@ fun BatchImportScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "${imageUris.size} Bilder importieren",
+                        text = stringResource(R.string.batch_import_button, imageUris.size),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

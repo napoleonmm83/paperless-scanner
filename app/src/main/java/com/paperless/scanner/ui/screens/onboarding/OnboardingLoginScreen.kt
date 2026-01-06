@@ -50,12 +50,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.paperless.scanner.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.ui.screens.login.LoginUiState
 import com.paperless.scanner.ui.screens.login.LoginViewModel
@@ -115,7 +117,7 @@ fun OnboardingLoginScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Zurück"
+                    contentDescription = stringResource(R.string.onboarding_back)
                 )
             }
 
@@ -161,7 +163,7 @@ fun OnboardingLoginScreen(
 
             // Title
             Text(
-                text = "Anmelden",
+                text = stringResource(R.string.onboarding_login_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -170,7 +172,7 @@ fun OnboardingLoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Melde dich mit deinem Paperless-ngx Konto an",
+                text = stringResource(R.string.onboarding_login_subtitle),
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -185,7 +187,7 @@ fun OnboardingLoginScreen(
                 FilterChip(
                     selected = authMethod == AuthMethod.CREDENTIALS,
                     onClick = { authMethod = AuthMethod.CREDENTIALS },
-                    label = { Text("Passwort") },
+                    label = { Text(stringResource(R.string.onboarding_filter_password)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Person,
@@ -198,7 +200,7 @@ fun OnboardingLoginScreen(
                 FilterChip(
                     selected = authMethod == AuthMethod.TOKEN,
                     onClick = { authMethod = AuthMethod.TOKEN },
-                    label = { Text("Schlüssel") },
+                    label = { Text(stringResource(R.string.onboarding_filter_key)) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Filled.Key,
@@ -216,7 +218,7 @@ fun OnboardingLoginScreen(
             if (authMethod == AuthMethod.CREDENTIALS) {
                 // Username
                 Text(
-                    text = "Benutzername",
+                    text = stringResource(R.string.onboarding_username),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -225,7 +227,7 @@ fun OnboardingLoginScreen(
                 OutlinedTextField(
                     value = username,
                     onValueChange = { username = it; errorMessage = null },
-                    placeholder = { Text("admin") },
+                    placeholder = { Text(stringResource(R.string.onboarding_username_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -239,7 +241,7 @@ fun OnboardingLoginScreen(
 
                 // Password
                 Text(
-                    text = "Passwort",
+                    text = stringResource(R.string.onboarding_password),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -248,7 +250,7 @@ fun OnboardingLoginScreen(
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it; errorMessage = null },
-                    placeholder = { Text("••••••••") },
+                    placeholder = { Text(stringResource(R.string.onboarding_password_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -280,7 +282,7 @@ fun OnboardingLoginScreen(
             } else {
                 // Zugangsschlüssel
                 Text(
-                    text = "Zugangsschlüssel",
+                    text = stringResource(R.string.onboarding_access_key),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -289,7 +291,7 @@ fun OnboardingLoginScreen(
                 OutlinedTextField(
                     value = apiToken,
                     onValueChange = { apiToken = it; errorMessage = null },
-                    placeholder = { Text("Hier einfügen...") },
+                    placeholder = { Text(stringResource(R.string.onboarding_access_key_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -317,7 +319,7 @@ fun OnboardingLoginScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Findest du in Paperless unter: Einstellungen → Mein Profil",
+                    text = stringResource(R.string.onboarding_token_help),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -336,7 +338,7 @@ fun OnboardingLoginScreen(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
-                    Text("Token mit Kamera scannen")
+                    Text(stringResource(R.string.onboarding_scan_token))
                 }
             }
 
@@ -396,7 +398,7 @@ fun OnboardingLoginScreen(
                     )
                 } else {
                     Text(
-                        text = "Anmelden",
+                        text = stringResource(R.string.onboarding_login_button),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )

@@ -60,12 +60,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.paperless.scanner.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -101,11 +103,11 @@ fun DocumentDetailScreen(
             IconButton(onClick = onNavigateBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Zurück"
+                    contentDescription = stringResource(R.string.document_detail_back)
                 )
             }
             Text(
-                text = "DOKUMENT",
+                text = stringResource(R.string.document_detail_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.weight(1f)
@@ -118,7 +120,7 @@ fun DocumentDetailScreen(
                 }) {
                     Icon(
                         imageVector = Icons.Filled.OpenInBrowser,
-                        contentDescription = "Im Browser öffnen"
+                        contentDescription = stringResource(R.string.document_detail_open_browser)
                     )
                 }
             }
@@ -128,7 +130,7 @@ fun DocumentDetailScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    contentDescription = "Löschen",
+                    contentDescription = stringResource(R.string.document_detail_delete),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -157,12 +159,12 @@ fun DocumentDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = uiState.error ?: "Fehler",
+                            text = uiState.error ?: stringResource(R.string.document_detail_error),
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.loadDocument() }) {
-                            Text("Erneut versuchen")
+                            Text(stringResource(R.string.document_detail_retry))
                         }
                     }
                 }
@@ -195,7 +197,7 @@ fun DocumentDetailScreen(
                                         .addHeader("Authorization", "Token ${uiState.authToken}")
                                         .crossfade(true)
                                         .build(),
-                                    contentDescription = "Dokumentvorschau",
+                                    contentDescription = stringResource(R.string.document_detail_preview),
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Fit
                                 )
@@ -270,7 +272,7 @@ fun DocumentDetailScreen(
                             uiState.correspondent?.let { correspondent ->
                                 MetadataRow(
                                     icon = Icons.Filled.Person,
-                                    label = "Korrespondent",
+                                    label = stringResource(R.string.document_detail_correspondent),
                                     value = correspondent
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -280,7 +282,7 @@ fun DocumentDetailScreen(
                             uiState.documentType?.let { docType ->
                                 MetadataRow(
                                     icon = Icons.Filled.Folder,
-                                    label = "Dokumenttyp",
+                                    label = stringResource(R.string.document_detail_type),
                                     value = docType
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -289,7 +291,7 @@ fun DocumentDetailScreen(
                             // Created Date
                             MetadataRow(
                                 icon = Icons.Filled.CalendarToday,
-                                label = "Erstellt",
+                                label = stringResource(R.string.document_detail_created),
                                 value = uiState.created
                             )
 
@@ -298,7 +300,7 @@ fun DocumentDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                                 MetadataRow(
                                     icon = Icons.Filled.Description,
-                                    label = "ASN",
+                                    label = stringResource(R.string.document_detail_asn),
                                     value = "#$asn"
                                 )
                             }
@@ -308,7 +310,7 @@ fun DocumentDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                                 MetadataRow(
                                     icon = Icons.Filled.Description,
-                                    label = "Dateiname",
+                                    label = stringResource(R.string.document_detail_filename),
                                     value = fileName
                                 )
                             }
@@ -327,7 +329,7 @@ fun DocumentDetailScreen(
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
-                                    text = "Inhalt",
+                                    text = stringResource(R.string.document_detail_content),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -360,7 +362,7 @@ fun DocumentDetailScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "PDF anzeigen",
+                            text = stringResource(R.string.document_detail_view_pdf),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -405,7 +407,7 @@ private fun DeleteConfirmationDialog(
         },
         title = {
             Text(
-                text = "DOKUMENT LÖSCHEN?",
+                text = stringResource(R.string.document_detail_delete_dialog_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -413,7 +415,7 @@ private fun DeleteConfirmationDialog(
         text = {
             Column {
                 Text(
-                    text = "Möchtest du dieses Dokument wirklich löschen?",
+                    text = stringResource(R.string.document_detail_delete_dialog_message),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -425,7 +427,7 @@ private fun DeleteConfirmationDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Diese Aktion kann nicht rückgängig gemacht werden.",
+                    text = stringResource(R.string.document_detail_delete_dialog_warning),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -449,7 +451,7 @@ private fun DeleteConfirmationDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Text(
-                    text = if (isDeleting) "LÖSCHE..." else "LÖSCHEN",
+                    text = if (isDeleting) stringResource(R.string.document_detail_delete_button_deleting) else stringResource(R.string.document_detail_delete_button),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -462,7 +464,7 @@ private fun DeleteConfirmationDialog(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "ABBRECHEN",
+                    text = stringResource(R.string.document_detail_cancel_button),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )

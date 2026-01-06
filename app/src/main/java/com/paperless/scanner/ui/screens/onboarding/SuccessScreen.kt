@@ -30,10 +30,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.paperless.scanner.R
 
 @Composable
 fun SuccessScreen(
@@ -112,7 +114,7 @@ fun SuccessScreen(
 
             // Title
             Text(
-                text = "Alles bereit!",
+                text = stringResource(R.string.success_title),
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -121,7 +123,7 @@ fun SuccessScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Du bist verbunden und kannst jetzt\nDokumente scannen und hochladen.",
+                text = stringResource(R.string.success_subtitle),
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -137,12 +139,12 @@ fun SuccessScreen(
             ) {
                 StatCard(
                     value = "0",
-                    label = "Heute gescannt",
+                    label = stringResource(R.string.success_stat_scanned),
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     value = "✓",
-                    label = "Verbunden",
+                    label = stringResource(R.string.success_stat_connected),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -151,7 +153,7 @@ fun SuccessScreen(
 
             // Tips
             Text(
-                text = "SCHNELLSTART-TIPPS",
+                text = stringResource(R.string.success_tips_header),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -164,9 +166,9 @@ fun SuccessScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 listOf(
-                    "Halte das Dokument flach und gut beleuchtet",
-                    "Die App erkennt die Kanten automatisch",
-                    "Tags kannst du vor dem Upload auswählen"
+                    stringResource(R.string.success_tip_1),
+                    stringResource(R.string.success_tip_2),
+                    stringResource(R.string.success_tip_3)
                 ).forEachIndexed { index, tip ->
                     TipItem(number = index + 1, text = tip)
                 }
@@ -183,7 +185,7 @@ fun SuccessScreen(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "App starten",
+                    text = stringResource(R.string.success_button),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )

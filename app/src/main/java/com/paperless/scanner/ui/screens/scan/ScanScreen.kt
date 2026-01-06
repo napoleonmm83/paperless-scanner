@@ -77,6 +77,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -84,6 +85,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
 import org.burnoutcrew.reorderable.rememberReorderableLazyListState
@@ -157,8 +159,8 @@ fun ScanScreen(
     LaunchedEffect(uiState.lastRemovedPage) {
         uiState.lastRemovedPage?.let { removedInfo ->
             val result = snackbarHostState.showSnackbar(
-                message = "Seite ${removedInfo.page.pageNumber} entfernt",
-                actionLabel = "Rückgängig",
+                message = context.getString(R.string.scan_page_removed, removedInfo.page.pageNumber),
+                actionLabel = context.getString(R.string.scan_undo),
                 withDismissAction = true
             )
             when (result) {
@@ -182,7 +184,7 @@ fun ScanScreen(
             .addOnFailureListener { e ->
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        "Scanner konnte nicht gestartet werden: ${e.message}"
+                        context.getString(R.string.scan_scanner_error, e.message ?: "")
                     )
                 }
             }
@@ -260,12 +262,12 @@ private fun ModeSelectionContent(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "NEUES DOKUMENT",
+                text = stringResource(R.string.scan_new_document_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                text = "Wähle eine Option",
+                text = stringResource(R.string.scan_choose_option),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -283,7 +285,7 @@ private fun ModeSelectionContent(
             // Scan option
             ScanOptionCard(
                 icon = Icons.Filled.CameraAlt,
-                label = "Scannen",
+                label = stringResource(R.string.scan_option_scan),
                 backgroundColor = MaterialTheme.colorScheme.primary,
                 onClick = onScanClick,
                 modifier = Modifier.weight(1f)
@@ -292,7 +294,7 @@ private fun ModeSelectionContent(
             // Gallery option
             ScanOptionCard(
                 icon = Icons.Filled.PhotoLibrary,
-                label = "Galerie",
+                label = stringResource(R.string.scan_option_gallery),
                 backgroundColor = Color(0xFF8DD7FF),
                 onClick = onGalleryClick,
                 modifier = Modifier.weight(1f)
@@ -301,7 +303,7 @@ private fun ModeSelectionContent(
             // Files option
             ScanOptionCard(
                 icon = Icons.Filled.FolderOpen,
-                label = "Dateien",
+                label = stringResource(R.string.scan_option_files),
                 backgroundColor = Color(0xFFB88DFF),
                 onClick = onFilesClick,
                 modifier = Modifier.weight(1f)
@@ -435,19 +437,19 @@ private fun MultiPageContent(
             ) {
                 Column {
                     Text(
-                        text = "${uiState.pageCount} / $MAX_PAGES Seiten",
+                        text = stringResource(R.string.scan_page_count, uiState.pageCount, MAX_PAGES),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = "Gedrückt halten zum Sortieren",
+                        text = stringResource(R.string.scan_hold_to_sort),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (isNearLimit) {
                     Text(
-                        text = if (isAtLimit) "Maximum erreicht" else "Fast voll",
+                        text = if (isAtLimit) stringResource(R.string.scan_limit_reached) else stringResource(R.string.scan_almost_full),
                         style = MaterialTheme.typography.labelMedium,
                         color = if (isAtLimit) MaterialTheme.colorScheme.error
                                else MaterialTheme.colorScheme.tertiary
@@ -525,7 +527,7 @@ private fun MultiPageContent(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = if (uiState.pageCount == 1) "Hochladen" else "Als PDF hochladen",
+                    text = if (uiState.pageCount == 1) stringResource(R.string.scan_upload_single) else stringResource(R.string.scan_upload_pdf),
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -551,7 +553,7 @@ private fun MultiPageContent(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isAtLimit) "Maximum" else "Weitere Seiten")
+                    Text(if (isAtLimit) stringResource(R.string.scan_maximum) else stringResource(R.string.scan_more_pages))
                 }
 
                 OutlinedButton(
@@ -566,7 +568,7 @@ private fun MultiPageContent(
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verwerfen")
+                    Text(stringResource(R.string.scan_discard))
                 }
             }
         }
@@ -601,7 +603,7 @@ private fun PageThumbnail(
         Box {
             AsyncImage(
                 model = page.uri,
-                contentDescription = "Seite ${page.pageNumber}",
+                contentDescription = stringResource(R.string.scan_page_description, page.pageNumber),
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(0.7f)
@@ -650,7 +652,7 @@ private fun PageThumbnail(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.RotateRight,
-                        contentDescription = "Drehen",
+                        contentDescription = stringResource(R.string.scan_rotate),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSecondaryContainer
                     )
@@ -672,7 +674,7 @@ private fun PageThumbnail(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Entfernen",
+                        contentDescription = stringResource(R.string.scan_remove),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -693,7 +695,7 @@ private fun PageThumbnail(
                 ) {
                     Icon(
                         imageVector = Icons.Default.DragHandle,
-                        contentDescription = "Zum Sortieren gedrückt halten",
+                        contentDescription = stringResource(R.string.scan_hold_to_sort_hint),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -732,7 +734,7 @@ private fun AddPageCard(onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Weitere Seite",
+                    text = stringResource(R.string.scan_add_page),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -777,7 +779,7 @@ private fun PagePreviewDialog(
                 ZoomableImage(
                     uri = page.uri,
                     rotation = page.rotation,
-                    contentDescription = "Seite ${page.pageNumber}"
+                    contentDescription = stringResource(R.string.scan_page_description, page.pageNumber)
                 )
             }
 
@@ -802,7 +804,7 @@ private fun PagePreviewDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Schließen",
+                        contentDescription = stringResource(R.string.scan_close),
                         tint = Color.White
                     )
                 }
@@ -842,7 +844,7 @@ private fun PagePreviewDialog(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.RotateRight,
-                        contentDescription = "Drehen",
+                        contentDescription = stringResource(R.string.scan_rotate),
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -876,7 +878,7 @@ private fun PagePreviewDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Löschen",
+                        contentDescription = stringResource(R.string.scan_delete),
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                         modifier = Modifier.size(28.dp)
                     )

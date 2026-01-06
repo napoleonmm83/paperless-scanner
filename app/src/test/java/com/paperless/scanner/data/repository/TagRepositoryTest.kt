@@ -9,6 +9,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -40,49 +41,54 @@ class TagRepositoryTest {
         )
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `getTags success returns list of tags`() = runTest {
+        // Mock: Online, cache empty, force refresh
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { cachedTagDao.getAllTags() } returns emptyList()
+
         val expectedTags = listOf(
             Tag(id = 1, name = "Invoice", color = "#ff0000"),
             Tag(id = 2, name = "Receipt", color = "#00ff00"),
             Tag(id = 3, name = "Contract", color = "#0000ff")
         )
-        coEvery { api.getTags() } returns TagsResponse(
+        coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(
             count = 3,
             results = expectedTags
         )
 
-        val result = tagRepository.getTags()
+        val result = tagRepository.getTags(forceRefresh = true)
 
         assertTrue(result.isSuccess)
-        assertEquals(expectedTags, result.getOrNull())
-        coVerify(exactly = 1) { api.getTags() }
+        assertEquals(3, result.getOrNull()?.size)
+        coVerify(exactly = 1) { api.getTags(page = 1, pageSize = 100) }
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `getTags with empty list returns empty result`() = runTest {
-        coEvery { api.getTags() } returns TagsResponse(count = 0, results = emptyList())
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { cachedTagDao.getAllTags() } returns emptyList()
+        coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(count = 0, results = emptyList())
 
-        val result = tagRepository.getTags()
+        val result = tagRepository.getTags(forceRefresh = true)
 
         assertTrue(result.isSuccess)
-        assertEquals(emptyList<Tag>(), result.getOrNull())
+        assertEquals(emptyList<com.paperless.scanner.domain.model.Tag>(), result.getOrNull())
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `getTags network error returns failure`() = runTest {
-        coEvery { api.getTags() } throws IOException("Network error")
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { cachedTagDao.getAllTags() } returns emptyList()
+        coEvery { api.getTags(page = 1, pageSize = 100) } throws IOException("Network error")
 
-        val result = tagRepository.getTags()
+        val result = tagRepository.getTags(forceRefresh = true)
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IOException)
+        // PaperlessException wraps the IOException
+        assertTrue(result.exceptionOrNull()?.message?.contains("Network error") == true)
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `createTag success returns new tag`() = runTest {
         val newTag = Tag(id = 10, name = "NewTag", color = "#abcdef")
@@ -91,11 +97,11 @@ class TagRepositoryTest {
         val result = tagRepository.createTag("NewTag", "#abcdef")
 
         assertTrue(result.isSuccess)
-        assertEquals(newTag, result.getOrNull())
+        assertEquals("NewTag", result.getOrNull()?.name)
+        assertEquals("#abcdef", result.getOrNull()?.color)
         coVerify { api.createTag(CreateTagRequest(name = "NewTag", color = "#abcdef")) }
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `createTag without color sends null color`() = runTest {
         val newTag = Tag(id = 11, name = "NoColorTag", color = null)
@@ -107,7 +113,6 @@ class TagRepositoryTest {
         coVerify { api.createTag(CreateTagRequest(name = "NoColorTag", color = null)) }
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `createTag network error returns failure`() = runTest {
         coEvery { api.createTag(any()) } throws IOException("Connection refused")
@@ -115,10 +120,9 @@ class TagRepositoryTest {
         val result = tagRepository.createTag("FailTag", "#000000")
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is IOException)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Connection refused") == true)
     }
 
-    @Ignore("Repository integration test - needs mock setup fixes")
     @Test
     fun `createTag with duplicate name returns api error`() = runTest {
         coEvery { api.createTag(any()) } throws RuntimeException("Tag already exists")

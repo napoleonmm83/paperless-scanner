@@ -55,9 +55,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -83,20 +85,22 @@ fun MultiPageUploadScreen(
     var selectedDocumentTypeId by rememberSaveable { mutableStateOf<Int?>(null) }
     var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadTags()
-        viewModel.loadDocumentTypes()
-        viewModel.loadCorrespondents()
-    }
+    // BEST PRACTICE: No manual loading needed!
+    // UploadViewModel observes tags/types/correspondents via reactive Flows.
+    // Dropdowns automatically populate and update when metadata changes.
+
+    val successMessage = stringResource(R.string.multipage_upload_success, documentUris.size)
+    val queuedMessage = stringResource(R.string.multipage_upload_queued)
+    val tagCreatedMessage = stringResource(R.string.multipage_upload_tag_created)
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
             is UploadUiState.Success -> {
-                snackbarHostState.showSnackbar("PDF mit ${documentUris.size} Seiten erfolgreich hochgeladen!")
+                snackbarHostState.showSnackbar(successMessage)
                 onUploadSuccess()
             }
             is UploadUiState.Queued -> {
-                snackbarHostState.showSnackbar("Upload wird synchronisiert, sobald Verbindung besteht")
+                snackbarHostState.showSnackbar(queuedMessage)
                 onUploadSuccess() // Navigate back
             }
             is UploadUiState.Error -> {
@@ -112,7 +116,7 @@ fun MultiPageUploadScreen(
                 selectedTagIds.add(tagState.tag.id)
                 showCreateTagDialog = false
                 viewModel.resetCreateTagState()
-                snackbarHostState.showSnackbar("Tag \"${tagState.tag.name}\" erstellt")
+                snackbarHostState.showSnackbar(tagCreatedMessage.format(tagState.tag.name))
             }
             is CreateTagState.Error -> {
                 snackbarHostState.showSnackbar(tagState.message)
@@ -138,12 +142,12 @@ fun MultiPageUploadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("PDF hochladen") },
+                title = { Text(stringResource(R.string.multipage_upload_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück"
+                            contentDescription = stringResource(R.string.multipage_upload_back)
                         )
                     }
                 }
@@ -178,7 +182,7 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "${documentUris.size} Seiten werden als PDF zusammengefügt",
+                        text = stringResource(R.string.multipage_upload_info, documentUris.size),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -187,7 +191,7 @@ fun MultiPageUploadScreen(
 
             // Page Thumbnails
             Text(
-                text = "Seiten-Vorschau",
+                text = stringResource(R.string.multipage_upload_preview),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -206,7 +210,7 @@ fun MultiPageUploadScreen(
                         Box {
                             AsyncImage(
                                 model = uri,
-                                contentDescription = "Seite ${index + 1}",
+                                contentDescription = stringResource(R.string.multipage_upload_page_description, index + 1),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(0.7f),
@@ -240,8 +244,8 @@ fun MultiPageUploadScreen(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Titel (optional)") },
-                placeholder = { Text("z.B. Vertrag Januar 2025") },
+                label = { Text(stringResource(R.string.multipage_upload_title_label)) },
+                placeholder = { Text(stringResource(R.string.multipage_upload_title_placeholder)) },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -309,7 +313,7 @@ fun MultiPageUploadScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Upload fehlgeschlagen",
+                                text = stringResource(R.string.multipage_upload_failed_title),
                                 style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
@@ -328,7 +332,7 @@ fun MultiPageUploadScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Retry")
+                            Text(stringResource(R.string.multipage_upload_retry_button))
                         }
                     }
                 }
@@ -348,7 +352,7 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Hochladen: ${(uploadingState.progress * 100).toInt()}%",
+                        text = stringResource(R.string.multipage_upload_progress, (uploadingState.progress * 100).toInt()),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -380,7 +384,7 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "PDF wird hochgeladen...",
+                        text = stringResource(R.string.multipage_upload_uploading),
                         style = MaterialTheme.typography.titleMedium
                     )
                 } else {
@@ -390,7 +394,7 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "Als PDF hochladen",
+                        text = stringResource(R.string.multipage_upload_button),
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

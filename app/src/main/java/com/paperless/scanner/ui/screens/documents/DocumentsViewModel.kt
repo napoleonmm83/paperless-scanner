@@ -7,15 +7,16 @@ import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentsUiState(
@@ -40,6 +41,9 @@ class DocumentsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DocumentsUiState())
     val uiState: StateFlow<DocumentsUiState> = _uiState.asStateFlow()
 
+    // Separate flow for search input to enable debouncing
+    private val _searchQueryFlow = MutableStateFlow("")
+
     private var allDocuments: List<DocumentItem> = emptyList()
     private var tagMap: Map<Int, Tag> = emptyMap()
     private var correspondentMap: Map<Int, Correspondent> = emptyMap()
@@ -47,6 +51,24 @@ class DocumentsViewModel @Inject constructor(
     init {
         loadInitialData()
         observeDocumentsReactively()
+        observeDebouncedSearch()
+    }
+
+    /**
+     * BEST PRACTICE: Debounced search to avoid triggering API calls on every keystroke.
+     * Waits 300ms after user stops typing before executing search.
+     */
+    @OptIn(FlowPreview::class)
+    private fun observeDebouncedSearch() {
+        viewModelScope.launch {
+            _searchQueryFlow
+                .debounce(300) // Wait 300ms after last keystroke
+                .distinctUntilChanged() // Only trigger if value actually changed
+                .collect { query ->
+                    _uiState.update { it.copy(searchQuery = query) }
+                    loadDocuments()
+                }
+        }
     }
 
     /**
@@ -61,15 +83,7 @@ class DocumentsViewModel @Inject constructor(
                 pageSize = 25
             ).collect { documents ->
                 // Transform to UI models
-                allDocuments = documents.map { doc ->
-                    DocumentItem(
-                        id = doc.id,
-                        title = doc.title,
-                        date = formatDate(doc.created),
-                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
-                        tags = doc.tags.mapNotNull { tagMap[it]?.name }
-                    )
-                }
+                allDocuments = documents.map { it.toDocumentItem() }
 
                 _uiState.update {
                     it.copy(
@@ -121,7 +135,7 @@ class DocumentsViewModel @Inject constructor(
                     DocumentItem(
                         id = doc.id,
                         title = doc.title,
-                        date = formatDate(doc.created),
+                        date = DateFormatter.formatDateShort(doc.created),
                         correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
                         tags = doc.tags.mapNotNull { tagMap[it]?.name }
                     )
@@ -161,15 +175,7 @@ class DocumentsViewModel @Inject constructor(
                 query = query,
                 tagIds = tagIds
             ).onSuccess { response ->
-                val newDocuments = response.results.map { doc ->
-                    DocumentItem(
-                        id = doc.id,
-                        title = doc.title,
-                        date = formatDate(doc.created),
-                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
-                        tags = doc.tags.mapNotNull { tagMap[it]?.name }
-                    )
-                }
+                val newDocuments = response.results.map { it.toDocumentItem() }
                 allDocuments = allDocuments + newDocuments
                 _uiState.update {
                     it.copy(
@@ -183,8 +189,8 @@ class DocumentsViewModel @Inject constructor(
     }
 
     fun search(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        loadDocuments()
+        // Update search flow - debouncing happens in observeDebouncedSearch()
+        _searchQueryFlow.update { query }
     }
 
     fun filterByTag(tagId: Int?) {
@@ -211,14 +217,18 @@ class DocumentsViewModel @Inject constructor(
         loadInitialData()
     }
 
-    private fun formatDate(dateString: String): String {
-        return try {
-            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
-            dateTime.format(outputFormatter)
-        } catch (e: DateTimeParseException) {
-            dateString.take(10)
-        }
+    /**
+     * BEST PRACTICE: Single transformation method to convert Document domain model
+     * to DocumentItem UI model. Avoids code duplication across multiple calls.
+     */
+    private fun com.paperless.scanner.domain.model.Document.toDocumentItem(): DocumentItem {
+        return DocumentItem(
+            id = this.id,
+            title = this.title,
+            date = DateFormatter.formatDateShort(this.created),
+            correspondent = this.correspondentId?.let { correspondentMap[it]?.name },
+            tags = this.tags.mapNotNull { tagMap[it]?.name }
+        )
     }
 }
+

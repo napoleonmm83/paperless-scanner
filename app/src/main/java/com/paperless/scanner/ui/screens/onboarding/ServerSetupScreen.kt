@@ -45,11 +45,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.login.LoginViewModel
 import com.paperless.scanner.ui.screens.login.ServerStatus
 
@@ -64,13 +66,13 @@ fun ServerSetupScreen(
 
     // Compute supporting text based on server status
     val serverSupportingText = when (serverStatus) {
-        is ServerStatus.Idle -> "HTTP/HTTPS wird automatisch erkannt"
-        is ServerStatus.Checking -> "Server wird geprüft..."
+        is ServerStatus.Idle -> stringResource(R.string.server_setup_status_idle)
+        is ServerStatus.Checking -> stringResource(R.string.server_setup_status_checking)
         is ServerStatus.Success -> {
             if ((serverStatus as ServerStatus.Success).isHttps) {
-                "Sichere Verbindung (HTTPS)"
+                stringResource(R.string.server_setup_status_https)
             } else {
-                "Verbindung hergestellt (HTTP)"
+                stringResource(R.string.server_setup_status_http)
             }
         }
         is ServerStatus.Error -> (serverStatus as ServerStatus.Error).message
@@ -94,7 +96,7 @@ fun ServerSetupScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Zurück"
+                    contentDescription = stringResource(R.string.server_setup_back)
                 )
             }
 
@@ -139,7 +141,7 @@ fun ServerSetupScreen(
 
             // Title
             Text(
-                text = "Server verbinden",
+                text = stringResource(R.string.server_setup_title),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -148,7 +150,7 @@ fun ServerSetupScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Gib die URL deiner Paperless-ngx Installation ein",
+                text = stringResource(R.string.server_setup_subtitle),
                 fontSize = 16.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -157,7 +159,7 @@ fun ServerSetupScreen(
 
             // Server URL Input
             Text(
-                text = "Server-URL",
+                text = stringResource(R.string.server_setup_url_label),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -172,7 +174,7 @@ fun ServerSetupScreen(
                     viewModel.onServerUrlChanged(it)
                 },
                 placeholder = {
-                    Text("https://paperless.example.com")
+                    Text(stringResource(R.string.server_setup_url_placeholder))
                 },
                 supportingText = {
                     Text(
@@ -196,14 +198,14 @@ fun ServerSetupScreen(
                             val status = serverStatus as ServerStatus.Success
                             Icon(
                                 imageVector = if (status.isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
-                                contentDescription = if (status.isHttps) "HTTPS" else "HTTP",
+                                contentDescription = if (status.isHttps) stringResource(R.string.server_setup_status_https) else stringResource(R.string.server_setup_status_http),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         is ServerStatus.Error -> {
                             Icon(
                                 imageVector = Icons.Default.Error,
-                                contentDescription = "Fehler",
+                                contentDescription = stringResource(R.string.document_detail_error),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -245,14 +247,14 @@ fun ServerSetupScreen(
                     )
                     Column {
                         Text(
-                            text = "Sichere Verbindung empfohlen",
+                            text = stringResource(R.string.server_setup_hint_title),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Verwende HTTPS für eine verschlüsselte Verbindung zu deinem Server.",
+                            text = stringResource(R.string.server_setup_hint_text),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 18.sp
@@ -276,7 +278,7 @@ fun ServerSetupScreen(
                 enabled = isServerValid
             ) {
                 Text(
-                    text = "Weiter",
+                    text = stringResource(R.string.server_setup_button),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )

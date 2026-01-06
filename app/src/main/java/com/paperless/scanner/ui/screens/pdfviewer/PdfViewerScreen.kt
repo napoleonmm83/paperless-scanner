@@ -63,6 +63,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.paperless.scanner.R
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import androidx.compose.ui.platform.LocalContext
@@ -144,7 +146,7 @@ private fun TopBar(
         IconButton(onClick = onNavigateBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Zurück",
+                contentDescription = stringResource(R.string.pdf_viewer_back),
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
@@ -159,7 +161,7 @@ private fun TopBar(
             )
             if (isViewing && isPdf && totalPages > 0) {
                 Text(
-                    text = "Seite ${currentPage + 1} von $totalPages",
+                    text = stringResource(R.string.pdf_viewer_page_info, currentPage + 1, totalPages),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -170,14 +172,14 @@ private fun TopBar(
             IconButton(onClick = onShare) {
                 Icon(
                     imageVector = Icons.Filled.Share,
-                    contentDescription = "Teilen",
+                    contentDescription = stringResource(R.string.pdf_viewer_share),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             IconButton(onClick = onOpenExternal) {
                 Icon(
                     imageVector = Icons.Filled.OpenInBrowser,
-                    contentDescription = "In anderer App öffnen",
+                    contentDescription = stringResource(R.string.pdf_viewer_open_external),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
@@ -195,7 +197,7 @@ private fun DownloadingView(progress: Float) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.padding(16.dp))
             Text(
-                text = "Wird heruntergeladen...",
+                text = stringResource(R.string.pdf_viewer_downloading),
                 style = MaterialTheme.typography.bodyLarge
             )
             Spacer(modifier = Modifier.padding(8.dp))
@@ -292,7 +294,7 @@ private fun PdfView(
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "Wischen zum Blättern",
+                        text = stringResource(R.string.pdf_viewer_swipe_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurface
@@ -402,7 +404,7 @@ private fun PdfPage(
         if (bitmap != null) {
             Image(
                 bitmap = bitmap!!.asImageBitmap(),
-                contentDescription = "PDF Page ${pageIndex + 1}",
+                contentDescription = stringResource(R.string.pdf_viewer_pdf_page, pageIndex + 1),
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -433,7 +435,7 @@ private fun ImageView(file: File) {
                 .data(file)
                 .crossfade(true)
                 .build(),
-            contentDescription = "Dokument Bild",
+            contentDescription = stringResource(R.string.pdf_viewer_document_image),
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer(
@@ -486,7 +488,7 @@ private fun ErrorView(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "Erneut versuchen",
+                    text = stringResource(R.string.pdf_viewer_retry),
                     fontWeight = FontWeight.SemiBold
                 )
             }

@@ -38,9 +38,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.PendingChange
@@ -80,7 +82,7 @@ fun PendingSyncScreen(
                 // Upload Queue Section
                 item {
                     SectionHeader(
-                        title = "Upload Queue",
+                        title = stringResource(R.string.pending_sync_upload_queue),
                         count = uiState.pendingUploads.size,
                         icon = Icons.Default.CloudUpload
                     )
@@ -88,7 +90,7 @@ fun PendingSyncScreen(
 
                 if (uiState.pendingUploads.isEmpty()) {
                     item {
-                        EmptyState(message = "Keine ausstehenden Uploads")
+                        EmptyState(message = stringResource(R.string.pending_sync_no_uploads))
                     }
                 } else {
                     items(uiState.pendingUploads) { upload ->
@@ -107,7 +109,7 @@ fun PendingSyncScreen(
                 // Pending Changes Section
                 item {
                     SectionHeader(
-                        title = "Pending Changes",
+                        title = stringResource(R.string.pending_sync_pending_changes),
                         count = uiState.pendingChanges.size,
                         icon = Icons.Default.Sync
                     )
@@ -115,7 +117,7 @@ fun PendingSyncScreen(
 
                 if (uiState.pendingChanges.isEmpty()) {
                     item {
-                        EmptyState(message = "Keine ausstehenden Änderungen")
+                        EmptyState(message = stringResource(R.string.pending_sync_no_changes))
                     }
                 } else {
                     items(uiState.pendingChanges) { change ->
@@ -142,14 +144,14 @@ private fun TopBar(onNavigateBack: () -> Unit) {
         IconButton(onClick = onNavigateBack) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Zurück",
+                contentDescription = stringResource(R.string.pending_sync_back),
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "AUSSTEHENDE SYNCS",
+                text = stringResource(R.string.pending_sync_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -218,7 +220,7 @@ private fun UploadItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = upload.title ?: "Unbenanntes Dokument",
+                    text = upload.title ?: stringResource(R.string.pending_sync_unnamed_document),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -229,10 +231,10 @@ private fun UploadItem(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Details
-            InfoRow(label = "Typ", value = if (upload.isMultiPage) "Multi-Page" else "Single")
-            InfoRow(label = "Retry Count", value = "${upload.retryCount}")
+            InfoRow(label = stringResource(R.string.pending_sync_type), value = if (upload.isMultiPage) stringResource(R.string.pending_sync_multi_page) else stringResource(R.string.pending_sync_single))
+            InfoRow(label = stringResource(R.string.pending_sync_retry_count), value = "${upload.retryCount}")
             InfoRow(
-                label = "Erstellt",
+                label = stringResource(R.string.pending_sync_created),
                 value = formatTimestamp(upload.createdAt)
             )
 
@@ -267,7 +269,7 @@ private fun UploadItem(
                     IconButton(onClick = onRetry) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = "Retry",
+                            contentDescription = stringResource(R.string.pending_sync_retry),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -275,7 +277,7 @@ private fun UploadItem(
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.pending_sync_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -314,7 +316,7 @@ private fun PendingChangeItem(
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "ID: ${change.entityId ?: "NEW"}",
+                    text = if (change.entityId == null) stringResource(R.string.pending_sync_id_new) else "ID: ${change.entityId}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -323,9 +325,9 @@ private fun PendingChangeItem(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Details
-            InfoRow(label = "Sync Attempts", value = "${change.syncAttempts}")
+            InfoRow(label = stringResource(R.string.pending_sync_sync_attempts), value = "${change.syncAttempts}")
             InfoRow(
-                label = "Erstellt",
+                label = stringResource(R.string.pending_sync_created),
                 value = formatTimestamp(change.createdAt)
             )
 
@@ -358,7 +360,7 @@ private fun PendingChangeItem(
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.pending_sync_delete),
                         tint = MaterialTheme.colorScheme.error
                     )
                 }
@@ -388,11 +390,16 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun StatusBadge(status: UploadStatus) {
+    val textPending = stringResource(R.string.pending_sync_status_pending)
+    val textUploading = stringResource(R.string.pending_sync_status_uploading)
+    val textCompleted = stringResource(R.string.pending_sync_status_completed)
+    val textFailed = stringResource(R.string.pending_sync_status_failed)
+
     val (text, color) = when (status) {
-        UploadStatus.PENDING -> "Pending" to MaterialTheme.colorScheme.primary
-        UploadStatus.UPLOADING -> "Uploading" to MaterialTheme.colorScheme.tertiary
-        UploadStatus.COMPLETED -> "Completed" to MaterialTheme.colorScheme.primary
-        UploadStatus.FAILED -> "Failed" to MaterialTheme.colorScheme.error
+        UploadStatus.PENDING -> textPending to MaterialTheme.colorScheme.primary
+        UploadStatus.UPLOADING -> textUploading to MaterialTheme.colorScheme.tertiary
+        UploadStatus.COMPLETED -> textCompleted to MaterialTheme.colorScheme.primary
+        UploadStatus.FAILED -> textFailed to MaterialTheme.colorScheme.error
     }
 
     Box(

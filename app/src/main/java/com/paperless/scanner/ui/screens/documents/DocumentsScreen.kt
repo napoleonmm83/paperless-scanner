@@ -43,9 +43,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 
 data class DocumentItem(
     val id: Int,
@@ -79,12 +81,12 @@ fun DocumentsScreen(
                 .padding(top = 24.dp, bottom = 8.dp)
         ) {
             Text(
-                text = "DOKUMENTE",
+                text = stringResource(R.string.documents_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                text = if (uiState.isLoading) "Lade..." else "${uiState.totalCount} Dokumente",
+                text = if (uiState.isLoading) stringResource(R.string.loading) else stringResource(R.string.documents_count, uiState.totalCount),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -102,7 +104,7 @@ fun DocumentsScreen(
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 8.dp),
             placeholder = {
-                Text("Dokumente durchsuchen...")
+                Text(stringResource(R.string.documents_search_placeholder))
             },
             leadingIcon = {
                 Icon(
@@ -119,7 +121,7 @@ fun DocumentsScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.documents_search_clear),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -152,7 +154,7 @@ fun DocumentsScreen(
                 },
                 label = {
                     Text(
-                        text = "Alle",
+                        text = stringResource(R.string.documents_filter_all),
                         style = MaterialTheme.typography.labelMedium
                     )
                 },
@@ -205,15 +207,15 @@ fun DocumentsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (searchQuery.isNotEmpty()) "Keine Ergebnisse" else "Keine Dokumente",
+                        text = if (searchQuery.isNotEmpty()) stringResource(R.string.documents_empty_no_results) else stringResource(R.string.documents_empty_no_documents),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = if (searchQuery.isNotEmpty())
-                            "Versuche einen anderen Suchbegriff"
+                            stringResource(R.string.documents_empty_hint_search)
                         else
-                            "Scanne Dokumente um sie hier zu sehen",
+                            stringResource(R.string.documents_empty_hint_scan),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )

@@ -55,9 +55,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import kotlinx.coroutines.launch
 
 data class LabelItem(
@@ -116,12 +118,12 @@ fun LabelsScreen(
                 .padding(top = 24.dp, bottom = 8.dp)
         ) {
             Text(
-                text = "LABELS",
+                text = stringResource(R.string.labels_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
             Text(
-                text = "Verwalte deine Labels",
+                text = stringResource(R.string.labels_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -139,7 +141,7 @@ fun LabelsScreen(
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 8.dp),
             placeholder = {
-                Text("Labels durchsuchen...")
+                Text(stringResource(R.string.labels_search_placeholder))
             },
             leadingIcon = {
                 Icon(
@@ -156,7 +158,7 @@ fun LabelsScreen(
                     }) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.labels_search_clear),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -291,7 +293,7 @@ private fun LabelCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
-                            contentDescription = "Bearbeiten",
+                            contentDescription = stringResource(R.string.labels_edit),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -302,7 +304,7 @@ private fun LabelCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Delete,
-                            contentDescription = "Löschen",
+                            contentDescription = stringResource(R.string.labels_delete),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -313,7 +315,7 @@ private fun LabelCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "${label.documentCount} Dokumente",
+                text = stringResource(R.string.labels_document_count, label.documentCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -323,8 +325,8 @@ private fun LabelCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Label löschen") },
-            text = { Text("Möchtest du das Label \"${label.name}\" wirklich löschen?") },
+            title = { Text(stringResource(R.string.labels_delete_dialog_title)) },
+            text = { Text(stringResource(R.string.labels_delete_dialog_message, label.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -332,12 +334,12 @@ private fun LabelCard(
                         showDeleteDialog = false
                     }
                 ) {
-                    Text("Löschen", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.labels_delete_button), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Abbrechen")
+                    Text(stringResource(R.string.labels_cancel_button))
                 }
             }
         )
@@ -370,7 +372,7 @@ private fun AddLabelCard(onClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Neues Label",
+                text = stringResource(R.string.labels_add_new),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onPrimary
@@ -395,7 +397,7 @@ private fun CreateLabelSheet(
             .padding(24.dp)
     ) {
         Text(
-            text = if (existingLabel != null) "Label bearbeiten" else "Neues Label",
+            text = if (existingLabel != null) stringResource(R.string.labels_edit_title) else stringResource(R.string.labels_create_title),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -404,7 +406,7 @@ private fun CreateLabelSheet(
 
         // Name input
         Text(
-            text = "Name",
+            text = stringResource(R.string.labels_name_label),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium
         )
@@ -413,7 +415,7 @@ private fun CreateLabelSheet(
             value = name,
             onValueChange = { name = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Label-Name eingeben...") },
+            placeholder = { Text(stringResource(R.string.labels_name_placeholder)) },
             shape = RoundedCornerShape(8.dp),
             singleLine = true
         )
@@ -422,7 +424,7 @@ private fun CreateLabelSheet(
 
         // Color picker
         Text(
-            text = "Farbe",
+            text = stringResource(R.string.labels_color_label),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium
         )
@@ -465,7 +467,7 @@ private fun CreateLabelSheet(
 
         // Preview
         Text(
-            text = "Vorschau",
+            text = stringResource(R.string.labels_preview_label),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium
         )
@@ -491,7 +493,7 @@ private fun CreateLabelSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = name.ifEmpty { "Label-Name" },
+                    text = name.ifEmpty { stringResource(R.string.labels_preview_default) },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -520,7 +522,7 @@ private fun CreateLabelSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Abbrechen",
+                        text = stringResource(R.string.labels_cancel_button),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
@@ -546,7 +548,7 @@ private fun CreateLabelSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (existingLabel != null) "Speichern" else "Erstellen",
+                        text = if (existingLabel != null) stringResource(R.string.labels_save_button) else stringResource(R.string.labels_create_button),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary
@@ -582,13 +584,13 @@ private fun LabelDetailView(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Zurück",
+                    contentDescription = stringResource(R.string.labels_detail_back),
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Zurück",
+                    text = stringResource(R.string.labels_detail_back),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -613,7 +615,7 @@ private fun LabelDetailView(
                 )
             }
             Text(
-                text = "${documents.size} Dokumente",
+                text = stringResource(R.string.labels_document_count, documents.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -640,7 +642,7 @@ private fun LabelDetailView(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Keine Dokumente mit diesem Label",
+                        text = stringResource(R.string.labels_detail_no_documents),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -707,7 +709,7 @@ private fun LabelDetailView(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        text = "${doc.pageCount} Seite${if (doc.pageCount != 1) "n" else ""}",
+                                        text = "${doc.pageCount} ${if (doc.pageCount != 1) stringResource(R.string.labels_detail_page_count_plural) else stringResource(R.string.labels_detail_page_count_singular)}",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )

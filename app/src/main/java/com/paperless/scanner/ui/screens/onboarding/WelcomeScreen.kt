@@ -30,10 +30,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.paperless.scanner.R
 
 @Composable
 fun WelcomeScreen(
@@ -108,7 +110,7 @@ fun WelcomeScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "Der mobile Begleiter für deine\nPaperless-ngx Installation",
+            text = stringResource(R.string.welcome_subtitle),
             fontSize = 16.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -123,9 +125,9 @@ fun WelcomeScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             listOf(
-                "Intelligentes Scannen mit Kantenerkennung",
-                "Multi-Page Dokumente erstellen",
-                "Direkt in Paperless-ngx hochladen"
+                stringResource(R.string.welcome_feature_1),
+                stringResource(R.string.welcome_feature_2),
+                stringResource(R.string.welcome_feature_3)
             ).forEach { feature ->
                 FeatureItem(text = feature)
             }
@@ -142,7 +144,7 @@ fun WelcomeScreen(
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
-                text = "Los geht's",
+                text = stringResource(R.string.welcome_button),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -158,7 +160,7 @@ fun WelcomeScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Du benötigst eine eigene Paperless-ngx Installation",
+            text = stringResource(R.string.welcome_footer),
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

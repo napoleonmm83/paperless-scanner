@@ -53,10 +53,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.theme.DarkTechPrimary
 import com.paperless.scanner.ui.theme.DarkTechSurfaceVariant
 import com.paperless.scanner.ui.theme.DarkTechOutline
@@ -120,14 +122,14 @@ fun HomeScreen(
                 .padding(top = 24.dp, bottom = 16.dp)
         ) {
             Text(
-                text = "WILLKOMMEN ZURÜCK",
+                text = stringResource(R.string.home_welcome_back),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "DEIN ARCHIV",
+                text = stringResource(R.string.home_your_archive),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
@@ -143,21 +145,21 @@ fun HomeScreen(
             StatCard(
                 icon = Icons.Filled.Description,
                 value = "${uiState.stats.totalDocuments}",
-                label = "Dokumente",
+                label = stringResource(R.string.home_stat_documents),
                 isPrimary = true,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Filled.CalendarMonth,
                 value = "${uiState.stats.thisMonth}",
-                label = "Diesen Monat",
+                label = stringResource(R.string.home_stat_this_month),
                 isPrimary = false,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
                 icon = Icons.Filled.Inbox,
                 value = "${uiState.stats.pendingUploads}",
-                label = "Ausstehend",
+                label = stringResource(R.string.home_stat_pending),
                 isPrimary = false,
                 modifier = Modifier.weight(1f),
                 onClick = onNavigateToPendingSync
@@ -200,7 +202,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Neuer Scan",
+                        text = stringResource(R.string.home_new_scan),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.SemiBold
@@ -235,7 +237,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Alle Dokumente",
+                        text = stringResource(R.string.home_all_documents),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold
@@ -259,7 +261,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Verarbeitung",
+                        text = stringResource(R.string.home_processing),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -269,7 +271,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Refresh,
-                            contentDescription = "Aktualisieren",
+                            contentDescription = stringResource(R.string.home_refresh),
                             modifier = Modifier.size(18.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -305,7 +307,7 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Zuletzt hinzugefügt",
+                    text = stringResource(R.string.home_recently_added),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -314,7 +316,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Alle",
+                        text = stringResource(R.string.home_see_all),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -352,12 +354,12 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Noch keine Dokumente",
+                            text = stringResource(R.string.home_no_documents),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "Scanne dein erstes Dokument!",
+                            text = stringResource(R.string.home_scan_first),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -402,12 +404,12 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "${uiState.untaggedCount} Dokumente ohne Tags",
+                            text = stringResource(R.string.home_untagged_documents, uiState.untaggedCount),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Ordne Tags zu für bessere Organisation",
+                            text = stringResource(R.string.home_assign_tags_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -588,34 +590,39 @@ private fun ProcessingTaskCard(
     onClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val statusWaiting = stringResource(R.string.home_task_waiting)
+    val statusProcessing = stringResource(R.string.home_task_processing)
+    val statusSuccess = stringResource(R.string.home_task_success)
+    val statusFailure = stringResource(R.string.home_task_failure)
+
     val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when (task.status) {
         TaskStatus.PENDING -> Quintuple(
             MaterialTheme.colorScheme.surfaceVariant,
             null,
             MaterialTheme.colorScheme.onSurfaceVariant,
             MaterialTheme.colorScheme.onSurface,
-            "Warte..."
+            statusWaiting
         )
         TaskStatus.PROCESSING -> Quintuple(
             MaterialTheme.colorScheme.primaryContainer,
             null,
             MaterialTheme.colorScheme.primary,
             MaterialTheme.colorScheme.onSurface,
-            "Verarbeite..."
+            statusProcessing
         )
         TaskStatus.SUCCESS -> Quintuple(
             MaterialTheme.colorScheme.primary,
             Icons.Filled.CheckCircle,
             MaterialTheme.colorScheme.onPrimary,
             MaterialTheme.colorScheme.onPrimary,
-            "Erfolgreich"
+            statusSuccess
         )
         TaskStatus.FAILURE -> Quintuple(
             MaterialTheme.colorScheme.errorContainer,
             Icons.Filled.Error,
             MaterialTheme.colorScheme.error,
             MaterialTheme.colorScheme.onSurface,
-            "Fehlgeschlagen"
+            statusFailure
         )
     }
 
@@ -698,7 +705,7 @@ private fun ProcessingTaskCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Close,
-                            contentDescription = "Ausblenden",
+                            contentDescription = stringResource(R.string.home_dismiss),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )

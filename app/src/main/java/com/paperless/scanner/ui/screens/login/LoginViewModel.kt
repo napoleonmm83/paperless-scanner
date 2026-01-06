@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -56,7 +57,7 @@ class LoginViewModel @Inject constructor(
         detectionJob?.cancel()
 
         if (serverUrl.isBlank() || serverUrl.length < 4) {
-            _serverStatus.value = ServerStatus.Idle
+            _serverStatus.update { ServerStatus.Idle }
             detectedServerUrl = null
             Log.d(TAG, "URL too short, status = Idle")
             return
@@ -74,7 +75,7 @@ class LoginViewModel @Inject constructor(
 
         // Update status on Main thread
         withContext(Dispatchers.Main) {
-            _serverStatus.value = ServerStatus.Checking
+            _serverStatus.update { ServerStatus.Checking }
             Log.d(TAG, "Status = Checking")
         }
 
@@ -89,13 +90,13 @@ class LoginViewModel @Inject constructor(
                 .onSuccess { url ->
                     val isHttps = url.startsWith("https://")
                     detectedServerUrl = url
-                    _serverStatus.value = ServerStatus.Success(url, isHttps)
+                    _serverStatus.update { ServerStatus.Success(url, isHttps) }
                     Log.d(TAG, "Status = Success, url = $url, isHttps = $isHttps")
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
                     val message = exception.message ?: "Server nicht erreichbar"
-                    _serverStatus.value = ServerStatus.Error(message)
+                    _serverStatus.update { ServerStatus.Error(message) }
                     Log.d(TAG, "Status = Error, message = $message")
                 }
         }
@@ -103,7 +104,7 @@ class LoginViewModel @Inject constructor(
 
     fun clearServerStatus() {
         detectionJob?.cancel()
-        _serverStatus.value = ServerStatus.Idle
+        _serverStatus.update { ServerStatus.Idle }
         detectedServerUrl = null
         Log.d(TAG, "Status cleared to Idle")
     }
@@ -112,12 +113,12 @@ class LoginViewModel @Inject constructor(
         val hasCredentials = tokenManager.hasStoredCredentials()
         val biometricEnabled = tokenManager.isBiometricEnabledSync()
         val biometricAvailable = biometricHelper.isAvailable()
-        _canUseBiometric.value = hasCredentials && biometricEnabled && biometricAvailable
+        _canUseBiometric.update { hasCredentials && biometricEnabled && biometricAvailable }
     }
 
     fun login(serverUrl: String, username: String, password: String) {
         if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-            _uiState.value = LoginUiState.Error("Bitte alle Felder ausfüllen")
+            _uiState.update { LoginUiState.Error("Bitte alle Felder ausfüllen") }
             return
         }
 
@@ -131,20 +132,22 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting login with URL: $urlToUse")
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
-                _uiState.value = LoginUiState.Loading
+                _uiState.update { LoginUiState.Loading }
             }
 
             authRepository.login(urlToUse, username, password)
                 .onSuccess {
                     withContext(Dispatchers.Main) {
-                        _uiState.value = LoginUiState.Success
+                        _uiState.update { LoginUiState.Success }
                     }
                 }
                 .onFailure { exception ->
                     withContext(Dispatchers.Main) {
-                        _uiState.value = LoginUiState.Error(
-                            exception.message ?: "Login fehlgeschlagen"
-                        )
+                        _uiState.update {
+                            LoginUiState.Error(
+                                exception.message ?: "Login fehlgeschlagen"
+                            )
+                        }
                     }
                 }
         }
@@ -152,7 +155,7 @@ class LoginViewModel @Inject constructor(
 
     fun loginWithToken(serverUrl: String, token: String) {
         if (serverUrl.isBlank() || token.isBlank()) {
-            _uiState.value = LoginUiState.Error("Bitte alle Felder ausfüllen")
+            _uiState.update { LoginUiState.Error("Bitte alle Felder ausfüllen") }
             return
         }
 
@@ -165,32 +168,34 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting token login with URL: $urlToUse")
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
-                _uiState.value = LoginUiState.Loading
+                _uiState.update { LoginUiState.Loading }
             }
 
             authRepository.validateToken(urlToUse, token)
                 .onSuccess {
                     tokenManager.saveCredentials(urlToUse, token)
                     withContext(Dispatchers.Main) {
-                        _uiState.value = LoginUiState.Success
+                        _uiState.update { LoginUiState.Success }
                     }
                 }
                 .onFailure { exception ->
                     withContext(Dispatchers.Main) {
-                        _uiState.value = LoginUiState.Error(
-                            exception.message ?: "Token ungültig"
-                        )
+                        _uiState.update {
+                            LoginUiState.Error(
+                                exception.message ?: "Token ungültig"
+                            )
+                        }
                     }
                 }
         }
     }
 
     fun onBiometricSuccess() {
-        _uiState.value = LoginUiState.Success
+        _uiState.update { LoginUiState.Success }
     }
 
     fun onBiometricError(message: String) {
-        _uiState.value = LoginUiState.Error(message)
+        _uiState.update { LoginUiState.Error(message) }
     }
 
     fun enableBiometric() {
@@ -203,7 +208,7 @@ class LoginViewModel @Inject constructor(
     fun isBiometricAvailable(): Boolean = biometricHelper.isAvailable()
 
     fun resetState() {
-        _uiState.value = LoginUiState.Idle
+        _uiState.update { LoginUiState.Idle }
     }
 }
 

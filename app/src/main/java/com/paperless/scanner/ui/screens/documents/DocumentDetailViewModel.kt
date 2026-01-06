@@ -11,6 +11,7 @@ import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,9 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 data class DocumentDetailUiState(
@@ -93,9 +91,9 @@ class DocumentDetailViewModel @Inject constructor(
                         id = doc.id,
                         title = doc.title,
                         content = doc.content,
-                        created = formatDate(doc.created),
-                        added = formatDate(doc.added),
-                        modified = formatDate(doc.modified),
+                        created = DateFormatter.formatDateWithTime(doc.created),
+                        added = DateFormatter.formatDateWithTime(doc.added),
+                        modified = DateFormatter.formatDateWithTime(doc.modified),
                         correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
                         documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
                         tags = doc.tags.mapNotNull { tagMap[it] },
@@ -118,16 +116,6 @@ class DocumentDetailViewModel @Inject constructor(
         }
     }
 
-    private fun formatDate(dateString: String): String {
-        return try {
-            val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")
-            val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy, HH:mm")
-            val dateTime = LocalDateTime.parse(dateString.take(19), inputFormatter)
-            dateTime.format(outputFormatter)
-        } catch (e: DateTimeParseException) {
-            dateString.take(10)
-        }
-    }
 
     fun deleteDocument() {
         viewModelScope.launch {

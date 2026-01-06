@@ -12,9 +12,11 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AuthRepositoryTest {
 
     private lateinit var mockWebServer: MockWebServer
@@ -37,7 +39,6 @@ class AuthRepositoryTest {
     }
 
     @Test
-    @Ignore("MockWebServer integration test - fails in CI environment")
     fun `login success returns token and saves credentials`() = runBlocking {
         val expectedToken = "test-token-12345"
         mockWebServer.enqueue(
@@ -60,7 +61,6 @@ class AuthRepositoryTest {
     }
 
     @Test
-    @Ignore("MockWebServer integration test - fails in CI environment")
     fun `login with trailing slash normalizes url`() = runBlocking {
         val expectedToken = "test-token"
         mockWebServer.enqueue(
@@ -77,7 +77,6 @@ class AuthRepositoryTest {
     }
 
     @Test
-    @Ignore("MockWebServer integration test - fails in CI environment")
     fun `login failure returns error with status code`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
@@ -89,11 +88,11 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "wronguser", "wrongpass")
 
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message?.contains("401") == true)
+        // AuthRepository returns German error message for 401: "Benutzername oder Passwort ist falsch"
+        assertTrue(result.exceptionOrNull()?.message?.contains("Benutzername oder Passwort") == true)
     }
 
     @Test
-    @Ignore("MockWebServer integration test - fails in CI environment")
     fun `login with empty token returns failure`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
@@ -105,11 +104,10 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "user", "pass")
 
         assertTrue(result.isFailure)
-        assertEquals("Token not found in response", result.exceptionOrNull()?.message)
+        assertEquals("Token nicht in Antwort gefunden", result.exceptionOrNull()?.message)
     }
 
     @Test
-    @Ignore("MockWebServer integration test - fails in CI environment")
     fun `login with missing token field returns failure`() = runBlocking {
         mockWebServer.enqueue(
             MockResponse()
@@ -121,7 +119,7 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "user", "pass")
 
         assertTrue(result.isFailure)
-        assertEquals("Token not found in response", result.exceptionOrNull()?.message)
+        assertEquals("Token nicht in Antwort gefunden", result.exceptionOrNull()?.message)
     }
 
     @Test

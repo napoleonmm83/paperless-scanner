@@ -11,6 +11,22 @@
     <string name="login_button">Login</string>
     <string name="login_error">Login failed: %1$s</string>
 
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Zurück</string>
+    <string name="onboarding_login_title">Anmelden</string>
+    <string name="onboarding_login_subtitle">Melde dich mit deinem Paperless-ngx Konto an</string>
+    <string name="onboarding_filter_password">Passwort</string>
+    <string name="onboarding_filter_key">Schlüssel</string>
+    <string name="onboarding_username">Benutzername</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Passwort</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Zugangsschlüssel</string>
+    <string name="onboarding_access_key_placeholder">Hier einfügen...</string>
+    <string name="onboarding_token_help">Findest du in Paperless unter: Einstellungen → Mein Profil</string>
+    <string name="onboarding_scan_token">Token mit Kamera scannen</string>
+    <string name="onboarding_login_button">Anmelden</string>
+
     <!-- Scan -->
     <string name="scan_title">Dokument scannen</string>
     <string name="scan_button">Kamera öffnen</string>
@@ -23,6 +39,253 @@
     <string name="upload_button">Hochladen</string>
     <string name="upload_success">Dokument erfolgreich hochgeladen</string>
     <string name="upload_error">Upload fehlgeschlagen: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Zurück</string>
+    <string name="upload_queued">Upload wird synchronisiert, sobald Verbindung besteht</string>
+    <string name="upload_tag_created">Tag \"%1$s\" erstellt</string>
+    <string name="upload_document_preview">Document Preview</string>
+    <string name="upload_title_label">Titel (optional)</string>
+    <string name="upload_title_placeholder">z.B. Rechnung Dezember 2024</string>
+    <string name="upload_failed_title">Upload fehlgeschlagen</string>
+    <string name="upload_retry_button">Retry</string>
+    <string name="upload_progress">Hochladen: %1$d%%</string>
+    <string name="upload_uploading">Wird hochgeladen...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Batch Import</string>
+    <string name="batch_import_back">Zurück</string>
+    <string name="batch_import_success_single">Dokument zur Warteschlange hinzugefügt!</string>
+    <string name="batch_import_success_multiple">%1$d Dokumente zur Warteschlange hinzugefügt!</string>
+    <string name="batch_import_images_selected">%1$d Bilder ausgewählt</string>
+    <string name="batch_import_mode_single">Als ein Dokument</string>
+    <string name="batch_import_mode_individual">Als einzelne Dokumente</string>
+    <string name="batch_import_button_individual">Einzeln</string>
+    <string name="batch_import_button_single">Als ein Dokument</string>
+    <string name="batch_import_preview">Vorschau</string>
+    <string name="batch_import_image_description">Bild %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Dokumententyp (für alle)</string>
+    <string name="batch_import_correspondent">Korrespondent (für alle)</string>
+    <string name="batch_import_tags">Tags (für alle)</string>
+    <string name="batch_import_not_selected">Nicht ausgewählt</string>
+    <string name="batch_import_adding_progress">Hinzufügen: %1$d / %2$d</string>
+    <string name="batch_import_adding">Wird hinzugefügt...</string>
+    <string name="batch_import_button">%1$d Bilder importieren</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">PDF hochladen</string>
+    <string name="multipage_upload_back">Zurück</string>
+    <string name="multipage_upload_success">PDF mit %1$d Seiten erfolgreich hochgeladen!</string>
+    <string name="multipage_upload_queued">Upload wird synchronisiert, sobald Verbindung besteht</string>
+    <string name="multipage_upload_tag_created">Tag \"%1$s\" erstellt</string>
+    <string name="multipage_upload_info">%1$d Seiten werden als PDF zusammengefügt</string>
+    <string name="multipage_upload_preview">Seiten-Vorschau</string>
+    <string name="multipage_upload_page_description">Seite %1$d</string>
+    <string name="multipage_upload_title_label">Titel (optional)</string>
+    <string name="multipage_upload_title_placeholder">z.B. Vertrag Januar 2025</string>
+    <string name="multipage_upload_failed_title">Upload fehlgeschlagen</string>
+    <string name="multipage_upload_retry_button">Retry</string>
+    <string name="multipage_upload_progress">Hochladen: %1$d%%</string>
+    <string name="multipage_upload_uploading">PDF wird hochgeladen...</string>
+    <string name="multipage_upload_button">Als PDF hochladen</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Zurück</string>
+    <string name="document_detail_title">DOKUMENT</string>
+    <string name="document_detail_open_browser">Im Browser öffnen</string>
+    <string name="document_detail_delete">Löschen</string>
+    <string name="document_detail_error">Fehler</string>
+    <string name="document_detail_retry">Erneut versuchen</string>
+    <string name="document_detail_preview">Dokumentvorschau</string>
+    <string name="document_detail_correspondent">Korrespondent</string>
+    <string name="document_detail_type">Dokumenttyp</string>
+    <string name="document_detail_created">Erstellt</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Dateiname</string>
+    <string name="document_detail_content">Inhalt</string>
+    <string name="document_detail_view_pdf">PDF anzeigen</string>
+    <string name="document_detail_delete_dialog_title">DOKUMENT LÖSCHEN?</string>
+    <string name="document_detail_delete_dialog_message">Möchtest du dieses Dokument wirklich löschen?</string>
+    <string name="document_detail_delete_dialog_warning">Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="document_detail_delete_button_deleting">LÖSCHE...</string>
+    <string name="document_detail_delete_button">LÖSCHEN</string>
+    <string name="document_detail_cancel_button">ABBRECHEN</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">LABELS</string>
+    <string name="labels_subtitle">Verwalte deine Labels</string>
+    <string name="labels_search_placeholder">Labels durchsuchen...</string>
+    <string name="labels_search_clear">Clear</string>
+    <string name="labels_edit">Bearbeiten</string>
+    <string name="labels_delete">Löschen</string>
+    <string name="labels_document_count">%1$d Dokumente</string>
+    <string name="labels_delete_dialog_title">Label löschen</string>
+    <string name="labels_delete_dialog_message">Möchtest du das Label \"%1$s\" wirklich löschen?</string>
+    <string name="labels_delete_button">Löschen</string>
+    <string name="labels_cancel_button">Abbrechen</string>
+    <string name="labels_add_new">Neues Label</string>
+    <string name="labels_create_title">Neues Label</string>
+    <string name="labels_edit_title">Label bearbeiten</string>
+    <string name="labels_name_label">Name</string>
+    <string name="labels_name_placeholder">Label-Name eingeben...</string>
+    <string name="labels_color_label">Farbe</string>
+    <string name="labels_preview_label">Vorschau</string>
+    <string name="labels_preview_default">Label-Name</string>
+    <string name="labels_save_button">Speichern</string>
+    <string name="labels_create_button">Erstellen</string>
+    <string name="labels_detail_back">Zurück</string>
+    <string name="labels_detail_no_documents">Keine Dokumente mit diesem Label</string>
+    <string name="labels_detail_page_count_singular">Seite</string>
+    <string name="labels_detail_page_count_plural">Seiten</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Der mobile Begleiter für deine\nPaperless-ngx Installation</string>
+    <string name="welcome_feature_1">Intelligentes Scannen mit Kantenerkennung</string>
+    <string name="welcome_feature_2">Multi-Page Dokumente erstellen</string>
+    <string name="welcome_feature_3">Direkt in Paperless-ngx hochladen</string>
+    <string name="welcome_button">Los geht\'s</string>
+    <string name="welcome_footer">Du benötigst eine eigene Paperless-ngx Installation</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Zurück</string>
+    <string name="server_setup_title">Server verbinden</string>
+    <string name="server_setup_subtitle">Gib die URL deiner Paperless-ngx Installation ein</string>
+    <string name="server_setup_url_label">Server-URL</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS wird automatisch erkannt</string>
+    <string name="server_setup_status_checking">Server wird geprüft...</string>
+    <string name="server_setup_status_https">Sichere Verbindung (HTTPS)</string>
+    <string name="server_setup_status_http">Verbindung hergestellt (HTTP)</string>
+    <string name="server_setup_hint_title">Sichere Verbindung empfohlen</string>
+    <string name="server_setup_hint_text">Verwende HTTPS für eine verschlüsselte Verbindung zu deinem Server.</string>
+    <string name="server_setup_button">Weiter</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Alles bereit!</string>
+    <string name="success_subtitle">Du bist verbunden und kannst jetzt\nDokumente scannen und hochladen.</string>
+    <string name="success_stat_scanned">Heute gescannt</string>
+    <string name="success_stat_connected">Verbunden</string>
+    <string name="success_tips_header">SCHNELLSTART-TIPPS</string>
+    <string name="success_tip_1">Halte das Dokument flach und gut beleuchtet</string>
+    <string name="success_tip_2">Die App erkennt die Kanten automatisch</string>
+    <string name="success_tip_3">Tags kannst du vor dem Upload auswählen</string>
+    <string name="success_button">App starten</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOKUMENTE</string>
+    <string name="documents_count">%1$d Dokumente</string>
+    <string name="documents_search_placeholder">Dokumente durchsuchen...</string>
+    <string name="documents_search_clear">Clear</string>
+    <string name="documents_filter_all">Alle</string>
+    <string name="documents_empty_no_results">Keine Ergebnisse</string>
+    <string name="documents_empty_no_documents">Keine Dokumente</string>
+    <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
+    <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Seite %1$d entfernt</string>
+    <string name="scan_undo">Rückgängig</string>
+    <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>
+    <string name="scan_new_document_title">NEUES DOKUMENT</string>
+    <string name="scan_choose_option">Wähle eine Option</string>
+    <string name="scan_option_scan">Scannen</string>
+    <string name="scan_option_gallery">Galerie</string>
+    <string name="scan_option_files">Dateien</string>
+    <string name="scan_page_count">%1$d / %2$d Seiten</string>
+    <string name="scan_hold_to_sort">Gedrückt halten zum Sortieren</string>
+    <string name="scan_limit_reached">Maximum erreicht</string>
+    <string name="scan_almost_full">Fast voll</string>
+    <string name="scan_upload_single">Hochladen</string>
+    <string name="scan_upload_pdf">Als PDF hochladen</string>
+    <string name="scan_more_pages">Weitere Seiten</string>
+    <string name="scan_maximum">Maximum</string>
+    <string name="scan_discard">Verwerfen</string>
+    <string name="scan_page_description">Seite %1$d</string>
+    <string name="scan_rotate">Drehen</string>
+    <string name="scan_remove">Entfernen</string>
+    <string name="scan_hold_to_sort_hint">Zum Sortieren gedrückt halten</string>
+    <string name="scan_add_page">Weitere Seite</string>
+    <string name="scan_close">Schließen</string>
+    <string name="scan_delete">Löschen</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">WILLKOMMEN ZURÜCK</string>
+    <string name="home_your_archive">DEIN ARCHIV</string>
+    <string name="home_stat_documents">Dokumente</string>
+    <string name="home_stat_this_month">Diesen Monat</string>
+    <string name="home_stat_pending">Ausstehend</string>
+    <string name="home_new_scan">Neuer Scan</string>
+    <string name="home_all_documents">Alle Dokumente</string>
+    <string name="home_processing">Verarbeitung</string>
+    <string name="home_refresh">Aktualisieren</string>
+    <string name="home_recently_added">Zuletzt hinzugefügt</string>
+    <string name="home_see_all">Alle</string>
+    <string name="home_no_documents">Noch keine Dokumente</string>
+    <string name="home_scan_first">Scanne dein erstes Dokument!</string>
+    <string name="home_untagged_documents">%1$d Dokumente ohne Tags</string>
+    <string name="home_assign_tags_hint">Ordne Tags zu für bessere Organisation</string>
+    <string name="home_task_waiting">Warte...</string>
+    <string name="home_task_processing">Verarbeite...</string>
+    <string name="home_task_success">Erfolgreich</string>
+    <string name="home_task_failure">Fehlgeschlagen</string>
+    <string name="home_dismiss">Ausblenden</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Zurück</string>
+    <string name="pending_sync_title">AUSSTEHENDE SYNCS</string>
+    <string name="pending_sync_upload_queue">Upload Queue</string>
+    <string name="pending_sync_no_uploads">Keine ausstehenden Uploads</string>
+    <string name="pending_sync_pending_changes">Pending Changes</string>
+    <string name="pending_sync_no_changes">Keine ausstehenden Änderungen</string>
+    <string name="pending_sync_unnamed_document">Unbenanntes Dokument</string>
+    <string name="pending_sync_type">Typ</string>
+    <string name="pending_sync_multi_page">Multi-Page</string>
+    <string name="pending_sync_single">Single</string>
+    <string name="pending_sync_retry_count">Retry Count</string>
+    <string name="pending_sync_created">Erstellt</string>
+    <string name="pending_sync_retry">Retry</string>
+    <string name="pending_sync_delete">Delete</string>
+    <string name="pending_sync_id_new">ID: NEW</string>
+    <string name="pending_sync_sync_attempts">Sync Attempts</string>
+    <string name="pending_sync_status_pending">Pending</string>
+    <string name="pending_sync_status_uploading">Uploading</string>
+    <string name="pending_sync_status_completed">Completed</string>
+    <string name="pending_sync_status_failed">Failed</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">EINSTELLUNGEN</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Nicht verbunden</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_server_url">Server-URL</string>
+    <string name="settings_not_configured">Nicht konfiguriert</string>
+    <string name="settings_section_upload">Upload</string>
+    <string name="settings_upload_notifications">Upload-Benachrichtigungen</string>
+    <string name="settings_upload_notifications_subtitle">Zeige Benachrichtigung während des Uploads</string>
+    <string name="settings_upload_quality">Upload-Qualität</string>
+    <string name="settings_section_design">Design</string>
+    <string name="settings_design_demo">Design System Demo</string>
+    <string name="settings_design_demo_subtitle">Neues Dark Tech Design ausprobieren</string>
+    <string name="settings_section_about">Über</string>
+    <string name="settings_app_version">App-Version</string>
+    <string name="settings_licenses">Lizenzen</string>
+    <string name="settings_open_source_licenses">Open Source Lizenzen</string>
+    <string name="settings_logout">Abmelden</string>
+    <string name="settings_logout_confirm_message">Möchtest du dich wirklich abmelden? Du musst dich danach erneut anmelden.</string>
+    <string name="settings_selected">Ausgewählt</string>
+    <string name="settings_close">Schliessen</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Zurück</string>
+    <string name="pdf_viewer_page_info">Seite %1$d von %2$d</string>
+    <string name="pdf_viewer_share">Teilen</string>
+    <string name="pdf_viewer_open_external">In anderer App öffnen</string>
+    <string name="pdf_viewer_downloading">Wird heruntergeladen...</string>
+    <string name="pdf_viewer_swipe_hint">Wischen zum Blättern</string>
+    <string name="pdf_viewer_pdf_page">PDF-Seite %1$d</string>
+    <string name="pdf_viewer_document_image">Dokument Bild</string>
+    <string name="pdf_viewer_retry">Erneut versuchen</string>
 
     <!-- General -->
     <string name="loading">Laden...</string>
