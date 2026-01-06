@@ -6,9 +6,15 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.paperless.scanner.data.database.entities.CachedDocumentType
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CachedDocumentTypeDao {
+    // Reactive Flow - updates automatically on any DB change
+    @Query("SELECT * FROM cached_document_types WHERE isDeleted = 0 ORDER BY name ASC")
+    fun observeDocumentTypes(): Flow<List<CachedDocumentType>>
+
+    // Legacy suspend method - kept for backward compatibility
     @Query("SELECT * FROM cached_document_types WHERE isDeleted = 0 ORDER BY name ASC")
     suspend fun getAllDocumentTypes(): List<CachedDocumentType>
 

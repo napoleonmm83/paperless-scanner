@@ -7,9 +7,15 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.paperless.scanner.data.database.entities.PendingChange
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PendingChangeDao {
+    // Reactive Flow - updates automatically on any DB change
+    @Query("SELECT * FROM pending_changes ORDER BY createdAt ASC")
+    fun observePendingChanges(): Flow<List<PendingChange>>
+
+    // Legacy suspend method - kept for backward compatibility
     @Query("SELECT * FROM pending_changes ORDER BY createdAt ASC")
     suspend fun getAll(): List<PendingChange>
 
@@ -31,6 +37,11 @@ interface PendingChangeDao {
     @Query("DELETE FROM pending_changes")
     suspend fun deleteAll()
 
+    // Reactive count - automatically updates on DB changes
+    @Query("SELECT COUNT(*) FROM pending_changes")
+    fun observeCount(): Flow<Int>
+
+    // Legacy count method - kept for backward compatibility
     @Query("SELECT COUNT(*) FROM pending_changes")
     suspend fun getCount(): Int
 }
