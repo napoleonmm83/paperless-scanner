@@ -29,7 +29,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 
 private val TAG_COLORS = listOf(
     "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c",
@@ -49,13 +51,15 @@ fun CreateTagDialog(
 
     AlertDialog(
         onDismissRequest = { if (!isCreating) onDismiss() },
-        title = { Text("Neuen Tag erstellen") },
+        title = { Text(stringResource(R.string.create_tag_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = tagName,
-                    onValueChange = { tagName = it },
-                    label = { Text("Tag-Name") },
+                    onValueChange = { newValue ->
+                        tagName = newValue
+                    },
+                    label = { Text(stringResource(R.string.create_tag_name_label)) },
                     singleLine = true,
                     enabled = !isCreating,
                     modifier = Modifier.fillMaxWidth()
@@ -64,7 +68,7 @@ fun CreateTagDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "Farbe (optional)",
+                    text = stringResource(R.string.create_tag_color_label),
                     style = MaterialTheme.typography.bodyMedium
                 )
 
@@ -103,7 +107,7 @@ fun CreateTagDialog(
                 onClick = { onCreate(tagName.trim(), selectedColor) },
                 enabled = tagName.isNotBlank() && !isCreating
             ) {
-                Text("Erstellen")
+                Text(stringResource(R.string.create_tag_create))
             }
         },
         dismissButton = {
@@ -111,7 +115,7 @@ fun CreateTagDialog(
                 onClick = onDismiss,
                 enabled = !isCreating
             ) {
-                Text("Abbrechen")
+                Text(stringResource(R.string.create_tag_cancel))
             }
         }
     )

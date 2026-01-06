@@ -276,6 +276,13 @@
     <string name="settings_selected">Ausgewählt</string>
     <string name="settings_close">Schliessen</string>
 
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Neuen Tag erstellen</string>
+    <string name="create_tag_name_label">Tag-Name</string>
+    <string name="create_tag_color_label">Farbe (optional)</string>
+    <string name="create_tag_create">Erstellen</string>
+    <string name="create_tag_cancel">Abbrechen</string>
+
     <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Zurück</string>
     <string name="pdf_viewer_page_info">Seite %1$d von %2$d</string>
@@ -286,6 +293,9 @@
     <string name="pdf_viewer_pdf_page">PDF-Seite %1$d</string>
     <string name="pdf_viewer_document_image">Dokument Bild</string>
     <string name="pdf_viewer_retry">Erneut versuchen</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Upload fehlgeschlagen</string>
 
     <!-- General -->
     <string name="loading">Laden...</string>
