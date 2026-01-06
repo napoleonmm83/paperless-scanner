@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- API 31+ Splash Screen attributes -->
     <style name="Theme.PaperlessScanner" parent="android:Theme.Material.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
     </style>
 </resources>
