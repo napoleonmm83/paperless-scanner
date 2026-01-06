@@ -62,7 +62,7 @@ class HomeViewModelTest {
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
-        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())

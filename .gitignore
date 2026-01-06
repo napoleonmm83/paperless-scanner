@@ -98,3 +98,4 @@ gradle.properties.local
 
 # Claude local settings
 .claude/settings.local.json
+*.hprof
