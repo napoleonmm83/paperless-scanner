@@ -197,6 +197,7 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 | API Referenz | `docs/API_REFERENCE.md` |
 | Known Issues | `docs/KNOWN_ISSUES.md` |
 | ByteRover Setup | `docs/BYTEROVER.md` |
+| **Lokales CI Testing** | `docs/LOCAL_CI_TESTING.md` |
 
 ---
 
@@ -210,6 +211,7 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 - Tests für neue Features schreiben
 - ByteRover nutzen für Kontext-Abfragen bei wiederkehrenden Fragen
 - Wichtige Architektur-Entscheidungen in ByteRover kuratieren
+- **VOR JEDEM COMMIT: Lokale CI-Checks ausführen** (siehe "Lokale CI-Checks vor Commit")
 
 ### DON'T
 - Keine Annahmen über API Response-Formate
@@ -219,6 +221,33 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 - Keine Logs mit sensiblen Daten
 - Keine sensiblen Daten in ByteRover speichern (API Keys, Tokens, etc.)
 - **NIEMALS vom Dark Tech Precision Pro Style Guide abweichen bei UI-Komponenten**
+- **NIEMALS committen ohne vorherige lokale CI-Checks**
+
+---
+
+## Lokale CI-Checks vor Commit (ZWINGEND! ⚠️)
+
+**Pre-commit Hook installiert:** `.git/hooks/pre-commit` führt automatisch folgende Checks aus:
+
+```bash
+# 1. Syntax-Check (30 Sek)
+JAVA_HOME="C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9.10-hotspot" ./gradlew compileDebugUnitTestKotlin --no-daemon
+
+# 2. Lint Check (45 Sek)
+JAVA_HOME="C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9.10-hotspot" ./gradlew lintDebug --no-daemon
+```
+
+**Warum zwingend?**
+- ✅ Verhindert fehlgeschlagene CI-Builds nach Push
+- ✅ Spart 10-15 Minuten CI-Zeit
+- ✅ Keine "commit → push → wait → fix → repeat" Zyklen mehr
+
+**Was bei Fehler tun?**
+- Fehler im Code beheben
+- Tests erneut lokal ausführen
+- Erst dann committen
+
+**Detaillierte Dokumentation:** `docs/LOCAL_CI_TESTING.md`
 
 ---
 
