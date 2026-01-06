@@ -14,6 +14,8 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.Tag
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class TagRepository @Inject constructor(
@@ -22,6 +24,15 @@ class TagRepository @Inject constructor(
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor
 ) {
+    /**
+     * BEST PRACTICE: Reactive Flow for automatic UI updates.
+     * Observes cached tags and automatically notifies when tags are added/modified/deleted.
+     */
+    fun observeTags(): Flow<List<Tag>> {
+        return cachedTagDao.observeTags()
+            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
+    }
+
     suspend fun getTags(forceRefresh: Boolean = false): Result<List<Tag>> {
         return try {
             // Offline-First: Try cache first unless forceRefresh

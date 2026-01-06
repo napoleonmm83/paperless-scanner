@@ -10,6 +10,8 @@ import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Correspondent
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class CorrespondentRepository @Inject constructor(
@@ -18,6 +20,15 @@ class CorrespondentRepository @Inject constructor(
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor
 ) {
+    /**
+     * BEST PRACTICE: Reactive Flow for automatic UI updates.
+     * Observes cached correspondents and automatically notifies when data changes.
+     */
+    fun observeCorrespondents(): Flow<List<Correspondent>> {
+        return cachedCorrespondentDao.observeCorrespondents()
+            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
+    }
+
     suspend fun getCorrespondents(forceRefresh: Boolean = false): Result<List<Correspondent>> {
         return try {
             // Offline-First: Try cache first unless forceRefresh

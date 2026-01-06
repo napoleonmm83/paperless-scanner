@@ -10,6 +10,8 @@ import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentType
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class DocumentTypeRepository @Inject constructor(
@@ -18,6 +20,15 @@ class DocumentTypeRepository @Inject constructor(
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor
 ) {
+    /**
+     * BEST PRACTICE: Reactive Flow for automatic UI updates.
+     * Observes cached document types and automatically notifies when data changes.
+     */
+    fun observeDocumentTypes(): Flow<List<DocumentType>> {
+        return cachedDocumentTypeDao.observeDocumentTypes()
+            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
+    }
+
     suspend fun getDocumentTypes(forceRefresh: Boolean = false): Result<List<DocumentType>> {
         return try {
             // Offline-First: Try cache first unless forceRefresh
