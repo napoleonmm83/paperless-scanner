@@ -99,3 +99,10 @@ gradle.properties.local
 # Claude local settings
 .claude/settings.local.json
 *.hprof
+
+# Secrets and environment files
+.env
+.env.local
+.actrc
+setup-github-secrets.sh
+setup-github-secrets.bat
