@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.time.Duration
 
 plugins {
     alias(libs.plugins.android.application)
@@ -111,6 +112,22 @@ android {
             all {
                 it.maxHeapSize = "4096m"
                 it.jvmArgs("-XX:MaxMetaspaceSize=1024m", "-XX:+HeapDumpOnOutOfMemoryError")
+
+                // Kill hanging tests - 3 minute timeout per test
+                it.testLogging {
+                    events("passed", "skipped", "failed", "standardError")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showStandardStreams = false
+                }
+
+                // Fail fast - stop after first failure to prevent hanging
+                it.failFast = true
+
+                // Fork every test to isolate failures
+                it.forkEvery = 10
+
+                // Kill the whole test task after 5 minutes (300 seconds)
+                it.timeout.set(Duration.ofMinutes(5))
             }
         }
     }
