@@ -39,7 +39,10 @@ data class DocumentDetailUiState(
     val originalFileName: String? = null,
     val archiveSerialNumber: Int? = null,
     val isLoading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val isDeleting: Boolean = false,
+    val deleteError: String? = null,
+    val deleteSuccess: Boolean = false
 )
 
 @HiltViewModel
@@ -124,5 +127,31 @@ class DocumentDetailViewModel @Inject constructor(
         } catch (e: DateTimeParseException) {
             dateString.take(10)
         }
+    }
+
+    fun deleteDocument() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true, deleteError = null) }
+
+            documentRepository.deleteDocument(documentId).onSuccess {
+                _uiState.update {
+                    it.copy(
+                        isDeleting = false,
+                        deleteSuccess = true
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isDeleting = false,
+                        deleteError = error.message ?: "Fehler beim Löschen"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearDeleteError() {
+        _uiState.update { it.copy(deleteError = null) }
     }
 }
