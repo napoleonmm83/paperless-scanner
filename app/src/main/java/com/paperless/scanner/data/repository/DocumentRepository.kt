@@ -435,4 +435,44 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.from(e))
         }
     }
+
+    suspend fun deleteDocument(documentId: Int): Result<Unit> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                // Online: Delete via API
+                val response = api.deleteDocument(documentId)
+
+                if (response.isSuccessful) {
+                    // Soft delete from cache
+                    cachedDocumentDao.softDelete(documentId)
+                    Result.success(Unit)
+                } else {
+                    Result.failure(
+                        PaperlessException.fromHttpCode(
+                            response.code(),
+                            response.message()
+                        )
+                    )
+                }
+            } else {
+                // Offline: Queue deletion for sync
+                val pendingChange = PendingChange(
+                    entityType = "document",
+                    entityId = documentId,
+                    changeType = "delete",
+                    changeData = "{}"
+                )
+                pendingChangeDao.insert(pendingChange)
+
+                // Soft delete from local cache immediately for UX
+                cachedDocumentDao.softDelete(documentId)
+
+                Result.success(Unit)
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
 }
