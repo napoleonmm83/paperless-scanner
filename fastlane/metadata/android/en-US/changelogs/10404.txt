@@ -1,0 +1,10 @@
+Hotfix v1.4.4:
+
+🐛 Bug Fixes:
+- Fixes "Upload failed" error when creating new tags
+- Improved stability during document upload
+
+All features from version 1.4.3 included:
+✨ App ready for multi-language support
+🔧 Optimized performance
+📱 Improved test coverage

@@ -1,0 +1,10 @@
+Hotfix v1.4.4:
+
+🐛 Fehlerbehebung:
+- Behebt "Upload fehlgeschlagen" Fehler beim Erstellen neuer Tags
+- Verbesserte Stabilität beim Dokument-Upload
+
+Alle Funktionen der Version 1.4.3 enthalten:
+✨ App bereit für Mehrsprachigkeit
+🔧 Optimierte Performance
+📱 Verbesserte Test-Abdeckung
