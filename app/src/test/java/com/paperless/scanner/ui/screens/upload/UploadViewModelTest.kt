@@ -57,7 +57,7 @@ class UploadViewModelTest {
         networkMonitor = mockk(relaxed = true)
         networkUtils = mockk()
 
-        every { networkMonitor.isConnected } returns flowOf(true)
+        every { networkMonitor.isOnline } returns flowOf(true)
 
         viewModel = UploadViewModel(
             documentRepository = documentRepository,

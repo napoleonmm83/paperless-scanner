@@ -56,7 +56,7 @@ class HomeViewModelTest {
         syncManager = mockk(relaxed = true)
 
         // Default mock responses
-        every { networkMonitor.isConnected } returns flowOf(true)
+        every { networkMonitor.isOnline } returns flowOf(true)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any()) } returns
