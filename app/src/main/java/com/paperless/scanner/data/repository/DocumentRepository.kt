@@ -24,6 +24,8 @@ import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
 import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -259,6 +261,23 @@ class DocumentRepository @Inject constructor(
     }
 
     // Document fetching methods - Offline-First Pattern
+
+    /**
+     * Reactive Flow that observes document changes from local cache.
+     * BEST PRACTICE: Automatically updates UI when documents are added/modified/deleted.
+     * No manual refresh needed - Room handles reactivity.
+     */
+    fun observeDocuments(
+        page: Int = 1,
+        pageSize: Int = 25
+    ): Flow<List<Document>> {
+        return cachedDocumentDao.observeDocuments(
+            limit = pageSize,
+            offset = (page - 1) * pageSize
+        ).map { cachedList ->
+            cachedList.map { it.toCachedDomain() }
+        }
+    }
 
     suspend fun getDocuments(
         page: Int = 1,

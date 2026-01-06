@@ -46,6 +46,40 @@ class DocumentsViewModel @Inject constructor(
 
     init {
         loadInitialData()
+        observeDocumentsReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow-based observation.
+     * Automatically updates UI when documents are added/modified/deleted in DB.
+     * No manual refresh logic needed!
+     */
+    private fun observeDocumentsReactively() {
+        viewModelScope.launch {
+            documentRepository.observeDocuments(
+                page = 1,
+                pageSize = 25
+            ).collect { documents ->
+                // Transform to UI models
+                allDocuments = documents.map { doc ->
+                    DocumentItem(
+                        id = doc.id,
+                        title = doc.title,
+                        date = formatDate(doc.created),
+                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
+                        tags = doc.tags.mapNotNull { tagMap[it]?.name }
+                    )
+                }
+
+                _uiState.update {
+                    it.copy(
+                        documents = allDocuments,
+                        isLoading = false,
+                        totalCount = allDocuments.size
+                    )
+                }
+            }
+        }
     }
 
     private fun loadInitialData() {
@@ -65,8 +99,7 @@ class DocumentsViewModel @Inject constructor(
                 correspondentMap = correspondents.associateBy { it.id }
             }
 
-            // Now load documents
-            loadDocuments()
+            // Note: observeDocumentsReactively() handles document loading via Flow
         }
     }
 

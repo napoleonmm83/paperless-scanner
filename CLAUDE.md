@@ -203,7 +203,50 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 
 ## Regeln für Claude
 
+### 🏆 BEST PRACTICE MANDATE (ZWINGEND!)
+
+**IMMER die beste verfügbare Lösung implementieren - NIEMALS Quick Fixes!**
+
+Bei JEDER Implementierung:
+
+1. **Analysiere ALLE Optionen:**
+   - Quick Fix (funktioniert, aber suboptimal)
+   - Standard Solution (bewährte Patterns)
+   - **Best Practice** (state-of-the-art, wartbar, skalierbar)
+
+2. **Wähle IMMER Best Practice:**
+   - ✅ Reaktive Architekturen (Kotlin Flow, Room Flow)
+   - ✅ SOLID Principles
+   - ✅ Android Architecture Components (ViewModel, Repository, Room)
+   - ✅ Jetpack Compose Best Practices
+   - ✅ Lifecycle-aware Components
+   - ✅ Dependency Injection (Hilt)
+
+3. **NIEMALS implementieren ohne:**
+   - Prüfung ob reaktive Lösung möglich (Flow statt suspend)
+   - Prüfung ob Standard-Pattern existiert (Navigation Args, SavedStateHandle)
+   - Prüfung ob Framework-Lösung verfügbar (Lifecycle, Room Observers)
+
+4. **Bei Unsicherheit:**
+   - Zeige User ALLE Optionen mit Vor-/Nachteilen
+   - Empfehle die BESTE Option klar
+   - Implementiere nur nach expliziter Bestätigung
+
+**Beispiele:**
+
+❌ **FALSCH:** `lifecycleOwner.lifecycle.addObserver()` → Lädt bei jedem ON_RESUME
+✅ **RICHTIG:** `Room Flow` → Automatische Reaktivität bei DB-Änderungen
+
+❌ **FALSCH:** `suspend fun getDocuments()` → Manuelle Refresh-Logik nötig
+✅ **RICHTIG:** `fun observeDocuments(): Flow<List<Document>>` → Automatisches Update
+
+❌ **FALSCH:** Callback-Hölle mit Lifecycle Observer
+✅ **RICHTIG:** Navigation Result via SavedStateHandle
+
+---
+
 ### DO
+- **IMMER Best Practice implementieren (siehe oben)**
 - API-Dokumentation verifizieren bevor Models erstellt werden
 - Bestehende Patterns im Code folgen
 - Sealed Classes für State Management verwenden
@@ -212,8 +255,13 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 - ByteRover nutzen für Kontext-Abfragen bei wiederkehrenden Fragen
 - Wichtige Architektur-Entscheidungen in ByteRover kuratieren
 - **VOR JEDEM COMMIT: Lokale CI-Checks ausführen** (siehe "Lokale CI-Checks vor Commit")
+- **Kotlin Flow bevorzugen statt suspend functions für reaktive Daten**
+- **Room Flow für Datenbank-Beobachtung verwenden**
 
 ### DON'T
+- **NIEMALS Quick Fixes implementieren wenn Best Practice möglich ist**
+- **NIEMALS Lifecycle Observer für manuelles Refresh wenn Room Flow verfügbar**
+- **NIEMALS suspend functions wenn Flow die bessere Lösung ist**
 - Keine Annahmen über API Response-Formate
 - Keine Breaking Changes ohne Dokumentation
 - Keine neuen Dependencies ohne Begründung
