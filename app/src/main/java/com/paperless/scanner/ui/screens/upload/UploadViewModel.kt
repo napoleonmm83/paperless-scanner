@@ -50,6 +50,49 @@ class UploadViewModel @Inject constructor(
     // Store last upload params for retry
     private var lastUploadParams: UploadParams? = null
 
+    init {
+        observeTagsReactively()
+        observeDocumentTypesReactively()
+        observeCorrespondentsReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for tags.
+     * Automatically updates dropdown when tags are added/modified/deleted.
+     * User creates new tag in LabelsScreen → appears instantly in UploadScreen!
+     */
+    private fun observeTagsReactively() {
+        viewModelScope.launch {
+            tagRepository.observeTags().collect { tagList ->
+                _tags.update { tagList.sortedBy { it.name.lowercase() } }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for document types.
+     * Automatically updates dropdown when document types are added/modified/deleted.
+     */
+    private fun observeDocumentTypesReactively() {
+        viewModelScope.launch {
+            documentTypeRepository.observeDocumentTypes().collect { types ->
+                _documentTypes.update { types.sortedBy { it.name.lowercase() } }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for correspondents.
+     * Automatically updates dropdown when correspondents are added/modified/deleted.
+     */
+    private fun observeCorrespondentsReactively() {
+        viewModelScope.launch {
+            correspondentRepository.observeCorrespondents().collect { correspondentList ->
+                _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
+            }
+        }
+    }
+
     fun loadTags() {
         viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "Loading tags...")
@@ -243,10 +286,8 @@ class UploadViewModel @Inject constructor(
             tagRepository.createTag(name = name, color = color)
                 .onSuccess { newTag ->
                     Log.d(TAG, "Tag created: ${newTag.name}")
-                    // Add new tag to list and sort
-                    _tags.update { currentTags ->
-                        (currentTags + newTag).sortedBy { it.name.lowercase() }
-                    }
+                    // BEST PRACTICE: No manual list update needed!
+                    // observeTagsReactively() automatically updates dropdown.
                     _createTagState.update { CreateTagState.Success(newTag) }
                 }
                 .onFailure { e ->

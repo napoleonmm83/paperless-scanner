@@ -41,6 +41,49 @@ class BatchImportViewModel @Inject constructor(
     private val _correspondents = MutableStateFlow<List<Correspondent>>(emptyList())
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
 
+    init {
+        observeTagsReactively()
+        observeDocumentTypesReactively()
+        observeCorrespondentsReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for tags.
+     * Automatically updates dropdown when tags are added/modified/deleted.
+     * Consistent with UploadViewModel pattern.
+     */
+    private fun observeTagsReactively() {
+        viewModelScope.launch {
+            tagRepository.observeTags().collect { tagList ->
+                _tags.value = tagList.sortedBy { it.name.lowercase() }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for document types.
+     * Automatically updates dropdown when document types are added/modified/deleted.
+     */
+    private fun observeDocumentTypesReactively() {
+        viewModelScope.launch {
+            documentTypeRepository.observeDocumentTypes().collect { types ->
+                _documentTypes.value = types.sortedBy { it.name.lowercase() }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for correspondents.
+     * Automatically updates dropdown when correspondents are added/modified/deleted.
+     */
+    private fun observeCorrespondentsReactively() {
+        viewModelScope.launch {
+            correspondentRepository.observeCorrespondents().collect { correspondentList ->
+                _correspondents.value = correspondentList.sortedBy { it.name.lowercase() }
+            }
+        }
+    }
+
     fun loadData() {
         viewModelScope.launch(Dispatchers.IO) {
             tagRepository.getTags()

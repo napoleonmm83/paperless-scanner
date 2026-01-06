@@ -109,28 +109,76 @@ class HomeViewModel @Inject constructor(
         loadDashboardData()
         startNetworkMonitoring()
         observePendingUploads()
+        observeTagsReactively()
+        observeRecentDocumentsReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for tags.
+     * Automatically updates tagMap when tags are added/modified/deleted.
+     */
+    private fun observeTagsReactively() {
+        viewModelScope.launch {
+            tagRepository.observeTags().collect { tags ->
+                tagMap = tags.associateBy { it.id }
+
+                // Recalculate untagged count when tags change
+                val untagged = countUntaggedFromRecent(_uiState.value.recentDocuments)
+                _uiState.update { it.copy(untaggedCount = untagged) }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for recent documents.
+     * Automatically updates UI when documents are added/modified/deleted in DB.
+     */
+    private fun observeRecentDocumentsReactively() {
+        viewModelScope.launch {
+            documentRepository.observeDocuments(
+                page = 1,
+                pageSize = 5
+            ).collect { documents ->
+                val recentDocs = documents.map { doc ->
+                    val firstTagId = doc.tags.firstOrNull()
+                    val tag = firstTagId?.let { tagMap[it] }
+
+                    RecentDocument(
+                        id = doc.id,
+                        title = doc.title,
+                        timeAgo = formatTimeAgo(doc.added),
+                        tagName = tag?.name,
+                        tagColor = tag?.color?.let { parseColorToLong(it) }
+                    )
+                }
+
+                val untagged = countUntaggedFromRecent(recentDocs)
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        recentDocuments = recentDocs,
+                        untaggedCount = untagged,
+                        isLoading = false
+                    )
+                }
+            }
+        }
     }
 
     fun loadDashboardData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // Load tags first for name lookup
-            tagRepository.getTags().onSuccess { tags ->
-                tagMap = tags.associateBy { it.id }
-            }
+            // BEST PRACTICE: Tags and recent documents are handled by reactive Flows.
+            // Only load stats and processing tasks here.
 
             val stats = loadStats()
-            val recentDocs = loadRecentDocuments()
             val tasks = loadProcessingTasks()
-            val untagged = countUntaggedFromRecent(recentDocs)
 
-            _uiState.update {
-                HomeUiState(
+            _uiState.update { currentState ->
+                currentState.copy(
                     stats = stats,
-                    recentDocuments = recentDocs,
                     processingTasks = tasks,
-                    untaggedCount = untagged,
                     isLoading = false
                 )
             }
@@ -156,10 +204,10 @@ class HomeViewModel @Inject constructor(
 
                 // Stop polling if no more pending tasks
                 if (tasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                    // Refresh recent documents when all tasks complete
-                    val recentDocs = loadRecentDocuments()
+                    // BEST PRACTICE: Recent documents update automatically via Flow.
+                    // Just refresh stats when all tasks complete.
                     val stats = loadStats()
-                    _uiState.update { it.copy(recentDocuments = recentDocs, stats = stats) }
+                    _uiState.update { it.copy(stats = stats) }
                     break
                 }
             }
@@ -225,23 +273,6 @@ class HomeViewModel @Inject constructor(
             thisMonth = thisMonth,
             pendingUploads = pendingCount
         )
-    }
-
-    private suspend fun loadRecentDocuments(): List<RecentDocument> {
-        val result = documentRepository.getRecentDocuments(limit = 5)
-
-        return result.getOrNull()?.map { doc ->
-            val firstTagId = doc.tags.firstOrNull()
-            val tag = firstTagId?.let { tagMap[it] }
-
-            RecentDocument(
-                id = doc.id,
-                title = doc.title,
-                timeAgo = formatTimeAgo(doc.added),
-                tagName = tag?.name,
-                tagColor = tag?.color?.let { parseColorToLong(it) }
-            )
-        } ?: emptyList()
     }
 
     private fun countUntaggedFromRecent(docs: List<RecentDocument>): Int {

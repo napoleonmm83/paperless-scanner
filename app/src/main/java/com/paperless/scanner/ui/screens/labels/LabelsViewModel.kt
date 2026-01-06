@@ -36,6 +36,43 @@ class LabelsViewModel @Inject constructor(
 
     init {
         loadLabels()
+        observeTagsReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for tags.
+     * Automatically updates labels when tags are added/modified/deleted.
+     * No manual refresh needed after create/update/delete operations!
+     */
+    private fun observeTagsReactively() {
+        viewModelScope.launch {
+            tagRepository.observeTags().collect { tags ->
+                allLabels = tags.map { tag ->
+                    LabelItem(
+                        id = tag.id,
+                        name = tag.name,
+                        color = parseColor(tag.color),
+                        documentCount = tag.documentCount ?: 0
+                    )
+                }
+
+                // Apply current search filter
+                val filtered = if (_uiState.value.searchQuery.isBlank()) {
+                    allLabels
+                } else {
+                    allLabels.filter {
+                        it.name.contains(_uiState.value.searchQuery, ignoreCase = true)
+                    }
+                }
+
+                _uiState.update {
+                    it.copy(
+                        labels = filtered,
+                        isLoading = false
+                    )
+                }
+            }
+        }
     }
 
     fun loadLabels() {
@@ -83,7 +120,8 @@ class LabelsViewModel @Inject constructor(
         viewModelScope.launch {
             val colorHex = colorToHex(color)
             tagRepository.createTag(name, colorHex).onSuccess {
-                loadLabels()
+                // BEST PRACTICE: No manual refresh needed!
+                // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = error.message ?: "Fehler beim Erstellen")
@@ -96,7 +134,8 @@ class LabelsViewModel @Inject constructor(
         viewModelScope.launch {
             val colorHex = colorToHex(color)
             tagRepository.updateTag(id, name, colorHex).onSuccess {
-                loadLabels()
+                // BEST PRACTICE: No manual refresh needed!
+                // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = error.message ?: "Fehler beim Aktualisieren")
@@ -108,8 +147,8 @@ class LabelsViewModel @Inject constructor(
     fun deleteLabel(id: Int) {
         viewModelScope.launch {
             tagRepository.deleteTag(id).onSuccess {
-                allLabels = allLabels.filter { it.id != id }
-                _uiState.update { it.copy(labels = allLabels) }
+                // BEST PRACTICE: No manual refresh needed!
+                // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = error.message ?: "Fehler beim Löschen")
