@@ -75,11 +75,9 @@ fun UploadScreen(
     var selectedDocumentTypeId by rememberSaveable { mutableStateOf<Int?>(null) }
     var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadTags()
-        viewModel.loadDocumentTypes()
-        viewModel.loadCorrespondents()
-    }
+    // BEST PRACTICE: No manual loading needed!
+    // UploadViewModel observes tags/types/correspondents via reactive Flows.
+    // Dropdowns automatically populate and update when metadata changes.
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
