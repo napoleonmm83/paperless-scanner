@@ -1,0 +1,14 @@
+Update v1.4.3 - Mehrsprachigkeit & Stabilität:
+
+✨ Neue Funktionen:
+- App ist jetzt bereit für mehrere Sprachen (bald verfügbar!)
+- Alle Texte wurden für zukünftige Übersetzungen vorbereitet
+
+🔧 Verbesserungen:
+- Stabilere App-Performance
+- Optimierte Fehlerbehebung
+- Verbesserte Test-Abdeckung für höhere Qualität
+
+📱 Technisch:
+- Alle Bildschirme unterstützen jetzt Internationalisierung
+- Optimierte Code-Struktur für bessere Wartbarkeit

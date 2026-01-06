@@ -1,0 +1,14 @@
+Update v1.4.3 - Multi-Language & Stability:
+
+✨ New Features:
+- App is now ready for multiple languages (coming soon!)
+- All text prepared for future translations
+
+🔧 Improvements:
+- More stable app performance
+- Optimized error handling
+- Improved test coverage for higher quality
+
+📱 Technical:
+- All screens now support internationalization
+- Optimized code structure for better maintainability
