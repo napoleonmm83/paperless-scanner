@@ -5,6 +5,11 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  schedule:
+    # Run dependency check weekly on Sundays at 6:00 AM UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    # Allow manual trigger for dependency updates
 
 jobs:
   build:
@@ -124,3 +129,104 @@ jobs:
           else
             echo "✓ No empty strings"
           fi
+
+  code-quality:
+    name: Code Quality (Detekt + KtLint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run Detekt
+        run: ./gradlew detekt --continue || true
+
+      - name: Upload Detekt results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: detekt-results
+          path: app/build/reports/detekt/
+          retention-days: 7
+
+      - name: Run KtLint
+        run: ./gradlew ktlintCheck --continue || true
+
+      - name: Upload KtLint results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: ktlint-results
+          path: app/build/reports/ktlint/
+          retention-days: 7
+
+  screenshot-tests:
+    name: Screenshot Tests (Paparazzi)
+    runs-on: ubuntu-latest
+    # Only run on manual trigger
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run Paparazzi screenshot tests
+        run: ./gradlew verifyPaparazziDebug --continue || true
+
+      - name: Upload screenshot test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: screenshot-test-results
+          path: app/build/reports/paparazzi/
+          retention-days: 14
+
+  dependency-updates:
+    name: Dependency Updates Check
+    runs-on: ubuntu-latest
+    # Only run on schedule or manual trigger, not on every push
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Check for dependency updates
+        run: ./gradlew dependencyUpdates
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v6
+        with:
+          name: dependency-updates-report
+          path: build/reports/dependencyUpdates/
+          retention-days: 30

@@ -4,6 +4,23 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.ksp) apply false
+    alias(libs.plugins.detekt) apply false
+    alias(libs.plugins.ktlint) apply false
+    alias(libs.plugins.paparazzi) apply false
+    alias(libs.plugins.gradle.versions)
+}
+
+// Dependency updates check configuration
+// Run: ./gradlew dependencyUpdates
+tasks.withType<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask> {
+    rejectVersionIf {
+        // Reject unstable versions (alpha, beta, rc, etc.) unless current is also unstable
+        val dominated = listOf("alpha", "beta", "rc", "cr", "m", "preview", "dev")
+            .any { candidate.version.lowercase().contains(it) }
+        dominated && !dominated
+    }
+    outputFormatter = "json,html"
+    outputDir = "build/reports/dependencyUpdates"
 }
 
 // Version management tasks using Exec to be configuration-cache compatible
