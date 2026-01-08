@@ -11,6 +11,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.NetworkUtils
 import io.mockk.coEvery
@@ -55,6 +56,7 @@ class UploadViewModelTest {
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var networkUtils: NetworkUtils
+    private lateinit var analyticsService: AnalyticsService
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -69,6 +71,7 @@ class UploadViewModelTest {
         uploadQueueRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         networkUtils = mockk()
+        analyticsService = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -86,6 +89,7 @@ class UploadViewModelTest {
             networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
             ioDispatcher = testDispatcher
         )
     }
@@ -114,6 +118,7 @@ class UploadViewModelTest {
             networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -144,6 +149,7 @@ class UploadViewModelTest {
             networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

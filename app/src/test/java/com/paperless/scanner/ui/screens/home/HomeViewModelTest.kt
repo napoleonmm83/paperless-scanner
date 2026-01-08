@@ -12,6 +12,7 @@ import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncManager
+import com.paperless.scanner.data.analytics.AnalyticsService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -45,6 +46,7 @@ class HomeViewModelTest {
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var syncManager: SyncManager
+    private lateinit var analyticsService: AnalyticsService
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -58,6 +60,7 @@ class HomeViewModelTest {
         uploadQueueRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
+        analyticsService = mockk(relaxed = true)
 
         // Default mock responses
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
@@ -85,7 +88,8 @@ class HomeViewModelTest {
             taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
-            syncManager = syncManager
+            syncManager = syncManager,
+            analyticsService = analyticsService
         )
     }
 

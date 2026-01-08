@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.settings
 
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -23,6 +24,7 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private lateinit var tokenManager: TokenManager
+    private lateinit var analyticsService: AnalyticsService
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -30,6 +32,7 @@ class SettingsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         tokenManager = mockk(relaxed = true)
+        analyticsService = mockk(relaxed = true)
 
         // Default mock responses
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
@@ -44,7 +47,10 @@ class SettingsViewModelTest {
     }
 
     private fun createViewModel(): SettingsViewModel {
-        return SettingsViewModel(tokenManager = tokenManager)
+        return SettingsViewModel(
+            tokenManager = tokenManager,
+            analyticsService = analyticsService
+        )
     }
 
     // ==================== Initial State Tests ====================

@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.login
 
 import android.content.Context
 import android.util.Log
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
@@ -35,6 +36,7 @@ class LoginViewModelTest {
     private lateinit var authRepository: AuthRepository
     private lateinit var tokenManager: TokenManager
     private lateinit var biometricHelper: BiometricHelper
+    private lateinit var analyticsService: AnalyticsService
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -54,6 +56,7 @@ class LoginViewModelTest {
         authRepository = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
         biometricHelper = mockk(relaxed = true)
+        analyticsService = mockk(relaxed = true)
 
         // Default mock responses
         every { tokenManager.hasStoredCredentials() } returns false
@@ -72,7 +75,8 @@ class LoginViewModelTest {
             context = context,
             authRepository = authRepository,
             tokenManager = tokenManager,
-            biometricHelper = biometricHelper
+            biometricHelper = biometricHelper,
+            analyticsService = analyticsService
         )
     }
 
