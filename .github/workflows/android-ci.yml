@@ -12,16 +12,46 @@ on:
     # Allow manual trigger for dependency updates
 
 jobs:
+  # Check if self-hosted runner is available
+  check-runner:
+    name: Check Runner Availability
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.check.outputs.runner }}
+      is-self-hosted: ${{ steps.check.outputs.is-self-hosted }}
+    steps:
+      - name: Check for self-hosted runner
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Query GitHub API for online self-hosted runners
+          RESPONSE=$(gh api repos/${{ github.repository }}/actions/runners 2>/dev/null || echo '{"runners":[]}')
+          ONLINE=$(echo "$RESPONSE" | jq '[.runners[] | select(.status == "online")] | length')
+
+          echo "Online self-hosted runners: $ONLINE"
+
+          if [ "$ONLINE" -gt 0 ]; then
+            echo "✅ Self-hosted runner available - using it"
+            echo 'runner=["self-hosted", "paperless"]' >> $GITHUB_OUTPUT
+            echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No self-hosted runner available - falling back to ubuntu-latest"
+            echo 'runner=["ubuntu-latest"]' >> $GITHUB_OUTPUT
+            echo 'is-self-hosted=false' >> $GITHUB_OUTPUT
+          fi
+
   build:
     name: Build & Test
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -29,10 +59,12 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+        shell: bash
 
       - name: Setup Google Services JSON
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
@@ -45,9 +77,10 @@ jobs:
 
       - name: Run unit tests
         run: ./gradlew testReleaseUnitTest
+        shell: bash
 
       - name: Upload test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results
@@ -56,24 +89,34 @@ jobs:
 
       - name: Build release APK
         run: ./gradlew assembleRelease
+        shell: bash
 
       - name: Upload release APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: release-apk
           path: app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
+      - name: Show runner info
+        run: |
+          echo "## Runner Information" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runner:** ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS:** ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
   lint:
     name: Lint Check
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -81,10 +124,12 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+        shell: bash
 
       - name: Setup Google Services JSON
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: bash
         run: |
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
@@ -94,9 +139,10 @@ jobs:
 
       - name: Run lint
         run: ./gradlew lintRelease
+        shell: bash
 
       - name: Upload lint results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lint-results
@@ -105,11 +151,11 @@ jobs:
 
   validate:
     name: Validation Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Lightweight - always use GitHub runner
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Grant execute permission for scripts
         run: chmod +x scripts/*.sh
@@ -155,14 +201,15 @@ jobs:
 
   code-quality:
     name: Code Quality (Detekt + KtLint)
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -170,12 +217,14 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+        shell: bash
 
       - name: Run Detekt
         run: ./gradlew detekt --continue || true
+        shell: bash
 
       - name: Upload Detekt results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: detekt-results
@@ -184,9 +233,10 @@ jobs:
 
       - name: Run KtLint
         run: ./gradlew ktlintCheck --continue || true
+        shell: bash
 
       - name: Upload KtLint results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ktlint-results
@@ -195,16 +245,17 @@ jobs:
 
   screenshot-tests:
     name: Screenshot Tests (Paparazzi)
-    runs-on: ubuntu-latest
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
     # Only run on manual trigger
     if: github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -212,12 +263,14 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+        shell: bash
 
       - name: Run Paparazzi screenshot tests
         run: ./gradlew verifyPaparazziDebug --continue || true
+        shell: bash
 
       - name: Upload screenshot test results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: screenshot-test-results
@@ -226,16 +279,16 @@ jobs:
 
   dependency-updates:
     name: Dependency Updates Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Lightweight - always use GitHub runner
     # Only run on schedule or manual trigger, not on every push
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -248,7 +301,7 @@ jobs:
         run: ./gradlew dependencyUpdates
 
       - name: Upload dependency report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: dependency-updates-report
           path: build/reports/dependencyUpdates/
