@@ -275,27 +275,55 @@ Bei JEDER Implementierung:
 
 ---
 
-## Lokale CI-Checks vor Commit (ZWINGEND! ⚠️)
+## Lokale CI-Checks vor Commit/Push (ABSOLUT ZWINGEND!)
 
-**Pre-commit Hook installiert:** `.git/hooks/pre-commit` führt automatisch folgende Checks aus:
+### KRITISCHE REGEL - KEINE AUSNAHMEN!
+
+**Lokale Builds und Tests MÜSSEN zu 100% fehlerfrei sein BEVOR ein `git commit` oder `git push` ausgeführt wird!**
+
+Dies ist eine ABSOLUTE Anforderung ohne Ausnahmen. Fehlgeschlagene GitHub Actions Builds verschwenden Zeit und Ressourcen.
+
+### Pflicht-Checks vor JEDEM Commit/Push
 
 ```bash
-# 1. Syntax-Check (30 Sek)
-JAVA_HOME="C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9.10-hotspot" ./gradlew compileDebugUnitTestKotlin --no-daemon
+# ALLE diese Checks müssen 100% erfolgreich sein:
 
-# 2. Lint Check (45 Sek)
-JAVA_HOME="C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.9.10-hotspot" ./gradlew lintDebug --no-daemon
+# 1. Kompilierung (MUSS erfolgreich sein)
+./gradlew compileDebugKotlin --no-daemon
+
+# 2. Lint Check (MUSS erfolgreich sein)
+./gradlew lintDebug --no-daemon
+
+# 3. Unit Tests (MUSS erfolgreich sein)
+./gradlew testDebugUnitTest --no-daemon
+
+# Oder nutze das validate-ci.sh Script:
+./scripts/validate-ci.sh
 ```
 
-**Warum zwingend?**
-- ✅ Verhindert fehlgeschlagene CI-Builds nach Push
-- ✅ Spart 10-15 Minuten CI-Zeit
-- ✅ Keine "commit → push → wait → fix → repeat" Zyklen mehr
+### Bei Fehlern: STOPP!
 
-**Was bei Fehler tun?**
-- Fehler im Code beheben
-- Tests erneut lokal ausführen
-- Erst dann committen
+- **NIEMALS** committen oder pushen wenn ein Check fehlschlägt
+- **NIEMALS** `--no-verify` nutzen um Hooks zu umgehen
+- **NIEMALS** darauf hoffen dass es "auf GitHub schon funktioniert"
+- Fehler ZUERST beheben, dann erneut alle Checks ausführen
+
+### Warum so strikt?
+
+- Jeder fehlgeschlagene CI-Build kostet 15-20 Minuten
+- Dependabot PRs müssen vor dem Merge lokal validiert werden
+- Breaking Changes (Kotlin, KSP, Hilt) müssen lokal getestet werden
+
+### JDK Anforderung
+
+Für lokale Builds ist **JDK 21** erforderlich (nicht JDK 24+):
+```bash
+# macOS Installation
+brew install --cask temurin@21
+
+# JDK 21 setzen
+export JAVA_HOME=$(/usr/libexec/java_home -v 21)
+```
 
 **Detaillierte Dokumentation:** `docs/LOCAL_CI_TESTING.md`
 
