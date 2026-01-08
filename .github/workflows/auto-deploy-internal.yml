@@ -42,9 +42,9 @@ jobs:
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
             echo "google-services.json decoded successfully"
           else
-            echo "::warning::GOOGLE_SERVICES_JSON secret not set, skipping Firebase tests"
-            # Create minimal dummy for build to succeed
-            echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
+            echo "::warning::GOOGLE_SERVICES_JSON secret not set, using dummy"
+            # Create dummy with both package names for build to succeed
+            echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
           fi
 
       - name: Run unit tests
