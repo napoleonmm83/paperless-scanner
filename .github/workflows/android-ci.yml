@@ -11,6 +11,11 @@ on:
   workflow_dispatch:
     # Allow manual trigger for dependency updates
 
+# Required permissions for querying runners API
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   # Check if self-hosted runner is available
   check-runner:
