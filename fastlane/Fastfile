@@ -7,37 +7,58 @@ platform :android do
 
   desc "Run unit tests"
   lane :test do
-    gradle(task: "testDebugUnitTest")
+    gradle(
+      task: "testDebugUnitTest",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Build debug APK"
   lane :build_debug do
-    gradle(task: "assembleDebug")
+    gradle(
+      task: "assembleDebug",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Build release APK"
   lane :build_release do
-    gradle(task: "assembleRelease")
+    gradle(
+      task: "assembleRelease",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Build release AAB (App Bundle)"
   lane :build_bundle do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Bump patch version"
   lane :bump_patch do
-    gradle(task: "versionBumpPatch")
+    gradle(
+      task: "versionBumpPatch",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Bump minor version"
   lane :bump_minor do
-    gradle(task: "versionBumpMinor")
+    gradle(
+      task: "versionBumpMinor",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Bump major version"
   lane :bump_major do
-    gradle(task: "versionBumpMajor")
+    gradle(
+      task: "versionBumpMajor",
+      gradle_path: "./gradlew.bat"
+    )
   end
 
   desc "Deploy to internal testing track"
@@ -75,7 +96,10 @@ platform :android do
 
   desc "Deploy to alpha track"
   lane :alpha do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: "./gradlew.bat"
+    )
     upload_to_play_store(
       track: "alpha",
       aab: "app/build/outputs/bundle/release/app-release.aab",
@@ -87,7 +111,10 @@ platform :android do
 
   desc "Deploy to beta track"
   lane :beta do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: "./gradlew.bat"
+    )
     upload_to_play_store(
       track: "beta",
       aab: "app/build/outputs/bundle/release/app-release.aab"
@@ -96,7 +123,10 @@ platform :android do
 
   desc "Deploy to production"
   lane :production do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: "./gradlew.bat"
+    )
     upload_to_play_store(
       track: "production",
       aab: "app/build/outputs/bundle/release/app-release.aab",
