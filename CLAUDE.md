@@ -198,6 +198,7 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 | Known Issues | `docs/KNOWN_ISSUES.md` |
 | ByteRover Setup | `docs/BYTEROVER.md` |
 | **Lokales CI Testing** | `docs/LOCAL_CI_TESTING.md` |
+| **Lokales Deployment** | `docs/LOCAL_DEPLOY.md` |
 | **Best Practices** | `docs/BEST_PRACTICES.md` |
 
 ---

@@ -3,13 +3,22 @@
 
 default_platform(:android)
 
+# Cross-platform gradle wrapper detection
+def gradle_wrapper
+  if Gem.win_platform?
+    "./gradlew.bat"
+  else
+    "./gradlew"
+  end
+end
+
 platform :android do
 
   desc "Run unit tests"
   lane :test do
     gradle(
       task: "testDebugUnitTest",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -17,7 +26,7 @@ platform :android do
   lane :build_debug do
     gradle(
       task: "assembleDebug",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -25,7 +34,7 @@ platform :android do
   lane :build_release do
     gradle(
       task: "assembleRelease",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -33,7 +42,7 @@ platform :android do
   lane :build_bundle do
     gradle(
       task: "bundleRelease",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -41,7 +50,7 @@ platform :android do
   lane :bump_patch do
     gradle(
       task: "versionBumpPatch",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -49,7 +58,7 @@ platform :android do
   lane :bump_minor do
     gradle(
       task: "versionBumpMinor",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
@@ -57,17 +66,12 @@ platform :android do
   lane :bump_major do
     gradle(
       task: "versionBumpMajor",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
   end
 
   desc "Deploy to internal testing track"
   lane :internal do
-    # Skip build if AAB already exists
-    # gradle(
-    #   task: "bundleRelease",
-    #   gradle_path: "./gradlew.bat"
-    # )
     upload_to_play_store(
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
@@ -98,7 +102,7 @@ platform :android do
   lane :alpha do
     gradle(
       task: "bundleRelease",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
     upload_to_play_store(
       track: "alpha",
@@ -113,7 +117,7 @@ platform :android do
   lane :beta do
     gradle(
       task: "bundleRelease",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
     upload_to_play_store(
       track: "beta",
@@ -125,7 +129,7 @@ platform :android do
   lane :production do
     gradle(
       task: "bundleRelease",
-      gradle_path: "./gradlew.bat"
+      gradle_path: gradle_wrapper
     )
     upload_to_play_store(
       track: "production",

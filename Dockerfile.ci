@@ -1,0 +1,30 @@
+# Android CI/CD Docker Image for Paperless Scanner
+# Based on faberNovel/docker-android with Fastlane support
+#
+# Usage:
+#   docker build -f Dockerfile.ci -t paperless-ci .
+#   docker run -v $(pwd):/app paperless-ci ./gradlew assembleDebug
+
+FROM fabernovel/android:api-34-gcloud-v1.10.1
+
+# Set working directory
+WORKDIR /app
+
+# Install additional dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Fastlane via bundler (more reliable)
+RUN gem install bundler fastlane
+
+# Set environment variables
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.parallel=true"
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH="${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools"
+
+# Create gradle cache directory
+RUN mkdir -p /root/.gradle
+
+# Default command
+CMD ["./gradlew", "assembleDebug"]
