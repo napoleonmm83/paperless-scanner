@@ -54,14 +54,14 @@ jobs:
           path: app/build/reports/tests/
           retention-days: 7
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
+      - name: Build release APK
+        run: ./gradlew assembleRelease
 
-      - name: Upload debug APK
+      - name: Upload release APK
         uses: actions/upload-artifact@v6
         with:
-          name: debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
   lint:
