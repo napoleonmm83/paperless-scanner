@@ -95,6 +95,56 @@ data class CorrespondentsResponse(
     val results: List<Correspondent>
 )
 
+// Note Models
+data class NoteUser(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("username")
+    val username: String
+)
+
+data class Note(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("note")
+    val note: String,
+    @SerializedName("created")
+    val created: String,
+    @SerializedName("user")
+    val user: NoteUser?
+)
+
+// Permissions Models
+data class PermissionSet(
+    @SerializedName("users")
+    val users: List<Int> = emptyList(),
+    @SerializedName("groups")
+    val groups: List<Int> = emptyList()
+)
+
+data class Permissions(
+    @SerializedName("view")
+    val view: PermissionSet = PermissionSet(),
+    @SerializedName("change")
+    val change: PermissionSet = PermissionSet()
+)
+
+// Audit Log Models
+data class AuditLogEntry(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("timestamp")
+    val timestamp: String,
+    @SerializedName("action")
+    val action: String, // "create", "update", "delete"
+    @SerializedName("changes")
+    val changes: Map<String, Any> = emptyMap(), // Can be List<String> or complex object
+    @SerializedName("remote_addr")
+    val remoteAddr: String? = null,
+    @SerializedName("actor")
+    val actor: NoteUser? = null
+)
+
 // Document Models
 data class Document(
     @SerializedName("id")
@@ -118,7 +168,15 @@ data class Document(
     @SerializedName("archive_serial_number")
     val archiveSerialNumber: Int? = null,
     @SerializedName("original_file_name")
-    val originalFileName: String? = null
+    val originalFileName: String? = null,
+    @SerializedName("notes")
+    val notes: List<Note> = emptyList(),
+    @SerializedName("owner")
+    val owner: Int? = null,
+    @SerializedName("permissions")
+    val permissions: Permissions? = null,
+    @SerializedName("user_can_change")
+    val userCanChange: Boolean = true
 )
 
 data class DocumentsResponse(
@@ -183,4 +241,26 @@ data class PaperlessTask(
 data class AcknowledgeTasksRequest(
     @SerializedName("tasks")
     val tasks: List<Int>
+)
+
+// Request body for updating documents
+data class UpdateDocumentRequest(
+    @SerializedName("title")
+    val title: String? = null,
+    @SerializedName("tags")
+    val tags: List<Int>? = null,
+    @SerializedName("correspondent")
+    val correspondent: Int? = null,
+    @SerializedName("document_type")
+    val documentType: Int? = null,
+    @SerializedName("archive_serial_number")
+    val archiveSerialNumber: Int? = null,
+    @SerializedName("created")
+    val created: String? = null
+)
+
+// Request body for creating notes
+data class CreateNoteRequest(
+    @SerializedName("note")
+    val note: String
 )

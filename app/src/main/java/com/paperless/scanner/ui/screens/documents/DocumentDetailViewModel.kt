@@ -26,21 +26,41 @@ data class DocumentDetailUiState(
     val title: String = "",
     val content: String? = null,
     val created: String = "",
+    val createdRaw: String = "",  // ISO 8601 format for editing
     val added: String = "",
     val modified: String = "",
     val correspondent: String? = null,
+    val correspondentId: Int? = null,
     val documentType: String? = null,
+    val documentTypeId: Int? = null,
     val tags: List<Tag> = emptyList(),
+    val tagIds: List<Int> = emptyList(),
     val thumbnailUrl: String? = null,
     val downloadUrl: String? = null,
     val authToken: String? = null,
     val originalFileName: String? = null,
     val archiveSerialNumber: Int? = null,
+    val notes: List<com.paperless.scanner.domain.model.Note> = emptyList(),
+    val owner: Int? = null,
+    val permissions: com.paperless.scanner.domain.model.Permissions? = null,
+    val history: List<com.paperless.scanner.domain.model.AuditLogEntry> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
     val isDeleting: Boolean = false,
     val deleteError: String? = null,
-    val deleteSuccess: Boolean = false
+    val deleteSuccess: Boolean = false,
+    val isUpdating: Boolean = false,
+    val updateError: String? = null,
+    val updateSuccess: Boolean = false,
+    // Note management
+    val isAddingNote: Boolean = false,
+    val addNoteError: String? = null,
+    val isDeletingNoteId: Int? = null,
+    val deleteNoteError: String? = null,
+    // Available options for editing
+    val availableTags: List<Tag> = emptyList(),
+    val availableCorrespondents: List<Correspondent> = emptyList(),
+    val availableDocumentTypes: List<DocumentType> = emptyList()
 )
 
 @HiltViewModel
@@ -71,20 +91,31 @@ class DocumentDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             // Load lookup data in parallel
+            var allTags = emptyList<Tag>()
+            var allCorrespondents = emptyList<Correspondent>()
+            var allDocumentTypes = emptyList<DocumentType>()
+
             tagRepository.getTags().onSuccess { tags ->
                 tagMap = tags.associateBy { it.id }
+                allTags = tags
             }
             correspondentRepository.getCorrespondents().onSuccess { correspondents ->
                 correspondentMap = correspondents.associateBy { it.id }
+                allCorrespondents = correspondents
             }
             documentTypeRepository.getDocumentTypes().onSuccess { types ->
                 documentTypeMap = types.associateBy { it.id }
+                allDocumentTypes = types
             }
 
-            // Load document
-            documentRepository.getDocument(documentId).onSuccess { doc ->
+            // Load document and history (forceRefresh to get notes, permissions, etc.)
+            documentRepository.getDocument(documentId, forceRefresh = true).onSuccess { doc ->
                 val serverUrl = tokenManager.serverUrl.first()?.removeSuffix("/") ?: ""
                 val token = tokenManager.token.first() ?: ""
+
+                // Load history (don't block if it fails)
+                val historyResult = documentRepository.getDocumentHistory(documentId)
+                val historyList = historyResult.getOrNull() ?: emptyList()
 
                 _uiState.update {
                     DocumentDetailUiState(
@@ -92,17 +123,28 @@ class DocumentDetailViewModel @Inject constructor(
                         title = doc.title,
                         content = doc.content,
                         created = DateFormatter.formatDateWithTime(doc.created),
+                        createdRaw = doc.created,
                         added = DateFormatter.formatDateWithTime(doc.added),
                         modified = DateFormatter.formatDateWithTime(doc.modified),
                         correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
+                        correspondentId = doc.correspondentId,
                         documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
+                        documentTypeId = doc.documentTypeId,
                         tags = doc.tags.mapNotNull { tagMap[it] },
+                        tagIds = doc.tags,
                         thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/",
                         downloadUrl = "$serverUrl/api/documents/$documentId/download/",
                         authToken = token,
                         originalFileName = doc.originalFileName,
                         archiveSerialNumber = doc.archiveSerialNumber,
-                        isLoading = false
+                        notes = doc.notes,
+                        owner = doc.owner,
+                        permissions = doc.permissions,
+                        history = historyList,
+                        isLoading = false,
+                        availableTags = allTags,
+                        availableCorrespondents = allCorrespondents,
+                        availableDocumentTypes = allDocumentTypes
                     )
                 }
             }.onFailure { error ->
@@ -141,5 +183,111 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun clearDeleteError() {
         _uiState.update { it.copy(deleteError = null) }
+    }
+
+    fun updateDocument(
+        title: String,
+        tagIds: List<Int>,
+        correspondentId: Int?,
+        documentTypeId: Int?,
+        archiveSerialNumber: String?,
+        created: String?
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdating = true, updateError = null) }
+
+            val asnInt = archiveSerialNumber?.toIntOrNull()
+
+            documentRepository.updateDocument(
+                documentId = documentId,
+                title = title,
+                tags = tagIds,
+                correspondent = correspondentId,
+                documentType = documentTypeId,
+                archiveSerialNumber = asnInt,
+                created = created
+            ).onSuccess {
+                _uiState.update {
+                    it.copy(
+                        isUpdating = false,
+                        updateSuccess = true
+                    )
+                }
+                // Reload document to show updated values
+                loadDocument()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isUpdating = false,
+                        updateError = error.message ?: "Fehler beim Aktualisieren"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearUpdateError() {
+        _uiState.update { it.copy(updateError = null) }
+    }
+
+    fun resetUpdateSuccess() {
+        _uiState.update { it.copy(updateSuccess = false) }
+    }
+
+    fun addNote(noteText: String) {
+        if (noteText.isBlank()) {
+            _uiState.update { it.copy(addNoteError = "Notiz darf nicht leer sein") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isAddingNote = true, addNoteError = null) }
+
+            documentRepository.addNote(documentId, noteText).onSuccess { updatedNotes ->
+                _uiState.update {
+                    it.copy(
+                        isAddingNote = false,
+                        notes = updatedNotes
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isAddingNote = false,
+                        addNoteError = error.message ?: "Fehler beim Hinzufügen der Notiz"
+                    )
+                }
+            }
+        }
+    }
+
+    fun deleteNote(noteId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeletingNoteId = noteId, deleteNoteError = null) }
+
+            documentRepository.deleteNote(documentId, noteId).onSuccess { updatedNotes ->
+                _uiState.update {
+                    it.copy(
+                        isDeletingNoteId = null,
+                        notes = updatedNotes
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isDeletingNoteId = null,
+                        deleteNoteError = error.message ?: "Fehler beim Löschen der Notiz"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearAddNoteError() {
+        _uiState.update { it.copy(addNoteError = null) }
+    }
+
+    fun clearDeleteNoteError() {
+        _uiState.update { it.copy(deleteNoteError = null) }
     }
 }

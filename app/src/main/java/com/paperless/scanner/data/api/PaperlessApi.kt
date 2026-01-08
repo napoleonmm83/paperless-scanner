@@ -1,15 +1,18 @@
 package com.paperless.scanner.data.api
 
+import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
+import com.paperless.scanner.data.api.models.AuditLogEntry
 import com.paperless.scanner.data.api.models.CorrespondentsResponse
+import com.paperless.scanner.data.api.models.CreateNoteRequest
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.Document
 import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.DocumentsResponse
-import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.models.PaperlessTask
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.api.models.TokenResponse
+import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -21,6 +24,7 @@ import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
 import retrofit2.http.Multipart
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Part
@@ -84,7 +88,10 @@ interface PaperlessApi {
     ): DocumentsResponse
 
     @GET("api/documents/{id}/")
-    suspend fun getDocument(@Path("id") id: Int): Document
+    suspend fun getDocument(
+        @Path("id") id: Int,
+        @Query("full_perms") fullPerms: Boolean = true
+    ): Document
 
     @GET("api/documents/{id}/download/")
     @Streaming
@@ -92,6 +99,27 @@ interface PaperlessApi {
 
     @DELETE("api/documents/{id}/")
     suspend fun deleteDocument(@Path("id") id: Int): Response<Unit>
+
+    @PATCH("api/documents/{id}/")
+    suspend fun updateDocument(
+        @Path("id") id: Int,
+        @Body document: UpdateDocumentRequest
+    ): Document
+
+    @GET("api/documents/{id}/history/")
+    suspend fun getDocumentHistory(@Path("id") id: Int): List<AuditLogEntry>
+
+    @POST("api/documents/{id}/notes/")
+    suspend fun addNote(
+        @Path("id") documentId: Int,
+        @Body request: CreateNoteRequest
+    ): List<com.paperless.scanner.data.api.models.Note>
+
+    @DELETE("api/documents/{id}/notes/")
+    suspend fun deleteNote(
+        @Path("id") documentId: Int,
+        @Query("id") noteId: Int
+    ): List<com.paperless.scanner.data.api.models.Note>
 
     // Tag update/delete
     @PUT("api/tags/{id}/")

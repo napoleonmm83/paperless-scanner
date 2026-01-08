@@ -111,6 +111,27 @@
     <string name="document_detail_delete_button_deleting">LÖSCHE...</string>
     <string name="document_detail_delete_button">LÖSCHEN</string>
     <string name="document_detail_cancel_button">ABBRECHEN</string>
+    <string name="document_detail_edit">Bearbeiten</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Details</string>
+    <string name="document_tab_content">Inhalt</string>
+    <string name="document_tab_metadata">Metadaten</string>
+    <string name="document_tab_notes">Notizen</string>
+    <string name="document_tab_history">Verlauf</string>
+    <string name="document_tab_permissions">Berechtigungen</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">DOKUMENT BEARBEITEN</string>
+    <string name="document_edit_title_label">Titel</string>
+    <string name="document_edit_tags_label">Tags</string>
+    <string name="document_edit_correspondent_label">Korrespondent</string>
+    <string name="document_edit_no_correspondent">Kein Korrespondent</string>
+    <string name="document_edit_document_type_label">Dokumenttyp</string>
+    <string name="document_edit_no_document_type">Kein Dokumenttyp</string>
+    <string name="document_edit_asn_label">ASN (Archivnummer)</string>
+    <string name="document_edit_save">SPEICHERN</string>
+    <string name="document_edit_cancel">ABBRECHEN</string>
 
     <!-- Labels Screen -->
     <string name="labels_title">LABELS</string>

@@ -10,6 +10,10 @@ on:
       - '.github/**'
       - '!.github/workflows/**'
 
+# Required permissions for pushing version bumps
+permissions:
+  contents: write
+
 jobs:
   # First run tests
   test:
@@ -104,14 +108,28 @@ jobs:
           git push
 
       - name: Decode Keystore
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > keystore.jks
+            echo "Keystore decoded successfully"
+          else
+            echo "::error::KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
 
       - name: Decode Play Store Key
-        if: ${{ secrets.PLAY_STORE_KEY_JSON != '' }}
+        env:
+          PLAY_STORE_KEY_JSON: ${{ secrets.PLAY_STORE_KEY_JSON }}
         run: |
-          echo "${{ secrets.PLAY_STORE_KEY_JSON }}" | base64 --decode > fastlane/play-store-key.json
+          if [ -n "$PLAY_STORE_KEY_JSON" ]; then
+            echo "$PLAY_STORE_KEY_JSON" | base64 --decode > fastlane/play-store-key.json
+            echo "Play Store key decoded successfully"
+          else
+            echo "::error::PLAY_STORE_KEY_JSON secret is not set"
+            exit 1
+          fi
 
       - name: Build release AAB
         run: ./gradlew bundleRelease

@@ -3,50 +3,75 @@
 
 default_platform(:android)
 
+# Cross-platform gradle wrapper detection
+def gradle_wrapper
+  if Gem.win_platform?
+    "./gradlew.bat"
+  else
+    "./gradlew"
+  end
+end
+
 platform :android do
 
   desc "Run unit tests"
   lane :test do
-    gradle(task: "testDebugUnitTest")
+    gradle(
+      task: "testDebugUnitTest",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Build debug APK"
   lane :build_debug do
-    gradle(task: "assembleDebug")
+    gradle(
+      task: "assembleDebug",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Build release APK"
   lane :build_release do
-    gradle(task: "assembleRelease")
+    gradle(
+      task: "assembleRelease",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Build release AAB (App Bundle)"
   lane :build_bundle do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Bump patch version"
   lane :bump_patch do
-    gradle(task: "versionBumpPatch")
+    gradle(
+      task: "versionBumpPatch",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Bump minor version"
   lane :bump_minor do
-    gradle(task: "versionBumpMinor")
+    gradle(
+      task: "versionBumpMinor",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Bump major version"
   lane :bump_major do
-    gradle(task: "versionBumpMajor")
+    gradle(
+      task: "versionBumpMajor",
+      gradle_path: gradle_wrapper
+    )
   end
 
   desc "Deploy to internal testing track"
   lane :internal do
-    # Skip build if AAB already exists
-    # gradle(
-    #   task: "bundleRelease",
-    #   gradle_path: "./gradlew.bat"
-    # )
     upload_to_play_store(
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
@@ -75,7 +100,10 @@ platform :android do
 
   desc "Deploy to alpha track"
   lane :alpha do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: gradle_wrapper
+    )
     upload_to_play_store(
       track: "alpha",
       aab: "app/build/outputs/bundle/release/app-release.aab",
@@ -87,7 +115,10 @@ platform :android do
 
   desc "Deploy to beta track"
   lane :beta do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: gradle_wrapper
+    )
     upload_to_play_store(
       track: "beta",
       aab: "app/build/outputs/bundle/release/app-release.aab"
@@ -96,7 +127,10 @@ platform :android do
 
   desc "Deploy to production"
   lane :production do
-    gradle(task: "bundleRelease")
+    gradle(
+      task: "bundleRelease",
+      gradle_path: gradle_wrapper
+    )
     upload_to_play_store(
       track: "production",
       aab: "app/build/outputs/bundle/release/app-release.aab",

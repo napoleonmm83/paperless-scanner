@@ -1,0 +1,95 @@
+# Docker Compose for Local Android CI/CD
+#
+# Usage:
+#   docker-compose -f docker-compose.ci.yml run ci-test      # Run tests
+#   docker-compose -f docker-compose.ci.yml run ci-lint      # Run lint
+#   docker-compose -f docker-compose.ci.yml run ci-build     # Build APK
+#   docker-compose -f docker-compose.ci.yml run ci-bundle    # Build AAB
+#   docker-compose -f docker-compose.ci.yml run ci-deploy    # Deploy to Play Store
+#   docker-compose -f docker-compose.ci.yml run ci           # Interactive shell
+
+services:
+  # Base CI service
+  ci-base:
+    image: fabernovel/android:api-34-gcloud-v1.10.1
+    working_dir: /app
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+      - android-cache:/root/.android
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Xmx4g
+      - GRADLE_USER_HOME=/root/.gradle
+
+  # Run unit tests
+  ci-test:
+    extends: ci-base
+    command: sh -c "chmod +x ./gradlew && ./gradlew testDebugUnitTest --no-daemon "
+
+  # Run lint check
+  ci-lint:
+    extends: ci-base
+    command: sh -c "chmod +x ./gradlew && ./gradlew lintDebug --no-daemon "
+
+  # Build debug APK
+  ci-build:
+    extends: ci-base
+    command: sh -c "chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon "
+
+  # Build release AAB
+  ci-bundle:
+    extends: ci-base
+    command: sh -c "chmod +x ./gradlew && ./gradlew bundleRelease --no-daemon "
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Xmx4g
+      - GRADLE_USER_HOME=/root/.gradle
+      - KEYSTORE_FILE=${KEYSTORE_FILE:-}
+      - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
+      - KEY_ALIAS=${KEY_ALIAS:-}
+      - KEY_PASSWORD=${KEY_PASSWORD:-}
+
+  # Full CI pipeline (test + lint + build)
+  ci-full:
+    extends: ci-base
+    command: >
+      sh -c "
+        chmod +x ./gradlew &&
+        echo '=== Running Tests ===' &&
+        ./gradlew testDebugUnitTest --no-daemon  &&
+        echo '=== Running Lint ===' &&
+        ./gradlew lintDebug --no-daemon  &&
+        echo '=== Building Debug APK ===' &&
+        ./gradlew assembleDebug --no-daemon  &&
+        echo '=== All CI steps passed! ==='
+      "
+
+  # Deploy to Play Store via Fastlane
+  ci-deploy:
+    extends: ci-base
+    command: >
+      sh -c "
+        chmod +x ./gradlew &&
+        gem install fastlane &&
+        ./gradlew bundleRelease --no-daemon  &&
+        fastlane android internal
+      "
+    environment:
+      - GRADLE_OPTS=-Dorg.gradle.daemon=false -Xmx4g
+      - GRADLE_USER_HOME=/root/.gradle
+      - KEYSTORE_FILE=${KEYSTORE_FILE:-}
+      - KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD:-}
+      - KEY_ALIAS=${KEY_ALIAS:-}
+      - KEY_PASSWORD=${KEY_PASSWORD:-}
+
+  # Interactive shell for debugging
+  ci:
+    extends: ci-base
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  gradle-cache:
+    name: paperless-gradle-cache
+  android-cache:
+    name: paperless-android-cache

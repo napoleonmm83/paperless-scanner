@@ -13,6 +13,7 @@ import com.itextpdf.layout.element.Image
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
+import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
@@ -20,7 +21,9 @@ import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
+import com.paperless.scanner.domain.model.AuditLogEntry
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
 import java.io.IOException
@@ -339,20 +342,38 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getDocument(id: Int): Result<Document> {
+    suspend fun getDocument(id: Int, forceRefresh: Boolean = false): Result<Document> {
         return try {
-            // Try cache first
-            val cached = cachedDocumentDao.getDocument(id)
-            if (cached != null) {
-                return Result.success(cached.toCachedDomain())
+            // For detail view, always fetch from network to get full data (notes, permissions, etc.)
+            if (forceRefresh || networkMonitor.checkOnlineStatus()) {
+                return try {
+                    val doc = api.getDocument(id)
+                    // Cache basic document data
+                    cachedDocumentDao.insert(doc.toCachedEntity())
+                    Result.success(doc.toDomain())
+                } catch (e: retrofit2.HttpException) {
+                    // If network fails, try cache
+                    val cached = cachedDocumentDao.getDocument(id)
+                    if (cached != null) {
+                        Result.success(cached.toCachedDomain())
+                    } else {
+                        Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+                    }
+                } catch (e: Exception) {
+                    // If network fails, try cache
+                    val cached = cachedDocumentDao.getDocument(id)
+                    if (cached != null) {
+                        Result.success(cached.toCachedDomain())
+                    } else {
+                        Result.failure(PaperlessException.from(e))
+                    }
+                }
             }
 
-            // Fallback to network
-            if (networkMonitor.checkOnlineStatus()) {
-                val doc = api.getDocument(id)
-                // Cache it
-                cachedDocumentDao.insert(doc.toCachedEntity())
-                Result.success(doc.toDomain())
+            // Offline: use cache
+            val cached = cachedDocumentDao.getDocument(id)
+            if (cached != null) {
+                Result.success(cached.toCachedDomain())
             } else {
                 Result.failure(PaperlessException.ClientError(404, "Dokument nicht im Cache"))
             }
@@ -487,6 +508,116 @@ class DocumentRepository @Inject constructor(
                 cachedDocumentDao.softDelete(documentId)
 
                 Result.success(Unit)
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun updateDocument(
+        documentId: Int,
+        title: String? = null,
+        tags: List<Int>? = null,
+        correspondent: Int? = null,
+        documentType: Int? = null,
+        archiveSerialNumber: Int? = null,
+        created: String? = null
+    ): Result<Document> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                // Online: Update via API
+                val request = UpdateDocumentRequest(
+                    title = title,
+                    tags = tags,
+                    correspondent = correspondent,
+                    documentType = documentType,
+                    archiveSerialNumber = archiveSerialNumber,
+                    created = created
+                )
+
+                val updatedDocument = api.updateDocument(documentId, request)
+
+                // Update cache
+                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+
+                Result.success(updatedDocument.toDomain())
+            } else {
+                // Offline: Queue update for sync
+                val changeData = buildString {
+                    append("{")
+                    title?.let { append("\"title\":\"$it\",") }
+                    tags?.let { append("\"tags\":$it,") }
+                    correspondent?.let { append("\"correspondent\":$it,") }
+                    documentType?.let { append("\"documentType\":$it,") }
+                    archiveSerialNumber?.let { append("\"archiveSerialNumber\":$it,") }
+                    created?.let { append("\"created\":\"$it\",") }
+                    if (endsWith(",")) deleteCharAt(length - 1)
+                    append("}")
+                }
+
+                val pendingChange = PendingChange(
+                    entityType = "document",
+                    entityId = documentId,
+                    changeType = "update",
+                    changeData = changeData
+                )
+                pendingChangeDao.insert(pendingChange)
+
+                // Update local cache optimistically
+                val cached = cachedDocumentDao.getDocument(documentId)
+                if (cached != null) {
+                    Result.success(cached.toCachedDomain())
+                } else {
+                    Result.failure(PaperlessException.ClientError(404, "Dokument nicht im Cache"))
+                }
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val history = api.getDocumentHistory(documentId)
+                Result.success(history.toAuditLogDomain())
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun addNote(documentId: Int, noteText: String): Result<List<com.paperless.scanner.domain.model.Note>> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val request = com.paperless.scanner.data.api.models.CreateNoteRequest(note = noteText)
+                val notes = api.addNote(documentId, request)
+                Result.success(notes.map { it.toDomain() })
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun deleteNote(documentId: Int, noteId: Int): Result<List<com.paperless.scanner.domain.model.Note>> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val notes = api.deleteNote(documentId, noteId)
+                Result.success(notes.map { it.toDomain() })
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))

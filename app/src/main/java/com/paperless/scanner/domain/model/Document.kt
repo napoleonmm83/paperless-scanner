@@ -15,5 +15,9 @@ data class Document(
     val documentTypeId: Int? = null,
     val tags: List<Int> = emptyList(),
     val archiveSerialNumber: Int? = null,
-    val originalFileName: String? = null
+    val originalFileName: String? = null,
+    val notes: List<Note> = emptyList(),
+    val owner: Int? = null,
+    val permissions: Permissions? = null,
+    val userCanChange: Boolean = true
 )
