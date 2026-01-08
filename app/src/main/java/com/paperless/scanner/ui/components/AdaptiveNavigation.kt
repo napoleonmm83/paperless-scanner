@@ -34,7 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 
@@ -133,7 +135,7 @@ private fun NavigationRailContent(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Add,
-                    contentDescription = "Scan",
+                    contentDescription = stringResource(R.string.cd_scan),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -196,7 +198,7 @@ private fun NavigationDrawerContent(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Add,
-                        contentDescription = "Scan",
+                        contentDescription = stringResource(R.string.cd_scan),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
                     )

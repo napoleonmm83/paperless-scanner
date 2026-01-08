@@ -35,8 +35,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.navigation.Screen
 
 enum class NavItem(
@@ -159,7 +161,7 @@ private fun ScanNavButton(
         ) {
             Icon(
                 imageVector = Icons.Filled.Add,
-                contentDescription = "Scan",
+                contentDescription = stringResource(R.string.cd_scan),
                 modifier = Modifier.size(28.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
