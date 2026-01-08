@@ -133,6 +133,20 @@ android {
     }
 }
 
+// Fix KSP duplicate classes issue by excluding byRounds directory
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    doFirst {
+        // Exclude byRounds from Java compilation sourcepath
+        val javaCompileTask = project.tasks.findByName("compileDebugJavaWithJavac") as? JavaCompile
+        javaCompileTask?.exclude("**/byRounds/**")
+    }
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    // Explicitly exclude byRounds directory from Java compilation
+    exclude("**/byRounds/**")
+}
+
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)

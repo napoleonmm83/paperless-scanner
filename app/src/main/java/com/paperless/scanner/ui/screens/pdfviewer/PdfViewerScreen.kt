@@ -1,6 +1,8 @@
 package com.paperless.scanner.ui.screens.pdfviewer
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.compose.foundation.Image
@@ -381,6 +383,9 @@ private fun PdfPage(
                         renderHeight,
                         Bitmap.Config.ARGB_8888
                     )
+                    // Fill with white background to ensure PDFs with transparent backgrounds are readable
+                    val canvas = Canvas(renderBitmap)
+                    canvas.drawColor(Color.WHITE)
                     page.render(
                         renderBitmap,
                         null,
@@ -398,7 +403,7 @@ private fun PdfPage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(androidx.compose.ui.graphics.Color.White),
         contentAlignment = Alignment.Center
     ) {
         if (bitmap != null) {

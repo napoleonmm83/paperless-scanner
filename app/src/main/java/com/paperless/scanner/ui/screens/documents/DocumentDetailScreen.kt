@@ -24,12 +24,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.OpenInBrowser
@@ -40,19 +43,24 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,7 +77,16 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.paperless.scanner.R
 
-@OptIn(ExperimentalLayoutApi::class)
+enum class DocumentTab {
+    DETAILS,
+    CONTENT,
+    METADATA,
+    NOTES,
+    HISTORY,
+    PERMISSIONS
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
@@ -79,11 +96,27 @@ fun DocumentDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(DocumentTab.DETAILS) }
+
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
 
     // Navigate back when document is deleted successfully
     LaunchedEffect(uiState.deleteSuccess) {
         if (uiState.deleteSuccess) {
             onNavigateBack()
+        }
+    }
+
+    // Close edit sheet when update is successful
+    LaunchedEffect(uiState.updateSuccess) {
+        if (uiState.updateSuccess) {
+            scope.launch {
+                sheetState.hide()
+                showEditSheet = false
+            }
+            viewModel.resetUpdateSuccess()
         }
     }
 
@@ -123,6 +156,16 @@ fun DocumentDetailScreen(
                         contentDescription = stringResource(R.string.document_detail_open_browser)
                     )
                 }
+            }
+            IconButton(
+                onClick = { showEditSheet = true },
+                enabled = !uiState.isLoading && !uiState.isDeleting && !uiState.isUpdating
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.document_detail_edit),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
             IconButton(
                 onClick = { showDeleteDialog = true },
@@ -170,205 +213,63 @@ fun DocumentDetailScreen(
                 }
             }
             else -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp)
-                ) {
-                    // Thumbnail
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(0.7f),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Tab Row
+                    ScrollableTabRow(
+                        selectedTabIndex = selectedTab.ordinal,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        edgePadding = 16.dp
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (uiState.thumbnailUrl != null && uiState.authToken != null) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(uiState.thumbnailUrl)
-                                        .addHeader("Authorization", "Token ${uiState.authToken}")
-                                        .crossfade(true)
-                                        .build(),
-                                    contentDescription = stringResource(R.string.document_detail_preview),
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Fit
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Filled.Description,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Title
-                    Text(
-                        text = uiState.title,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Tags
-                    if (uiState.tags.isNotEmpty()) {
-                        val primaryColor = MaterialTheme.colorScheme.primary
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            uiState.tags.forEach { tag ->
-                                val tagColor = parseTagColor(tag.color, primaryColor)
-
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(50))
-                                        .background(tagColor.copy(alpha = 0.2f))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(8.dp)
-                                                .clip(CircleShape)
-                                                .background(tagColor)
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = tag.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-
-                    // Metadata Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                        Tab(
+                            selected = selectedTab == DocumentTab.DETAILS,
+                            onClick = { selectedTab = DocumentTab.DETAILS },
+                            text = { Text(stringResource(R.string.document_tab_details)) }
                         )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            // Correspondent
-                            uiState.correspondent?.let { correspondent ->
-                                MetadataRow(
-                                    icon = Icons.Filled.Person,
-                                    label = stringResource(R.string.document_detail_correspondent),
-                                    value = correspondent
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-
-                            // Document Type
-                            uiState.documentType?.let { docType ->
-                                MetadataRow(
-                                    icon = Icons.Filled.Folder,
-                                    label = stringResource(R.string.document_detail_type),
-                                    value = docType
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                            }
-
-                            // Created Date
-                            MetadataRow(
-                                icon = Icons.Filled.CalendarToday,
-                                label = stringResource(R.string.document_detail_created),
-                                value = uiState.created
-                            )
-
-                            // Archive Serial Number
-                            uiState.archiveSerialNumber?.let { asn ->
-                                Spacer(modifier = Modifier.height(12.dp))
-                                MetadataRow(
-                                    icon = Icons.Filled.Description,
-                                    label = stringResource(R.string.document_detail_asn),
-                                    value = "#$asn"
-                                )
-                            }
-
-                            // Original File Name
-                            uiState.originalFileName?.let { fileName ->
-                                Spacer(modifier = Modifier.height(12.dp))
-                                MetadataRow(
-                                    icon = Icons.Filled.Description,
-                                    label = stringResource(R.string.document_detail_filename),
-                                    value = fileName
-                                )
-                            }
-                        }
-                    }
-
-                    // Content Preview
-                    uiState.content?.takeIf { it.isNotBlank() }?.let { content ->
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = stringResource(R.string.document_detail_content),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = content.take(500) + if (content.length > 500) "..." else "",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-
-                    // PDF Viewer Button
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            onOpenPdf(uiState.id, uiState.title)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Description,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                        Tab(
+                            selected = selectedTab == DocumentTab.CONTENT,
+                            onClick = { selectedTab = DocumentTab.CONTENT },
+                            text = { Text(stringResource(R.string.document_tab_content)) }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.document_detail_view_pdf),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
+                        Tab(
+                            selected = selectedTab == DocumentTab.METADATA,
+                            onClick = { selectedTab = DocumentTab.METADATA },
+                            text = { Text(stringResource(R.string.document_tab_metadata)) }
+                        )
+                        Tab(
+                            selected = selectedTab == DocumentTab.NOTES,
+                            onClick = { selectedTab = DocumentTab.NOTES },
+                            text = { Text(stringResource(R.string.document_tab_notes)) }
+                        )
+                        Tab(
+                            selected = selectedTab == DocumentTab.HISTORY,
+                            onClick = { selectedTab = DocumentTab.HISTORY },
+                            text = { Text(stringResource(R.string.document_tab_history)) }
+                        )
+                        Tab(
+                            selected = selectedTab == DocumentTab.PERMISSIONS,
+                            onClick = { selectedTab = DocumentTab.PERMISSIONS },
+                            text = { Text(stringResource(R.string.document_tab_permissions)) }
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    // Tab Content
+                    when (selectedTab) {
+                        DocumentTab.DETAILS -> DetailsTabContent(
+                            uiState = uiState,
+                            context = context,
+                            onOpenPdf = onOpenPdf
+                        )
+                        DocumentTab.CONTENT -> ContentTabContent(uiState = uiState)
+                        DocumentTab.METADATA -> MetadataTabContent(uiState = uiState)
+                        DocumentTab.NOTES -> NotesTabContent(
+                            uiState = uiState,
+                            onAddNote = { noteText -> viewModel.addNote(noteText) },
+                            onDeleteNote = { noteId -> viewModel.deleteNote(noteId) }
+                        )
+                        DocumentTab.HISTORY -> HistoryTabContent(uiState = uiState)
+                        DocumentTab.PERMISSIONS -> PermissionsTabContent(uiState = uiState)
+                    }
                 }
             }
         }
@@ -385,6 +286,38 @@ fun DocumentDetailScreen(
                 onDismiss = { showDeleteDialog = false }
             )
         }
+
+        // Edit Document Sheet
+        if (showEditSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showEditSheet = false
+                },
+                sheetState = sheetState
+            ) {
+                EditDocumentSheet(
+                    title = uiState.title,
+                    selectedTagIds = uiState.tagIds,
+                    selectedCorrespondentId = uiState.correspondentId,
+                    selectedDocumentTypeId = uiState.documentTypeId,
+                    archiveSerialNumber = uiState.archiveSerialNumber,
+                    availableTags = uiState.availableTags,
+                    availableCorrespondents = uiState.availableCorrespondents,
+                    availableDocumentTypes = uiState.availableDocumentTypes,
+                    isUpdating = uiState.isUpdating,
+                    onSave = { title, tagIds, correspondentId, documentTypeId, asn ->
+                        viewModel.updateDocument(
+                            title = title,
+                            tagIds = tagIds,
+                            correspondentId = correspondentId,
+                            documentTypeId = documentTypeId,
+                            archiveSerialNumber = asn,
+                            created = null
+                        )
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -397,14 +330,6 @@ private fun DeleteConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!isDeleting) onDismiss() },
-        icon = {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(32.dp)
-            )
-        },
         title = {
             Text(
                 text = stringResource(R.string.document_detail_delete_dialog_title),
@@ -414,23 +339,28 @@ private fun DeleteConfirmationDialog(
         },
         text = {
             Column {
-                Text(
-                    text = stringResource(R.string.document_detail_delete_dialog_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Text(stringResource(R.string.document_detail_delete_dialog_message))
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "\"$documentTitle\"",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = stringResource(R.string.document_detail_delete_dialog_warning),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
                 )
+
+                if (isDeleting) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
             }
         },
         confirmButton = {
@@ -442,18 +372,11 @@ private fun DeleteConfirmationDialog(
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                if (isDeleting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onError
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
                 Text(
-                    text = if (isDeleting) stringResource(R.string.document_detail_delete_button_deleting) else stringResource(R.string.document_detail_delete_button),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
+                    if (isDeleting)
+                        stringResource(R.string.document_detail_delete_button_deleting)
+                    else
+                        stringResource(R.string.document_detail_delete_button)
                 )
             }
         },
@@ -463,49 +386,12 @@ private fun DeleteConfirmationDialog(
                 enabled = !isDeleting,
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.document_detail_cancel_button),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Text(stringResource(R.string.document_detail_cancel_button))
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(20.dp)
     )
-}
-
-@Composable
-private fun MetadataRow(
-    icon: ImageVector,
-    label: String,
-    value: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
 }
 
 private fun parseTagColor(colorString: String?, fallbackColor: Color): Color {
