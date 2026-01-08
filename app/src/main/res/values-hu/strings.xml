@@ -500,4 +500,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">Jogosultságok szerkesztése</string>
+    <string name="tab_permissions_save">Mentés</string>
+    <string name="tab_permissions_cancel">Mégse</string>
+    <string name="tab_permissions_select_owner">Tulajdonos kiválasztása</string>
+    <string name="tab_permissions_select_users">Felhasználók kiválasztása</string>
+    <string name="tab_permissions_select_groups">Csoportok kiválasztása</string>
+    <string name="tab_permissions_loading">Jogosultsági adatok betöltése…</string>
+    <string name="tab_permissions_saving">Jogosultságok mentése…</string>
+    <string name="tab_permissions_save_success">Jogosultságok sikeresen mentve</string>
+    <string name="tab_permissions_no_edit_permission">Nincs szerkesztési jogosultság</string>
+    <string name="tab_permissions_selected">%1$d kiválasztva</string>
 </resources>

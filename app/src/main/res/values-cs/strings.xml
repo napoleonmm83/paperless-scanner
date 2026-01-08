@@ -500,4 +500,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">Upravit oprávnění</string>
+    <string name="tab_permissions_save">Uložit</string>
+    <string name="tab_permissions_cancel">Zrušit</string>
+    <string name="tab_permissions_select_owner">Vybrat vlastníka</string>
+    <string name="tab_permissions_select_users">Vybrat uživatele</string>
+    <string name="tab_permissions_select_groups">Vybrat skupiny</string>
+    <string name="tab_permissions_loading">Načítání dat oprávnění…</string>
+    <string name="tab_permissions_saving">Ukládání oprávnění…</string>
+    <string name="tab_permissions_save_success">Oprávnění úspěšně uložena</string>
+    <string name="tab_permissions_no_edit_permission">Žádné oprávnění k úpravě</string>
+    <string name="tab_permissions_selected">%1$d vybráno</string>
 </resources>

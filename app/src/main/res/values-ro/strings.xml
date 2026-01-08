@@ -500,4 +500,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">Editare permisiuni</string>
+    <string name="tab_permissions_save">Salvează</string>
+    <string name="tab_permissions_cancel">Anulează</string>
+    <string name="tab_permissions_select_owner">Selectează proprietar</string>
+    <string name="tab_permissions_select_users">Selectează utilizatori</string>
+    <string name="tab_permissions_select_groups">Selectează grupuri</string>
+    <string name="tab_permissions_loading">Se încarcă datele permisiunilor…</string>
+    <string name="tab_permissions_saving">Se salvează permisiunile…</string>
+    <string name="tab_permissions_save_success">Permisiuni salvate cu succes</string>
+    <string name="tab_permissions_no_edit_permission">Fără permisiune de editare</string>
+    <string name="tab_permissions_selected">%1$d selectat(e)</string>
 </resources>

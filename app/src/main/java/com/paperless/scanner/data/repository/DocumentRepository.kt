@@ -13,7 +13,10 @@ import com.itextpdf.layout.element.Image
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
+import com.paperless.scanner.data.api.models.PermissionSet
+import com.paperless.scanner.data.api.models.SetPermissionsRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
+import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
@@ -616,6 +619,72 @@ class DocumentRepository @Inject constructor(
             if (networkMonitor.checkOnlineStatus()) {
                 val notes = api.deleteNote(documentId, noteId)
                 Result.success(notes.map { it.toDomain() })
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    // User and Group methods for permissions management
+
+    suspend fun getUsers(): Result<List<com.paperless.scanner.data.api.models.User>> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val response = api.getUsers()
+                Result.success(response.results)
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun getGroups(): Result<List<com.paperless.scanner.data.api.models.Group>> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val response = api.getGroups()
+                Result.success(response.results)
+            } else {
+                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+            }
+        } catch (e: retrofit2.HttpException) {
+            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun updateDocumentPermissions(
+        documentId: Int,
+        owner: Int?,
+        viewUsers: List<Int>,
+        viewGroups: List<Int>,
+        changeUsers: List<Int>,
+        changeGroups: List<Int>
+    ): Result<Document> {
+        return try {
+            if (networkMonitor.checkOnlineStatus()) {
+                val request = UpdateDocumentWithPermissionsRequest(
+                    owner = owner,
+                    setPermissions = SetPermissionsRequest(
+                        view = PermissionSet(users = viewUsers, groups = viewGroups),
+                        change = PermissionSet(users = changeUsers, groups = changeGroups)
+                    )
+                )
+
+                val updatedDocument = api.updateDocumentPermissions(documentId, request)
+
+                // Update cache
+                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+
+                Result.success(updatedDocument.toDomain())
             } else {
                 Result.failure(PaperlessException.NetworkError(IOException("Offline")))
             }

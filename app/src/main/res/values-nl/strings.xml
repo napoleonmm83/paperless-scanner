@@ -440,4 +440,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">Machtigingen bewerken</string>
+    <string name="tab_permissions_save">Opslaan</string>
+    <string name="tab_permissions_cancel">Annuleren</string>
+    <string name="tab_permissions_select_owner">Eigenaar selecteren</string>
+    <string name="tab_permissions_select_users">Gebruikers selecteren</string>
+    <string name="tab_permissions_select_groups">Groepen selecteren</string>
+    <string name="tab_permissions_loading">Machtigingsgegevens laden…</string>
+    <string name="tab_permissions_saving">Machtigingen opslaan…</string>
+    <string name="tab_permissions_save_success">Machtigingen succesvol opgeslagen</string>
+    <string name="tab_permissions_no_edit_permission">Geen toestemming om te bewerken</string>
+    <string name="tab_permissions_selected">%1$d geselecteerd</string>
 </resources>

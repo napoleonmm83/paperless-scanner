@@ -500,4 +500,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">İzinleri düzenle</string>
+    <string name="tab_permissions_save">Kaydet</string>
+    <string name="tab_permissions_cancel">İptal</string>
+    <string name="tab_permissions_select_owner">Sahip seç</string>
+    <string name="tab_permissions_select_users">Kullanıcıları seç</string>
+    <string name="tab_permissions_select_groups">Grupları seç</string>
+    <string name="tab_permissions_loading">İzin verileri yükleniyor…</string>
+    <string name="tab_permissions_saving">İzinler kaydediliyor…</string>
+    <string name="tab_permissions_save_success">İzinler başarıyla kaydedildi</string>
+    <string name="tab_permissions_no_edit_permission">Düzenleme izni yok</string>
+    <string name="tab_permissions_selected">%1$d seçili</string>
 </resources>

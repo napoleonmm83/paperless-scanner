@@ -24,6 +24,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// User/Group models for permissions UI
+data class UserInfo(
+    val id: Int,
+    val username: String
+)
+
+data class GroupInfo(
+    val id: Int,
+    val name: String
+)
+
 data class DocumentDetailUiState(
     val id: Int = 0,
     val title: String = "",
@@ -63,7 +74,15 @@ data class DocumentDetailUiState(
     // Available options for editing
     val availableTags: List<Tag> = emptyList(),
     val availableCorrespondents: List<Correspondent> = emptyList(),
-    val availableDocumentTypes: List<DocumentType> = emptyList()
+    val availableDocumentTypes: List<DocumentType> = emptyList(),
+    // Permissions management
+    val availableUsers: List<UserInfo> = emptyList(),
+    val availableGroups: List<GroupInfo> = emptyList(),
+    val isLoadingPermissionsData: Boolean = false,
+    val isUpdatingPermissions: Boolean = false,
+    val updatePermissionsError: String? = null,
+    val updatePermissionsSuccess: Boolean = false,
+    val userCanChange: Boolean = true
 )
 
 @HiltViewModel
@@ -293,5 +312,77 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun clearDeleteNoteError() {
         _uiState.update { it.copy(deleteNoteError = null) }
+    }
+
+    // Permissions management
+
+    fun loadPermissionsData() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingPermissionsData = true) }
+
+            val users = mutableListOf<UserInfo>()
+            val groups = mutableListOf<GroupInfo>()
+
+            documentRepository.getUsers().onSuccess { userList ->
+                users.addAll(userList.map { UserInfo(it.id, it.username) })
+            }
+
+            documentRepository.getGroups().onSuccess { groupList ->
+                groups.addAll(groupList.map { GroupInfo(it.id, it.name) })
+            }
+
+            _uiState.update {
+                it.copy(
+                    isLoadingPermissionsData = false,
+                    availableUsers = users,
+                    availableGroups = groups
+                )
+            }
+        }
+    }
+
+    fun updatePermissions(
+        owner: Int?,
+        viewUsers: List<Int>,
+        viewGroups: List<Int>,
+        changeUsers: List<Int>,
+        changeGroups: List<Int>
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingPermissions = true, updatePermissionsError = null) }
+
+            documentRepository.updateDocumentPermissions(
+                documentId = documentId,
+                owner = owner,
+                viewUsers = viewUsers,
+                viewGroups = viewGroups,
+                changeUsers = changeUsers,
+                changeGroups = changeGroups
+            ).onSuccess {
+                _uiState.update {
+                    it.copy(
+                        isUpdatingPermissions = false,
+                        updatePermissionsSuccess = true
+                    )
+                }
+                // Reload document to show updated permissions
+                loadDocument()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isUpdatingPermissions = false,
+                        updatePermissionsError = error.message ?: context.getString(R.string.error_updating)
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearUpdatePermissionsError() {
+        _uiState.update { it.copy(updatePermissionsError = null) }
+    }
+
+    fun resetUpdatePermissionsSuccess() {
+        _uiState.update { it.copy(updatePermissionsSuccess = false) }
     }
 }

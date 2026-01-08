@@ -268,7 +268,13 @@ fun DocumentDetailScreen(
                             onDeleteNote = { noteId -> viewModel.deleteNote(noteId) }
                         )
                         DocumentTab.HISTORY -> HistoryTabContent(uiState = uiState)
-                        DocumentTab.PERMISSIONS -> PermissionsTabContent(uiState = uiState)
+                        DocumentTab.PERMISSIONS -> PermissionsTabContent(
+                            uiState = uiState,
+                            onLoadPermissionsData = { viewModel.loadPermissionsData() },
+                            onSavePermissions = { owner, viewUsers, viewGroups, changeUsers, changeGroups ->
+                                viewModel.updatePermissions(owner, viewUsers, viewGroups, changeUsers, changeGroups)
+                            }
+                        )
                     }
                 }
             }

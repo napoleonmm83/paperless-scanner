@@ -370,6 +370,17 @@
     <string name="tab_permissions_users">Benutzer: %1$s</string>
     <string name="tab_permissions_groups">Gruppen: %1$s</string>
     <string name="tab_permissions_unavailable">Keine Berechtigungsinformationen verfügbar</string>
+    <string name="tab_permissions_edit">Berechtigungen bearbeiten</string>
+    <string name="tab_permissions_save">Speichern</string>
+    <string name="tab_permissions_cancel">Abbrechen</string>
+    <string name="tab_permissions_select_owner">Besitzer auswählen</string>
+    <string name="tab_permissions_select_users">Benutzer auswählen</string>
+    <string name="tab_permissions_select_groups">Gruppen auswählen</string>
+    <string name="tab_permissions_loading">Berechtigungsdaten werden geladen...</string>
+    <string name="tab_permissions_saving">Berechtigungen werden gespeichert...</string>
+    <string name="tab_permissions_save_success">Berechtigungen erfolgreich gespeichert</string>
+    <string name="tab_permissions_no_edit_permission">Keine Berechtigung zum Bearbeiten</string>
+    <string name="tab_permissions_selected">%1$d ausgewählt</string>
 
     <!-- Error Messages -->
     <string name="error_loading">Fehler beim Laden</string>

@@ -8,12 +8,15 @@ import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.Document
 import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.DocumentsResponse
+import com.paperless.scanner.data.api.models.GroupsResponse
 import com.paperless.scanner.data.api.models.PaperlessTask
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.api.models.TokenResponse
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
+import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
+import com.paperless.scanner.data.api.models.UsersResponse
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import okhttp3.ResponseBody
@@ -148,4 +151,25 @@ interface PaperlessApi {
 
     @POST("api/tasks/acknowledge/")
     suspend fun acknowledgeTasks(@Body request: AcknowledgeTasksRequest): Response<Unit>
+
+    // User endpoints
+    @GET("api/users/")
+    suspend fun getUsers(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 100
+    ): UsersResponse
+
+    // Group endpoints
+    @GET("api/groups/")
+    suspend fun getGroups(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 100
+    ): GroupsResponse
+
+    // Update document with permissions
+    @PATCH("api/documents/{id}/")
+    suspend fun updateDocumentPermissions(
+        @Path("id") id: Int,
+        @Body document: UpdateDocumentWithPermissionsRequest
+    ): Document
 }

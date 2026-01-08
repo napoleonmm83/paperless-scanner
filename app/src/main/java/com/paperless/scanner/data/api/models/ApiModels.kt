@@ -264,3 +264,81 @@ data class CreateNoteRequest(
     @SerializedName("note")
     val note: String
 )
+
+// User Models
+data class User(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("username")
+    val username: String,
+    @SerializedName("email")
+    val email: String? = null,
+    @SerializedName("first_name")
+    val firstName: String? = null,
+    @SerializedName("last_name")
+    val lastName: String? = null,
+    @SerializedName("is_staff")
+    val isStaff: Boolean = false,
+    @SerializedName("is_superuser")
+    val isSuperuser: Boolean = false,
+    @SerializedName("is_active")
+    val isActive: Boolean = true
+)
+
+data class UsersResponse(
+    @SerializedName("count")
+    val count: Int,
+    @SerializedName("next")
+    val next: String? = null,
+    @SerializedName("previous")
+    val previous: String? = null,
+    @SerializedName("results")
+    val results: List<User>
+)
+
+// Group Models
+data class Group(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("name")
+    val name: String
+)
+
+data class GroupsResponse(
+    @SerializedName("count")
+    val count: Int,
+    @SerializedName("next")
+    val next: String? = null,
+    @SerializedName("previous")
+    val previous: String? = null,
+    @SerializedName("results")
+    val results: List<Group>
+)
+
+// Request body for setting permissions
+data class SetPermissionsRequest(
+    @SerializedName("view")
+    val view: PermissionSet = PermissionSet(),
+    @SerializedName("change")
+    val change: PermissionSet = PermissionSet()
+)
+
+// Extended UpdateDocumentRequest with permissions
+data class UpdateDocumentWithPermissionsRequest(
+    @SerializedName("title")
+    val title: String? = null,
+    @SerializedName("tags")
+    val tags: List<Int>? = null,
+    @SerializedName("correspondent")
+    val correspondent: Int? = null,
+    @SerializedName("document_type")
+    val documentType: Int? = null,
+    @SerializedName("archive_serial_number")
+    val archiveSerialNumber: Int? = null,
+    @SerializedName("created")
+    val created: String? = null,
+    @SerializedName("owner")
+    val owner: Int? = null,
+    @SerializedName("set_permissions")
+    val setPermissions: SetPermissionsRequest? = null
+)

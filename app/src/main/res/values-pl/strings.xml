@@ -440,4 +440,17 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- Permissions Edit -->
+    <string name="tab_permissions_edit">Edytuj uprawnienia</string>
+    <string name="tab_permissions_save">Zapisz</string>
+    <string name="tab_permissions_cancel">Anuluj</string>
+    <string name="tab_permissions_select_owner">Wybierz właściciela</string>
+    <string name="tab_permissions_select_users">Wybierz użytkowników</string>
+    <string name="tab_permissions_select_groups">Wybierz grupy</string>
+    <string name="tab_permissions_loading">Ładowanie danych uprawnień…</string>
+    <string name="tab_permissions_saving">Zapisywanie uprawnień…</string>
+    <string name="tab_permissions_save_success">Uprawnienia zapisane pomyślnie</string>
+    <string name="tab_permissions_no_edit_permission">Brak uprawnień do edycji</string>
+    <string name="tab_permissions_selected">%1$d wybrano</string>
 </resources>
