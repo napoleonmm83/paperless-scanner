@@ -17,6 +17,36 @@ Die Workflows prüfen automatisch ob ein selbstgehosteter Runner verfügbar ist:
 
 ---
 
+## Personal Access Token (PAT) einrichten
+
+**Wichtig:** Damit die automatische Runner-Erkennung funktioniert, benötigst du ein Personal Access Token (PAT).
+
+### 1. PAT erstellen
+
+1. Öffne: https://github.com/settings/tokens?type=beta
+2. Klicke auf **"Generate new token"**
+3. Name: `paperless-runner-check`
+4. Expiration: Wähle einen langen Zeitraum (z.B. 90 Tage)
+5. **Repository access**: "Only select repositories" → `paperless-scanner`
+6. **Permissions**:
+   - **Repository permissions**:
+     - Actions: **Read**
+     - Administration: **Read** (erforderlich für Runners API)
+7. Klicke **"Generate token"**
+8. **Kopiere den Token** (wird nur einmal angezeigt!)
+
+### 2. PAT als Repository Secret speichern
+
+1. Öffne: https://github.com/napoleonmm83/paperless-scanner/settings/secrets/actions
+2. Klicke **"New repository secret"**
+3. Name: `RUNNER_CHECK_TOKEN`
+4. Value: Den kopierten PAT einfügen
+5. Klicke **"Add secret"**
+
+Nach dem Hinzufügen des Secrets werden die Workflows automatisch den Self-Hosted Runner erkennen, wenn er online ist.
+
+---
+
 ## Mac Runner Setup
 
 ### 1. Runner von GitHub holen

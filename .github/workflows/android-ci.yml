@@ -28,11 +28,17 @@ jobs:
       - name: Check for self-hosted runner
         id: check
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RUNNER_CHECK_TOKEN || github.token }}
         run: |
           # Query GitHub API for online self-hosted runners
-          RESPONSE=$(gh api repos/${{ github.repository }}/actions/runners 2>/dev/null || echo '{"runners":[]}')
-          ONLINE=$(echo "$RESPONSE" | jq '[.runners[] | select(.status == "online")] | length')
+          # Note: Requires PAT with 'repo' scope stored as RUNNER_CHECK_TOKEN secret
+          # or repository admin access for GITHUB_TOKEN
+          RESPONSE=$(gh api repos/${{ github.repository }}/actions/runners 2>&1) || RESPONSE='{"runners":[]}'
+
+          echo "API Response: $RESPONSE"
+
+          # Handle null runners array or API errors
+          ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online")) | length' 2>/dev/null || echo "0")
 
           echo "Online self-hosted runners: $ONLINE"
 
