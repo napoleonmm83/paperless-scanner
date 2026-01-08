@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">URL serveru</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Uživatelské jméno</string>
+    <string name="login_password">Heslo</string>
+    <string name="login_button">Přihlásit</string>
+    <string name="login_error">Přihlášení selhalo: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Zpět</string>
+    <string name="onboarding_login_title">Přihlášení</string>
+    <string name="onboarding_login_subtitle">Přihlaste se svým účtem Paperless-ngx</string>
+    <string name="onboarding_filter_password">Heslo</string>
+    <string name="onboarding_filter_key">Klíč</string>
+    <string name="onboarding_username">Uživatelské jméno</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Heslo</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Přístupový klíč</string>
+    <string name="onboarding_access_key_placeholder">Vložte sem...</string>
+    <string name="onboarding_token_help">Najdete ho v Paperless: Nastavení → Můj profil</string>
+    <string name="onboarding_scan_token">Naskenovat token kamerou</string>
+    <string name="onboarding_login_button">Přihlásit</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Naskenovat dokument</string>
+    <string name="scan_button">Otevřít kameru</string>
+    <string name="scan_from_gallery">Z galerie</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Nahrát dokument</string>
+    <string name="upload_document_title">Název (volitelné)</string>
+    <string name="upload_select_tags">Vybrat štítky</string>
+    <string name="upload_button">Nahrát</string>
+    <string name="upload_success">Dokument nahrán</string>
+    <string name="upload_error">Nahrávání selhalo: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Zpět</string>
+    <string name="upload_queued">Nahrávání se synchronizuje, jakmile bude dostupné připojení</string>
+    <string name="upload_tag_created">Štítek \"%1$s\" vytvořen</string>
+    <string name="upload_document_preview">Náhled dokumentu</string>
+    <string name="upload_title_label">Název (volitelné)</string>
+    <string name="upload_title_placeholder">např. Faktura prosinec 2024</string>
+    <string name="upload_failed_title">Nahrávání selhalo</string>
+    <string name="upload_retry_button">Zkusit znovu</string>
+    <string name="upload_progress">Nahrávání: %1$d%%</string>
+    <string name="upload_uploading">Nahrávání...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Hromadný import</string>
+    <string name="batch_import_back">Zpět</string>
+    <string name="batch_import_success_single">Dokument přidán do fronty!</string>
+    <string name="batch_import_success_multiple">%1$d dokumentů přidáno do fronty!</string>
+    <string name="batch_import_images_selected">%1$d obrázků vybráno</string>
+    <string name="batch_import_mode_single">Jako jeden dokument</string>
+    <string name="batch_import_mode_individual">Jako jednotlivé dokumenty</string>
+    <string name="batch_import_button_individual">Jednotlivě</string>
+    <string name="batch_import_button_single">Jako jeden dokument</string>
+    <string name="batch_import_preview">Náhled</string>
+    <string name="batch_import_image_description">Obrázek %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Typ dokumentu (pro všechny)</string>
+    <string name="batch_import_correspondent">Korespondent (pro všechny)</string>
+    <string name="batch_import_tags">Štítky (pro všechny)</string>
+    <string name="batch_import_not_selected">Nevybráno</string>
+    <string name="batch_import_adding_progress">Přidávání: %1$d / %2$d</string>
+    <string name="batch_import_adding">Přidávání...</string>
+    <string name="batch_import_button">Importovat %1$d obrázků</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Nahrát PDF</string>
+    <string name="multipage_upload_back">Zpět</string>
+    <string name="multipage_upload_success">PDF s %1$d stránkami nahráno!</string>
+    <string name="multipage_upload_queued">Nahrávání se synchronizuje, jakmile bude dostupné připojení</string>
+    <string name="multipage_upload_tag_created">Štítek \"%1$s\" vytvořen</string>
+    <string name="multipage_upload_info">%1$d stránek bude spojeno do PDF</string>
+    <string name="multipage_upload_preview">Náhled stránek</string>
+    <string name="multipage_upload_page_description">Stránka %1$d</string>
+    <string name="multipage_upload_title_label">Název (volitelné)</string>
+    <string name="multipage_upload_title_placeholder">např. Smlouva leden 2025</string>
+    <string name="multipage_upload_failed_title">Nahrávání selhalo</string>
+    <string name="multipage_upload_retry_button">Zkusit znovu</string>
+    <string name="multipage_upload_progress">Nahrávání: %1$d%%</string>
+    <string name="multipage_upload_uploading">Nahrávání PDF...</string>
+    <string name="multipage_upload_button">Nahrát jako PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Zpět</string>
+    <string name="document_detail_title">DOKUMENT</string>
+    <string name="document_detail_open_browser">Otevřít v prohlížeči</string>
+    <string name="document_detail_delete">Smazat</string>
+    <string name="document_detail_error">Chyba</string>
+    <string name="document_detail_retry">Zkusit znovu</string>
+    <string name="document_detail_preview">Náhled dokumentu</string>
+    <string name="document_detail_correspondent">Korespondent</string>
+    <string name="document_detail_type">Typ dokumentu</string>
+    <string name="document_detail_created">Vytvořeno</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Název souboru</string>
+    <string name="document_detail_content">Obsah</string>
+    <string name="document_detail_view_pdf">Zobrazit PDF</string>
+    <string name="document_detail_delete_dialog_title">SMAZAT DOKUMENT?</string>
+    <string name="document_detail_delete_dialog_message">Opravdu chcete smazat tento dokument?</string>
+    <string name="document_detail_delete_dialog_warning">Tuto akci nelze vrátit zpět.</string>
+    <string name="document_detail_delete_button_deleting">MAZÁNÍ...</string>
+    <string name="document_detail_delete_button">SMAZAT</string>
+    <string name="document_detail_cancel_button">ZRUŠIT</string>
+    <string name="document_detail_edit">Upravit</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Podrobnosti</string>
+    <string name="document_tab_content">Obsah</string>
+    <string name="document_tab_metadata">Metadata</string>
+    <string name="document_tab_notes">Poznámky</string>
+    <string name="document_tab_history">Historie</string>
+    <string name="document_tab_permissions">Oprávnění</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">UPRAVIT DOKUMENT</string>
+    <string name="document_edit_title_label">Název</string>
+    <string name="document_edit_tags_label">Štítky</string>
+    <string name="document_edit_correspondent_label">Korespondent</string>
+    <string name="document_edit_no_correspondent">Žádný korespondent</string>
+    <string name="document_edit_document_type_label">Typ dokumentu</string>
+    <string name="document_edit_no_document_type">Žádný typ dokumentu</string>
+    <string name="document_edit_asn_label">ASN (Archivní číslo)</string>
+    <string name="document_edit_save">ULOŽIT</string>
+    <string name="document_edit_cancel">ZRUŠIT</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ŠTÍTKY</string>
+    <string name="labels_subtitle">Spravujte své štítky</string>
+    <string name="labels_search_placeholder">Hledat štítky...</string>
+    <string name="labels_search_clear">Vymazat</string>
+    <string name="labels_edit">Upravit</string>
+    <string name="labels_delete">Smazat</string>
+    <string name="labels_document_count">%1$d dokumentů</string>
+    <string name="labels_delete_dialog_title">Smazat štítek</string>
+    <string name="labels_delete_dialog_message">Opravdu chcete smazat štítek \"%1$s\"?</string>
+    <string name="labels_delete_button">Smazat</string>
+    <string name="labels_cancel_button">Zrušit</string>
+    <string name="labels_add_new">Nový štítek</string>
+    <string name="labels_create_title">Nový štítek</string>
+    <string name="labels_edit_title">Upravit štítek</string>
+    <string name="labels_name_label">Název</string>
+    <string name="labels_name_placeholder">Zadejte název štítku...</string>
+    <string name="labels_color_label">Barva</string>
+    <string name="labels_preview_label">Náhled</string>
+    <string name="labels_preview_default">Název štítku</string>
+    <string name="labels_save_button">Uložit</string>
+    <string name="labels_create_button">Vytvořit</string>
+    <string name="labels_detail_back">Zpět</string>
+    <string name="labels_detail_no_documents">Žádné dokumenty s tímto štítkem</string>
+    <string name="labels_detail_page_count_singular">Stránka</string>
+    <string name="labels_detail_page_count_plural">Stránky</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Mobilní společník pro vaši\ninstalaci Paperless-ngx</string>
+    <string name="welcome_feature_1">Inteligentní skenování s detekcí okrajů</string>
+    <string name="welcome_feature_2">Vytváření vícestránkových dokumentů</string>
+    <string name="welcome_feature_3">Nahrávání přímo do Paperless-ngx</string>
+    <string name="welcome_button">Začínáme</string>
+    <string name="welcome_footer">Potřebujete vlastní instalaci Paperless-ngx</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Zpět</string>
+    <string name="server_setup_title">Připojit k serveru</string>
+    <string name="server_setup_subtitle">Zadejte URL vaší instalace Paperless-ngx</string>
+    <string name="server_setup_url_label">URL serveru</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS se detekuje automaticky</string>
+    <string name="server_setup_status_checking">Kontrola serveru...</string>
+    <string name="server_setup_status_https">Zabezpečené připojení (HTTPS)</string>
+    <string name="server_setup_status_http">Připojení navázáno (HTTP)</string>
+    <string name="server_setup_hint_title">Doporučeno zabezpečené připojení</string>
+    <string name="server_setup_hint_text">Použijte HTTPS pro šifrované připojení k serveru.</string>
+    <string name="server_setup_button">Pokračovat</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Vše připraveno!</string>
+    <string name="success_subtitle">Jste připojeni a můžete\nskenovat a nahrávat dokumenty.</string>
+    <string name="success_stat_scanned">Naskenováno dnes</string>
+    <string name="success_stat_connected">Připojeno</string>
+    <string name="success_tips_header">RYCHLÉ TIPY</string>
+    <string name="success_tip_1">Držte dokument naplocho a dobře osvětlený</string>
+    <string name="success_tip_2">Aplikace automaticky rozpozná okraje</string>
+    <string name="success_tip_3">Štítky můžete vybrat před nahráním</string>
+    <string name="success_button">Spustit aplikaci</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOKUMENTY</string>
+    <string name="documents_count">%1$d dokumentů</string>
+    <string name="documents_search_placeholder">Hledat dokumenty...</string>
+    <string name="documents_search_clear">Vymazat</string>
+    <string name="documents_filter_all">Vše</string>
+    <string name="documents_empty_no_results">Žádné výsledky</string>
+    <string name="documents_empty_no_documents">Žádné dokumenty</string>
+    <string name="documents_empty_hint_search">Zkuste jiný vyhledávací výraz</string>
+    <string name="documents_empty_hint_scan">Naskenujte dokumenty, abyste je viděli zde</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Stránka %1$d odstraněna</string>
+    <string name="scan_undo">Zpět</string>
+    <string name="scan_scanner_error">Scanner nelze spustit: %1$s</string>
+    <string name="scan_new_document_title">NOVÝ DOKUMENT</string>
+    <string name="scan_choose_option">Vyberte možnost</string>
+    <string name="scan_option_scan">Skenovat</string>
+    <string name="scan_option_gallery">Galerie</string>
+    <string name="scan_option_files">Soubory</string>
+    <string name="scan_page_count">%1$d / %2$d stránek</string>
+    <string name="scan_hold_to_sort">Podržte pro řazení</string>
+    <string name="scan_limit_reached">Dosažen limit</string>
+    <string name="scan_almost_full">Téměř plné</string>
+    <string name="scan_upload_single">Nahrát</string>
+    <string name="scan_upload_pdf">Nahrát jako PDF</string>
+    <string name="scan_more_pages">Další stránky</string>
+    <string name="scan_maximum">Maximum</string>
+    <string name="scan_discard">Zahodit</string>
+    <string name="scan_page_description">Stránka %1$d</string>
+    <string name="scan_rotate">Otočit</string>
+    <string name="scan_remove">Odstranit</string>
+    <string name="scan_hold_to_sort_hint">Podržte pro řazení</string>
+    <string name="scan_add_page">Přidat stránku</string>
+    <string name="scan_close">Zavřít</string>
+    <string name="scan_delete">Smazat</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">VÍTEJTE ZPĚT</string>
+    <string name="home_your_archive">VÁŠ ARCHIV</string>
+    <string name="home_stat_documents">Dokumenty</string>
+    <string name="home_stat_this_month">Tento měsíc</string>
+    <string name="home_stat_pending">Čekající</string>
+    <string name="home_new_scan">Nové skenování</string>
+    <string name="home_all_documents">Všechny dokumenty</string>
+    <string name="home_processing">Zpracování</string>
+    <string name="home_refresh">Obnovit</string>
+    <string name="home_recently_added">Nedávno přidané</string>
+    <string name="home_see_all">Vše</string>
+    <string name="home_no_documents">Zatím žádné dokumenty</string>
+    <string name="home_scan_first">Naskenujte svůj první dokument!</string>
+    <string name="home_untagged_documents">%1$d dokumentů bez štítků</string>
+    <string name="home_assign_tags_hint">Přidejte štítky pro lepší organizaci</string>
+    <string name="home_task_waiting">Čekání...</string>
+    <string name="home_task_processing">Zpracování...</string>
+    <string name="home_task_success">Úspěšně</string>
+    <string name="home_task_failure">Selhalo</string>
+    <string name="home_dismiss">Skrýt</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Zpět</string>
+    <string name="pending_sync_title">ČEKAJÍCÍ SYNCHRONIZACE</string>
+    <string name="pending_sync_upload_queue">Fronta nahrávání</string>
+    <string name="pending_sync_no_uploads">Žádná čekající nahrávání</string>
+    <string name="pending_sync_pending_changes">Čekající změny</string>
+    <string name="pending_sync_no_changes">Žádné čekající změny</string>
+    <string name="pending_sync_unnamed_document">Nepojmenovaný dokument</string>
+    <string name="pending_sync_type">Typ</string>
+    <string name="pending_sync_multi_page">Vícestránkový</string>
+    <string name="pending_sync_single">Jednostránkový</string>
+    <string name="pending_sync_retry_count">Počet pokusů</string>
+    <string name="pending_sync_created">Vytvořeno</string>
+    <string name="pending_sync_retry">Zkusit znovu</string>
+    <string name="pending_sync_delete">Smazat</string>
+    <string name="pending_sync_id_new">ID: NOVÉ</string>
+    <string name="pending_sync_sync_attempts">Pokusy o synchronizaci</string>
+    <string name="pending_sync_status_pending">Čekající</string>
+    <string name="pending_sync_status_uploading">Nahrávání</string>
+    <string name="pending_sync_status_completed">Dokončeno</string>
+    <string name="pending_sync_status_failed">Selhalo</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">NASTAVENÍ</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Nepřipojeno</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_server_url">URL serveru</string>
+    <string name="settings_not_configured">Nenakonfigurováno</string>
+    <string name="settings_section_upload">Nahrávání</string>
+    <string name="settings_upload_notifications">Upozornění na nahrávání</string>
+    <string name="settings_upload_notifications_subtitle">Zobrazit upozornění během nahrávání</string>
+    <string name="settings_upload_quality">Kvalita nahrávání</string>
+    <string name="settings_section_about">O aplikaci</string>
+    <string name="settings_app_version">Verze aplikace</string>
+    <string name="settings_licenses">Licence</string>
+    <string name="settings_open_source_licenses">Open source licence</string>
+    <string name="settings_logout">Odhlásit</string>
+    <string name="settings_logout_confirm_message">Opravdu se chcete odhlásit? Poté se budete muset znovu přihlásit.</string>
+    <string name="settings_selected">Vybráno</string>
+    <string name="settings_close">Zavřít</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Vytvořit nový štítek</string>
+    <string name="create_tag_name_label">Název štítku</string>
+    <string name="create_tag_color_label">Barva (volitelné)</string>
+    <string name="create_tag_create">Vytvořit</string>
+    <string name="create_tag_cancel">Zrušit</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Zpět</string>
+    <string name="pdf_viewer_page_info">Stránka %1$d z %2$d</string>
+    <string name="pdf_viewer_share">Sdílet</string>
+    <string name="pdf_viewer_open_external">Otevřít v jiné aplikaci</string>
+    <string name="pdf_viewer_downloading">Stahování...</string>
+    <string name="pdf_viewer_swipe_hint">Přejeďte pro listování</string>
+    <string name="pdf_viewer_pdf_page">PDF stránka %1$d</string>
+    <string name="pdf_viewer_document_image">Obrázek dokumentu</string>
+    <string name="pdf_viewer_retry">Zkusit znovu</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Nahrávání selhalo</string>
+    <string name="error_queue_add">Chyba při přidávání do fronty</string>
+    <string name="error_create_tag">Štítek nelze vytvořit</string>
+    <string name="pdf_viewer_default_title">Dokument</string>
+
+    <!-- General -->
+    <string name="loading">Načítání...</string>
+    <string name="retry">Zkusit znovu</string>
+    <string name="cancel">Zrušit</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Rychlý přístup ke skenování dokumentů</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automaticky</string>
+    <string name="upload_quality_low">Nízká (rychlejší nahrávání)</string>
+    <string name="upload_quality_medium">Střední</string>
+    <string name="upload_quality_high">Vysoká (nejlepší kvalita)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Právě teď</string>
+    <string name="time_minutes_ago">před %1$d min</string>
+    <string name="time_hours_ago">před %1$d hod</string>
+    <string name="time_days_ago">před %1$d dny</string>
+    <string name="time_unknown">Neznámé</string>
+    <string name="document_unknown">Neznámý dokument</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Žádný textový obsah není k dispozici</string>
+    <string name="tab_metadata">Metadata</string>
+    <string name="tab_metadata_created">Vytvořeno</string>
+    <string name="tab_metadata_added">Přidáno</string>
+    <string name="tab_metadata_modified">Upraveno</string>
+    <string name="tab_metadata_document_id">ID dokumentu</string>
+    <string name="tab_metadata_original_filename">Původní název souboru</string>
+    <string name="tab_metadata_archive_serial">Archivní číslo (ASN)</string>
+    <string name="tab_notes_placeholder">Přidat novou poznámku...</string>
+    <string name="tab_notes_add">Přidat</string>
+    <string name="tab_notes_empty">Žádné poznámky</string>
+    <string name="tab_notes_delete">Smazat poznámku</string>
+    <string name="tab_history">Historie</string>
+    <string name="tab_history_empty">Žádné změny</string>
+    <string name="tab_history_system">Systém</string>
+    <string name="tab_history_action_create">Vytvořeno</string>
+    <string name="tab_history_action_update">Aktualizováno</string>
+    <string name="tab_history_action_delete">Smazáno</string>
+    <string name="tab_permissions_owner">Vlastník</string>
+    <string name="tab_permissions_no_owner">Žádný vlastník</string>
+    <string name="tab_permissions_user_id">Uživatel #%1$d</string>
+    <string name="tab_permissions_view">Oprávnění k zobrazení</string>
+    <string name="tab_permissions_change">Oprávnění ke změně</string>
+    <string name="tab_permissions_none">Žádná specifická oprávnění</string>
+    <string name="tab_permissions_users">Uživatelé: %1$s</string>
+    <string name="tab_permissions_groups">Skupiny: %1$s</string>
+    <string name="tab_permissions_unavailable">Informace o oprávněních nejsou k dispozici</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Chyba při načítání</string>
+    <string name="error_creating">Chyba při vytváření</string>
+    <string name="error_updating">Chyba při aktualizaci</string>
+    <string name="error_deleting">Chyba při mazání</string>
+    <string name="error_downloading">Chyba při stahování</string>
+    <string name="error_no_app_found">Nenalezena aplikace pro otevření</string>
+    <string name="error_note_empty">Poznámka nemůže být prázdná</string>
+    <string name="error_add_note">Chyba při přidávání poznámky</string>
+    <string name="error_delete_note">Chyba při mazání poznámky</string>
+    <string name="error_login_fields">Vyplňte prosím všechna pole</string>
+    <string name="error_login_failed">Přihlášení selhalo</string>
+    <string name="error_token_invalid">Neplatný token</string>
+    <string name="error_server_unreachable">Server nedostupný</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Naskenovat klíč</string>
+    <string name="token_scanner_capturing">Pořizování fotografie ve vysokém rozlišení...</string>
+    <string name="token_scanner_found">Klíč nalezen!</string>
+    <string name="token_scanner_not_found">Platný klíč nebyl rozpoznán</string>
+    <string name="token_scanner_position_hint">Umístěte klíč do rámečku</string>
+    <string name="token_scanner_recognition_error">Chyba při rozpoznávání</string>
+    <string name="token_scanner_capture_failed">Pořízení snímku selhalo</string>
+    <string name="token_scanner_camera_required">Vyžadován přístup ke kameře</string>
+    <string name="token_scanner_camera_explanation">Pro naskenování klíče aplikace potřebuje přístup k vaší kameře</string>
+    <string name="token_scanner_camera_allow">Povolit přístup ke kameře</string>
+    <string name="token_scanner_hold_still">Klíč rozpoznán, držte nehybně...</string>
+    <string name="token_scanner_text_recognizing">Rozpoznávání textu...</string>
+    <string name="token_scanner_take_photo">Pořídit snímek</string>
+    <string name="token_scanner_auto_active">Automatické rozpoznávání aktivní • Klepnutí jako záloha</string>
+    <string name="token_scanner_hold_camera">Držte kameru nehybně - Automatické rozpoznávání běží</string>
+    <string name="token_scanner_close">Zavřít</string>
+
+    <!-- Share -->
+    <string name="share_via">Sdílet přes</string>
+</resources>

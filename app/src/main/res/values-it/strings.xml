@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">URL del server</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Nome utente</string>
+    <string name="login_password">Password</string>
+    <string name="login_button">Accedi</string>
+    <string name="login_error">Accesso fallito: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Indietro</string>
+    <string name="onboarding_login_title">Accedi</string>
+    <string name="onboarding_login_subtitle">Accedi con il tuo account Paperless-ngx</string>
+    <string name="onboarding_filter_password">Password</string>
+    <string name="onboarding_filter_key">Token</string>
+    <string name="onboarding_username">Nome utente</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Password</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Token di accesso</string>
+    <string name="onboarding_access_key_placeholder">Incolla qui...</string>
+    <string name="onboarding_token_help">Trovalo in Paperless in: Impostazioni → Il mio profilo</string>
+    <string name="onboarding_scan_token">Scansiona token con la fotocamera</string>
+    <string name="onboarding_login_button">Accedi</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Scansiona documento</string>
+    <string name="scan_button">Apri fotocamera</string>
+    <string name="scan_from_gallery">Dalla galleria</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Carica documento</string>
+    <string name="upload_document_title">Titolo (opzionale)</string>
+    <string name="upload_select_tags">Seleziona tag</string>
+    <string name="upload_button">Carica</string>
+    <string name="upload_success">Documento caricato con successo</string>
+    <string name="upload_error">Caricamento fallito: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Indietro</string>
+    <string name="upload_queued">Il caricamento verrà sincronizzato quando disponibile la connessione</string>
+    <string name="upload_tag_created">Tag « %1$s » creato</string>
+    <string name="upload_document_preview">Anteprima documento</string>
+    <string name="upload_title_label">Titolo (opzionale)</string>
+    <string name="upload_title_placeholder">es. Fattura dicembre 2024</string>
+    <string name="upload_failed_title">Caricamento fallito</string>
+    <string name="upload_retry_button">Riprova</string>
+    <string name="upload_progress">Caricamento: %1$d%%</string>
+    <string name="upload_uploading">Caricamento...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Importazione batch</string>
+    <string name="batch_import_back">Indietro</string>
+    <string name="batch_import_success_single">Documento aggiunto alla coda!</string>
+    <string name="batch_import_success_multiple">%1$d documenti aggiunti alla coda!</string>
+    <string name="batch_import_images_selected">%1$d immagini selezionate</string>
+    <string name="batch_import_mode_single">Come un documento</string>
+    <string name="batch_import_mode_individual">Come documenti singoli</string>
+    <string name="batch_import_button_individual">Singoli</string>
+    <string name="batch_import_button_single">Come un documento</string>
+    <string name="batch_import_preview">Anteprima</string>
+    <string name="batch_import_image_description">Immagine %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Tipo documento (per tutti)</string>
+    <string name="batch_import_correspondent">Corrispondente (per tutti)</string>
+    <string name="batch_import_tags">Tag (per tutti)</string>
+    <string name="batch_import_not_selected">Non selezionato</string>
+    <string name="batch_import_adding_progress">Aggiunta: %1$d / %2$d</string>
+    <string name="batch_import_adding">Aggiunta in corso...</string>
+    <string name="batch_import_button">Importa %1$d immagini</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Carica PDF</string>
+    <string name="multipage_upload_back">Indietro</string>
+    <string name="multipage_upload_success">PDF di %1$d pagine caricato con successo!</string>
+    <string name="multipage_upload_queued">Il caricamento verrà sincronizzato quando disponibile la connessione</string>
+    <string name="multipage_upload_tag_created">Tag « %1$s » creato</string>
+    <string name="multipage_upload_info">%1$d pagine verranno unite in PDF</string>
+    <string name="multipage_upload_preview">Anteprima pagine</string>
+    <string name="multipage_upload_page_description">Pagina %1$d</string>
+    <string name="multipage_upload_title_label">Titolo (opzionale)</string>
+    <string name="multipage_upload_title_placeholder">es. Contratto gennaio 2025</string>
+    <string name="multipage_upload_failed_title">Caricamento fallito</string>
+    <string name="multipage_upload_retry_button">Riprova</string>
+    <string name="multipage_upload_progress">Caricamento: %1$d%%</string>
+    <string name="multipage_upload_uploading">Caricamento PDF...</string>
+    <string name="multipage_upload_button">Carica come PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Indietro</string>
+    <string name="document_detail_title">DOCUMENTO</string>
+    <string name="document_detail_open_browser">Apri nel browser</string>
+    <string name="document_detail_delete">Elimina</string>
+    <string name="document_detail_error">Errore</string>
+    <string name="document_detail_retry">Riprova</string>
+    <string name="document_detail_preview">Anteprima documento</string>
+    <string name="document_detail_correspondent">Corrispondente</string>
+    <string name="document_detail_type">Tipo documento</string>
+    <string name="document_detail_created">Creato</string>
+    <string name="document_detail_asn">NSA</string>
+    <string name="document_detail_filename">Nome file</string>
+    <string name="document_detail_content">Contenuto</string>
+    <string name="document_detail_view_pdf">Visualizza PDF</string>
+    <string name="document_detail_delete_dialog_title">ELIMINARE DOCUMENTO?</string>
+    <string name="document_detail_delete_dialog_message">Vuoi davvero eliminare questo documento?</string>
+    <string name="document_detail_delete_dialog_warning">Questa azione non può essere annullata.</string>
+    <string name="document_detail_delete_button_deleting">ELIMINAZIONE...</string>
+    <string name="document_detail_delete_button">ELIMINA</string>
+    <string name="document_detail_cancel_button">ANNULLA</string>
+    <string name="document_detail_edit">Modifica</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Dettagli</string>
+    <string name="document_tab_content">Contenuto</string>
+    <string name="document_tab_metadata">Metadati</string>
+    <string name="document_tab_notes">Note</string>
+    <string name="document_tab_history">Cronologia</string>
+    <string name="document_tab_permissions">Autorizzazioni</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">MODIFICA DOCUMENTO</string>
+    <string name="document_edit_title_label">Titolo</string>
+    <string name="document_edit_tags_label">Tag</string>
+    <string name="document_edit_correspondent_label">Corrispondente</string>
+    <string name="document_edit_no_correspondent">Nessun corrispondente</string>
+    <string name="document_edit_document_type_label">Tipo documento</string>
+    <string name="document_edit_no_document_type">Nessun tipo documento</string>
+    <string name="document_edit_asn_label">NSA (Numero seriale archivio)</string>
+    <string name="document_edit_save">SALVA</string>
+    <string name="document_edit_cancel">ANNULLA</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ETICHETTE</string>
+    <string name="labels_subtitle">Gestisci le tue etichette</string>
+    <string name="labels_search_placeholder">Cerca etichette...</string>
+    <string name="labels_search_clear">Cancella</string>
+    <string name="labels_edit">Modifica</string>
+    <string name="labels_delete">Elimina</string>
+    <string name="labels_document_count">%1$d documenti</string>
+    <string name="labels_delete_dialog_title">Elimina etichetta</string>
+    <string name="labels_delete_dialog_message">Vuoi davvero eliminare l\'etichetta « %1$s »?</string>
+    <string name="labels_delete_button">Elimina</string>
+    <string name="labels_cancel_button">Annulla</string>
+    <string name="labels_add_new">Nuova etichetta</string>
+    <string name="labels_create_title">Nuova etichetta</string>
+    <string name="labels_edit_title">Modifica etichetta</string>
+    <string name="labels_name_label">Nome</string>
+    <string name="labels_name_placeholder">Inserisci nome etichetta...</string>
+    <string name="labels_color_label">Colore</string>
+    <string name="labels_preview_label">Anteprima</string>
+    <string name="labels_preview_default">Nome etichetta</string>
+    <string name="labels_save_button">Salva</string>
+    <string name="labels_create_button">Crea</string>
+    <string name="labels_detail_back">Indietro</string>
+    <string name="labels_detail_no_documents">Nessun documento con questa etichetta</string>
+    <string name="labels_detail_page_count_singular">pagina</string>
+    <string name="labels_detail_page_count_plural">pagine</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Il compagno mobile per la tua\ninstallazione Paperless-ngx</string>
+    <string name="welcome_feature_1">Scansione intelligente con rilevamento bordi</string>
+    <string name="welcome_feature_2">Crea documenti multipagina</string>
+    <string name="welcome_feature_3">Carica direttamente su Paperless-ngx</string>
+    <string name="welcome_button">Inizia</string>
+    <string name="welcome_footer">Hai bisogno della tua installazione Paperless-ngx</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Indietro</string>
+    <string name="server_setup_title">Connetti server</string>
+    <string name="server_setup_subtitle">Inserisci l\'URL della tua installazione Paperless-ngx</string>
+    <string name="server_setup_url_label">URL del server</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS verrà rilevato automaticamente</string>
+    <string name="server_setup_status_checking">Verifica server...</string>
+    <string name="server_setup_status_https">Connessione sicura (HTTPS)</string>
+    <string name="server_setup_status_http">Connessione stabilita (HTTP)</string>
+    <string name="server_setup_hint_title">Connessione sicura consigliata</string>
+    <string name="server_setup_hint_text">Usa HTTPS per una connessione crittografata al tuo server.</string>
+    <string name="server_setup_button">Continua</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Tutto pronto!</string>
+    <string name="success_subtitle">Sei connesso e puoi ora\nscansionare e caricare documenti.</string>
+    <string name="success_stat_scanned">Scansionato oggi</string>
+    <string name="success_stat_connected">Connesso</string>
+    <string name="success_tips_header">SUGGERIMENTI RAPIDI</string>
+    <string name="success_tip_1">Tieni il documento piatto e ben illuminato</string>
+    <string name="success_tip_2">L\'app rileva i bordi automaticamente</string>
+    <string name="success_tip_3">Puoi selezionare i tag prima di caricare</string>
+    <string name="success_button">Avvia app</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOCUMENTI</string>
+    <string name="documents_count">%1$d documenti</string>
+    <string name="documents_search_placeholder">Cerca documenti...</string>
+    <string name="documents_search_clear">Cancella</string>
+    <string name="documents_filter_all">Tutti</string>
+    <string name="documents_empty_no_results">Nessun risultato</string>
+    <string name="documents_empty_no_documents">Nessun documento</string>
+    <string name="documents_empty_hint_search">Prova un altro termine di ricerca</string>
+    <string name="documents_empty_hint_scan">Scansiona documenti per vederli qui</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Pagina %1$d rimossa</string>
+    <string name="scan_undo">Annulla</string>
+    <string name="scan_scanner_error">Impossibile avviare lo scanner: %1$s</string>
+    <string name="scan_new_document_title">NUOVO DOCUMENTO</string>
+    <string name="scan_choose_option">Scegli un\'opzione</string>
+    <string name="scan_option_scan">Scansiona</string>
+    <string name="scan_option_gallery">Galleria</string>
+    <string name="scan_option_files">File</string>
+    <string name="scan_page_count">%1$d / %2$d pagine</string>
+    <string name="scan_hold_to_sort">Tieni premuto per ordinare</string>
+    <string name="scan_limit_reached">Massimo raggiunto</string>
+    <string name="scan_almost_full">Quasi pieno</string>
+    <string name="scan_upload_single">Carica</string>
+    <string name="scan_upload_pdf">Carica come PDF</string>
+    <string name="scan_more_pages">Altre pagine</string>
+    <string name="scan_maximum">Massimo</string>
+    <string name="scan_discard">Scarta</string>
+    <string name="scan_page_description">Pagina %1$d</string>
+    <string name="scan_rotate">Ruota</string>
+    <string name="scan_remove">Rimuovi</string>
+    <string name="scan_hold_to_sort_hint">Tieni premuto per ordinare</string>
+    <string name="scan_add_page">Aggiungi pagina</string>
+    <string name="scan_close">Chiudi</string>
+    <string name="scan_delete">Elimina</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">BENTORNATO</string>
+    <string name="home_your_archive">IL TUO ARCHIVIO</string>
+    <string name="home_stat_documents">Documenti</string>
+    <string name="home_stat_this_month">Questo mese</string>
+    <string name="home_stat_pending">In attesa</string>
+    <string name="home_new_scan">Nuova scansione</string>
+    <string name="home_all_documents">Tutti i documenti</string>
+    <string name="home_processing">Elaborazione</string>
+    <string name="home_refresh">Aggiorna</string>
+    <string name="home_recently_added">Aggiunti di recente</string>
+    <string name="home_see_all">Tutti</string>
+    <string name="home_no_documents">Ancora nessun documento</string>
+    <string name="home_scan_first">Scansiona il tuo primo documento!</string>
+    <string name="home_untagged_documents">%1$d documenti senza tag</string>
+    <string name="home_assign_tags_hint">Assegna tag per una migliore organizzazione</string>
+    <string name="home_task_waiting">In attesa...</string>
+    <string name="home_task_processing">Elaborazione...</string>
+    <string name="home_task_success">Riuscito</string>
+    <string name="home_task_failure">Fallito</string>
+    <string name="home_dismiss">Ignora</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Indietro</string>
+    <string name="pending_sync_title">SINCRONIZZAZIONI IN ATTESA</string>
+    <string name="pending_sync_upload_queue">Coda di caricamento</string>
+    <string name="pending_sync_no_uploads">Nessun caricamento in attesa</string>
+    <string name="pending_sync_pending_changes">Modifiche in attesa</string>
+    <string name="pending_sync_no_changes">Nessuna modifica in attesa</string>
+    <string name="pending_sync_unnamed_document">Documento senza nome</string>
+    <string name="pending_sync_type">Tipo</string>
+    <string name="pending_sync_multi_page">Multipagina</string>
+    <string name="pending_sync_single">Singolo</string>
+    <string name="pending_sync_retry_count">Tentativi</string>
+    <string name="pending_sync_created">Creato</string>
+    <string name="pending_sync_retry">Riprova</string>
+    <string name="pending_sync_delete">Elimina</string>
+    <string name="pending_sync_id_new">ID: NUOVO</string>
+    <string name="pending_sync_sync_attempts">Tentativi di sincronizzazione</string>
+    <string name="pending_sync_status_pending">In attesa</string>
+    <string name="pending_sync_status_uploading">Caricamento</string>
+    <string name="pending_sync_status_completed">Completato</string>
+    <string name="pending_sync_status_failed">Fallito</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">IMPOSTAZIONI</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Non connesso</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_server_url">URL del server</string>
+    <string name="settings_not_configured">Non configurato</string>
+    <string name="settings_section_upload">Caricamento</string>
+    <string name="settings_upload_notifications">Notifiche di caricamento</string>
+    <string name="settings_upload_notifications_subtitle">Mostra notifica durante il caricamento</string>
+    <string name="settings_upload_quality">Qualità di caricamento</string>
+    <string name="settings_section_about">Info</string>
+    <string name="settings_app_version">Versione app</string>
+    <string name="settings_licenses">Licenze</string>
+    <string name="settings_open_source_licenses">Licenze Open Source</string>
+    <string name="settings_logout">Esci</string>
+    <string name="settings_logout_confirm_message">Vuoi davvero uscire? Dovrai accedere di nuovo.</string>
+    <string name="settings_selected">Selezionato</string>
+    <string name="settings_close">Chiudi</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Crea nuovo tag</string>
+    <string name="create_tag_name_label">Nome del tag</string>
+    <string name="create_tag_color_label">Colore (opzionale)</string>
+    <string name="create_tag_create">Crea</string>
+    <string name="create_tag_cancel">Annulla</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Indietro</string>
+    <string name="pdf_viewer_page_info">Pagina %1$d di %2$d</string>
+    <string name="pdf_viewer_share">Condividi</string>
+    <string name="pdf_viewer_open_external">Apri in altra app</string>
+    <string name="pdf_viewer_downloading">Download...</string>
+    <string name="pdf_viewer_swipe_hint">Scorri per navigare</string>
+    <string name="pdf_viewer_pdf_page">Pagina PDF %1$d</string>
+    <string name="pdf_viewer_document_image">Immagine documento</string>
+    <string name="pdf_viewer_retry">Riprova</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Caricamento fallito</string>
+    <string name="error_queue_add">Errore nell\'aggiunta alla coda</string>
+    <string name="error_create_tag">Impossibile creare il tag</string>
+    <string name="pdf_viewer_default_title">Documento</string>
+
+    <!-- General -->
+    <string name="loading">Caricamento...</string>
+    <string name="retry">Riprova</string>
+    <string name="cancel">Annulla</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Accesso rapido per scansionare documenti</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automatico</string>
+    <string name="upload_quality_low">Bassa (caricamento più veloce)</string>
+    <string name="upload_quality_medium">Media</string>
+    <string name="upload_quality_high">Alta (migliore qualità)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Adesso</string>
+    <string name="time_minutes_ago">%1$d min fa</string>
+    <string name="time_hours_ago">%1$d ore fa</string>
+    <string name="time_days_ago">%1$d giorni fa</string>
+    <string name="time_unknown">Sconosciuto</string>
+    <string name="document_unknown">Documento sconosciuto</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Nessun contenuto testuale disponibile</string>
+    <string name="tab_metadata">Metadati</string>
+    <string name="tab_metadata_created">Creato</string>
+    <string name="tab_metadata_added">Aggiunto</string>
+    <string name="tab_metadata_modified">Modificato</string>
+    <string name="tab_metadata_document_id">ID documento</string>
+    <string name="tab_metadata_original_filename">Nome file originale</string>
+    <string name="tab_metadata_archive_serial">Numero seriale archivio (NSA)</string>
+    <string name="tab_notes_placeholder">Aggiungi una nuova nota...</string>
+    <string name="tab_notes_add">Aggiungi</string>
+    <string name="tab_notes_empty">Nessuna nota disponibile</string>
+    <string name="tab_notes_delete">Elimina nota</string>
+    <string name="tab_history">Cronologia</string>
+    <string name="tab_history_empty">Nessuna modifica disponibile</string>
+    <string name="tab_history_system">Sistema</string>
+    <string name="tab_history_action_create">Creato</string>
+    <string name="tab_history_action_update">Aggiornato</string>
+    <string name="tab_history_action_delete">Eliminato</string>
+    <string name="tab_permissions_owner">Proprietario</string>
+    <string name="tab_permissions_no_owner">Nessun proprietario</string>
+    <string name="tab_permissions_user_id">Utente #%1$d</string>
+    <string name="tab_permissions_view">Autorizzazioni di visualizzazione</string>
+    <string name="tab_permissions_change">Autorizzazioni di modifica</string>
+    <string name="tab_permissions_none">Nessuna autorizzazione specifica</string>
+    <string name="tab_permissions_users">Utenti: %1$s</string>
+    <string name="tab_permissions_groups">Gruppi: %1$s</string>
+    <string name="tab_permissions_unavailable">Nessuna informazione di autorizzazione disponibile</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Errore nel caricamento</string>
+    <string name="error_creating">Errore nella creazione</string>
+    <string name="error_updating">Errore nell\'aggiornamento</string>
+    <string name="error_deleting">Errore nell\'eliminazione</string>
+    <string name="error_downloading">Errore nel download</string>
+    <string name="error_no_app_found">Nessuna app trovata per aprire</string>
+    <string name="error_note_empty">La nota non può essere vuota</string>
+    <string name="error_add_note">Errore nell\'aggiunta della nota</string>
+    <string name="error_delete_note">Errore nell\'eliminazione della nota</string>
+    <string name="error_login_fields">Compila tutti i campi</string>
+    <string name="error_login_failed">Accesso fallito</string>
+    <string name="error_token_invalid">Token non valido</string>
+    <string name="error_server_unreachable">Server non raggiungibile</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Scansiona token</string>
+    <string name="token_scanner_capturing">Acquisizione foto ad alta risoluzione...</string>
+    <string name="token_scanner_found">Token trovato!</string>
+    <string name="token_scanner_not_found">Nessun token valido rilevato</string>
+    <string name="token_scanner_position_hint">Posiziona il token nel riquadro</string>
+    <string name="token_scanner_recognition_error">Errore di riconoscimento</string>
+    <string name="token_scanner_capture_failed">Acquisizione fallita</string>
+    <string name="token_scanner_camera_required">Accesso alla fotocamera richiesto</string>
+    <string name="token_scanner_camera_explanation">Per scansionare il token, l\'app ha bisogno dell\'accesso alla tua fotocamera</string>
+    <string name="token_scanner_camera_allow">Consenti accesso alla fotocamera</string>
+    <string name="token_scanner_hold_still">Token rilevato, tieni fermo...</string>
+    <string name="token_scanner_text_recognizing">Riconoscimento testo...</string>
+    <string name="token_scanner_take_photo">Scatta foto</string>
+    <string name="token_scanner_auto_active">Rilevamento automatico attivo • Tocca manualmente come alternativa</string>
+    <string name="token_scanner_hold_camera">Tieni ferma la fotocamera - Rilevamento automatico in corso</string>
+    <string name="token_scanner_close">Chiudi</string>
+
+    <!-- Share -->
+    <string name="share_via">Condividi via</string>
+</resources>

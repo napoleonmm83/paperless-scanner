@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">Sunucu URL</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Kullanıcı adı</string>
+    <string name="login_password">Şifre</string>
+    <string name="login_button">Giriş yap</string>
+    <string name="login_error">Giriş başarısız: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Geri</string>
+    <string name="onboarding_login_title">Giriş yap</string>
+    <string name="onboarding_login_subtitle">Paperless-ngx hesabınızla giriş yapın</string>
+    <string name="onboarding_filter_password">Şifre</string>
+    <string name="onboarding_filter_key">Anahtar</string>
+    <string name="onboarding_username">Kullanıcı adı</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Şifre</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Erişim anahtarı</string>
+    <string name="onboarding_access_key_placeholder">Buraya yapıştır...</string>
+    <string name="onboarding_token_help">Paperless\'ta bulabilirsiniz: Ayarlar → Profilim</string>
+    <string name="onboarding_scan_token">Token\'ı kamerayla tara</string>
+    <string name="onboarding_login_button">Giriş yap</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Belge tara</string>
+    <string name="scan_button">Kamerayı aç</string>
+    <string name="scan_from_gallery">Galeriden</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Belge yükle</string>
+    <string name="upload_document_title">Başlık (isteğe bağlı)</string>
+    <string name="upload_select_tags">Etiket seç</string>
+    <string name="upload_button">Yükle</string>
+    <string name="upload_success">Belge yüklendi</string>
+    <string name="upload_error">Yükleme başarısız: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Geri</string>
+    <string name="upload_queued">Bağlantı olduğunda yükleme senkronize edilecek</string>
+    <string name="upload_tag_created">\"%1$s\" etiketi oluşturuldu</string>
+    <string name="upload_document_preview">Belge önizleme</string>
+    <string name="upload_title_label">Başlık (isteğe bağlı)</string>
+    <string name="upload_title_placeholder">örn. Fatura Aralık 2024</string>
+    <string name="upload_failed_title">Yükleme başarısız</string>
+    <string name="upload_retry_button">Tekrar dene</string>
+    <string name="upload_progress">Yükleniyor: %1$d%%</string>
+    <string name="upload_uploading">Yükleniyor...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Toplu içe aktarma</string>
+    <string name="batch_import_back">Geri</string>
+    <string name="batch_import_success_single">Belge kuyruğa eklendi!</string>
+    <string name="batch_import_success_multiple">%1$d belge kuyruğa eklendi!</string>
+    <string name="batch_import_images_selected">%1$d görsel seçildi</string>
+    <string name="batch_import_mode_single">Tek belge olarak</string>
+    <string name="batch_import_mode_individual">Ayrı belgeler olarak</string>
+    <string name="batch_import_button_individual">Ayrı</string>
+    <string name="batch_import_button_single">Tek belge olarak</string>
+    <string name="batch_import_preview">Önizleme</string>
+    <string name="batch_import_image_description">Görsel %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Belge türü (tümü için)</string>
+    <string name="batch_import_correspondent">Muhatap (tümü için)</string>
+    <string name="batch_import_tags">Etiketler (tümü için)</string>
+    <string name="batch_import_not_selected">Seçilmedi</string>
+    <string name="batch_import_adding_progress">Ekleniyor: %1$d / %2$d</string>
+    <string name="batch_import_adding">Ekleniyor...</string>
+    <string name="batch_import_button">%1$d görsel içe aktar</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">PDF yükle</string>
+    <string name="multipage_upload_back">Geri</string>
+    <string name="multipage_upload_success">%1$d sayfalık PDF yüklendi!</string>
+    <string name="multipage_upload_queued">Bağlantı olduğunda yükleme senkronize edilecek</string>
+    <string name="multipage_upload_tag_created">\"%1$s\" etiketi oluşturuldu</string>
+    <string name="multipage_upload_info">%1$d sayfa PDF olarak birleştirilecek</string>
+    <string name="multipage_upload_preview">Sayfa önizleme</string>
+    <string name="multipage_upload_page_description">Sayfa %1$d</string>
+    <string name="multipage_upload_title_label">Başlık (isteğe bağlı)</string>
+    <string name="multipage_upload_title_placeholder">örn. Sözleşme Ocak 2025</string>
+    <string name="multipage_upload_failed_title">Yükleme başarısız</string>
+    <string name="multipage_upload_retry_button">Tekrar dene</string>
+    <string name="multipage_upload_progress">Yükleniyor: %1$d%%</string>
+    <string name="multipage_upload_uploading">PDF yükleniyor...</string>
+    <string name="multipage_upload_button">PDF olarak yükle</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Geri</string>
+    <string name="document_detail_title">BELGE</string>
+    <string name="document_detail_open_browser">Tarayıcıda aç</string>
+    <string name="document_detail_delete">Sil</string>
+    <string name="document_detail_error">Hata</string>
+    <string name="document_detail_retry">Tekrar dene</string>
+    <string name="document_detail_preview">Belge önizleme</string>
+    <string name="document_detail_correspondent">Muhatap</string>
+    <string name="document_detail_type">Belge türü</string>
+    <string name="document_detail_created">Oluşturuldu</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Dosya adı</string>
+    <string name="document_detail_content">İçerik</string>
+    <string name="document_detail_view_pdf">PDF\'i görüntüle</string>
+    <string name="document_detail_delete_dialog_title">BELGEYİ SİL?</string>
+    <string name="document_detail_delete_dialog_message">Bu belgeyi silmek istediğinizden emin misiniz?</string>
+    <string name="document_detail_delete_dialog_warning">Bu işlem geri alınamaz.</string>
+    <string name="document_detail_delete_button_deleting">SİLİNİYOR...</string>
+    <string name="document_detail_delete_button">SİL</string>
+    <string name="document_detail_cancel_button">İPTAL</string>
+    <string name="document_detail_edit">Düzenle</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Ayrıntılar</string>
+    <string name="document_tab_content">İçerik</string>
+    <string name="document_tab_metadata">Meta veriler</string>
+    <string name="document_tab_notes">Notlar</string>
+    <string name="document_tab_history">Geçmiş</string>
+    <string name="document_tab_permissions">İzinler</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">BELGEYİ DÜZENLE</string>
+    <string name="document_edit_title_label">Başlık</string>
+    <string name="document_edit_tags_label">Etiketler</string>
+    <string name="document_edit_correspondent_label">Muhatap</string>
+    <string name="document_edit_no_correspondent">Muhatap yok</string>
+    <string name="document_edit_document_type_label">Belge türü</string>
+    <string name="document_edit_no_document_type">Belge türü yok</string>
+    <string name="document_edit_asn_label">ASN (Arşiv numarası)</string>
+    <string name="document_edit_save">KAYDET</string>
+    <string name="document_edit_cancel">İPTAL</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ETİKETLER</string>
+    <string name="labels_subtitle">Etiketlerinizi yönetin</string>
+    <string name="labels_search_placeholder">Etiketlerde ara...</string>
+    <string name="labels_search_clear">Temizle</string>
+    <string name="labels_edit">Düzenle</string>
+    <string name="labels_delete">Sil</string>
+    <string name="labels_document_count">%1$d belge</string>
+    <string name="labels_delete_dialog_title">Etiketi sil</string>
+    <string name="labels_delete_dialog_message">\"%1$s\" etiketini silmek istediğinizden emin misiniz?</string>
+    <string name="labels_delete_button">Sil</string>
+    <string name="labels_cancel_button">İptal</string>
+    <string name="labels_add_new">Yeni etiket</string>
+    <string name="labels_create_title">Yeni etiket</string>
+    <string name="labels_edit_title">Etiketi düzenle</string>
+    <string name="labels_name_label">Ad</string>
+    <string name="labels_name_placeholder">Etiket adını girin...</string>
+    <string name="labels_color_label">Renk</string>
+    <string name="labels_preview_label">Önizleme</string>
+    <string name="labels_preview_default">Etiket adı</string>
+    <string name="labels_save_button">Kaydet</string>
+    <string name="labels_create_button">Oluştur</string>
+    <string name="labels_detail_back">Geri</string>
+    <string name="labels_detail_no_documents">Bu etiketle belge yok</string>
+    <string name="labels_detail_page_count_singular">Sayfa</string>
+    <string name="labels_detail_page_count_plural">Sayfa</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Paperless-ngx kurulumunuz için\nmobil yardımcı</string>
+    <string name="welcome_feature_1">Kenar algılamalı akıllı tarama</string>
+    <string name="welcome_feature_2">Çok sayfalı belgeler oluşturun</string>
+    <string name="welcome_feature_3">Doğrudan Paperless-ngx\'e yükleyin</string>
+    <string name="welcome_button">Başlayalım</string>
+    <string name="welcome_footer">Kendi Paperless-ngx kurulumunuza ihtiyacınız var</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Geri</string>
+    <string name="server_setup_title">Sunucuya bağlan</string>
+    <string name="server_setup_subtitle">Paperless-ngx kurulumunuzun URL\'sini girin</string>
+    <string name="server_setup_url_label">Sunucu URL</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS otomatik algılanır</string>
+    <string name="server_setup_status_checking">Sunucu kontrol ediliyor...</string>
+    <string name="server_setup_status_https">Güvenli bağlantı (HTTPS)</string>
+    <string name="server_setup_status_http">Bağlantı kuruldu (HTTP)</string>
+    <string name="server_setup_hint_title">Güvenli bağlantı önerilir</string>
+    <string name="server_setup_hint_text">Sunucunuza şifreli bağlantı için HTTPS kullanın.</string>
+    <string name="server_setup_button">Devam</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Her şey hazır!</string>
+    <string name="success_subtitle">Bağlandınız ve artık\nbelgeleri tarayıp yükleyebilirsiniz.</string>
+    <string name="success_stat_scanned">Bugün taranan</string>
+    <string name="success_stat_connected">Bağlı</string>
+    <string name="success_tips_header">HIZLI İPUÇLARI</string>
+    <string name="success_tip_1">Belgeyi düz ve iyi aydınlatılmış tutun</string>
+    <string name="success_tip_2">Uygulama kenarları otomatik algılar</string>
+    <string name="success_tip_3">Yüklemeden önce etiket seçebilirsiniz</string>
+    <string name="success_button">Uygulamayı başlat</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">BELGELER</string>
+    <string name="documents_count">%1$d belge</string>
+    <string name="documents_search_placeholder">Belgelerde ara...</string>
+    <string name="documents_search_clear">Temizle</string>
+    <string name="documents_filter_all">Tümü</string>
+    <string name="documents_empty_no_results">Sonuç yok</string>
+    <string name="documents_empty_no_documents">Belge yok</string>
+    <string name="documents_empty_hint_search">Başka bir arama terimi deneyin</string>
+    <string name="documents_empty_hint_scan">Burada görmek için belge tarayın</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Sayfa %1$d kaldırıldı</string>
+    <string name="scan_undo">Geri al</string>
+    <string name="scan_scanner_error">Tarayıcı başlatılamadı: %1$s</string>
+    <string name="scan_new_document_title">YENİ BELGE</string>
+    <string name="scan_choose_option">Bir seçenek seçin</string>
+    <string name="scan_option_scan">Tara</string>
+    <string name="scan_option_gallery">Galeri</string>
+    <string name="scan_option_files">Dosyalar</string>
+    <string name="scan_page_count">%1$d / %2$d sayfa</string>
+    <string name="scan_hold_to_sort">Sıralamak için basılı tutun</string>
+    <string name="scan_limit_reached">Limite ulaşıldı</string>
+    <string name="scan_almost_full">Neredeyse dolu</string>
+    <string name="scan_upload_single">Yükle</string>
+    <string name="scan_upload_pdf">PDF olarak yükle</string>
+    <string name="scan_more_pages">Daha fazla sayfa</string>
+    <string name="scan_maximum">Maksimum</string>
+    <string name="scan_discard">At</string>
+    <string name="scan_page_description">Sayfa %1$d</string>
+    <string name="scan_rotate">Döndür</string>
+    <string name="scan_remove">Kaldır</string>
+    <string name="scan_hold_to_sort_hint">Sıralamak için basılı tutun</string>
+    <string name="scan_add_page">Sayfa ekle</string>
+    <string name="scan_close">Kapat</string>
+    <string name="scan_delete">Sil</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">TEKRARHOŞGELDİNİZ</string>
+    <string name="home_your_archive">ARŞİVİNİZ</string>
+    <string name="home_stat_documents">Belgeler</string>
+    <string name="home_stat_this_month">Bu ay</string>
+    <string name="home_stat_pending">Bekliyor</string>
+    <string name="home_new_scan">Yeni tarama</string>
+    <string name="home_all_documents">Tüm belgeler</string>
+    <string name="home_processing">İşleniyor</string>
+    <string name="home_refresh">Yenile</string>
+    <string name="home_recently_added">Son eklenenler</string>
+    <string name="home_see_all">Tümü</string>
+    <string name="home_no_documents">Henüz belge yok</string>
+    <string name="home_scan_first">İlk belgenizi tarayın!</string>
+    <string name="home_untagged_documents">%1$d etiketsiz belge</string>
+    <string name="home_assign_tags_hint">Daha iyi organizasyon için etiket ekleyin</string>
+    <string name="home_task_waiting">Bekleniyor...</string>
+    <string name="home_task_processing">İşleniyor...</string>
+    <string name="home_task_success">Başarılı</string>
+    <string name="home_task_failure">Başarısız</string>
+    <string name="home_dismiss">Gizle</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Geri</string>
+    <string name="pending_sync_title">BEKLEYEN SENKRONİZASYONLAR</string>
+    <string name="pending_sync_upload_queue">Yükleme kuyruğu</string>
+    <string name="pending_sync_no_uploads">Bekleyen yükleme yok</string>
+    <string name="pending_sync_pending_changes">Bekleyen değişiklikler</string>
+    <string name="pending_sync_no_changes">Bekleyen değişiklik yok</string>
+    <string name="pending_sync_unnamed_document">Adsız belge</string>
+    <string name="pending_sync_type">Tür</string>
+    <string name="pending_sync_multi_page">Çok sayfalı</string>
+    <string name="pending_sync_single">Tekli</string>
+    <string name="pending_sync_retry_count">Deneme sayısı</string>
+    <string name="pending_sync_created">Oluşturuldu</string>
+    <string name="pending_sync_retry">Tekrar dene</string>
+    <string name="pending_sync_delete">Sil</string>
+    <string name="pending_sync_id_new">ID: YENİ</string>
+    <string name="pending_sync_sync_attempts">Senkronizasyon denemeleri</string>
+    <string name="pending_sync_status_pending">Bekliyor</string>
+    <string name="pending_sync_status_uploading">Yükleniyor</string>
+    <string name="pending_sync_status_completed">Tamamlandı</string>
+    <string name="pending_sync_status_failed">Başarısız</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">AYARLAR</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Bağlı değil</string>
+    <string name="settings_section_server">Sunucu</string>
+    <string name="settings_server_url">Sunucu URL</string>
+    <string name="settings_not_configured">Yapılandırılmadı</string>
+    <string name="settings_section_upload">Yükleme</string>
+    <string name="settings_upload_notifications">Yükleme bildirimleri</string>
+    <string name="settings_upload_notifications_subtitle">Yükleme sırasında bildirim göster</string>
+    <string name="settings_upload_quality">Yükleme kalitesi</string>
+    <string name="settings_section_about">Hakkında</string>
+    <string name="settings_app_version">Uygulama versiyonu</string>
+    <string name="settings_licenses">Lisanslar</string>
+    <string name="settings_open_source_licenses">Açık kaynak lisansları</string>
+    <string name="settings_logout">Çıkış yap</string>
+    <string name="settings_logout_confirm_message">Çıkış yapmak istediğinizden emin misiniz? Sonra tekrar giriş yapmanız gerekecek.</string>
+    <string name="settings_selected">Seçili</string>
+    <string name="settings_close">Kapat</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Yeni etiket oluştur</string>
+    <string name="create_tag_name_label">Etiket adı</string>
+    <string name="create_tag_color_label">Renk (isteğe bağlı)</string>
+    <string name="create_tag_create">Oluştur</string>
+    <string name="create_tag_cancel">İptal</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Geri</string>
+    <string name="pdf_viewer_page_info">Sayfa %1$d / %2$d</string>
+    <string name="pdf_viewer_share">Paylaş</string>
+    <string name="pdf_viewer_open_external">Başka uygulamada aç</string>
+    <string name="pdf_viewer_downloading">İndiriliyor...</string>
+    <string name="pdf_viewer_swipe_hint">Sayfa çevirmek için kaydırın</string>
+    <string name="pdf_viewer_pdf_page">PDF sayfa %1$d</string>
+    <string name="pdf_viewer_document_image">Belge görüntüsü</string>
+    <string name="pdf_viewer_retry">Tekrar dene</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Yükleme başarısız</string>
+    <string name="error_queue_add">Kuyruğa eklenirken hata</string>
+    <string name="error_create_tag">Etiket oluşturulamadı</string>
+    <string name="pdf_viewer_default_title">Belge</string>
+
+    <!-- General -->
+    <string name="loading">Yükleniyor...</string>
+    <string name="retry">Tekrar dene</string>
+    <string name="cancel">İptal</string>
+    <string name="ok">Tamam</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Belge taramaya hızlı erişim</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Otomatik</string>
+    <string name="upload_quality_low">Düşük (daha hızlı yükleme)</string>
+    <string name="upload_quality_medium">Orta</string>
+    <string name="upload_quality_high">Yüksek (en iyi kalite)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Şimdi</string>
+    <string name="time_minutes_ago">%1$d dk önce</string>
+    <string name="time_hours_ago">%1$d saat önce</string>
+    <string name="time_days_ago">%1$d gün önce</string>
+    <string name="time_unknown">Bilinmiyor</string>
+    <string name="document_unknown">Bilinmeyen belge</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Metin içeriği mevcut değil</string>
+    <string name="tab_metadata">Meta veriler</string>
+    <string name="tab_metadata_created">Oluşturuldu</string>
+    <string name="tab_metadata_added">Eklendi</string>
+    <string name="tab_metadata_modified">Değiştirildi</string>
+    <string name="tab_metadata_document_id">Belge ID</string>
+    <string name="tab_metadata_original_filename">Orijinal dosya adı</string>
+    <string name="tab_metadata_archive_serial">Arşiv numarası (ASN)</string>
+    <string name="tab_notes_placeholder">Yeni not ekle...</string>
+    <string name="tab_notes_add">Ekle</string>
+    <string name="tab_notes_empty">Not yok</string>
+    <string name="tab_notes_delete">Notu sil</string>
+    <string name="tab_history">Geçmiş</string>
+    <string name="tab_history_empty">Değişiklik yok</string>
+    <string name="tab_history_system">Sistem</string>
+    <string name="tab_history_action_create">Oluşturuldu</string>
+    <string name="tab_history_action_update">Güncellendi</string>
+    <string name="tab_history_action_delete">Silindi</string>
+    <string name="tab_permissions_owner">Sahip</string>
+    <string name="tab_permissions_no_owner">Sahip yok</string>
+    <string name="tab_permissions_user_id">Kullanıcı #%1$d</string>
+    <string name="tab_permissions_view">Görüntüleme izinleri</string>
+    <string name="tab_permissions_change">Değiştirme izinleri</string>
+    <string name="tab_permissions_none">Özel izin yok</string>
+    <string name="tab_permissions_users">Kullanıcılar: %1$s</string>
+    <string name="tab_permissions_groups">Gruplar: %1$s</string>
+    <string name="tab_permissions_unavailable">İzin bilgisi mevcut değil</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Yüklenirken hata</string>
+    <string name="error_creating">Oluştururken hata</string>
+    <string name="error_updating">Güncellerken hata</string>
+    <string name="error_deleting">Silerken hata</string>
+    <string name="error_downloading">İndirirken hata</string>
+    <string name="error_no_app_found">Açmak için uygulama bulunamadı</string>
+    <string name="error_note_empty">Not boş olamaz</string>
+    <string name="error_add_note">Not eklenirken hata</string>
+    <string name="error_delete_note">Not silinirken hata</string>
+    <string name="error_login_fields">Lütfen tüm alanları doldurun</string>
+    <string name="error_login_failed">Giriş başarısız</string>
+    <string name="error_token_invalid">Geçersiz token</string>
+    <string name="error_server_unreachable">Sunucuya ulaşılamıyor</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Anahtarı tara</string>
+    <string name="token_scanner_capturing">Yüksek çözünürlüklü fotoğraf çekiliyor...</string>
+    <string name="token_scanner_found">Anahtar bulundu!</string>
+    <string name="token_scanner_not_found">Geçerli anahtar tanınmadı</string>
+    <string name="token_scanner_position_hint">Anahtarı çerçeveye yerleştirin</string>
+    <string name="token_scanner_recognition_error">Tanıma hatası</string>
+    <string name="token_scanner_capture_failed">Çekim başarısız</string>
+    <string name="token_scanner_camera_required">Kamera erişimi gerekli</string>
+    <string name="token_scanner_camera_explanation">Anahtarı taramak için uygulamanın kameranıza erişmesi gerekiyor</string>
+    <string name="token_scanner_camera_allow">Kamera erişimine izin ver</string>
+    <string name="token_scanner_hold_still">Anahtar tanındı, sabit tutun...</string>
+    <string name="token_scanner_text_recognizing">Metin tanınıyor...</string>
+    <string name="token_scanner_take_photo">Fotoğraf çek</string>
+    <string name="token_scanner_auto_active">Otomatik tanıma aktif • Yedek olarak manuel dokunun</string>
+    <string name="token_scanner_hold_camera">Kamerayı sabit tutun - Otomatik tanıma çalışıyor</string>
+    <string name="token_scanner_close">Kapat</string>
+
+    <!-- Share -->
+    <string name="share_via">Şununla paylaş</string>
+</resources>

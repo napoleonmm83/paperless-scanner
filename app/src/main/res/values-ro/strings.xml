@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">URL server</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Nume utilizator</string>
+    <string name="login_password">Parolă</string>
+    <string name="login_button">Autentificare</string>
+    <string name="login_error">Autentificare eșuată: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Înapoi</string>
+    <string name="onboarding_login_title">Autentificare</string>
+    <string name="onboarding_login_subtitle">Conectează-te cu contul tău Paperless-ngx</string>
+    <string name="onboarding_filter_password">Parolă</string>
+    <string name="onboarding_filter_key">Cheie</string>
+    <string name="onboarding_username">Nume utilizator</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Parolă</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Cheie de acces</string>
+    <string name="onboarding_access_key_placeholder">Lipește aici...</string>
+    <string name="onboarding_token_help">O găsești în Paperless: Setări → Profilul meu</string>
+    <string name="onboarding_scan_token">Scanează token cu camera</string>
+    <string name="onboarding_login_button">Autentificare</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Scanează document</string>
+    <string name="scan_button">Deschide camera</string>
+    <string name="scan_from_gallery">Din galerie</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Încarcă document</string>
+    <string name="upload_document_title">Titlu (opțional)</string>
+    <string name="upload_select_tags">Selectează etichete</string>
+    <string name="upload_button">Încarcă</string>
+    <string name="upload_success">Document încărcat</string>
+    <string name="upload_error">Încărcare eșuată: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Înapoi</string>
+    <string name="upload_queued">Încărcarea se va sincroniza când conexiunea este disponibilă</string>
+    <string name="upload_tag_created">Eticheta \"%1$s\" creată</string>
+    <string name="upload_document_preview">Previzualizare document</string>
+    <string name="upload_title_label">Titlu (opțional)</string>
+    <string name="upload_title_placeholder">ex. Factură decembrie 2024</string>
+    <string name="upload_failed_title">Încărcare eșuată</string>
+    <string name="upload_retry_button">Reîncearcă</string>
+    <string name="upload_progress">Se încarcă: %1$d%%</string>
+    <string name="upload_uploading">Se încarcă...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Import în masă</string>
+    <string name="batch_import_back">Înapoi</string>
+    <string name="batch_import_success_single">Document adăugat în coadă!</string>
+    <string name="batch_import_success_multiple">%1$d documente adăugate în coadă!</string>
+    <string name="batch_import_images_selected">%1$d imagini selectate</string>
+    <string name="batch_import_mode_single">Ca un singur document</string>
+    <string name="batch_import_mode_individual">Ca documente separate</string>
+    <string name="batch_import_button_individual">Separat</string>
+    <string name="batch_import_button_single">Ca un singur document</string>
+    <string name="batch_import_preview">Previzualizare</string>
+    <string name="batch_import_image_description">Imagine %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Tip document (pentru toate)</string>
+    <string name="batch_import_correspondent">Corespondent (pentru toate)</string>
+    <string name="batch_import_tags">Etichete (pentru toate)</string>
+    <string name="batch_import_not_selected">Neselectat</string>
+    <string name="batch_import_adding_progress">Se adaugă: %1$d / %2$d</string>
+    <string name="batch_import_adding">Se adaugă...</string>
+    <string name="batch_import_button">Importă %1$d imagini</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Încarcă PDF</string>
+    <string name="multipage_upload_back">Înapoi</string>
+    <string name="multipage_upload_success">PDF cu %1$d pagini încărcat!</string>
+    <string name="multipage_upload_queued">Încărcarea se va sincroniza când conexiunea este disponibilă</string>
+    <string name="multipage_upload_tag_created">Eticheta \"%1$s\" creată</string>
+    <string name="multipage_upload_info">%1$d pagini vor fi unite într-un PDF</string>
+    <string name="multipage_upload_preview">Previzualizare pagini</string>
+    <string name="multipage_upload_page_description">Pagina %1$d</string>
+    <string name="multipage_upload_title_label">Titlu (opțional)</string>
+    <string name="multipage_upload_title_placeholder">ex. Contract ianuarie 2025</string>
+    <string name="multipage_upload_failed_title">Încărcare eșuată</string>
+    <string name="multipage_upload_retry_button">Reîncearcă</string>
+    <string name="multipage_upload_progress">Se încarcă: %1$d%%</string>
+    <string name="multipage_upload_uploading">Se încarcă PDF...</string>
+    <string name="multipage_upload_button">Încarcă ca PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Înapoi</string>
+    <string name="document_detail_title">DOCUMENT</string>
+    <string name="document_detail_open_browser">Deschide în browser</string>
+    <string name="document_detail_delete">Șterge</string>
+    <string name="document_detail_error">Eroare</string>
+    <string name="document_detail_retry">Reîncearcă</string>
+    <string name="document_detail_preview">Previzualizare document</string>
+    <string name="document_detail_correspondent">Corespondent</string>
+    <string name="document_detail_type">Tip document</string>
+    <string name="document_detail_created">Creat</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Nume fișier</string>
+    <string name="document_detail_content">Conținut</string>
+    <string name="document_detail_view_pdf">Vizualizează PDF</string>
+    <string name="document_detail_delete_dialog_title">ȘTERGI DOCUMENTUL?</string>
+    <string name="document_detail_delete_dialog_message">Ești sigur că vrei să ștergi acest document?</string>
+    <string name="document_detail_delete_dialog_warning">Această acțiune nu poate fi anulată.</string>
+    <string name="document_detail_delete_button_deleting">SE ȘTERGE...</string>
+    <string name="document_detail_delete_button">ȘTERGE</string>
+    <string name="document_detail_cancel_button">ANULEAZĂ</string>
+    <string name="document_detail_edit">Editează</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Detalii</string>
+    <string name="document_tab_content">Conținut</string>
+    <string name="document_tab_metadata">Metadate</string>
+    <string name="document_tab_notes">Note</string>
+    <string name="document_tab_history">Istoric</string>
+    <string name="document_tab_permissions">Permisiuni</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">EDITEAZĂ DOCUMENT</string>
+    <string name="document_edit_title_label">Titlu</string>
+    <string name="document_edit_tags_label">Etichete</string>
+    <string name="document_edit_correspondent_label">Corespondent</string>
+    <string name="document_edit_no_correspondent">Fără corespondent</string>
+    <string name="document_edit_document_type_label">Tip document</string>
+    <string name="document_edit_no_document_type">Fără tip document</string>
+    <string name="document_edit_asn_label">ASN (Număr arhivă)</string>
+    <string name="document_edit_save">SALVEAZĂ</string>
+    <string name="document_edit_cancel">ANULEAZĂ</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ETICHETE</string>
+    <string name="labels_subtitle">Administrează etichetele tale</string>
+    <string name="labels_search_placeholder">Caută etichete...</string>
+    <string name="labels_search_clear">Șterge</string>
+    <string name="labels_edit">Editează</string>
+    <string name="labels_delete">Șterge</string>
+    <string name="labels_document_count">%1$d documente</string>
+    <string name="labels_delete_dialog_title">Șterge eticheta</string>
+    <string name="labels_delete_dialog_message">Ești sigur că vrei să ștergi eticheta \"%1$s\"?</string>
+    <string name="labels_delete_button">Șterge</string>
+    <string name="labels_cancel_button">Anulează</string>
+    <string name="labels_add_new">Etichetă nouă</string>
+    <string name="labels_create_title">Etichetă nouă</string>
+    <string name="labels_edit_title">Editează eticheta</string>
+    <string name="labels_name_label">Nume</string>
+    <string name="labels_name_placeholder">Introdu numele etichetei...</string>
+    <string name="labels_color_label">Culoare</string>
+    <string name="labels_preview_label">Previzualizare</string>
+    <string name="labels_preview_default">Nume etichetă</string>
+    <string name="labels_save_button">Salvează</string>
+    <string name="labels_create_button">Creează</string>
+    <string name="labels_detail_back">Înapoi</string>
+    <string name="labels_detail_no_documents">Niciun document cu această etichetă</string>
+    <string name="labels_detail_page_count_singular">Pagină</string>
+    <string name="labels_detail_page_count_plural">Pagini</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Însoțitorul mobil pentru\ninstalarea ta Paperless-ngx</string>
+    <string name="welcome_feature_1">Scanare inteligentă cu detectare margini</string>
+    <string name="welcome_feature_2">Creează documente cu mai multe pagini</string>
+    <string name="welcome_feature_3">Încarcă direct în Paperless-ngx</string>
+    <string name="welcome_button">Să începem</string>
+    <string name="welcome_footer">Ai nevoie de propria instalare Paperless-ngx</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Înapoi</string>
+    <string name="server_setup_title">Conectare la server</string>
+    <string name="server_setup_subtitle">Introdu URL-ul instalării tale Paperless-ngx</string>
+    <string name="server_setup_url_label">URL server</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS detectat automat</string>
+    <string name="server_setup_status_checking">Se verifică serverul...</string>
+    <string name="server_setup_status_https">Conexiune securizată (HTTPS)</string>
+    <string name="server_setup_status_http">Conexiune stabilită (HTTP)</string>
+    <string name="server_setup_hint_title">Se recomandă conexiune securizată</string>
+    <string name="server_setup_hint_text">Folosește HTTPS pentru o conexiune criptată la server.</string>
+    <string name="server_setup_button">Continuă</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Totul este pregătit!</string>
+    <string name="success_subtitle">Ești conectat și poți acum\nscana și încărca documente.</string>
+    <string name="success_stat_scanned">Scanate astăzi</string>
+    <string name="success_stat_connected">Conectat</string>
+    <string name="success_tips_header">SFATURI RAPIDE</string>
+    <string name="success_tip_1">Ține documentul plat și bine iluminat</string>
+    <string name="success_tip_2">Aplicația recunoaște automat marginile</string>
+    <string name="success_tip_3">Poți selecta etichete înainte de încărcare</string>
+    <string name="success_button">Pornește aplicația</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOCUMENTE</string>
+    <string name="documents_count">%1$d documente</string>
+    <string name="documents_search_placeholder">Caută documente...</string>
+    <string name="documents_search_clear">Șterge</string>
+    <string name="documents_filter_all">Toate</string>
+    <string name="documents_empty_no_results">Niciun rezultat</string>
+    <string name="documents_empty_no_documents">Niciun document</string>
+    <string name="documents_empty_hint_search">Încearcă alt termen de căutare</string>
+    <string name="documents_empty_hint_scan">Scanează documente pentru a le vedea aici</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Pagina %1$d eliminată</string>
+    <string name="scan_undo">Anulează</string>
+    <string name="scan_scanner_error">Scanerul nu a putut fi pornit: %1$s</string>
+    <string name="scan_new_document_title">DOCUMENT NOU</string>
+    <string name="scan_choose_option">Alege o opțiune</string>
+    <string name="scan_option_scan">Scanează</string>
+    <string name="scan_option_gallery">Galerie</string>
+    <string name="scan_option_files">Fișiere</string>
+    <string name="scan_page_count">%1$d / %2$d pagini</string>
+    <string name="scan_hold_to_sort">Ține apăsat pentru sortare</string>
+    <string name="scan_limit_reached">Limită atinsă</string>
+    <string name="scan_almost_full">Aproape plin</string>
+    <string name="scan_upload_single">Încarcă</string>
+    <string name="scan_upload_pdf">Încarcă ca PDF</string>
+    <string name="scan_more_pages">Mai multe pagini</string>
+    <string name="scan_maximum">Maxim</string>
+    <string name="scan_discard">Renunță</string>
+    <string name="scan_page_description">Pagina %1$d</string>
+    <string name="scan_rotate">Rotește</string>
+    <string name="scan_remove">Elimină</string>
+    <string name="scan_hold_to_sort_hint">Ține apăsat pentru sortare</string>
+    <string name="scan_add_page">Adaugă pagină</string>
+    <string name="scan_close">Închide</string>
+    <string name="scan_delete">Șterge</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">BINE AI REVENIT</string>
+    <string name="home_your_archive">ARHIVA TA</string>
+    <string name="home_stat_documents">Documente</string>
+    <string name="home_stat_this_month">Luna aceasta</string>
+    <string name="home_stat_pending">În așteptare</string>
+    <string name="home_new_scan">Scanare nouă</string>
+    <string name="home_all_documents">Toate documentele</string>
+    <string name="home_processing">Procesare</string>
+    <string name="home_refresh">Reîmprospătează</string>
+    <string name="home_recently_added">Adăugate recent</string>
+    <string name="home_see_all">Toate</string>
+    <string name="home_no_documents">Încă niciun document</string>
+    <string name="home_scan_first">Scanează primul tău document!</string>
+    <string name="home_untagged_documents">%1$d documente fără etichete</string>
+    <string name="home_assign_tags_hint">Adaugă etichete pentru o organizare mai bună</string>
+    <string name="home_task_waiting">Se așteaptă...</string>
+    <string name="home_task_processing">Se procesează...</string>
+    <string name="home_task_success">Reușit</string>
+    <string name="home_task_failure">Eșuat</string>
+    <string name="home_dismiss">Ascunde</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Înapoi</string>
+    <string name="pending_sync_title">SINCRONIZĂRI ÎN AȘTEPTARE</string>
+    <string name="pending_sync_upload_queue">Coadă de încărcare</string>
+    <string name="pending_sync_no_uploads">Nicio încărcare în așteptare</string>
+    <string name="pending_sync_pending_changes">Modificări în așteptare</string>
+    <string name="pending_sync_no_changes">Nicio modificare în așteptare</string>
+    <string name="pending_sync_unnamed_document">Document fără nume</string>
+    <string name="pending_sync_type">Tip</string>
+    <string name="pending_sync_multi_page">Mai multe pagini</string>
+    <string name="pending_sync_single">Singur</string>
+    <string name="pending_sync_retry_count">Număr încercări</string>
+    <string name="pending_sync_created">Creat</string>
+    <string name="pending_sync_retry">Reîncearcă</string>
+    <string name="pending_sync_delete">Șterge</string>
+    <string name="pending_sync_id_new">ID: NOU</string>
+    <string name="pending_sync_sync_attempts">Încercări de sincronizare</string>
+    <string name="pending_sync_status_pending">În așteptare</string>
+    <string name="pending_sync_status_uploading">Se încarcă</string>
+    <string name="pending_sync_status_completed">Finalizat</string>
+    <string name="pending_sync_status_failed">Eșuat</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">SETĂRI</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Neconectat</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_server_url">URL server</string>
+    <string name="settings_not_configured">Neconfigurat</string>
+    <string name="settings_section_upload">Încărcare</string>
+    <string name="settings_upload_notifications">Notificări de încărcare</string>
+    <string name="settings_upload_notifications_subtitle">Afișează notificare în timpul încărcării</string>
+    <string name="settings_upload_quality">Calitate încărcare</string>
+    <string name="settings_section_about">Despre</string>
+    <string name="settings_app_version">Versiune aplicație</string>
+    <string name="settings_licenses">Licențe</string>
+    <string name="settings_open_source_licenses">Licențe open source</string>
+    <string name="settings_logout">Deconectare</string>
+    <string name="settings_logout_confirm_message">Ești sigur că vrei să te deconectezi? Va trebui să te reconectezi după.</string>
+    <string name="settings_selected">Selectat</string>
+    <string name="settings_close">Închide</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Creează etichetă nouă</string>
+    <string name="create_tag_name_label">Nume etichetă</string>
+    <string name="create_tag_color_label">Culoare (opțional)</string>
+    <string name="create_tag_create">Creează</string>
+    <string name="create_tag_cancel">Anulează</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Înapoi</string>
+    <string name="pdf_viewer_page_info">Pagina %1$d din %2$d</string>
+    <string name="pdf_viewer_share">Partajează</string>
+    <string name="pdf_viewer_open_external">Deschide în altă aplicație</string>
+    <string name="pdf_viewer_downloading">Se descarcă...</string>
+    <string name="pdf_viewer_swipe_hint">Glisează pentru a răsfoi</string>
+    <string name="pdf_viewer_pdf_page">Pagină PDF %1$d</string>
+    <string name="pdf_viewer_document_image">Imagine document</string>
+    <string name="pdf_viewer_retry">Reîncearcă</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Încărcare eșuată</string>
+    <string name="error_queue_add">Eroare la adăugarea în coadă</string>
+    <string name="error_create_tag">Eticheta nu a putut fi creată</string>
+    <string name="pdf_viewer_default_title">Document</string>
+
+    <!-- General -->
+    <string name="loading">Se încarcă...</string>
+    <string name="retry">Reîncearcă</string>
+    <string name="cancel">Anulează</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Acces rapid la scanarea documentelor</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automat</string>
+    <string name="upload_quality_low">Scăzută (încărcare mai rapidă)</string>
+    <string name="upload_quality_medium">Medie</string>
+    <string name="upload_quality_high">Înaltă (cea mai bună calitate)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Chiar acum</string>
+    <string name="time_minutes_ago">acum %1$d min</string>
+    <string name="time_hours_ago">acum %1$d ore</string>
+    <string name="time_days_ago">acum %1$d zile</string>
+    <string name="time_unknown">Necunoscut</string>
+    <string name="document_unknown">Document necunoscut</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Niciun conținut text disponibil</string>
+    <string name="tab_metadata">Metadate</string>
+    <string name="tab_metadata_created">Creat</string>
+    <string name="tab_metadata_added">Adăugat</string>
+    <string name="tab_metadata_modified">Modificat</string>
+    <string name="tab_metadata_document_id">ID document</string>
+    <string name="tab_metadata_original_filename">Nume fișier original</string>
+    <string name="tab_metadata_archive_serial">Număr arhivă (ASN)</string>
+    <string name="tab_notes_placeholder">Adaugă notă nouă...</string>
+    <string name="tab_notes_add">Adaugă</string>
+    <string name="tab_notes_empty">Nicio notă</string>
+    <string name="tab_notes_delete">Șterge nota</string>
+    <string name="tab_history">Istoric</string>
+    <string name="tab_history_empty">Nicio modificare</string>
+    <string name="tab_history_system">Sistem</string>
+    <string name="tab_history_action_create">Creat</string>
+    <string name="tab_history_action_update">Actualizat</string>
+    <string name="tab_history_action_delete">Șters</string>
+    <string name="tab_permissions_owner">Proprietar</string>
+    <string name="tab_permissions_no_owner">Fără proprietar</string>
+    <string name="tab_permissions_user_id">Utilizator #%1$d</string>
+    <string name="tab_permissions_view">Permisiuni de vizualizare</string>
+    <string name="tab_permissions_change">Permisiuni de modificare</string>
+    <string name="tab_permissions_none">Fără permisiuni specifice</string>
+    <string name="tab_permissions_users">Utilizatori: %1$s</string>
+    <string name="tab_permissions_groups">Grupuri: %1$s</string>
+    <string name="tab_permissions_unavailable">Informații permisiuni indisponibile</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Eroare la încărcare</string>
+    <string name="error_creating">Eroare la creare</string>
+    <string name="error_updating">Eroare la actualizare</string>
+    <string name="error_deleting">Eroare la ștergere</string>
+    <string name="error_downloading">Eroare la descărcare</string>
+    <string name="error_no_app_found">Nicio aplicație găsită pentru deschidere</string>
+    <string name="error_note_empty">Nota nu poate fi goală</string>
+    <string name="error_add_note">Eroare la adăugarea notei</string>
+    <string name="error_delete_note">Eroare la ștergerea notei</string>
+    <string name="error_login_fields">Te rugăm să completezi toate câmpurile</string>
+    <string name="error_login_failed">Autentificare eșuată</string>
+    <string name="error_token_invalid">Token invalid</string>
+    <string name="error_server_unreachable">Serverul nu este accesibil</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Scanează cheia</string>
+    <string name="token_scanner_capturing">Se capturează fotografie de înaltă rezoluție...</string>
+    <string name="token_scanner_found">Cheie găsită!</string>
+    <string name="token_scanner_not_found">Nicio cheie validă recunoscută</string>
+    <string name="token_scanner_position_hint">Poziționează cheia în cadru</string>
+    <string name="token_scanner_recognition_error">Eroare de recunoaștere</string>
+    <string name="token_scanner_capture_failed">Captura a eșuat</string>
+    <string name="token_scanner_camera_required">Este necesar accesul la cameră</string>
+    <string name="token_scanner_camera_explanation">Pentru a scana cheia, aplicația are nevoie de acces la camera ta</string>
+    <string name="token_scanner_camera_allow">Permite accesul la cameră</string>
+    <string name="token_scanner_hold_still">Cheie recunoscută, ține nemișcat...</string>
+    <string name="token_scanner_text_recognizing">Se recunoaște textul...</string>
+    <string name="token_scanner_take_photo">Fă o fotografie</string>
+    <string name="token_scanner_auto_active">Recunoaștere automată activă • Atinge manual ca rezervă</string>
+    <string name="token_scanner_hold_camera">Ține camera nemișcată - Recunoaștere automată în curs</string>
+    <string name="token_scanner_close">Închide</string>
+
+    <!-- Share -->
+    <string name="share_via">Partajează prin</string>
+</resources>

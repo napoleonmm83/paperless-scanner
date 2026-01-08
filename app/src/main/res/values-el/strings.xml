@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">URL διακομιστή</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Όνομα χρήστη</string>
+    <string name="login_password">Κωδικός</string>
+    <string name="login_button">Σύνδεση</string>
+    <string name="login_error">Η σύνδεση απέτυχε: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Πίσω</string>
+    <string name="onboarding_login_title">Σύνδεση</string>
+    <string name="onboarding_login_subtitle">Συνδεθείτε με τον λογαριασμό Paperless-ngx</string>
+    <string name="onboarding_filter_password">Κωδικός</string>
+    <string name="onboarding_filter_key">Κλειδί</string>
+    <string name="onboarding_username">Όνομα χρήστη</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Κωδικός</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Κλειδί πρόσβασης</string>
+    <string name="onboarding_access_key_placeholder">Επικολλήστε εδώ...</string>
+    <string name="onboarding_token_help">Βρείτε το στο Paperless: Ρυθμίσεις → Το προφίλ μου</string>
+    <string name="onboarding_scan_token">Σάρωση token με κάμερα</string>
+    <string name="onboarding_login_button">Σύνδεση</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Σάρωση εγγράφου</string>
+    <string name="scan_button">Άνοιγμα κάμερας</string>
+    <string name="scan_from_gallery">Από τη συλλογή</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Μεταφόρτωση εγγράφου</string>
+    <string name="upload_document_title">Τίτλος (προαιρετικό)</string>
+    <string name="upload_select_tags">Επιλογή ετικετών</string>
+    <string name="upload_button">Μεταφόρτωση</string>
+    <string name="upload_success">Το έγγραφο μεταφορτώθηκε</string>
+    <string name="upload_error">Η μεταφόρτωση απέτυχε: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Πίσω</string>
+    <string name="upload_queued">Η μεταφόρτωση θα συγχρονιστεί όταν υπάρχει σύνδεση</string>
+    <string name="upload_tag_created">Η ετικέτα \"%1$s\" δημιουργήθηκε</string>
+    <string name="upload_document_preview">Προεπισκόπηση εγγράφου</string>
+    <string name="upload_title_label">Τίτλος (προαιρετικό)</string>
+    <string name="upload_title_placeholder">π.χ. Τιμολόγιο Δεκέμβριος 2024</string>
+    <string name="upload_failed_title">Η μεταφόρτωση απέτυχε</string>
+    <string name="upload_retry_button">Δοκιμή ξανά</string>
+    <string name="upload_progress">Μεταφόρτωση: %1$d%%</string>
+    <string name="upload_uploading">Μεταφόρτωση...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Μαζική εισαγωγή</string>
+    <string name="batch_import_back">Πίσω</string>
+    <string name="batch_import_success_single">Το έγγραφο προστέθηκε στην ουρά!</string>
+    <string name="batch_import_success_multiple">%1$d έγγραφα προστέθηκαν στην ουρά!</string>
+    <string name="batch_import_images_selected">%1$d εικόνες επιλέχθηκαν</string>
+    <string name="batch_import_mode_single">Ως ένα έγγραφο</string>
+    <string name="batch_import_mode_individual">Ως ξεχωριστά έγγραφα</string>
+    <string name="batch_import_button_individual">Ξεχωριστά</string>
+    <string name="batch_import_button_single">Ως ένα έγγραφο</string>
+    <string name="batch_import_preview">Προεπισκόπηση</string>
+    <string name="batch_import_image_description">Εικόνα %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Τύπος εγγράφου (για όλα)</string>
+    <string name="batch_import_correspondent">Ανταποκριτής (για όλα)</string>
+    <string name="batch_import_tags">Ετικέτες (για όλα)</string>
+    <string name="batch_import_not_selected">Δεν επιλέχθηκε</string>
+    <string name="batch_import_adding_progress">Προσθήκη: %1$d / %2$d</string>
+    <string name="batch_import_adding">Προσθήκη...</string>
+    <string name="batch_import_button">Εισαγωγή %1$d εικόνων</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Μεταφόρτωση PDF</string>
+    <string name="multipage_upload_back">Πίσω</string>
+    <string name="multipage_upload_success">PDF με %1$d σελίδες μεταφορτώθηκε!</string>
+    <string name="multipage_upload_queued">Η μεταφόρτωση θα συγχρονιστεί όταν υπάρχει σύνδεση</string>
+    <string name="multipage_upload_tag_created">Η ετικέτα \"%1$s\" δημιουργήθηκε</string>
+    <string name="multipage_upload_info">%1$d σελίδες θα ενωθούν σε PDF</string>
+    <string name="multipage_upload_preview">Προεπισκόπηση σελίδων</string>
+    <string name="multipage_upload_page_description">Σελίδα %1$d</string>
+    <string name="multipage_upload_title_label">Τίτλος (προαιρετικό)</string>
+    <string name="multipage_upload_title_placeholder">π.χ. Συμβόλαιο Ιανουάριος 2025</string>
+    <string name="multipage_upload_failed_title">Η μεταφόρτωση απέτυχε</string>
+    <string name="multipage_upload_retry_button">Δοκιμή ξανά</string>
+    <string name="multipage_upload_progress">Μεταφόρτωση: %1$d%%</string>
+    <string name="multipage_upload_uploading">Μεταφόρτωση PDF...</string>
+    <string name="multipage_upload_button">Μεταφόρτωση ως PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Πίσω</string>
+    <string name="document_detail_title">ΕΓΓΡΑΦΟ</string>
+    <string name="document_detail_open_browser">Άνοιγμα σε πρόγραμμα περιήγησης</string>
+    <string name="document_detail_delete">Διαγραφή</string>
+    <string name="document_detail_error">Σφάλμα</string>
+    <string name="document_detail_retry">Δοκιμή ξανά</string>
+    <string name="document_detail_preview">Προεπισκόπηση εγγράφου</string>
+    <string name="document_detail_correspondent">Ανταποκριτής</string>
+    <string name="document_detail_type">Τύπος εγγράφου</string>
+    <string name="document_detail_created">Δημιουργήθηκε</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Όνομα αρχείου</string>
+    <string name="document_detail_content">Περιεχόμενο</string>
+    <string name="document_detail_view_pdf">Προβολή PDF</string>
+    <string name="document_detail_delete_dialog_title">ΔΙΑΓΡΑΦΗ ΕΓΓΡΑΦΟΥ;</string>
+    <string name="document_detail_delete_dialog_message">Θέλετε σίγουρα να διαγράψετε αυτό το έγγραφο;</string>
+    <string name="document_detail_delete_dialog_warning">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</string>
+    <string name="document_detail_delete_button_deleting">ΔΙΑΓΡΑΦΗ...</string>
+    <string name="document_detail_delete_button">ΔΙΑΓΡΑΦΗ</string>
+    <string name="document_detail_cancel_button">ΑΚΥΡΩΣΗ</string>
+    <string name="document_detail_edit">Επεξεργασία</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Λεπτομέρειες</string>
+    <string name="document_tab_content">Περιεχόμενο</string>
+    <string name="document_tab_metadata">Μεταδεδομένα</string>
+    <string name="document_tab_notes">Σημειώσεις</string>
+    <string name="document_tab_history">Ιστορικό</string>
+    <string name="document_tab_permissions">Δικαιώματα</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">ΕΠΕΞΕΡΓΑΣΙΑ ΕΓΓΡΑΦΟΥ</string>
+    <string name="document_edit_title_label">Τίτλος</string>
+    <string name="document_edit_tags_label">Ετικέτες</string>
+    <string name="document_edit_correspondent_label">Ανταποκριτής</string>
+    <string name="document_edit_no_correspondent">Χωρίς ανταποκριτή</string>
+    <string name="document_edit_document_type_label">Τύπος εγγράφου</string>
+    <string name="document_edit_no_document_type">Χωρίς τύπο εγγράφου</string>
+    <string name="document_edit_asn_label">ASN (Αριθμός αρχείου)</string>
+    <string name="document_edit_save">ΑΠΟΘΗΚΕΥΣΗ</string>
+    <string name="document_edit_cancel">ΑΚΥΡΩΣΗ</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ΕΤΙΚΕΤΕΣ</string>
+    <string name="labels_subtitle">Διαχείριση ετικετών</string>
+    <string name="labels_search_placeholder">Αναζήτηση ετικετών...</string>
+    <string name="labels_search_clear">Εκκαθάριση</string>
+    <string name="labels_edit">Επεξεργασία</string>
+    <string name="labels_delete">Διαγραφή</string>
+    <string name="labels_document_count">%1$d έγγραφα</string>
+    <string name="labels_delete_dialog_title">Διαγραφή ετικέτας</string>
+    <string name="labels_delete_dialog_message">Θέλετε σίγουρα να διαγράψετε την ετικέτα \"%1$s\";</string>
+    <string name="labels_delete_button">Διαγραφή</string>
+    <string name="labels_cancel_button">Ακύρωση</string>
+    <string name="labels_add_new">Νέα ετικέτα</string>
+    <string name="labels_create_title">Νέα ετικέτα</string>
+    <string name="labels_edit_title">Επεξεργασία ετικέτας</string>
+    <string name="labels_name_label">Όνομα</string>
+    <string name="labels_name_placeholder">Εισαγωγή ονόματος ετικέτας...</string>
+    <string name="labels_color_label">Χρώμα</string>
+    <string name="labels_preview_label">Προεπισκόπηση</string>
+    <string name="labels_preview_default">Όνομα ετικέτας</string>
+    <string name="labels_save_button">Αποθήκευση</string>
+    <string name="labels_create_button">Δημιουργία</string>
+    <string name="labels_detail_back">Πίσω</string>
+    <string name="labels_detail_no_documents">Δεν υπάρχουν έγγραφα με αυτή την ετικέτα</string>
+    <string name="labels_detail_page_count_singular">Σελίδα</string>
+    <string name="labels_detail_page_count_plural">Σελίδες</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Ο φορητός συνοδός για την\nεγκατάσταση Paperless-ngx</string>
+    <string name="welcome_feature_1">Έξυπνη σάρωση με ανίχνευση άκρων</string>
+    <string name="welcome_feature_2">Δημιουργία εγγράφων πολλών σελίδων</string>
+    <string name="welcome_feature_3">Άμεση μεταφόρτωση στο Paperless-ngx</string>
+    <string name="welcome_button">Ας ξεκινήσουμε</string>
+    <string name="welcome_footer">Χρειάζεστε δική σας εγκατάσταση Paperless-ngx</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Πίσω</string>
+    <string name="server_setup_title">Σύνδεση διακομιστή</string>
+    <string name="server_setup_subtitle">Εισαγάγετε το URL της εγκατάστασης Paperless-ngx</string>
+    <string name="server_setup_url_label">URL διακομιστή</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">Αυτόματη ανίχνευση HTTP/HTTPS</string>
+    <string name="server_setup_status_checking">Έλεγχος διακομιστή...</string>
+    <string name="server_setup_status_https">Ασφαλής σύνδεση (HTTPS)</string>
+    <string name="server_setup_status_http">Σύνδεση εγκαθιδρύθηκε (HTTP)</string>
+    <string name="server_setup_hint_title">Συνιστάται ασφαλής σύνδεση</string>
+    <string name="server_setup_hint_text">Χρησιμοποιήστε HTTPS για κρυπτογραφημένη σύνδεση με τον διακομιστή.</string>
+    <string name="server_setup_button">Συνέχεια</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Όλα έτοιμα!</string>
+    <string name="success_subtitle">Είστε συνδεδεμένοι και μπορείτε τώρα\nνα σαρώνετε και να μεταφορτώνετε έγγραφα.</string>
+    <string name="success_stat_scanned">Σαρώθηκαν σήμερα</string>
+    <string name="success_stat_connected">Συνδεδεμένο</string>
+    <string name="success_tips_header">ΓΡΗΓΟΡΕΣ ΣΥΜΒΟΥΛΕΣ</string>
+    <string name="success_tip_1">Κρατήστε το έγγραφο επίπεδο και καλά φωτισμένο</string>
+    <string name="success_tip_2">Η εφαρμογή αναγνωρίζει αυτόματα τις άκρες</string>
+    <string name="success_tip_3">Μπορείτε να επιλέξετε ετικέτες πριν τη μεταφόρτωση</string>
+    <string name="success_button">Εκκίνηση εφαρμογής</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">ΕΓΓΡΑΦΑ</string>
+    <string name="documents_count">%1$d έγγραφα</string>
+    <string name="documents_search_placeholder">Αναζήτηση εγγράφων...</string>
+    <string name="documents_search_clear">Εκκαθάριση</string>
+    <string name="documents_filter_all">Όλα</string>
+    <string name="documents_empty_no_results">Κανένα αποτέλεσμα</string>
+    <string name="documents_empty_no_documents">Κανένα έγγραφο</string>
+    <string name="documents_empty_hint_search">Δοκιμάστε διαφορετικό όρο αναζήτησης</string>
+    <string name="documents_empty_hint_scan">Σαρώστε έγγραφα για να τα δείτε εδώ</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Η σελίδα %1$d αφαιρέθηκε</string>
+    <string name="scan_undo">Αναίρεση</string>
+    <string name="scan_scanner_error">Αδυναμία εκκίνησης σαρωτή: %1$s</string>
+    <string name="scan_new_document_title">ΝΕΟ ΕΓΓΡΑΦΟ</string>
+    <string name="scan_choose_option">Επιλέξτε μια επιλογή</string>
+    <string name="scan_option_scan">Σάρωση</string>
+    <string name="scan_option_gallery">Συλλογή</string>
+    <string name="scan_option_files">Αρχεία</string>
+    <string name="scan_page_count">%1$d / %2$d σελίδες</string>
+    <string name="scan_hold_to_sort">Κρατήστε πατημένο για ταξινόμηση</string>
+    <string name="scan_limit_reached">Επιτεύχθηκε το όριο</string>
+    <string name="scan_almost_full">Σχεδόν γεμάτο</string>
+    <string name="scan_upload_single">Μεταφόρτωση</string>
+    <string name="scan_upload_pdf">Μεταφόρτωση ως PDF</string>
+    <string name="scan_more_pages">Περισσότερες σελίδες</string>
+    <string name="scan_maximum">Μέγιστο</string>
+    <string name="scan_discard">Απόρριψη</string>
+    <string name="scan_page_description">Σελίδα %1$d</string>
+    <string name="scan_rotate">Περιστροφή</string>
+    <string name="scan_remove">Αφαίρεση</string>
+    <string name="scan_hold_to_sort_hint">Κρατήστε πατημένο για ταξινόμηση</string>
+    <string name="scan_add_page">Προσθήκη σελίδας</string>
+    <string name="scan_close">Κλείσιμο</string>
+    <string name="scan_delete">Διαγραφή</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">ΚΑΛΩΣ ΗΡΘΑΤΕ ΠΑΛΙ</string>
+    <string name="home_your_archive">ΤΟ ΑΡΧΕΙΟ ΣΑΣ</string>
+    <string name="home_stat_documents">Έγγραφα</string>
+    <string name="home_stat_this_month">Αυτόν τον μήνα</string>
+    <string name="home_stat_pending">Σε αναμονή</string>
+    <string name="home_new_scan">Νέα σάρωση</string>
+    <string name="home_all_documents">Όλα τα έγγραφα</string>
+    <string name="home_processing">Επεξεργασία</string>
+    <string name="home_refresh">Ανανέωση</string>
+    <string name="home_recently_added">Πρόσφατα προστέθηκαν</string>
+    <string name="home_see_all">Όλα</string>
+    <string name="home_no_documents">Δεν υπάρχουν έγγραφα ακόμα</string>
+    <string name="home_scan_first">Σαρώστε το πρώτο σας έγγραφο!</string>
+    <string name="home_untagged_documents">%1$d έγγραφα χωρίς ετικέτες</string>
+    <string name="home_assign_tags_hint">Προσθέστε ετικέτες για καλύτερη οργάνωση</string>
+    <string name="home_task_waiting">Αναμονή...</string>
+    <string name="home_task_processing">Επεξεργασία...</string>
+    <string name="home_task_success">Επιτυχία</string>
+    <string name="home_task_failure">Αποτυχία</string>
+    <string name="home_dismiss">Απόκρυψη</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Πίσω</string>
+    <string name="pending_sync_title">ΕΚΚΡΕΜΕΙΣ ΣΥΓΧΡΟΝΙΣΜΟΙ</string>
+    <string name="pending_sync_upload_queue">Ουρά μεταφόρτωσης</string>
+    <string name="pending_sync_no_uploads">Καμία εκκρεμής μεταφόρτωση</string>
+    <string name="pending_sync_pending_changes">Εκκρεμείς αλλαγές</string>
+    <string name="pending_sync_no_changes">Καμία εκκρεμής αλλαγή</string>
+    <string name="pending_sync_unnamed_document">Ανώνυμο έγγραφο</string>
+    <string name="pending_sync_type">Τύπος</string>
+    <string name="pending_sync_multi_page">Πολλές σελίδες</string>
+    <string name="pending_sync_single">Μονή</string>
+    <string name="pending_sync_retry_count">Αριθμός προσπαθειών</string>
+    <string name="pending_sync_created">Δημιουργήθηκε</string>
+    <string name="pending_sync_retry">Δοκιμή ξανά</string>
+    <string name="pending_sync_delete">Διαγραφή</string>
+    <string name="pending_sync_id_new">ID: ΝΕΟ</string>
+    <string name="pending_sync_sync_attempts">Προσπάθειες συγχρονισμού</string>
+    <string name="pending_sync_status_pending">Σε αναμονή</string>
+    <string name="pending_sync_status_uploading">Μεταφόρτωση</string>
+    <string name="pending_sync_status_completed">Ολοκληρώθηκε</string>
+    <string name="pending_sync_status_failed">Απέτυχε</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">ΡΥΘΜΙΣΕΙΣ</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Μη συνδεδεμένο</string>
+    <string name="settings_section_server">Διακομιστής</string>
+    <string name="settings_server_url">URL διακομιστή</string>
+    <string name="settings_not_configured">Δεν έχει ρυθμιστεί</string>
+    <string name="settings_section_upload">Μεταφόρτωση</string>
+    <string name="settings_upload_notifications">Ειδοποιήσεις μεταφόρτωσης</string>
+    <string name="settings_upload_notifications_subtitle">Εμφάνιση ειδοποίησης κατά τη μεταφόρτωση</string>
+    <string name="settings_upload_quality">Ποιότητα μεταφόρτωσης</string>
+    <string name="settings_section_about">Σχετικά</string>
+    <string name="settings_app_version">Έκδοση εφαρμογής</string>
+    <string name="settings_licenses">Άδειες</string>
+    <string name="settings_open_source_licenses">Άδειες ανοικτού κώδικα</string>
+    <string name="settings_logout">Αποσύνδεση</string>
+    <string name="settings_logout_confirm_message">Θέλετε σίγουρα να αποσυνδεθείτε; Θα πρέπει να συνδεθείτε ξανά μετά.</string>
+    <string name="settings_selected">Επιλεγμένο</string>
+    <string name="settings_close">Κλείσιμο</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Δημιουργία νέας ετικέτας</string>
+    <string name="create_tag_name_label">Όνομα ετικέτας</string>
+    <string name="create_tag_color_label">Χρώμα (προαιρετικό)</string>
+    <string name="create_tag_create">Δημιουργία</string>
+    <string name="create_tag_cancel">Ακύρωση</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Πίσω</string>
+    <string name="pdf_viewer_page_info">Σελίδα %1$d από %2$d</string>
+    <string name="pdf_viewer_share">Κοινοποίηση</string>
+    <string name="pdf_viewer_open_external">Άνοιγμα σε άλλη εφαρμογή</string>
+    <string name="pdf_viewer_downloading">Λήψη...</string>
+    <string name="pdf_viewer_swipe_hint">Σύρετε για αλλαγή σελίδας</string>
+    <string name="pdf_viewer_pdf_page">Σελίδα PDF %1$d</string>
+    <string name="pdf_viewer_document_image">Εικόνα εγγράφου</string>
+    <string name="pdf_viewer_retry">Δοκιμή ξανά</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Η μεταφόρτωση απέτυχε</string>
+    <string name="error_queue_add">Σφάλμα κατά την προσθήκη στην ουρά</string>
+    <string name="error_create_tag">Αδυναμία δημιουργίας ετικέτας</string>
+    <string name="pdf_viewer_default_title">Έγγραφο</string>
+
+    <!-- General -->
+    <string name="loading">Φόρτωση...</string>
+    <string name="retry">Δοκιμή ξανά</string>
+    <string name="cancel">Ακύρωση</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Γρήγορη πρόσβαση σε σάρωση εγγράφων</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Αυτόματο</string>
+    <string name="upload_quality_low">Χαμηλή (ταχύτερη μεταφόρτωση)</string>
+    <string name="upload_quality_medium">Μεσαία</string>
+    <string name="upload_quality_high">Υψηλή (καλύτερη ποιότητα)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Μόλις τώρα</string>
+    <string name="time_minutes_ago">πριν %1$d λεπτά</string>
+    <string name="time_hours_ago">πριν %1$d ώρες</string>
+    <string name="time_days_ago">πριν %1$d ημέρες</string>
+    <string name="time_unknown">Άγνωστο</string>
+    <string name="document_unknown">Άγνωστο έγγραφο</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Δεν υπάρχει διαθέσιμο κείμενο</string>
+    <string name="tab_metadata">Μεταδεδομένα</string>
+    <string name="tab_metadata_created">Δημιουργήθηκε</string>
+    <string name="tab_metadata_added">Προστέθηκε</string>
+    <string name="tab_metadata_modified">Τροποποιήθηκε</string>
+    <string name="tab_metadata_document_id">ID εγγράφου</string>
+    <string name="tab_metadata_original_filename">Αρχικό όνομα αρχείου</string>
+    <string name="tab_metadata_archive_serial">Αριθμός αρχείου (ASN)</string>
+    <string name="tab_notes_placeholder">Προσθήκη νέας σημείωσης...</string>
+    <string name="tab_notes_add">Προσθήκη</string>
+    <string name="tab_notes_empty">Δεν υπάρχουν σημειώσεις</string>
+    <string name="tab_notes_delete">Διαγραφή σημείωσης</string>
+    <string name="tab_history">Ιστορικό</string>
+    <string name="tab_history_empty">Δεν υπάρχουν αλλαγές</string>
+    <string name="tab_history_system">Σύστημα</string>
+    <string name="tab_history_action_create">Δημιουργήθηκε</string>
+    <string name="tab_history_action_update">Ενημερώθηκε</string>
+    <string name="tab_history_action_delete">Διαγράφηκε</string>
+    <string name="tab_permissions_owner">Ιδιοκτήτης</string>
+    <string name="tab_permissions_no_owner">Χωρίς ιδιοκτήτη</string>
+    <string name="tab_permissions_user_id">Χρήστης #%1$d</string>
+    <string name="tab_permissions_view">Δικαιώματα προβολής</string>
+    <string name="tab_permissions_change">Δικαιώματα αλλαγής</string>
+    <string name="tab_permissions_none">Χωρίς συγκεκριμένα δικαιώματα</string>
+    <string name="tab_permissions_users">Χρήστες: %1$s</string>
+    <string name="tab_permissions_groups">Ομάδες: %1$s</string>
+    <string name="tab_permissions_unavailable">Μη διαθέσιμες πληροφορίες δικαιωμάτων</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Σφάλμα κατά τη φόρτωση</string>
+    <string name="error_creating">Σφάλμα κατά τη δημιουργία</string>
+    <string name="error_updating">Σφάλμα κατά την ενημέρωση</string>
+    <string name="error_deleting">Σφάλμα κατά τη διαγραφή</string>
+    <string name="error_downloading">Σφάλμα κατά τη λήψη</string>
+    <string name="error_no_app_found">Δεν βρέθηκε εφαρμογή για άνοιγμα</string>
+    <string name="error_note_empty">Η σημείωση δεν μπορεί να είναι κενή</string>
+    <string name="error_add_note">Σφάλμα κατά την προσθήκη σημείωσης</string>
+    <string name="error_delete_note">Σφάλμα κατά τη διαγραφή σημείωσης</string>
+    <string name="error_login_fields">Συμπληρώστε όλα τα πεδία</string>
+    <string name="error_login_failed">Η σύνδεση απέτυχε</string>
+    <string name="error_token_invalid">Μη έγκυρο token</string>
+    <string name="error_server_unreachable">Ο διακομιστής δεν είναι προσβάσιμος</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Σάρωση κλειδιού</string>
+    <string name="token_scanner_capturing">Λήψη φωτογραφίας υψηλής ανάλυσης...</string>
+    <string name="token_scanner_found">Βρέθηκε κλειδί!</string>
+    <string name="token_scanner_not_found">Δεν αναγνωρίστηκε έγκυρο κλειδί</string>
+    <string name="token_scanner_position_hint">Τοποθετήστε το κλειδί στο πλαίσιο</string>
+    <string name="token_scanner_recognition_error">Σφάλμα αναγνώρισης</string>
+    <string name="token_scanner_capture_failed">Η λήψη απέτυχε</string>
+    <string name="token_scanner_camera_required">Απαιτείται πρόσβαση στην κάμερα</string>
+    <string name="token_scanner_camera_explanation">Για τη σάρωση του κλειδιού, η εφαρμογή χρειάζεται πρόσβαση στην κάμερά σας</string>
+    <string name="token_scanner_camera_allow">Επιτρέψτε πρόσβαση στην κάμερα</string>
+    <string name="token_scanner_hold_still">Αναγνωρίστηκε κλειδί, κρατήστε σταθερά...</string>
+    <string name="token_scanner_text_recognizing">Αναγνώριση κειμένου...</string>
+    <string name="token_scanner_take_photo">Λήψη φωτογραφίας</string>
+    <string name="token_scanner_auto_active">Αυτόματη αναγνώριση ενεργή • Πατήστε χειροκίνητα ως εναλλακτική</string>
+    <string name="token_scanner_hold_camera">Κρατήστε την κάμερα σταθερή - Αυτόματη αναγνώριση σε εξέλιξη</string>
+    <string name="token_scanner_close">Κλείσιμο</string>
+
+    <!-- Share -->
+    <string name="share_via">Κοινοποίηση μέσω</string>
+</resources>

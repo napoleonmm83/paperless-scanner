@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">Server URL</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Brugernavn</string>
+    <string name="login_password">Adgangskode</string>
+    <string name="login_button">Log ind</string>
+    <string name="login_error">Login mislykkedes: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Tilbage</string>
+    <string name="onboarding_login_title">Log ind</string>
+    <string name="onboarding_login_subtitle">Log ind med din Paperless-ngx konto</string>
+    <string name="onboarding_filter_password">Adgangskode</string>
+    <string name="onboarding_filter_key">Nøgle</string>
+    <string name="onboarding_username">Brugernavn</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Adgangskode</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Adgangsnøgle</string>
+    <string name="onboarding_access_key_placeholder">Indsæt her...</string>
+    <string name="onboarding_token_help">Find den i Paperless under: Indstillinger → Min profil</string>
+    <string name="onboarding_scan_token">Scan token med kamera</string>
+    <string name="onboarding_login_button">Log ind</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Scan dokument</string>
+    <string name="scan_button">Åbn kamera</string>
+    <string name="scan_from_gallery">Fra galleri</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Upload dokument</string>
+    <string name="upload_document_title">Titel (valgfri)</string>
+    <string name="upload_select_tags">Vælg tags</string>
+    <string name="upload_button">Upload</string>
+    <string name="upload_success">Dokument uploadet</string>
+    <string name="upload_error">Upload mislykkedes: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Tilbage</string>
+    <string name="upload_queued">Upload synkroniseres når forbindelse er tilgængelig</string>
+    <string name="upload_tag_created">Tag \"%1$s\" oprettet</string>
+    <string name="upload_document_preview">Dokumentforhåndsvisning</string>
+    <string name="upload_title_label">Titel (valgfri)</string>
+    <string name="upload_title_placeholder">f.eks. Faktura december 2024</string>
+    <string name="upload_failed_title">Upload mislykkedes</string>
+    <string name="upload_retry_button">Prøv igen</string>
+    <string name="upload_progress">Uploader: %1$d%%</string>
+    <string name="upload_uploading">Uploader...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Batch-import</string>
+    <string name="batch_import_back">Tilbage</string>
+    <string name="batch_import_success_single">Dokument tilføjet til køen!</string>
+    <string name="batch_import_success_multiple">%1$d dokumenter tilføjet til køen!</string>
+    <string name="batch_import_images_selected">%1$d billeder valgt</string>
+    <string name="batch_import_mode_single">Som ét dokument</string>
+    <string name="batch_import_mode_individual">Som separate dokumenter</string>
+    <string name="batch_import_button_individual">Separat</string>
+    <string name="batch_import_button_single">Som ét dokument</string>
+    <string name="batch_import_preview">Forhåndsvisning</string>
+    <string name="batch_import_image_description">Billede %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Dokumenttype (for alle)</string>
+    <string name="batch_import_correspondent">Korrespondent (for alle)</string>
+    <string name="batch_import_tags">Tags (for alle)</string>
+    <string name="batch_import_not_selected">Ikke valgt</string>
+    <string name="batch_import_adding_progress">Tilføjer: %1$d / %2$d</string>
+    <string name="batch_import_adding">Tilføjer...</string>
+    <string name="batch_import_button">Importér %1$d billeder</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Upload PDF</string>
+    <string name="multipage_upload_back">Tilbage</string>
+    <string name="multipage_upload_success">PDF med %1$d sider uploadet!</string>
+    <string name="multipage_upload_queued">Upload synkroniseres når forbindelse er tilgængelig</string>
+    <string name="multipage_upload_tag_created">Tag \"%1$s\" oprettet</string>
+    <string name="multipage_upload_info">%1$d sider samles til PDF</string>
+    <string name="multipage_upload_preview">Sideforhåndsvisning</string>
+    <string name="multipage_upload_page_description">Side %1$d</string>
+    <string name="multipage_upload_title_label">Titel (valgfri)</string>
+    <string name="multipage_upload_title_placeholder">f.eks. Kontrakt januar 2025</string>
+    <string name="multipage_upload_failed_title">Upload mislykkedes</string>
+    <string name="multipage_upload_retry_button">Prøv igen</string>
+    <string name="multipage_upload_progress">Uploader: %1$d%%</string>
+    <string name="multipage_upload_uploading">Uploader PDF...</string>
+    <string name="multipage_upload_button">Upload som PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Tilbage</string>
+    <string name="document_detail_title">DOKUMENT</string>
+    <string name="document_detail_open_browser">Åbn i browser</string>
+    <string name="document_detail_delete">Slet</string>
+    <string name="document_detail_error">Fejl</string>
+    <string name="document_detail_retry">Prøv igen</string>
+    <string name="document_detail_preview">Dokumentforhåndsvisning</string>
+    <string name="document_detail_correspondent">Korrespondent</string>
+    <string name="document_detail_type">Dokumenttype</string>
+    <string name="document_detail_created">Oprettet</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Filnavn</string>
+    <string name="document_detail_content">Indhold</string>
+    <string name="document_detail_view_pdf">Vis PDF</string>
+    <string name="document_detail_delete_dialog_title">SLET DOKUMENT?</string>
+    <string name="document_detail_delete_dialog_message">Vil du virkelig slette dette dokument?</string>
+    <string name="document_detail_delete_dialog_warning">Denne handling kan ikke fortrydes.</string>
+    <string name="document_detail_delete_button_deleting">SLETTER...</string>
+    <string name="document_detail_delete_button">SLET</string>
+    <string name="document_detail_cancel_button">ANNULLÉR</string>
+    <string name="document_detail_edit">Rediger</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Detaljer</string>
+    <string name="document_tab_content">Indhold</string>
+    <string name="document_tab_metadata">Metadata</string>
+    <string name="document_tab_notes">Noter</string>
+    <string name="document_tab_history">Historik</string>
+    <string name="document_tab_permissions">Tilladelser</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">REDIGER DOKUMENT</string>
+    <string name="document_edit_title_label">Titel</string>
+    <string name="document_edit_tags_label">Tags</string>
+    <string name="document_edit_correspondent_label">Korrespondent</string>
+    <string name="document_edit_no_correspondent">Ingen korrespondent</string>
+    <string name="document_edit_document_type_label">Dokumenttype</string>
+    <string name="document_edit_no_document_type">Ingen dokumenttype</string>
+    <string name="document_edit_asn_label">ASN (Arkivnummer)</string>
+    <string name="document_edit_save">GEM</string>
+    <string name="document_edit_cancel">ANNULLÉR</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">LABELS</string>
+    <string name="labels_subtitle">Administrer dine labels</string>
+    <string name="labels_search_placeholder">Søg i labels...</string>
+    <string name="labels_search_clear">Ryd</string>
+    <string name="labels_edit">Rediger</string>
+    <string name="labels_delete">Slet</string>
+    <string name="labels_document_count">%1$d dokumenter</string>
+    <string name="labels_delete_dialog_title">Slet label</string>
+    <string name="labels_delete_dialog_message">Vil du virkelig slette labelen \"%1$s\"?</string>
+    <string name="labels_delete_button">Slet</string>
+    <string name="labels_cancel_button">Annullér</string>
+    <string name="labels_add_new">Ny label</string>
+    <string name="labels_create_title">Ny label</string>
+    <string name="labels_edit_title">Rediger label</string>
+    <string name="labels_name_label">Navn</string>
+    <string name="labels_name_placeholder">Indtast labelnavn...</string>
+    <string name="labels_color_label">Farve</string>
+    <string name="labels_preview_label">Forhåndsvisning</string>
+    <string name="labels_preview_default">Labelnavn</string>
+    <string name="labels_save_button">Gem</string>
+    <string name="labels_create_button">Opret</string>
+    <string name="labels_detail_back">Tilbage</string>
+    <string name="labels_detail_no_documents">Ingen dokumenter med denne label</string>
+    <string name="labels_detail_page_count_singular">Side</string>
+    <string name="labels_detail_page_count_plural">Sider</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Den mobile ledsager til din\nPaperless-ngx installation</string>
+    <string name="welcome_feature_1">Intelligent scanning med kantgenkendelse</string>
+    <string name="welcome_feature_2">Opret dokumenter med flere sider</string>
+    <string name="welcome_feature_3">Upload direkte til Paperless-ngx</string>
+    <string name="welcome_button">Kom i gang</string>
+    <string name="welcome_footer">Du har brug for din egen Paperless-ngx installation</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Tilbage</string>
+    <string name="server_setup_title">Opret forbindelse til server</string>
+    <string name="server_setup_subtitle">Indtast URL\'en til din Paperless-ngx installation</string>
+    <string name="server_setup_url_label">Server-URL</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS registreres automatisk</string>
+    <string name="server_setup_status_checking">Tjekker server...</string>
+    <string name="server_setup_status_https">Sikker forbindelse (HTTPS)</string>
+    <string name="server_setup_status_http">Forbindelse oprettet (HTTP)</string>
+    <string name="server_setup_hint_title">Sikker forbindelse anbefales</string>
+    <string name="server_setup_hint_text">Brug HTTPS for en krypteret forbindelse til din server.</string>
+    <string name="server_setup_button">Fortsæt</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Alt er klar!</string>
+    <string name="success_subtitle">Du er forbundet og kan nu\nscanne og uploade dokumenter.</string>
+    <string name="success_stat_scanned">Scannet i dag</string>
+    <string name="success_stat_connected">Forbundet</string>
+    <string name="success_tips_header">HURTIGE TIPS</string>
+    <string name="success_tip_1">Hold dokumentet fladt og godt belyst</string>
+    <string name="success_tip_2">Appen genkender kanterne automatisk</string>
+    <string name="success_tip_3">Du kan vælge tags før upload</string>
+    <string name="success_button">Start appen</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOKUMENTER</string>
+    <string name="documents_count">%1$d dokumenter</string>
+    <string name="documents_search_placeholder">Søg i dokumenter...</string>
+    <string name="documents_search_clear">Ryd</string>
+    <string name="documents_filter_all">Alle</string>
+    <string name="documents_empty_no_results">Ingen resultater</string>
+    <string name="documents_empty_no_documents">Ingen dokumenter</string>
+    <string name="documents_empty_hint_search">Prøv en anden søgeterm</string>
+    <string name="documents_empty_hint_scan">Scan dokumenter for at se dem her</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Side %1$d fjernet</string>
+    <string name="scan_undo">Fortryd</string>
+    <string name="scan_scanner_error">Kunne ikke starte scanner: %1$s</string>
+    <string name="scan_new_document_title">NYT DOKUMENT</string>
+    <string name="scan_choose_option">Vælg en mulighed</string>
+    <string name="scan_option_scan">Scan</string>
+    <string name="scan_option_gallery">Galleri</string>
+    <string name="scan_option_files">Filer</string>
+    <string name="scan_page_count">%1$d / %2$d sider</string>
+    <string name="scan_hold_to_sort">Hold nede for at sortere</string>
+    <string name="scan_limit_reached">Maksimum nået</string>
+    <string name="scan_almost_full">Næsten fuld</string>
+    <string name="scan_upload_single">Upload</string>
+    <string name="scan_upload_pdf">Upload som PDF</string>
+    <string name="scan_more_pages">Flere sider</string>
+    <string name="scan_maximum">Maksimum</string>
+    <string name="scan_discard">Kassér</string>
+    <string name="scan_page_description">Side %1$d</string>
+    <string name="scan_rotate">Roter</string>
+    <string name="scan_remove">Fjern</string>
+    <string name="scan_hold_to_sort_hint">Hold nede for at sortere</string>
+    <string name="scan_add_page">Tilføj side</string>
+    <string name="scan_close">Luk</string>
+    <string name="scan_delete">Slet</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">VELKOMMEN TILBAGE</string>
+    <string name="home_your_archive">DIT ARKIV</string>
+    <string name="home_stat_documents">Dokumenter</string>
+    <string name="home_stat_this_month">Denne måned</string>
+    <string name="home_stat_pending">Afventer</string>
+    <string name="home_new_scan">Ny scanning</string>
+    <string name="home_all_documents">Alle dokumenter</string>
+    <string name="home_processing">Behandler</string>
+    <string name="home_refresh">Opdater</string>
+    <string name="home_recently_added">Nyligt tilføjet</string>
+    <string name="home_see_all">Alle</string>
+    <string name="home_no_documents">Ingen dokumenter endnu</string>
+    <string name="home_scan_first">Scan dit første dokument!</string>
+    <string name="home_untagged_documents">%1$d dokumenter uden tags</string>
+    <string name="home_assign_tags_hint">Tildel tags for bedre organisering</string>
+    <string name="home_task_waiting">Venter...</string>
+    <string name="home_task_processing">Behandler...</string>
+    <string name="home_task_success">Gennemført</string>
+    <string name="home_task_failure">Mislykkedes</string>
+    <string name="home_dismiss">Skjul</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Tilbage</string>
+    <string name="pending_sync_title">AFVENTENDE SYNKRONISERINGER</string>
+    <string name="pending_sync_upload_queue">Upload-kø</string>
+    <string name="pending_sync_no_uploads">Ingen afventende uploads</string>
+    <string name="pending_sync_pending_changes">Afventende ændringer</string>
+    <string name="pending_sync_no_changes">Ingen afventende ændringer</string>
+    <string name="pending_sync_unnamed_document">Unavngivet dokument</string>
+    <string name="pending_sync_type">Type</string>
+    <string name="pending_sync_multi_page">Flere sider</string>
+    <string name="pending_sync_single">Enkelt</string>
+    <string name="pending_sync_retry_count">Antal forsøg</string>
+    <string name="pending_sync_created">Oprettet</string>
+    <string name="pending_sync_retry">Prøv igen</string>
+    <string name="pending_sync_delete">Slet</string>
+    <string name="pending_sync_id_new">ID: NY</string>
+    <string name="pending_sync_sync_attempts">Synkroniseringsforsøg</string>
+    <string name="pending_sync_status_pending">Afventer</string>
+    <string name="pending_sync_status_uploading">Uploader</string>
+    <string name="pending_sync_status_completed">Fuldført</string>
+    <string name="pending_sync_status_failed">Mislykkedes</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">INDSTILLINGER</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Ikke forbundet</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_server_url">Server-URL</string>
+    <string name="settings_not_configured">Ikke konfigureret</string>
+    <string name="settings_section_upload">Upload</string>
+    <string name="settings_upload_notifications">Upload-notifikationer</string>
+    <string name="settings_upload_notifications_subtitle">Vis notifikation under upload</string>
+    <string name="settings_upload_quality">Upload-kvalitet</string>
+    <string name="settings_section_about">Om</string>
+    <string name="settings_app_version">App-version</string>
+    <string name="settings_licenses">Licenser</string>
+    <string name="settings_open_source_licenses">Open source-licenser</string>
+    <string name="settings_logout">Log ud</string>
+    <string name="settings_logout_confirm_message">Vil du virkelig logge ud? Du skal logge ind igen bagefter.</string>
+    <string name="settings_selected">Valgt</string>
+    <string name="settings_close">Luk</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Opret nyt tag</string>
+    <string name="create_tag_name_label">Tagnavn</string>
+    <string name="create_tag_color_label">Farve (valgfri)</string>
+    <string name="create_tag_create">Opret</string>
+    <string name="create_tag_cancel">Annullér</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Tilbage</string>
+    <string name="pdf_viewer_page_info">Side %1$d af %2$d</string>
+    <string name="pdf_viewer_share">Del</string>
+    <string name="pdf_viewer_open_external">Åbn i anden app</string>
+    <string name="pdf_viewer_downloading">Downloader...</string>
+    <string name="pdf_viewer_swipe_hint">Swipe for at bladre</string>
+    <string name="pdf_viewer_pdf_page">PDF-side %1$d</string>
+    <string name="pdf_viewer_document_image">Dokumentbillede</string>
+    <string name="pdf_viewer_retry">Prøv igen</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Upload mislykkedes</string>
+    <string name="error_queue_add">Fejl ved tilføjelse til køen</string>
+    <string name="error_create_tag">Tag kunne ikke oprettes</string>
+    <string name="pdf_viewer_default_title">Dokument</string>
+
+    <!-- General -->
+    <string name="loading">Indlæser...</string>
+    <string name="retry">Prøv igen</string>
+    <string name="cancel">Annullér</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Hurtig adgang til scanning af dokumenter</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automatisk</string>
+    <string name="upload_quality_low">Lav (hurtigere upload)</string>
+    <string name="upload_quality_medium">Medium</string>
+    <string name="upload_quality_high">Høj (bedste kvalitet)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Lige nu</string>
+    <string name="time_minutes_ago">%1$d min siden</string>
+    <string name="time_hours_ago">%1$d timer siden</string>
+    <string name="time_days_ago">%1$d dage siden</string>
+    <string name="time_unknown">Ukendt</string>
+    <string name="document_unknown">Ukendt dokument</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Intet tekstindhold tilgængeligt</string>
+    <string name="tab_metadata">Metadata</string>
+    <string name="tab_metadata_created">Oprettet</string>
+    <string name="tab_metadata_added">Tilføjet</string>
+    <string name="tab_metadata_modified">Ændret</string>
+    <string name="tab_metadata_document_id">Dokument-ID</string>
+    <string name="tab_metadata_original_filename">Originalt filnavn</string>
+    <string name="tab_metadata_archive_serial">Arkivnummer (ASN)</string>
+    <string name="tab_notes_placeholder">Tilføj ny note...</string>
+    <string name="tab_notes_add">Tilføj</string>
+    <string name="tab_notes_empty">Ingen noter</string>
+    <string name="tab_notes_delete">Slet note</string>
+    <string name="tab_history">Historik</string>
+    <string name="tab_history_empty">Ingen ændringer</string>
+    <string name="tab_history_system">System</string>
+    <string name="tab_history_action_create">Oprettet</string>
+    <string name="tab_history_action_update">Opdateret</string>
+    <string name="tab_history_action_delete">Slettet</string>
+    <string name="tab_permissions_owner">Ejer</string>
+    <string name="tab_permissions_no_owner">Ingen ejer</string>
+    <string name="tab_permissions_user_id">Bruger #%1$d</string>
+    <string name="tab_permissions_view">Visningstilladelser</string>
+    <string name="tab_permissions_change">Ændringstilladelser</string>
+    <string name="tab_permissions_none">Ingen specifikke tilladelser</string>
+    <string name="tab_permissions_users">Brugere: %1$s</string>
+    <string name="tab_permissions_groups">Grupper: %1$s</string>
+    <string name="tab_permissions_unavailable">Ingen tilladelsesoplysninger tilgængelige</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Fejl ved indlæsning</string>
+    <string name="error_creating">Fejl ved oprettelse</string>
+    <string name="error_updating">Fejl ved opdatering</string>
+    <string name="error_deleting">Fejl ved sletning</string>
+    <string name="error_downloading">Fejl ved download</string>
+    <string name="error_no_app_found">Ingen app fundet til at åbne</string>
+    <string name="error_note_empty">Note må ikke være tom</string>
+    <string name="error_add_note">Fejl ved tilføjelse af note</string>
+    <string name="error_delete_note">Fejl ved sletning af note</string>
+    <string name="error_login_fields">Udfyld venligst alle felter</string>
+    <string name="error_login_failed">Login mislykkedes</string>
+    <string name="error_token_invalid">Token ugyldig</string>
+    <string name="error_server_unreachable">Server ikke tilgængelig</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Scan nøgle</string>
+    <string name="token_scanner_capturing">Optager foto i høj opløsning...</string>
+    <string name="token_scanner_found">Nøgle fundet!</string>
+    <string name="token_scanner_not_found">Ingen gyldig nøgle genkendt</string>
+    <string name="token_scanner_position_hint">Placér nøglen i rammen</string>
+    <string name="token_scanner_recognition_error">Fejl ved genkendelse</string>
+    <string name="token_scanner_capture_failed">Optagelse mislykkedes</string>
+    <string name="token_scanner_camera_required">Kameraadgang påkrævet</string>
+    <string name="token_scanner_camera_explanation">For at scanne nøglen skal appen have adgang til dit kamera</string>
+    <string name="token_scanner_camera_allow">Tillad kameraadgang</string>
+    <string name="token_scanner_hold_still">Nøgle genkendt, hold stille...</string>
+    <string name="token_scanner_text_recognizing">Genkender tekst...</string>
+    <string name="token_scanner_take_photo">Tag foto</string>
+    <string name="token_scanner_auto_active">Automatisk genkendelse aktiv • Tryk manuelt som reserve</string>
+    <string name="token_scanner_hold_camera">Hold kameraet stille - Automatisk genkendelse kører</string>
+    <string name="token_scanner_close">Luk</string>
+
+    <!-- Share -->
+    <string name="share_via">Del via</string>
+</resources>

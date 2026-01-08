@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">URL du serveur</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Nom d\'utilisateur</string>
+    <string name="login_password">Mot de passe</string>
+    <string name="login_button">Connexion</string>
+    <string name="login_error">Échec de connexion : %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Retour</string>
+    <string name="onboarding_login_title">Connexion</string>
+    <string name="onboarding_login_subtitle">Connectez-vous avec votre compte Paperless-ngx</string>
+    <string name="onboarding_filter_password">Mot de passe</string>
+    <string name="onboarding_filter_key">Jeton</string>
+    <string name="onboarding_username">Nom d\'utilisateur</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Mot de passe</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Jeton d\'accès</string>
+    <string name="onboarding_access_key_placeholder">Coller ici...</string>
+    <string name="onboarding_token_help">Trouvez-le dans Paperless sous : Paramètres → Mon profil</string>
+    <string name="onboarding_scan_token">Scanner le jeton avec la caméra</string>
+    <string name="onboarding_login_button">Connexion</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Scanner un document</string>
+    <string name="scan_button">Ouvrir la caméra</string>
+    <string name="scan_from_gallery">Depuis la galerie</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Télécharger le document</string>
+    <string name="upload_document_title">Titre (optionnel)</string>
+    <string name="upload_select_tags">Sélectionner les tags</string>
+    <string name="upload_button">Télécharger</string>
+    <string name="upload_success">Document téléchargé avec succès</string>
+    <string name="upload_error">Échec du téléchargement : %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Retour</string>
+    <string name="upload_queued">Le téléchargement sera synchronisé lorsque la connexion sera disponible</string>
+    <string name="upload_tag_created">Tag « %1$s » créé</string>
+    <string name="upload_document_preview">Aperçu du document</string>
+    <string name="upload_title_label">Titre (optionnel)</string>
+    <string name="upload_title_placeholder">ex. Facture décembre 2024</string>
+    <string name="upload_failed_title">Échec du téléchargement</string>
+    <string name="upload_retry_button">Réessayer</string>
+    <string name="upload_progress">Téléchargement : %1$d%%</string>
+    <string name="upload_uploading">Téléchargement...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Import par lot</string>
+    <string name="batch_import_back">Retour</string>
+    <string name="batch_import_success_single">Document ajouté à la file d\'attente !</string>
+    <string name="batch_import_success_multiple">%1$d documents ajoutés à la file d\'attente !</string>
+    <string name="batch_import_images_selected">%1$d images sélectionnées</string>
+    <string name="batch_import_mode_single">En un seul document</string>
+    <string name="batch_import_mode_individual">En documents séparés</string>
+    <string name="batch_import_button_individual">Séparément</string>
+    <string name="batch_import_button_single">En un document</string>
+    <string name="batch_import_preview">Aperçu</string>
+    <string name="batch_import_image_description">Image %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Type de document (pour tous)</string>
+    <string name="batch_import_correspondent">Correspondant (pour tous)</string>
+    <string name="batch_import_tags">Tags (pour tous)</string>
+    <string name="batch_import_not_selected">Non sélectionné</string>
+    <string name="batch_import_adding_progress">Ajout : %1$d / %2$d</string>
+    <string name="batch_import_adding">Ajout en cours...</string>
+    <string name="batch_import_button">Importer %1$d images</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">Télécharger PDF</string>
+    <string name="multipage_upload_back">Retour</string>
+    <string name="multipage_upload_success">PDF de %1$d pages téléchargé avec succès !</string>
+    <string name="multipage_upload_queued">Le téléchargement sera synchronisé lorsque la connexion sera disponible</string>
+    <string name="multipage_upload_tag_created">Tag « %1$s » créé</string>
+    <string name="multipage_upload_info">%1$d pages seront fusionnées en PDF</string>
+    <string name="multipage_upload_preview">Aperçu des pages</string>
+    <string name="multipage_upload_page_description">Page %1$d</string>
+    <string name="multipage_upload_title_label">Titre (optionnel)</string>
+    <string name="multipage_upload_title_placeholder">ex. Contrat janvier 2025</string>
+    <string name="multipage_upload_failed_title">Échec du téléchargement</string>
+    <string name="multipage_upload_retry_button">Réessayer</string>
+    <string name="multipage_upload_progress">Téléchargement : %1$d%%</string>
+    <string name="multipage_upload_uploading">Téléchargement du PDF...</string>
+    <string name="multipage_upload_button">Télécharger en PDF</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Retour</string>
+    <string name="document_detail_title">DOCUMENT</string>
+    <string name="document_detail_open_browser">Ouvrir dans le navigateur</string>
+    <string name="document_detail_delete">Supprimer</string>
+    <string name="document_detail_error">Erreur</string>
+    <string name="document_detail_retry">Réessayer</string>
+    <string name="document_detail_preview">Aperçu du document</string>
+    <string name="document_detail_correspondent">Correspondant</string>
+    <string name="document_detail_type">Type de document</string>
+    <string name="document_detail_created">Créé</string>
+    <string name="document_detail_asn">NSA</string>
+    <string name="document_detail_filename">Nom de fichier</string>
+    <string name="document_detail_content">Contenu</string>
+    <string name="document_detail_view_pdf">Voir le PDF</string>
+    <string name="document_detail_delete_dialog_title">SUPPRIMER LE DOCUMENT ?</string>
+    <string name="document_detail_delete_dialog_message">Voulez-vous vraiment supprimer ce document ?</string>
+    <string name="document_detail_delete_dialog_warning">Cette action ne peut pas être annulée.</string>
+    <string name="document_detail_delete_button_deleting">SUPPRESSION...</string>
+    <string name="document_detail_delete_button">SUPPRIMER</string>
+    <string name="document_detail_cancel_button">ANNULER</string>
+    <string name="document_detail_edit">Modifier</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Détails</string>
+    <string name="document_tab_content">Contenu</string>
+    <string name="document_tab_metadata">Métadonnées</string>
+    <string name="document_tab_notes">Notes</string>
+    <string name="document_tab_history">Historique</string>
+    <string name="document_tab_permissions">Autorisations</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">MODIFIER LE DOCUMENT</string>
+    <string name="document_edit_title_label">Titre</string>
+    <string name="document_edit_tags_label">Tags</string>
+    <string name="document_edit_correspondent_label">Correspondant</string>
+    <string name="document_edit_no_correspondent">Aucun correspondant</string>
+    <string name="document_edit_document_type_label">Type de document</string>
+    <string name="document_edit_no_document_type">Aucun type de document</string>
+    <string name="document_edit_asn_label">NSA (Numéro de série d\'archive)</string>
+    <string name="document_edit_save">ENREGISTRER</string>
+    <string name="document_edit_cancel">ANNULER</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">ÉTIQUETTES</string>
+    <string name="labels_subtitle">Gérez vos étiquettes</string>
+    <string name="labels_search_placeholder">Rechercher des étiquettes...</string>
+    <string name="labels_search_clear">Effacer</string>
+    <string name="labels_edit">Modifier</string>
+    <string name="labels_delete">Supprimer</string>
+    <string name="labels_document_count">%1$d documents</string>
+    <string name="labels_delete_dialog_title">Supprimer l\'étiquette</string>
+    <string name="labels_delete_dialog_message">Voulez-vous vraiment supprimer l\'étiquette « %1$s » ?</string>
+    <string name="labels_delete_button">Supprimer</string>
+    <string name="labels_cancel_button">Annuler</string>
+    <string name="labels_add_new">Nouvelle étiquette</string>
+    <string name="labels_create_title">Nouvelle étiquette</string>
+    <string name="labels_edit_title">Modifier l\'étiquette</string>
+    <string name="labels_name_label">Nom</string>
+    <string name="labels_name_placeholder">Entrez le nom de l\'étiquette...</string>
+    <string name="labels_color_label">Couleur</string>
+    <string name="labels_preview_label">Aperçu</string>
+    <string name="labels_preview_default">Nom de l\'étiquette</string>
+    <string name="labels_save_button">Enregistrer</string>
+    <string name="labels_create_button">Créer</string>
+    <string name="labels_detail_back">Retour</string>
+    <string name="labels_detail_no_documents">Aucun document avec cette étiquette</string>
+    <string name="labels_detail_page_count_singular">page</string>
+    <string name="labels_detail_page_count_plural">pages</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">Le compagnon mobile pour votre\ninstallation Paperless-ngx</string>
+    <string name="welcome_feature_1">Numérisation intelligente avec détection des bords</string>
+    <string name="welcome_feature_2">Créer des documents multipages</string>
+    <string name="welcome_feature_3">Télécharger directement vers Paperless-ngx</string>
+    <string name="welcome_button">Commencer</string>
+    <string name="welcome_footer">Vous avez besoin de votre propre installation Paperless-ngx</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Retour</string>
+    <string name="server_setup_title">Connecter le serveur</string>
+    <string name="server_setup_subtitle">Entrez l\'URL de votre installation Paperless-ngx</string>
+    <string name="server_setup_url_label">URL du serveur</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS sera détecté automatiquement</string>
+    <string name="server_setup_status_checking">Vérification du serveur...</string>
+    <string name="server_setup_status_https">Connexion sécurisée (HTTPS)</string>
+    <string name="server_setup_status_http">Connexion établie (HTTP)</string>
+    <string name="server_setup_hint_title">Connexion sécurisée recommandée</string>
+    <string name="server_setup_hint_text">Utilisez HTTPS pour une connexion chiffrée à votre serveur.</string>
+    <string name="server_setup_button">Continuer</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Tout est prêt !</string>
+    <string name="success_subtitle">Vous êtes connecté et pouvez maintenant\nnumériser et télécharger des documents.</string>
+    <string name="success_stat_scanned">Numérisé aujourd\'hui</string>
+    <string name="success_stat_connected">Connecté</string>
+    <string name="success_tips_header">CONSEILS DE DÉMARRAGE RAPIDE</string>
+    <string name="success_tip_1">Gardez le document plat et bien éclairé</string>
+    <string name="success_tip_2">L\'application détecte les bords automatiquement</string>
+    <string name="success_tip_3">Vous pouvez sélectionner des tags avant de télécharger</string>
+    <string name="success_button">Démarrer l\'application</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOCUMENTS</string>
+    <string name="documents_count">%1$d documents</string>
+    <string name="documents_search_placeholder">Rechercher des documents...</string>
+    <string name="documents_search_clear">Effacer</string>
+    <string name="documents_filter_all">Tous</string>
+    <string name="documents_empty_no_results">Aucun résultat</string>
+    <string name="documents_empty_no_documents">Aucun document</string>
+    <string name="documents_empty_hint_search">Essayez un autre terme de recherche</string>
+    <string name="documents_empty_hint_scan">Numérisez des documents pour les voir ici</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">Page %1$d supprimée</string>
+    <string name="scan_undo">Annuler</string>
+    <string name="scan_scanner_error">Le scanner n\'a pas pu démarrer : %1$s</string>
+    <string name="scan_new_document_title">NOUVEAU DOCUMENT</string>
+    <string name="scan_choose_option">Choisissez une option</string>
+    <string name="scan_option_scan">Numériser</string>
+    <string name="scan_option_gallery">Galerie</string>
+    <string name="scan_option_files">Fichiers</string>
+    <string name="scan_page_count">%1$d / %2$d pages</string>
+    <string name="scan_hold_to_sort">Maintenez pour trier</string>
+    <string name="scan_limit_reached">Maximum atteint</string>
+    <string name="scan_almost_full">Presque plein</string>
+    <string name="scan_upload_single">Télécharger</string>
+    <string name="scan_upload_pdf">Télécharger en PDF</string>
+    <string name="scan_more_pages">Plus de pages</string>
+    <string name="scan_maximum">Maximum</string>
+    <string name="scan_discard">Abandonner</string>
+    <string name="scan_page_description">Page %1$d</string>
+    <string name="scan_rotate">Pivoter</string>
+    <string name="scan_remove">Supprimer</string>
+    <string name="scan_hold_to_sort_hint">Maintenez pour trier</string>
+    <string name="scan_add_page">Ajouter une page</string>
+    <string name="scan_close">Fermer</string>
+    <string name="scan_delete">Supprimer</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">BON RETOUR</string>
+    <string name="home_your_archive">VOTRE ARCHIVE</string>
+    <string name="home_stat_documents">Documents</string>
+    <string name="home_stat_this_month">Ce mois</string>
+    <string name="home_stat_pending">En attente</string>
+    <string name="home_new_scan">Nouvelle numérisation</string>
+    <string name="home_all_documents">Tous les documents</string>
+    <string name="home_processing">Traitement</string>
+    <string name="home_refresh">Actualiser</string>
+    <string name="home_recently_added">Ajoutés récemment</string>
+    <string name="home_see_all">Tous</string>
+    <string name="home_no_documents">Pas encore de documents</string>
+    <string name="home_scan_first">Numérisez votre premier document !</string>
+    <string name="home_untagged_documents">%1$d documents sans tags</string>
+    <string name="home_assign_tags_hint">Attribuez des tags pour une meilleure organisation</string>
+    <string name="home_task_waiting">En attente...</string>
+    <string name="home_task_processing">Traitement...</string>
+    <string name="home_task_success">Réussi</string>
+    <string name="home_task_failure">Échoué</string>
+    <string name="home_dismiss">Ignorer</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Retour</string>
+    <string name="pending_sync_title">SYNCHRONISATIONS EN ATTENTE</string>
+    <string name="pending_sync_upload_queue">File de téléchargement</string>
+    <string name="pending_sync_no_uploads">Aucun téléchargement en attente</string>
+    <string name="pending_sync_pending_changes">Modifications en attente</string>
+    <string name="pending_sync_no_changes">Aucune modification en attente</string>
+    <string name="pending_sync_unnamed_document">Document sans nom</string>
+    <string name="pending_sync_type">Type</string>
+    <string name="pending_sync_multi_page">Multi-pages</string>
+    <string name="pending_sync_single">Simple</string>
+    <string name="pending_sync_retry_count">Nombre de tentatives</string>
+    <string name="pending_sync_created">Créé</string>
+    <string name="pending_sync_retry">Réessayer</string>
+    <string name="pending_sync_delete">Supprimer</string>
+    <string name="pending_sync_id_new">ID : NOUVEAU</string>
+    <string name="pending_sync_sync_attempts">Tentatives de synchronisation</string>
+    <string name="pending_sync_status_pending">En attente</string>
+    <string name="pending_sync_status_uploading">Téléchargement</string>
+    <string name="pending_sync_status_completed">Terminé</string>
+    <string name="pending_sync_status_failed">Échoué</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">PARAMÈTRES</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Non connecté</string>
+    <string name="settings_section_server">Serveur</string>
+    <string name="settings_server_url">URL du serveur</string>
+    <string name="settings_not_configured">Non configuré</string>
+    <string name="settings_section_upload">Téléchargement</string>
+    <string name="settings_upload_notifications">Notifications de téléchargement</string>
+    <string name="settings_upload_notifications_subtitle">Afficher une notification pendant le téléchargement</string>
+    <string name="settings_upload_quality">Qualité de téléchargement</string>
+    <string name="settings_section_about">À propos</string>
+    <string name="settings_app_version">Version de l\'application</string>
+    <string name="settings_licenses">Licences</string>
+    <string name="settings_open_source_licenses">Licences Open Source</string>
+    <string name="settings_logout">Déconnexion</string>
+    <string name="settings_logout_confirm_message">Voulez-vous vraiment vous déconnecter ? Vous devrez vous reconnecter ensuite.</string>
+    <string name="settings_selected">Sélectionné</string>
+    <string name="settings_close">Fermer</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Créer un nouveau tag</string>
+    <string name="create_tag_name_label">Nom du tag</string>
+    <string name="create_tag_color_label">Couleur (optionnel)</string>
+    <string name="create_tag_create">Créer</string>
+    <string name="create_tag_cancel">Annuler</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Retour</string>
+    <string name="pdf_viewer_page_info">Page %1$d sur %2$d</string>
+    <string name="pdf_viewer_share">Partager</string>
+    <string name="pdf_viewer_open_external">Ouvrir dans une autre application</string>
+    <string name="pdf_viewer_downloading">Téléchargement...</string>
+    <string name="pdf_viewer_swipe_hint">Balayez pour naviguer</string>
+    <string name="pdf_viewer_pdf_page">Page PDF %1$d</string>
+    <string name="pdf_viewer_document_image">Image du document</string>
+    <string name="pdf_viewer_retry">Réessayer</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Échec du téléchargement</string>
+    <string name="error_queue_add">Erreur lors de l\'ajout à la file d\'attente</string>
+    <string name="error_create_tag">Impossible de créer le tag</string>
+    <string name="pdf_viewer_default_title">Document</string>
+
+    <!-- General -->
+    <string name="loading">Chargement...</string>
+    <string name="retry">Réessayer</string>
+    <string name="cancel">Annuler</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Accès rapide pour numériser des documents</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automatique</string>
+    <string name="upload_quality_low">Basse (téléchargement plus rapide)</string>
+    <string name="upload_quality_medium">Moyenne</string>
+    <string name="upload_quality_high">Haute (meilleure qualité)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">À l\'instant</string>
+    <string name="time_minutes_ago">il y a %1$d min</string>
+    <string name="time_hours_ago">il y a %1$d h</string>
+    <string name="time_days_ago">il y a %1$d jours</string>
+    <string name="time_unknown">Inconnu</string>
+    <string name="document_unknown">Document inconnu</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Aucun contenu textuel disponible</string>
+    <string name="tab_metadata">Métadonnées</string>
+    <string name="tab_metadata_created">Créé</string>
+    <string name="tab_metadata_added">Ajouté</string>
+    <string name="tab_metadata_modified">Modifié</string>
+    <string name="tab_metadata_document_id">ID du document</string>
+    <string name="tab_metadata_original_filename">Nom de fichier original</string>
+    <string name="tab_metadata_archive_serial">Numéro de série d\'archive (NSA)</string>
+    <string name="tab_notes_placeholder">Ajouter une nouvelle note...</string>
+    <string name="tab_notes_add">Ajouter</string>
+    <string name="tab_notes_empty">Aucune note disponible</string>
+    <string name="tab_notes_delete">Supprimer la note</string>
+    <string name="tab_history">Historique</string>
+    <string name="tab_history_empty">Aucune modification disponible</string>
+    <string name="tab_history_system">Système</string>
+    <string name="tab_history_action_create">Créé</string>
+    <string name="tab_history_action_update">Mis à jour</string>
+    <string name="tab_history_action_delete">Supprimé</string>
+    <string name="tab_permissions_owner">Propriétaire</string>
+    <string name="tab_permissions_no_owner">Aucun propriétaire</string>
+    <string name="tab_permissions_user_id">Utilisateur #%1$d</string>
+    <string name="tab_permissions_view">Autorisations de vue</string>
+    <string name="tab_permissions_change">Autorisations de modification</string>
+    <string name="tab_permissions_none">Aucune autorisation spécifique</string>
+    <string name="tab_permissions_users">Utilisateurs : %1$s</string>
+    <string name="tab_permissions_groups">Groupes : %1$s</string>
+    <string name="tab_permissions_unavailable">Aucune information d\'autorisation disponible</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Erreur de chargement</string>
+    <string name="error_creating">Erreur de création</string>
+    <string name="error_updating">Erreur de mise à jour</string>
+    <string name="error_deleting">Erreur de suppression</string>
+    <string name="error_downloading">Erreur de téléchargement</string>
+    <string name="error_no_app_found">Aucune application trouvée pour ouvrir</string>
+    <string name="error_note_empty">La note ne peut pas être vide</string>
+    <string name="error_add_note">Erreur lors de l\'ajout de la note</string>
+    <string name="error_delete_note">Erreur lors de la suppression de la note</string>
+    <string name="error_login_fields">Veuillez remplir tous les champs</string>
+    <string name="error_login_failed">Échec de connexion</string>
+    <string name="error_token_invalid">Jeton invalide</string>
+    <string name="error_server_unreachable">Serveur inaccessible</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Scanner le jeton</string>
+    <string name="token_scanner_capturing">Capture de la photo haute résolution...</string>
+    <string name="token_scanner_found">Jeton trouvé !</string>
+    <string name="token_scanner_not_found">Aucun jeton valide détecté</string>
+    <string name="token_scanner_position_hint">Positionnez le jeton dans le cadre</string>
+    <string name="token_scanner_recognition_error">Erreur de reconnaissance</string>
+    <string name="token_scanner_capture_failed">Échec de la capture</string>
+    <string name="token_scanner_camera_required">Accès à la caméra requis</string>
+    <string name="token_scanner_camera_explanation">Pour scanner le jeton, l\'application a besoin d\'accéder à votre caméra</string>
+    <string name="token_scanner_camera_allow">Autoriser l\'accès à la caméra</string>
+    <string name="token_scanner_hold_still">Jeton détecté, ne bougez pas...</string>
+    <string name="token_scanner_text_recognizing">Reconnaissance du texte...</string>
+    <string name="token_scanner_take_photo">Prendre une photo</string>
+    <string name="token_scanner_auto_active">Détection automatique active • Appuyez manuellement en secours</string>
+    <string name="token_scanner_hold_camera">Maintenez la caméra stable - Détection automatique en cours</string>
+    <string name="token_scanner_close">Fermer</string>
+
+    <!-- Share -->
+    <string name="share_via">Partager via</string>
+</resources>

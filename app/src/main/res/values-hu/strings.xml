@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Paperless Scanner</string>
+
+    <!-- Login -->
+    <string name="login_title">Paperless Scanner</string>
+    <string name="login_server_url">Szerver URL</string>
+    <string name="login_server_url_hint">https://paperless.example.com</string>
+    <string name="login_username">Felhasználónév</string>
+    <string name="login_password">Jelszó</string>
+    <string name="login_button">Bejelentkezés</string>
+    <string name="login_error">Bejelentkezés sikertelen: %1$s</string>
+
+    <!-- Onboarding Login Screen -->
+    <string name="onboarding_back">Vissza</string>
+    <string name="onboarding_login_title">Bejelentkezés</string>
+    <string name="onboarding_login_subtitle">Jelentkezz be a Paperless-ngx fiókoddal</string>
+    <string name="onboarding_filter_password">Jelszó</string>
+    <string name="onboarding_filter_key">Kulcs</string>
+    <string name="onboarding_username">Felhasználónév</string>
+    <string name="onboarding_username_placeholder">admin</string>
+    <string name="onboarding_password">Jelszó</string>
+    <string name="onboarding_password_placeholder">••••••••</string>
+    <string name="onboarding_access_key">Hozzáférési kulcs</string>
+    <string name="onboarding_access_key_placeholder">Illeszd be ide...</string>
+    <string name="onboarding_token_help">Megtalálod a Paperless-ben: Beállítások → Profilom</string>
+    <string name="onboarding_scan_token">Token beolvasása kamerával</string>
+    <string name="onboarding_login_button">Bejelentkezés</string>
+
+    <!-- Scan -->
+    <string name="scan_title">Dokumentum beolvasása</string>
+    <string name="scan_button">Kamera megnyitása</string>
+    <string name="scan_from_gallery">Galériából</string>
+
+    <!-- Upload -->
+    <string name="upload_title">Dokumentum feltöltése</string>
+    <string name="upload_document_title">Cím (opcionális)</string>
+    <string name="upload_select_tags">Címkék kiválasztása</string>
+    <string name="upload_button">Feltöltés</string>
+    <string name="upload_success">Dokumentum feltöltve</string>
+    <string name="upload_error">Feltöltés sikertelen: %1$s</string>
+
+    <!-- Upload Screen -->
+    <string name="upload_back">Vissza</string>
+    <string name="upload_queued">A feltöltés szinkronizálódik, ha kapcsolat elérhető</string>
+    <string name="upload_tag_created">„%1$s" címke létrehozva</string>
+    <string name="upload_document_preview">Dokumentum előnézet</string>
+    <string name="upload_title_label">Cím (opcionális)</string>
+    <string name="upload_title_placeholder">pl. Számla 2024 december</string>
+    <string name="upload_failed_title">Feltöltés sikertelen</string>
+    <string name="upload_retry_button">Újrapróbálás</string>
+    <string name="upload_progress">Feltöltés: %1$d%%</string>
+    <string name="upload_uploading">Feltöltés...</string>
+
+    <!-- Batch Import Screen -->
+    <string name="batch_import_title">Tömeges importálás</string>
+    <string name="batch_import_back">Vissza</string>
+    <string name="batch_import_success_single">Dokumentum hozzáadva a sorhoz!</string>
+    <string name="batch_import_success_multiple">%1$d dokumentum hozzáadva a sorhoz!</string>
+    <string name="batch_import_images_selected">%1$d kép kiválasztva</string>
+    <string name="batch_import_mode_single">Egy dokumentumként</string>
+    <string name="batch_import_mode_individual">Különálló dokumentumokként</string>
+    <string name="batch_import_button_individual">Különálló</string>
+    <string name="batch_import_button_single">Egy dokumentumként</string>
+    <string name="batch_import_preview">Előnézet</string>
+    <string name="batch_import_image_description">Kép %1$d</string>
+    <string name="batch_import_more_images">+%1$d</string>
+    <string name="batch_import_document_type">Dokumentum típus (mindhez)</string>
+    <string name="batch_import_correspondent">Levelező (mindhez)</string>
+    <string name="batch_import_tags">Címkék (mindhez)</string>
+    <string name="batch_import_not_selected">Nincs kiválasztva</string>
+    <string name="batch_import_adding_progress">Hozzáadás: %1$d / %2$d</string>
+    <string name="batch_import_adding">Hozzáadás...</string>
+    <string name="batch_import_button">%1$d kép importálása</string>
+
+    <!-- Multi-Page Upload Screen -->
+    <string name="multipage_upload_title">PDF feltöltése</string>
+    <string name="multipage_upload_back">Vissza</string>
+    <string name="multipage_upload_success">PDF %1$d oldallal feltöltve!</string>
+    <string name="multipage_upload_queued">A feltöltés szinkronizálódik, ha kapcsolat elérhető</string>
+    <string name="multipage_upload_tag_created">„%1$s" címke létrehozva</string>
+    <string name="multipage_upload_info">%1$d oldal PDF-fé egyesítve</string>
+    <string name="multipage_upload_preview">Oldal előnézet</string>
+    <string name="multipage_upload_page_description">Oldal %1$d</string>
+    <string name="multipage_upload_title_label">Cím (opcionális)</string>
+    <string name="multipage_upload_title_placeholder">pl. Szerződés 2025 január</string>
+    <string name="multipage_upload_failed_title">Feltöltés sikertelen</string>
+    <string name="multipage_upload_retry_button">Újrapróbálás</string>
+    <string name="multipage_upload_progress">Feltöltés: %1$d%%</string>
+    <string name="multipage_upload_uploading">PDF feltöltése...</string>
+    <string name="multipage_upload_button">Feltöltés PDF-ként</string>
+
+    <!-- Document Detail Screen -->
+    <string name="document_detail_back">Vissza</string>
+    <string name="document_detail_title">DOKUMENTUM</string>
+    <string name="document_detail_open_browser">Megnyitás böngészőben</string>
+    <string name="document_detail_delete">Törlés</string>
+    <string name="document_detail_error">Hiba</string>
+    <string name="document_detail_retry">Újrapróbálás</string>
+    <string name="document_detail_preview">Dokumentum előnézet</string>
+    <string name="document_detail_correspondent">Levelező</string>
+    <string name="document_detail_type">Dokumentum típus</string>
+    <string name="document_detail_created">Létrehozva</string>
+    <string name="document_detail_asn">ASN</string>
+    <string name="document_detail_filename">Fájlnév</string>
+    <string name="document_detail_content">Tartalom</string>
+    <string name="document_detail_view_pdf">PDF megtekintése</string>
+    <string name="document_detail_delete_dialog_title">DOKUMENTUM TÖRLÉSE?</string>
+    <string name="document_detail_delete_dialog_message">Biztosan törölni szeretnéd ezt a dokumentumot?</string>
+    <string name="document_detail_delete_dialog_warning">Ez a művelet nem vonható vissza.</string>
+    <string name="document_detail_delete_button_deleting">TÖRLÉS...</string>
+    <string name="document_detail_delete_button">TÖRLÉS</string>
+    <string name="document_detail_cancel_button">MÉGSE</string>
+    <string name="document_detail_edit">Szerkesztés</string>
+
+    <!-- Document Detail Tabs -->
+    <string name="document_tab_details">Részletek</string>
+    <string name="document_tab_content">Tartalom</string>
+    <string name="document_tab_metadata">Metaadatok</string>
+    <string name="document_tab_notes">Jegyzetek</string>
+    <string name="document_tab_history">Előzmények</string>
+    <string name="document_tab_permissions">Jogosultságok</string>
+
+    <!-- Edit Document Dialog -->
+    <string name="document_edit_title">DOKUMENTUM SZERKESZTÉSE</string>
+    <string name="document_edit_title_label">Cím</string>
+    <string name="document_edit_tags_label">Címkék</string>
+    <string name="document_edit_correspondent_label">Levelező</string>
+    <string name="document_edit_no_correspondent">Nincs levelező</string>
+    <string name="document_edit_document_type_label">Dokumentum típus</string>
+    <string name="document_edit_no_document_type">Nincs dokumentum típus</string>
+    <string name="document_edit_asn_label">ASN (Archívszám)</string>
+    <string name="document_edit_save">MENTÉS</string>
+    <string name="document_edit_cancel">MÉGSE</string>
+
+    <!-- Labels Screen -->
+    <string name="labels_title">CÍMKÉK</string>
+    <string name="labels_subtitle">Címkéid kezelése</string>
+    <string name="labels_search_placeholder">Címkék keresése...</string>
+    <string name="labels_search_clear">Törlés</string>
+    <string name="labels_edit">Szerkesztés</string>
+    <string name="labels_delete">Törlés</string>
+    <string name="labels_document_count">%1$d dokumentum</string>
+    <string name="labels_delete_dialog_title">Címke törlése</string>
+    <string name="labels_delete_dialog_message">Biztosan törölni szeretnéd a „%1$s" címkét?</string>
+    <string name="labels_delete_button">Törlés</string>
+    <string name="labels_cancel_button">Mégse</string>
+    <string name="labels_add_new">Új címke</string>
+    <string name="labels_create_title">Új címke</string>
+    <string name="labels_edit_title">Címke szerkesztése</string>
+    <string name="labels_name_label">Név</string>
+    <string name="labels_name_placeholder">Címke nevének megadása...</string>
+    <string name="labels_color_label">Szín</string>
+    <string name="labels_preview_label">Előnézet</string>
+    <string name="labels_preview_default">Címke neve</string>
+    <string name="labels_save_button">Mentés</string>
+    <string name="labels_create_button">Létrehozás</string>
+    <string name="labels_detail_back">Vissza</string>
+    <string name="labels_detail_no_documents">Nincs dokumentum ezzel a címkével</string>
+    <string name="labels_detail_page_count_singular">Oldal</string>
+    <string name="labels_detail_page_count_plural">Oldal</string>
+
+    <!-- Welcome Screen -->
+    <string name="welcome_subtitle">A mobil kísérő a\nPaperless-ngx telepítésedhez</string>
+    <string name="welcome_feature_1">Intelligens beolvasás éldetektálással</string>
+    <string name="welcome_feature_2">Többoldalas dokumentumok létrehozása</string>
+    <string name="welcome_feature_3">Közvetlen feltöltés a Paperless-ngx-be</string>
+    <string name="welcome_button">Kezdjük</string>
+    <string name="welcome_footer">Saját Paperless-ngx telepítés szükséges</string>
+
+    <!-- Server Setup Screen -->
+    <string name="server_setup_back">Vissza</string>
+    <string name="server_setup_title">Szerver csatlakoztatása</string>
+    <string name="server_setup_subtitle">Add meg a Paperless-ngx telepítésed URL-jét</string>
+    <string name="server_setup_url_label">Szerver URL</string>
+    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
+    <string name="server_setup_status_idle">HTTP/HTTPS automatikusan felismert</string>
+    <string name="server_setup_status_checking">Szerver ellenőrzése...</string>
+    <string name="server_setup_status_https">Biztonságos kapcsolat (HTTPS)</string>
+    <string name="server_setup_status_http">Kapcsolat létrehozva (HTTP)</string>
+    <string name="server_setup_hint_title">Biztonságos kapcsolat ajánlott</string>
+    <string name="server_setup_hint_text">Használj HTTPS-t a titkosított kapcsolathoz a szervereddel.</string>
+    <string name="server_setup_button">Tovább</string>
+
+    <!-- Success Screen -->
+    <string name="success_title">Minden készen áll!</string>
+    <string name="success_subtitle">Csatlakozva vagy és most már\nbeolvashatod és feltöltheted a dokumentumokat.</string>
+    <string name="success_stat_scanned">Ma beolvasva</string>
+    <string name="success_stat_connected">Csatlakozva</string>
+    <string name="success_tips_header">GYORSTIPPEK</string>
+    <string name="success_tip_1">Tartsd a dokumentumot laposon és jól megvilágítva</string>
+    <string name="success_tip_2">Az alkalmazás automatikusan felismeri a széleket</string>
+    <string name="success_tip_3">Feltöltés előtt kiválaszthatod a címkéket</string>
+    <string name="success_button">Alkalmazás indítása</string>
+
+    <!-- Documents Screen -->
+    <string name="documents_title">DOKUMENTUMOK</string>
+    <string name="documents_count">%1$d dokumentum</string>
+    <string name="documents_search_placeholder">Dokumentumok keresése...</string>
+    <string name="documents_search_clear">Törlés</string>
+    <string name="documents_filter_all">Mind</string>
+    <string name="documents_empty_no_results">Nincs találat</string>
+    <string name="documents_empty_no_documents">Nincs dokumentum</string>
+    <string name="documents_empty_hint_search">Próbálj meg más keresőkifejezést</string>
+    <string name="documents_empty_hint_scan">Olvass be dokumentumokat, hogy itt lásd őket</string>
+
+    <!-- Scan Screen -->
+    <string name="scan_page_removed">%1$d. oldal eltávolítva</string>
+    <string name="scan_undo">Visszavonás</string>
+    <string name="scan_scanner_error">A szkenner nem indítható: %1$s</string>
+    <string name="scan_new_document_title">ÚJ DOKUMENTUM</string>
+    <string name="scan_choose_option">Válassz egy opciót</string>
+    <string name="scan_option_scan">Beolvasás</string>
+    <string name="scan_option_gallery">Galéria</string>
+    <string name="scan_option_files">Fájlok</string>
+    <string name="scan_page_count">%1$d / %2$d oldal</string>
+    <string name="scan_hold_to_sort">Tartsd lenyomva a rendezéshez</string>
+    <string name="scan_limit_reached">Limit elérve</string>
+    <string name="scan_almost_full">Majdnem megtelt</string>
+    <string name="scan_upload_single">Feltöltés</string>
+    <string name="scan_upload_pdf">Feltöltés PDF-ként</string>
+    <string name="scan_more_pages">További oldalak</string>
+    <string name="scan_maximum">Maximum</string>
+    <string name="scan_discard">Elvetés</string>
+    <string name="scan_page_description">Oldal %1$d</string>
+    <string name="scan_rotate">Forgatás</string>
+    <string name="scan_remove">Eltávolítás</string>
+    <string name="scan_hold_to_sort_hint">Tartsd lenyomva a rendezéshez</string>
+    <string name="scan_add_page">Oldal hozzáadása</string>
+    <string name="scan_close">Bezárás</string>
+    <string name="scan_delete">Törlés</string>
+
+    <!-- Home Screen -->
+    <string name="home_welcome_back">ÜDVÖZLÜNK ÚJRA</string>
+    <string name="home_your_archive">ARCHÍVUMOD</string>
+    <string name="home_stat_documents">Dokumentumok</string>
+    <string name="home_stat_this_month">Ez a hónap</string>
+    <string name="home_stat_pending">Függőben</string>
+    <string name="home_new_scan">Új beolvasás</string>
+    <string name="home_all_documents">Összes dokumentum</string>
+    <string name="home_processing">Feldolgozás</string>
+    <string name="home_refresh">Frissítés</string>
+    <string name="home_recently_added">Nemrég hozzáadott</string>
+    <string name="home_see_all">Mind</string>
+    <string name="home_no_documents">Még nincs dokumentum</string>
+    <string name="home_scan_first">Olvasd be az első dokumentumodat!</string>
+    <string name="home_untagged_documents">%1$d dokumentum címke nélkül</string>
+    <string name="home_assign_tags_hint">Adj hozzá címkéket a jobb rendszerezéshez</string>
+    <string name="home_task_waiting">Várakozás...</string>
+    <string name="home_task_processing">Feldolgozás...</string>
+    <string name="home_task_success">Sikeres</string>
+    <string name="home_task_failure">Sikertelen</string>
+    <string name="home_dismiss">Elrejtés</string>
+
+    <!-- Pending Sync Screen -->
+    <string name="pending_sync_back">Vissza</string>
+    <string name="pending_sync_title">FÜGGŐBEN LÉVŐ SZINKRONIZÁLÁSOK</string>
+    <string name="pending_sync_upload_queue">Feltöltési sor</string>
+    <string name="pending_sync_no_uploads">Nincs függőben lévő feltöltés</string>
+    <string name="pending_sync_pending_changes">Függőben lévő változások</string>
+    <string name="pending_sync_no_changes">Nincs függőben lévő változás</string>
+    <string name="pending_sync_unnamed_document">Névtelen dokumentum</string>
+    <string name="pending_sync_type">Típus</string>
+    <string name="pending_sync_multi_page">Többoldalas</string>
+    <string name="pending_sync_single">Egyoldalas</string>
+    <string name="pending_sync_retry_count">Próbálkozások száma</string>
+    <string name="pending_sync_created">Létrehozva</string>
+    <string name="pending_sync_retry">Újrapróbálás</string>
+    <string name="pending_sync_delete">Törlés</string>
+    <string name="pending_sync_id_new">ID: ÚJ</string>
+    <string name="pending_sync_sync_attempts">Szinkronizálási próbálkozások</string>
+    <string name="pending_sync_status_pending">Függőben</string>
+    <string name="pending_sync_status_uploading">Feltöltés</string>
+    <string name="pending_sync_status_completed">Befejezve</string>
+    <string name="pending_sync_status_failed">Sikertelen</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">BEÁLLÍTÁSOK</string>
+    <string name="settings_paperless_ngx">Paperless-ngx</string>
+    <string name="settings_not_connected">Nincs csatlakozva</string>
+    <string name="settings_section_server">Szerver</string>
+    <string name="settings_server_url">Szerver URL</string>
+    <string name="settings_not_configured">Nincs konfigurálva</string>
+    <string name="settings_section_upload">Feltöltés</string>
+    <string name="settings_upload_notifications">Feltöltési értesítések</string>
+    <string name="settings_upload_notifications_subtitle">Értesítés megjelenítése feltöltés közben</string>
+    <string name="settings_upload_quality">Feltöltési minőség</string>
+    <string name="settings_section_about">Névjegy</string>
+    <string name="settings_app_version">Alkalmazás verzió</string>
+    <string name="settings_licenses">Licencek</string>
+    <string name="settings_open_source_licenses">Nyílt forráskódú licencek</string>
+    <string name="settings_logout">Kijelentkezés</string>
+    <string name="settings_logout_confirm_message">Biztosan ki szeretnél jelentkezni? Utána újra be kell jelentkezned.</string>
+    <string name="settings_selected">Kiválasztva</string>
+    <string name="settings_close">Bezárás</string>
+
+    <!-- Create Tag Dialog -->
+    <string name="create_tag_title">Új címke létrehozása</string>
+    <string name="create_tag_name_label">Címke neve</string>
+    <string name="create_tag_color_label">Szín (opcionális)</string>
+    <string name="create_tag_create">Létrehozás</string>
+    <string name="create_tag_cancel">Mégse</string>
+
+    <!-- PDF Viewer Screen -->
+    <string name="pdf_viewer_back">Vissza</string>
+    <string name="pdf_viewer_page_info">Oldal %1$d / %2$d</string>
+    <string name="pdf_viewer_share">Megosztás</string>
+    <string name="pdf_viewer_open_external">Megnyitás másik alkalmazásban</string>
+    <string name="pdf_viewer_downloading">Letöltés...</string>
+    <string name="pdf_viewer_swipe_hint">Húzd az ujjad a lapozáshoz</string>
+    <string name="pdf_viewer_pdf_page">PDF oldal %1$d</string>
+    <string name="pdf_viewer_document_image">Dokumentum kép</string>
+    <string name="pdf_viewer_retry">Újrapróbálás</string>
+
+    <!-- Upload Errors -->
+    <string name="upload_error_generic">Feltöltés sikertelen</string>
+    <string name="error_queue_add">Hiba a sorhoz adáskor</string>
+    <string name="error_create_tag">Címke létrehozása sikertelen</string>
+    <string name="pdf_viewer_default_title">Dokumentum</string>
+
+    <!-- General -->
+    <string name="loading">Betöltés...</string>
+    <string name="retry">Újrapróbálás</string>
+    <string name="cancel">Mégse</string>
+    <string name="ok">OK</string>
+
+    <!-- Widget -->
+    <string name="widget_name">Paperless Scanner</string>
+    <string name="widget_description">Gyors hozzáférés dokumentumok beolvasásához</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automatikus</string>
+    <string name="upload_quality_low">Alacsony (gyorsabb feltöltés)</string>
+    <string name="upload_quality_medium">Közepes</string>
+    <string name="upload_quality_high">Magas (legjobb minőség)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Most</string>
+    <string name="time_minutes_ago">%1$d perce</string>
+    <string name="time_hours_ago">%1$d órája</string>
+    <string name="time_days_ago">%1$d napja</string>
+    <string name="time_unknown">Ismeretlen</string>
+    <string name="document_unknown">Ismeretlen dokumentum</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Nincs elérhető szövegtartalom</string>
+    <string name="tab_metadata">Metaadatok</string>
+    <string name="tab_metadata_created">Létrehozva</string>
+    <string name="tab_metadata_added">Hozzáadva</string>
+    <string name="tab_metadata_modified">Módosítva</string>
+    <string name="tab_metadata_document_id">Dokumentum ID</string>
+    <string name="tab_metadata_original_filename">Eredeti fájlnév</string>
+    <string name="tab_metadata_archive_serial">Archívszám (ASN)</string>
+    <string name="tab_notes_placeholder">Új jegyzet hozzáadása...</string>
+    <string name="tab_notes_add">Hozzáadás</string>
+    <string name="tab_notes_empty">Nincsenek jegyzetek</string>
+    <string name="tab_notes_delete">Jegyzet törlése</string>
+    <string name="tab_history">Előzmények</string>
+    <string name="tab_history_empty">Nincsenek változások</string>
+    <string name="tab_history_system">Rendszer</string>
+    <string name="tab_history_action_create">Létrehozva</string>
+    <string name="tab_history_action_update">Frissítve</string>
+    <string name="tab_history_action_delete">Törölve</string>
+    <string name="tab_permissions_owner">Tulajdonos</string>
+    <string name="tab_permissions_no_owner">Nincs tulajdonos</string>
+    <string name="tab_permissions_user_id">Felhasználó #%1$d</string>
+    <string name="tab_permissions_view">Megtekintési jogok</string>
+    <string name="tab_permissions_change">Módosítási jogok</string>
+    <string name="tab_permissions_none">Nincsenek specifikus jogok</string>
+    <string name="tab_permissions_users">Felhasználók: %1$s</string>
+    <string name="tab_permissions_groups">Csoportok: %1$s</string>
+    <string name="tab_permissions_unavailable">Jogosultsági információ nem elérhető</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Hiba a betöltéskor</string>
+    <string name="error_creating">Hiba a létrehozáskor</string>
+    <string name="error_updating">Hiba a frissítéskor</string>
+    <string name="error_deleting">Hiba a törléskor</string>
+    <string name="error_downloading">Hiba a letöltéskor</string>
+    <string name="error_no_app_found">Nem található alkalmazás a megnyitáshoz</string>
+    <string name="error_note_empty">A jegyzet nem lehet üres</string>
+    <string name="error_add_note">Hiba a jegyzet hozzáadásakor</string>
+    <string name="error_delete_note">Hiba a jegyzet törlésekor</string>
+    <string name="error_login_fields">Kérlek töltsd ki az összes mezőt</string>
+    <string name="error_login_failed">Bejelentkezés sikertelen</string>
+    <string name="error_token_invalid">Érvénytelen token</string>
+    <string name="error_server_unreachable">Szerver nem elérhető</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Kulcs beolvasása</string>
+    <string name="token_scanner_capturing">Nagy felbontású kép készítése...</string>
+    <string name="token_scanner_found">Kulcs megtalálva!</string>
+    <string name="token_scanner_not_found">Érvényes kulcs nem felismerhető</string>
+    <string name="token_scanner_position_hint">Helyezd a kulcsot a keretbe</string>
+    <string name="token_scanner_recognition_error">Felismerési hiba</string>
+    <string name="token_scanner_capture_failed">Képkészítés sikertelen</string>
+    <string name="token_scanner_camera_required">Kamera hozzáférés szükséges</string>
+    <string name="token_scanner_camera_explanation">A kulcs beolvasásához az alkalmazásnak hozzáférésre van szüksége a kameráhozn</string>
+    <string name="token_scanner_camera_allow">Kamera hozzáférés engedélyezése</string>
+    <string name="token_scanner_hold_still">Kulcs felismerve, tartsd stabilan...</string>
+    <string name="token_scanner_text_recognizing">Szöveg felismerése...</string>
+    <string name="token_scanner_take_photo">Kép készítése</string>
+    <string name="token_scanner_auto_active">Automatikus felismerés aktív • Koppints manuálisan tartalékként</string>
+    <string name="token_scanner_hold_camera">Tartsd stabilan a kamerát - Automatikus felismerés fut</string>
+    <string name="token_scanner_close">Bezárás</string>
+
+    <!-- Share -->
+    <string name="share_via">Megosztás ezen keresztül</string>
+</resources>
