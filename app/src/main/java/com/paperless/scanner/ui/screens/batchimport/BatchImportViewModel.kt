@@ -1,9 +1,11 @@
 package com.paperless.scanner.ui.screens.batchimport
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -13,6 +15,7 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.worker.UploadWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +26,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BatchImportViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val uploadQueueRepository: UploadQueueRepository,
     private val uploadWorkManager: UploadWorkManager,
     private val tagRepository: TagRepository,
@@ -147,7 +151,7 @@ class BatchImportViewModel @Inject constructor(
                 Log.e(TAG, "Error in queueBatchImport", e)
                 _uiState.update {
                     BatchImportUiState.Error(
-                        e.message ?: "Fehler beim Hinzufügen zur Warteschlange"
+                        e.message ?: context.getString(R.string.error_queue_add)
                     )
                 }
             }

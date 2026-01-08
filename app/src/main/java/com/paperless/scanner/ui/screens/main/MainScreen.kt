@@ -79,10 +79,7 @@ fun MainScreen(
                     onDocumentClick = onDocumentClick
                 )
                 Screen.Settings.route -> SettingsScreen(
-                    onLogout = onLogout,
-                    onNavigateToDemo = {
-                        navController.navigate(Screen.Demo.route)
-                    }
+                    onLogout = onLogout
                 )
             }
         }

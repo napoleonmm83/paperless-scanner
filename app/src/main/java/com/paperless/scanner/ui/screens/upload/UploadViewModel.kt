@@ -1,9 +1,11 @@
 package com.paperless.scanner.ui.screens.upload
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -13,6 +15,7 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +27,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UploadViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
@@ -148,7 +152,7 @@ class UploadViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        UploadUiState.Error(exception.message ?: "Upload fehlgeschlagen")
+                        UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
                     }
                 }
         }
@@ -198,7 +202,7 @@ class UploadViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     _uiState.update {
-                        UploadUiState.Error(exception.message ?: "Upload fehlgeschlagen")
+                        UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
                     }
                 }
         }
@@ -258,7 +262,7 @@ class UploadViewModel @Inject constructor(
                 .onFailure { e ->
                     Log.e(TAG, "Failed to create tag", e)
                     _createTagState.update {
-                        CreateTagState.Error(e.message ?: "Tag konnte nicht erstellt werden")
+                        CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
                     }
                 }
         }

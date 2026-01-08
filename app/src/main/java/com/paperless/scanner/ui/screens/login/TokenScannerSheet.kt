@@ -69,6 +69,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -77,6 +78,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.paperless.scanner.R
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
 
@@ -113,9 +115,19 @@ fun TokenScannerSheet(
         }
     }
 
+    // Pre-load strings that will be used in callbacks
+    val positionHintText = stringResource(R.string.token_scanner_position_hint)
+    val capturingText = stringResource(R.string.token_scanner_capturing)
+    val foundText = stringResource(R.string.token_scanner_found)
+    val notFoundText = stringResource(R.string.token_scanner_not_found)
+    val recognitionErrorText = stringResource(R.string.token_scanner_recognition_error)
+    val captureFailedText = stringResource(R.string.token_scanner_capture_failed)
+    val holdStillText = stringResource(R.string.token_scanner_hold_still)
+    val textRecognizingText = stringResource(R.string.token_scanner_text_recognizing)
+
     var isProcessing by remember { mutableStateOf(false) }
     var foundToken by remember { mutableStateOf<String?>(null) }
-    var scanStatus by remember { mutableStateOf("Positioniere den Schlüssel im Rahmen") }
+    var scanStatus by remember { mutableStateOf(positionHintText) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Live detection state
@@ -133,7 +145,7 @@ fun TokenScannerSheet(
         if (shouldAutoCapture && !isProcessing && foundToken == null) {
             Log.d(TAG, "Auto-capture triggered after stability period")
             isProcessing = true
-            scanStatus = "Erfasse hochauflösendes Foto..."
+            scanStatus = capturingText
 
             imageCapture.takePicture(
                 cameraExecutor,
@@ -154,12 +166,12 @@ fun TokenScannerSheet(
 
                                     if (tokens.isNotEmpty()) {
                                         foundToken = tokens.first()
-                                        scanStatus = "Schlüssel gefunden!"
+                                        scanStatus = foundText
                                         errorMessage = null
                                     } else {
                                         // Reset for another try
-                                        errorMessage = "Kein gültiger Schlüssel erkannt"
-                                        scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                        errorMessage = notFoundText
+                                        scanStatus = positionHintText
                                         liveTokenDetected = false
                                         detectedTokenCandidate = null
                                         shouldAutoCapture = false
@@ -168,7 +180,7 @@ fun TokenScannerSheet(
                                 }
                                 .addOnFailureListener { e ->
                                     Log.e(TAG, "High-res OCR failed", e)
-                                    errorMessage = "Fehler bei der Erkennung"
+                                    errorMessage = recognitionErrorText
                                     isProcessing = false
                                     liveTokenDetected = false
                                     shouldAutoCapture = false
@@ -179,7 +191,7 @@ fun TokenScannerSheet(
 
                     override fun onError(exception: ImageCaptureException) {
                         Log.e(TAG, "Auto-capture failed", exception)
-                        errorMessage = "Aufnahme fehlgeschlagen"
+                        errorMessage = captureFailedText
                         isProcessing = false
                         liveTokenDetected = false
                         shouldAutoCapture = false
@@ -237,11 +249,11 @@ fun TokenScannerSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Schlüssel scannen",
+                    text = stringResource(R.string.token_scanner_title),
                     style = MaterialTheme.typography.titleLarge
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Schließen")
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.token_scanner_close))
                 }
             }
 
@@ -264,19 +276,19 @@ fun TokenScannerSheet(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Kamerazugriff wird benötigt",
+                        text = stringResource(R.string.token_scanner_camera_required),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Um den Schlüssel scannen zu können, braucht die App Zugriff auf deine Kamera",
+                        text = stringResource(R.string.token_scanner_camera_explanation),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Kamerazugriff erlauben")
+                        Text(stringResource(R.string.token_scanner_camera_allow))
                     }
                 }
             } else {
@@ -329,7 +341,7 @@ fun TokenScannerSheet(
                                                     detectedTokenCandidate = candidate
                                                     detectionStartTime = System.currentTimeMillis()
                                                     liveTokenDetected = true
-                                                    scanStatus = "Schlüssel erkannt, halte still..."
+                                                    scanStatus = holdStillText
                                                     errorMessage = null
                                                 }
                                             } else {
@@ -337,7 +349,7 @@ fun TokenScannerSheet(
                                                 if (liveTokenDetected && !shouldAutoCapture) {
                                                     liveTokenDetected = false
                                                     detectedTokenCandidate = null
-                                                    scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                                    scanStatus = positionHintText
                                                 }
                                             }
                                         }
@@ -428,7 +440,7 @@ fun TokenScannerSheet(
                     onClick = {
                         isProcessing = true
                         errorMessage = null
-                        scanStatus = "Text wird erkannt..."
+                        scanStatus = textRecognizingText
 
                         imageCapture.takePicture(
                             cameraExecutor,
@@ -449,17 +461,17 @@ fun TokenScannerSheet(
 
                                                 if (tokens.isNotEmpty()) {
                                                     foundToken = tokens.first()
-                                                    scanStatus = "Schlüssel gefunden!"
+                                                    scanStatus = foundText
                                                     errorMessage = null
                                                 } else {
-                                                    errorMessage = "Kein Schlüssel erkannt"
-                                                    scanStatus = "Positioniere den Schlüssel im Rahmen"
+                                                    errorMessage = notFoundText
+                                                    scanStatus = positionHintText
                                                 }
                                                 isProcessing = false
                                             }
                                             .addOnFailureListener { e ->
                                                 Log.e(TAG, "Text recognition failed", e)
-                                                errorMessage = "Fehler bei der Erkennung"
+                                                errorMessage = recognitionErrorText
                                                 isProcessing = false
                                             }
                                     }
@@ -468,7 +480,7 @@ fun TokenScannerSheet(
 
                                 override fun onError(exception: ImageCaptureException) {
                                     Log.e(TAG, "Capture failed", exception)
-                                    errorMessage = "Aufnahme fehlgeschlagen"
+                                    errorMessage = captureFailedText
                                     isProcessing = false
                                 }
                             }
@@ -488,7 +500,7 @@ fun TokenScannerSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = "Foto aufnehmen",
+                        contentDescription = stringResource(R.string.token_scanner_take_photo),
                         tint = if (isProcessing || foundToken != null) {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         } else {
@@ -502,9 +514,9 @@ fun TokenScannerSheet(
 
                 Text(
                     text = if (liveTokenDetected) {
-                        "Halte die Kamera ruhig - Automatische Erkennung läuft"
+                        stringResource(R.string.token_scanner_hold_camera)
                     } else {
-                        "Automatische Erkennung aktiv • Manuell tippen als Fallback"
+                        stringResource(R.string.token_scanner_auto_active)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.upload
 
+import android.content.Context
 import android.net.Uri
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Correspondent
@@ -45,6 +46,7 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class UploadViewModelTest {
 
+    private lateinit var context: Context
     private lateinit var viewModel: UploadViewModel
     private lateinit var documentRepository: DocumentRepository
     private lateinit var tagRepository: TagRepository
@@ -59,6 +61,7 @@ class UploadViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        context = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
@@ -75,13 +78,14 @@ class UploadViewModelTest {
         every { networkMonitor.checkOnlineStatus() } returns true
 
         viewModel = UploadViewModel(
+            context = context,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
-            networkUtils = networkUtils,
             ioDispatcher = testDispatcher
         )
     }
@@ -102,13 +106,14 @@ class UploadViewModelTest {
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val newViewModel = UploadViewModel(
+            context = context,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
-            networkUtils = networkUtils,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -131,13 +136,14 @@ class UploadViewModelTest {
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(mockTypes)
 
         val newViewModel = UploadViewModel(
+            context = context,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
-            networkUtils = networkUtils,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

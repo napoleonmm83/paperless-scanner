@@ -285,9 +285,6 @@
     <string name="settings_upload_notifications">Upload-Benachrichtigungen</string>
     <string name="settings_upload_notifications_subtitle">Zeige Benachrichtigung während des Uploads</string>
     <string name="settings_upload_quality">Upload-Qualität</string>
-    <string name="settings_section_design">Design</string>
-    <string name="settings_design_demo">Design System Demo</string>
-    <string name="settings_design_demo_subtitle">Neues Dark Tech Design ausprobieren</string>
     <string name="settings_section_about">Über</string>
     <string name="settings_app_version">App-Version</string>
     <string name="settings_licenses">Lizenzen</string>
@@ -317,6 +314,9 @@
 
     <!-- Upload Errors -->
     <string name="upload_error_generic">Upload fehlgeschlagen</string>
+    <string name="error_queue_add">Fehler beim Hinzufügen zur Warteschlange</string>
+    <string name="error_create_tag">Tag konnte nicht erstellt werden</string>
+    <string name="pdf_viewer_default_title">Dokument</string>
 
     <!-- General -->
     <string name="loading">Laden...</string>
@@ -327,4 +327,83 @@
     <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Schnellzugriff zum Scannen von Dokumenten</string>
+
+    <!-- Upload Quality Settings -->
+    <string name="upload_quality_auto">Automatisch</string>
+    <string name="upload_quality_low">Niedrig (schneller Upload)</string>
+    <string name="upload_quality_medium">Mittel</string>
+    <string name="upload_quality_high">Hoch (beste Qualität)</string>
+
+    <!-- Time Formatting -->
+    <string name="time_just_now">Gerade eben</string>
+    <string name="time_minutes_ago">vor %1$d Min</string>
+    <string name="time_hours_ago">vor %1$d Std</string>
+    <string name="time_days_ago">vor %1$d Tagen</string>
+    <string name="time_unknown">Unbekannt</string>
+    <string name="document_unknown">Unbekanntes Dokument</string>
+
+    <!-- Document Tabs -->
+    <string name="tab_no_text_content">Kein Textinhalt verfügbar</string>
+    <string name="tab_metadata">Metadaten</string>
+    <string name="tab_metadata_created">Erstellt</string>
+    <string name="tab_metadata_added">Hinzugefügt</string>
+    <string name="tab_metadata_modified">Geändert</string>
+    <string name="tab_metadata_document_id">Dokument-ID</string>
+    <string name="tab_metadata_original_filename">Original-Dateiname</string>
+    <string name="tab_metadata_archive_serial">Archivnummer (ASN)</string>
+    <string name="tab_notes_placeholder">Neue Notiz hinzufügen...</string>
+    <string name="tab_notes_add">Hinzufügen</string>
+    <string name="tab_notes_empty">Keine Notizen vorhanden</string>
+    <string name="tab_notes_delete">Notiz löschen</string>
+    <string name="tab_history">Verlauf</string>
+    <string name="tab_history_empty">Keine Änderungen vorhanden</string>
+    <string name="tab_history_system">System</string>
+    <string name="tab_history_action_create">Erstellt</string>
+    <string name="tab_history_action_update">Aktualisiert</string>
+    <string name="tab_history_action_delete">Gelöscht</string>
+    <string name="tab_permissions_owner">Besitzer</string>
+    <string name="tab_permissions_no_owner">Kein Besitzer</string>
+    <string name="tab_permissions_user_id">Benutzer #%1$d</string>
+    <string name="tab_permissions_view">Ansichtsberechtigungen</string>
+    <string name="tab_permissions_change">Änderungsberechtigungen</string>
+    <string name="tab_permissions_none">Keine spezifischen Berechtigungen</string>
+    <string name="tab_permissions_users">Benutzer: %1$s</string>
+    <string name="tab_permissions_groups">Gruppen: %1$s</string>
+    <string name="tab_permissions_unavailable">Keine Berechtigungsinformationen verfügbar</string>
+
+    <!-- Error Messages -->
+    <string name="error_loading">Fehler beim Laden</string>
+    <string name="error_creating">Fehler beim Erstellen</string>
+    <string name="error_updating">Fehler beim Aktualisieren</string>
+    <string name="error_deleting">Fehler beim Löschen</string>
+    <string name="error_downloading">Fehler beim Herunterladen</string>
+    <string name="error_no_app_found">Keine App zum Öffnen gefunden</string>
+    <string name="error_note_empty">Notiz darf nicht leer sein</string>
+    <string name="error_add_note">Fehler beim Hinzufügen der Notiz</string>
+    <string name="error_delete_note">Fehler beim Löschen der Notiz</string>
+    <string name="error_login_fields">Bitte alle Felder ausfüllen</string>
+    <string name="error_login_failed">Login fehlgeschlagen</string>
+    <string name="error_token_invalid">Token ungültig</string>
+    <string name="error_server_unreachable">Server nicht erreichbar</string>
+
+    <!-- Token Scanner -->
+    <string name="token_scanner_title">Schlüssel scannen</string>
+    <string name="token_scanner_capturing">Erfasse hochauflösendes Foto...</string>
+    <string name="token_scanner_found">Schlüssel gefunden!</string>
+    <string name="token_scanner_not_found">Kein gültiger Schlüssel erkannt</string>
+    <string name="token_scanner_position_hint">Positioniere den Schlüssel im Rahmen</string>
+    <string name="token_scanner_recognition_error">Fehler bei der Erkennung</string>
+    <string name="token_scanner_capture_failed">Aufnahme fehlgeschlagen</string>
+    <string name="token_scanner_camera_required">Kamerazugriff wird benötigt</string>
+    <string name="token_scanner_camera_explanation">Um den Schlüssel scannen zu können, braucht die App Zugriff auf deine Kamera</string>
+    <string name="token_scanner_camera_allow">Kamerazugriff erlauben</string>
+    <string name="token_scanner_hold_still">Schlüssel erkannt, halte still...</string>
+    <string name="token_scanner_text_recognizing">Text wird erkannt...</string>
+    <string name="token_scanner_take_photo">Foto aufnehmen</string>
+    <string name="token_scanner_auto_active">Automatische Erkennung aktiv • Manuell tippen als Fallback</string>
+    <string name="token_scanner_hold_camera">Halte die Kamera ruhig - Automatische Erkennung läuft</string>
+    <string name="token_scanner_close">Schließen</string>
+
+    <!-- Share -->
+    <string name="share_via">Teilen via</string>
 </resources>

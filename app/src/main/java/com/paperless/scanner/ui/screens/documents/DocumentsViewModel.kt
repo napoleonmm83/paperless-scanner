@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.documents
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
@@ -9,6 +11,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +36,7 @@ data class DocumentsUiState(
 
 @HiltViewModel
 class DocumentsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository
@@ -153,7 +157,7 @@ class DocumentsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "Fehler beim Laden"
+                        error = error.message ?: context.getString(R.string.error_loading)
                     )
                 }
             }

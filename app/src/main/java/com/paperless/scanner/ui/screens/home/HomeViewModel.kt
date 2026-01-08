@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentRepository
@@ -9,6 +11,7 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +73,7 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
@@ -289,7 +293,7 @@ class HomeViewModel @Inject constructor(
                 ProcessingTask(
                     id = task.id,
                     taskId = task.taskId,
-                    fileName = task.taskFileName ?: "Unbekanntes Dokument",
+                    fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
                     status = mapTaskStatus(task.status),
                     timeAgo = formatTimeAgo(task.dateCreated),
                     resultMessage = task.result,
@@ -328,17 +332,17 @@ class HomeViewModel @Inject constructor(
             val diffDays = duration.toDays()
 
             when {
-                diffMinutes < 1 -> "Gerade eben"
-                diffMinutes < 60 -> "vor $diffMinutes Min."
-                diffHours < 24 -> "vor $diffHours Std."
-                diffDays < 7 -> "vor $diffDays Tag${if (diffDays > 1) "en" else ""}"
+                diffMinutes < 1 -> context.getString(R.string.time_just_now)
+                diffMinutes < 60 -> context.getString(R.string.time_minutes_ago, diffMinutes.toInt())
+                diffHours < 24 -> context.getString(R.string.time_hours_ago, diffHours.toInt())
+                diffDays < 7 -> context.getString(R.string.time_days_ago, diffDays.toInt())
                 else -> {
                     val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
                     localDateTime.format(outputFormatter)
                 }
             }
         } catch (e: Exception) {
-            "Unbekannt"
+            context.getString(R.string.time_unknown)
         }
     }
 

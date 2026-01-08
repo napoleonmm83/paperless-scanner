@@ -1,8 +1,10 @@
 package com.paperless.scanner.ui.screens.documents
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -13,6 +15,7 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,6 +68,7 @@ data class DocumentDetailUiState(
 
 @HiltViewModel
 class DocumentDetailViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
@@ -151,7 +155,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "Fehler beim Laden"
+                        error = error.message ?: context.getString(R.string.error_loading)
                     )
                 }
             }
@@ -174,7 +178,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isDeleting = false,
-                        deleteError = error.message ?: "Fehler beim Löschen"
+                        deleteError = error.message ?: context.getString(R.string.error_deleting)
                     )
                 }
             }
@@ -219,7 +223,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isUpdating = false,
-                        updateError = error.message ?: "Fehler beim Aktualisieren"
+                        updateError = error.message ?: context.getString(R.string.error_updating)
                     )
                 }
             }
@@ -236,7 +240,7 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun addNote(noteText: String) {
         if (noteText.isBlank()) {
-            _uiState.update { it.copy(addNoteError = "Notiz darf nicht leer sein") }
+            _uiState.update { it.copy(addNoteError = context.getString(R.string.error_note_empty)) }
             return
         }
 
@@ -254,7 +258,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isAddingNote = false,
-                        addNoteError = error.message ?: "Fehler beim Hinzufügen der Notiz"
+                        addNoteError = error.message ?: context.getString(R.string.error_add_note)
                     )
                 }
             }
@@ -276,7 +280,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isDeletingNoteId = null,
-                        deleteNoteError = error.message ?: "Fehler beim Löschen der Notiz"
+                        deleteNoteError = error.message ?: context.getString(R.string.error_delete_note)
                     )
                 }
             }

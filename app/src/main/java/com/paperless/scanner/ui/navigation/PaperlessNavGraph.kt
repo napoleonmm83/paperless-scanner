@@ -11,7 +11,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
-import com.paperless.scanner.ui.screens.demo.DemoScreen
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
 import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
@@ -184,15 +183,6 @@ fun PaperlessNavGraph(
         composable(route = Screen.PendingSync.route) {
             com.paperless.scanner.ui.screens.pendingsync.PendingSyncScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // Demo Screen
-        composable(route = Screen.Demo.route) {
-            DemoScreen(
-                onBackClick = {
                     navController.popBackStack()
                 }
             )

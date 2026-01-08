@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.home
 
+import android.content.Context
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
@@ -37,6 +38,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
 
+    private lateinit var context: Context
     private lateinit var documentRepository: DocumentRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var taskRepository: TaskRepository
@@ -49,6 +51,7 @@ class HomeViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        context = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
@@ -76,6 +79,7 @@ class HomeViewModelTest {
 
     private fun createViewModel(): HomeViewModel {
         return HomeViewModel(
+            context = context,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             taskRepository = taskRepository,

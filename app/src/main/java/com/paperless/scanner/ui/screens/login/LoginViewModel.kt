@@ -1,12 +1,15 @@
 package com.paperless.scanner.ui.screens.login
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,6 +23,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
     private val tokenManager: TokenManager,
     val biometricHelper: BiometricHelper
@@ -95,7 +99,7 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
-                    val message = exception.message ?: "Server nicht erreichbar"
+                    val message = exception.message ?: context.getString(R.string.error_server_unreachable)
                     _serverStatus.update { ServerStatus.Error(message) }
                     Log.d(TAG, "Status = Error, message = $message")
                 }
@@ -118,7 +122,7 @@ class LoginViewModel @Inject constructor(
 
     fun login(serverUrl: String, username: String, password: String) {
         if (serverUrl.isBlank() || username.isBlank() || password.isBlank()) {
-            _uiState.update { LoginUiState.Error("Bitte alle Felder ausfüllen") }
+            _uiState.update { LoginUiState.Error(context.getString(R.string.error_login_fields)) }
             return
         }
 
@@ -145,7 +149,7 @@ class LoginViewModel @Inject constructor(
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             LoginUiState.Error(
-                                exception.message ?: "Login fehlgeschlagen"
+                                exception.message ?: context.getString(R.string.error_login_failed)
                             )
                         }
                     }
@@ -155,7 +159,7 @@ class LoginViewModel @Inject constructor(
 
     fun loginWithToken(serverUrl: String, token: String) {
         if (serverUrl.isBlank() || token.isBlank()) {
-            _uiState.update { LoginUiState.Error("Bitte alle Felder ausfüllen") }
+            _uiState.update { LoginUiState.Error(context.getString(R.string.error_login_fields)) }
             return
         }
 
@@ -182,7 +186,7 @@ class LoginViewModel @Inject constructor(
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             LoginUiState.Error(
-                                exception.message ?: "Token ungültig"
+                                exception.message ?: context.getString(R.string.error_token_invalid)
                             )
                         }
                     }

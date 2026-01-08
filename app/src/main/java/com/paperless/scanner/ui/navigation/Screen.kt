@@ -20,9 +20,6 @@ sealed class Screen(val route: String) {
     data object Labels : Screen("labels")
     data object Settings : Screen("settings")
 
-    // Demo screen
-    data object Demo : Screen("demo")
-
     // Document detail
     data object DocumentDetail : Screen("document/{documentId}") {
         fun createRoute(documentId: Int): String {

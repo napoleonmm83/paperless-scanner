@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
@@ -56,7 +55,6 @@ import com.paperless.scanner.R
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
-    onNavigateToDemo: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -172,18 +170,8 @@ fun SettingsScreen(
             SettingsClickableItem(
                 icon = Icons.Filled.HighQuality,
                 title = stringResource(R.string.settings_upload_quality),
-                value = uiState.uploadQuality.displayName,
+                value = stringResource(uiState.uploadQuality.displayNameRes),
                 onClick = { showQualityDialog = true }
-            )
-        }
-
-        // Design Section
-        SettingsSection(title = stringResource(R.string.settings_section_design)) {
-            SettingsClickableItem(
-                icon = Icons.Filled.ColorLens,
-                title = stringResource(R.string.settings_design_demo),
-                value = stringResource(R.string.settings_design_demo_subtitle),
-                onClick = onNavigateToDemo
             )
         }
 
@@ -292,7 +280,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = quality.displayName,
+                                text = stringResource(quality.displayNameRes),
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f)
                             )

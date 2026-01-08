@@ -1,11 +1,14 @@
 package com.paperless.scanner.ui.screens.labels
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +27,7 @@ data class LabelsUiState(
 
 @HiltViewModel
 class LabelsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val tagRepository: TagRepository
 ) : ViewModel() {
 
@@ -97,7 +101,7 @@ class LabelsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = error.message ?: "Fehler beim Laden"
+                        error = error.message ?: context.getString(R.string.error_loading)
                     )
                 }
             }
@@ -122,7 +126,7 @@ class LabelsViewModel @Inject constructor(
                 // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = error.message ?: "Fehler beim Erstellen")
+                    it.copy(error = error.message ?: context.getString(R.string.error_creating))
                 }
             }
         }
@@ -136,7 +140,7 @@ class LabelsViewModel @Inject constructor(
                 // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = error.message ?: "Fehler beim Aktualisieren")
+                    it.copy(error = error.message ?: context.getString(R.string.error_updating))
                 }
             }
         }
@@ -149,7 +153,7 @@ class LabelsViewModel @Inject constructor(
                 // observeTagsReactively() automatically updates UI.
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = error.message ?: "Fehler beim Löschen")
+                    it.copy(error = error.message ?: context.getString(R.string.error_deleting))
                 }
             }
         }

@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.settings
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,11 +13,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class UploadQuality(val key: String, val displayName: String) {
-    AUTO("auto", "Automatisch"),
-    LOW("low", "Niedrig (schneller Upload)"),
-    MEDIUM("medium", "Mittel"),
-    HIGH("high", "Hoch (beste Qualität)")
+enum class UploadQuality(val key: String, @StringRes val displayNameRes: Int) {
+    AUTO("auto", R.string.upload_quality_auto),
+    LOW("low", R.string.upload_quality_low),
+    MEDIUM("medium", R.string.upload_quality_medium),
+    HIGH("high", R.string.upload_quality_high)
 }
 
 data class SettingsUiState(

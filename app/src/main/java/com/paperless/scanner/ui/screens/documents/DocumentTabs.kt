@@ -254,7 +254,7 @@ fun ContentTabContent(uiState: DocumentDetailUiState) {
 
         if (uiState.content.isNullOrBlank()) {
             Text(
-                text = "Kein Textinhalt verfügbar",
+                text = stringResource(R.string.tab_no_text_content),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -285,29 +285,29 @@ fun MetadataTabContent(uiState: DocumentDetailUiState) {
             .padding(24.dp)
     ) {
         Text(
-            text = "Metadaten",
+            text = stringResource(R.string.tab_metadata),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        MetadataItem("Erstellt", uiState.created)
+        MetadataItem(stringResource(R.string.tab_metadata_created), uiState.created)
         Spacer(modifier = Modifier.height(12.dp))
-        MetadataItem("Hinzugefügt", uiState.added)
+        MetadataItem(stringResource(R.string.tab_metadata_added), uiState.added)
         Spacer(modifier = Modifier.height(12.dp))
-        MetadataItem("Geändert", uiState.modified)
+        MetadataItem(stringResource(R.string.tab_metadata_modified), uiState.modified)
         Spacer(modifier = Modifier.height(12.dp))
-        MetadataItem("Dokument-ID", uiState.id.toString())
+        MetadataItem(stringResource(R.string.tab_metadata_document_id), uiState.id.toString())
 
         uiState.originalFileName?.let {
             Spacer(modifier = Modifier.height(12.dp))
-            MetadataItem("Original-Dateiname", it)
+            MetadataItem(stringResource(R.string.tab_metadata_original_filename), it)
         }
 
         uiState.archiveSerialNumber?.let {
             Spacer(modifier = Modifier.height(12.dp))
-            MetadataItem("Archivnummer (ASN)", it.toString())
+            MetadataItem(stringResource(R.string.tab_metadata_archive_serial), it.toString())
         }
     }
 }
@@ -369,7 +369,7 @@ fun NotesTabContent(
                     value = noteText,
                     onValueChange = { noteText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Neue Notiz hinzufügen...") },
+                    placeholder = { Text(stringResource(R.string.tab_notes_placeholder)) },
                     enabled = !uiState.isAddingNote,
                     minLines = 3,
                     maxLines = 5
@@ -402,7 +402,7 @@ fun NotesTabContent(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Hinzufügen")
+                        Text(stringResource(R.string.tab_notes_add))
                     }
                 }
 
@@ -436,7 +436,7 @@ fun NotesTabContent(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Keine Notizen vorhanden",
+                    text = stringResource(R.string.tab_notes_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -478,7 +478,7 @@ fun HistoryTabContent(uiState: DocumentDetailUiState) {
             .padding(24.dp)
     ) {
         Text(
-            text = "Verlauf",
+            text = stringResource(R.string.tab_history),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -501,7 +501,7 @@ fun HistoryTabContent(uiState: DocumentDetailUiState) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Keine Änderungen vorhanden",
+                    text = stringResource(R.string.tab_history_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -541,7 +541,7 @@ private fun HistoryEntryCard(entry: com.paperless.scanner.domain.model.AuditLogE
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = entry.actor?.username ?: "System",
+                        text = entry.actor?.username ?: stringResource(R.string.tab_history_system),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -549,9 +549,9 @@ private fun HistoryEntryCard(entry: com.paperless.scanner.domain.model.AuditLogE
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = when (entry.action.lowercase()) {
-                            "create" -> "Erstellt"
-                            "update" -> "Aktualisiert"
-                            "delete" -> "Gelöscht"
+                            "create" -> stringResource(R.string.tab_history_action_create)
+                            "update" -> stringResource(R.string.tab_history_action_update)
+                            "delete" -> stringResource(R.string.tab_history_action_delete)
                             else -> entry.action
                         },
                         style = MaterialTheme.typography.labelMedium,
@@ -641,14 +641,14 @@ fun PermissionsTabContent(uiState: DocumentDetailUiState) {
 
         // Owner
         Text(
-            text = "Besitzer",
+            text = stringResource(R.string.tab_permissions_owner),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = if (uiState.owner != null) "Benutzer #${uiState.owner}" else "Kein Besitzer",
+            text = if (uiState.owner != null) stringResource(R.string.tab_permissions_user_id, uiState.owner!!) else stringResource(R.string.tab_permissions_no_owner),
             style = MaterialTheme.typography.bodyLarge
         )
 
@@ -657,7 +657,7 @@ fun PermissionsTabContent(uiState: DocumentDetailUiState) {
         // View Permissions
         if (uiState.permissions != null) {
             Text(
-                text = "Ansichtsberechtigungen",
+                text = stringResource(R.string.tab_permissions_view),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -666,20 +666,20 @@ fun PermissionsTabContent(uiState: DocumentDetailUiState) {
 
             if (uiState.permissions.view.users.isEmpty() && uiState.permissions.view.groups.isEmpty()) {
                 Text(
-                    text = "Keine spezifischen Berechtigungen",
+                    text = stringResource(R.string.tab_permissions_none),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 if (uiState.permissions.view.users.isNotEmpty()) {
                     Text(
-                        text = "Benutzer: ${uiState.permissions.view.users.joinToString(", ")}",
+                        text = stringResource(R.string.tab_permissions_users, uiState.permissions.view.users.joinToString(", ")),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
                 if (uiState.permissions.view.groups.isNotEmpty()) {
                     Text(
-                        text = "Gruppen: ${uiState.permissions.view.groups.joinToString(", ")}",
+                        text = stringResource(R.string.tab_permissions_groups, uiState.permissions.view.groups.joinToString(", ")),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
@@ -689,7 +689,7 @@ fun PermissionsTabContent(uiState: DocumentDetailUiState) {
 
             // Change Permissions
             Text(
-                text = "Änderungsberechtigungen",
+                text = stringResource(R.string.tab_permissions_change),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -698,27 +698,27 @@ fun PermissionsTabContent(uiState: DocumentDetailUiState) {
 
             if (uiState.permissions.change.users.isEmpty() && uiState.permissions.change.groups.isEmpty()) {
                 Text(
-                    text = "Keine spezifischen Berechtigungen",
+                    text = stringResource(R.string.tab_permissions_none),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 if (uiState.permissions.change.users.isNotEmpty()) {
                     Text(
-                        text = "Benutzer: ${uiState.permissions.change.users.joinToString(", ")}",
+                        text = stringResource(R.string.tab_permissions_users, uiState.permissions.change.users.joinToString(", ")),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
                 if (uiState.permissions.change.groups.isNotEmpty()) {
                     Text(
-                        text = "Gruppen: ${uiState.permissions.change.groups.joinToString(", ")}",
+                        text = stringResource(R.string.tab_permissions_groups, uiState.permissions.change.groups.joinToString(", ")),
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
         } else {
             Text(
-                text = "Keine Berechtigungsinformationen verfügbar",
+                text = stringResource(R.string.tab_permissions_unavailable),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -825,7 +825,7 @@ private fun NoteCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = note.user?.username ?: "System",
+                        text = note.user?.username ?: stringResource(R.string.tab_history_system),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -852,7 +852,7 @@ private fun NoteCard(
                     } else {
                         Icon(
                             imageVector = Icons.Filled.Delete,
-                            contentDescription = "Notiz löschen",
+                            contentDescription = stringResource(R.string.tab_notes_delete),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
