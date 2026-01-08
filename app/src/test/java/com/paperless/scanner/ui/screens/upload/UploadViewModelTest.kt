@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.upload
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
@@ -18,6 +19,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -63,6 +66,15 @@ class UploadViewModelTest {
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+
+        // Mock android.util.Log to prevent UnsatisfiedLinkError in unit tests
+        mockkStatic(Log::class)
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+        every { Log.d(any(), any()) } returns 0
+        every { Log.w(any(), any<String>()) } returns 0
+        every { Log.i(any(), any()) } returns 0
+
         context = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
@@ -97,6 +109,7 @@ class UploadViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Log::class)
     }
 
     // ==================== Reactive Flow Tests ====================
@@ -164,17 +177,19 @@ class UploadViewModelTest {
 
     // ==================== Upload Document Tests ====================
 
-    @Ignore("StandardTestDispatcher timing issue: State remains Idle instead of Queued after advanceUntilIdle(). The dispatcher injection approach works for most tests but this specific case needs investigation into viewModelScope + custom dispatcher interaction.")
     @Test
     fun `uploadDocument when offline queues upload`() = runTest {
         val mockUri = mockk<Uri>()
         every { networkMonitor.checkOnlineStatus() } returns false
 
-        viewModel.uploadDocument(uri = mockUri, title = "Test")
-        advanceUntilIdle()
+        viewModel.uiState.test {
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
 
-        val state = viewModel.uiState.value
-        assertTrue("Expected UploadUiState.Queued but got ${state::class.simpleName}: $state", state is UploadUiState.Queued)
+            viewModel.uploadDocument(uri = mockUri, title = "Test")
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queued, awaitItem())
+        }
 
         coVerify {
             uploadQueueRepository.queueUpload(
@@ -276,18 +291,18 @@ class UploadViewModelTest {
 
     // ==================== Upload Multi-Page Document Tests ====================
 
-    @Ignore("StandardTestDispatcher timing issue - same as uploadDocument offline test")
     @Test
     fun `uploadMultiPageDocument when offline queues upload`() = runTest {
         val mockUris = listOf(mockk<Uri>(), mockk<Uri>())
         every { networkMonitor.checkOnlineStatus() } returns false
 
-        viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
-
         viewModel.uiState.test {
-            val state = awaitItem()
-            assertTrue(state is UploadUiState.Queued)
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
+
+            viewModel.uploadMultiPageDocument(uris = mockUris)
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queued, awaitItem())
         }
 
         coVerify {
@@ -452,7 +467,6 @@ class UploadViewModelTest {
 
     // ==================== Create Tag Tests ====================
 
-    @Ignore("MockK + StandardTestDispatcher issue with suspend functions - createTag() doesn't complete in test")
     @Test
     fun `createTag success updates state to Success`() = runTest {
         val newTag = Tag(id = 10, name = "NewTag", color = "#FF0000")
@@ -461,45 +475,81 @@ class UploadViewModelTest {
         viewModel.createTag(name = "NewTag", color = "#FF0000")
         advanceUntilIdle()
 
-        // Check state directly instead of using Flow test
-        val state = viewModel.createTagState.value
-        assertTrue(state is CreateTagState.Success)
-        assertEquals(newTag, (state as CreateTagState.Success).tag)
+        viewModel.createTagState.test {
+            val state = awaitItem()
+            assertTrue("Expected CreateTagState.Success but got ${state::class.simpleName}", state is CreateTagState.Success)
+            assertEquals(newTag, (state as CreateTagState.Success).tag)
+        }
     }
 
-    @Ignore("MockK issue: suspend function with Result.failure() doesn't complete properly in test context. UnconfinedTestDispatcher doesn't resolve the issue. Needs deeper investigation into MockK behavior with Result types.")
     @Test
     fun `createTag failure updates state to Error`() = runTest {
-        coEvery { tagRepository.createTag(name = "Duplicate", color = null) } returns
-                Result.failure(Exception("Tag already exists"))
+        // Create a non-relaxed mock to ensure our stub is used
+        val strictTagRepository = mockk<TagRepository>()
+        every { strictTagRepository.observeTags() } returns flowOf(emptyList())
+        coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
+            Result.failure(Exception("Tag already exists"))
 
-        viewModel.createTag(name = "Duplicate")
-        runCurrent()
+        val testViewModel = UploadViewModel(
+            context = context,
+            documentRepository = documentRepository,
+            tagRepository = strictTagRepository,
+            documentTypeRepository = documentTypeRepository,
+            correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
+            uploadQueueRepository = uploadQueueRepository,
+            networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
+            ioDispatcher = testDispatcher
+        )
         advanceUntilIdle()
 
-        // Check state directly instead of using Flow test
-        val state = viewModel.createTagState.value
-        println("DEBUG: createTagState = $state (${state::class.simpleName})")
-        assertTrue("Expected CreateTagState.Error but got ${state::class.simpleName}", state is CreateTagState.Error)
-        assertEquals("Tag already exists", (state as CreateTagState.Error).message)
+        testViewModel.createTag(name = "Duplicate")
+        advanceUntilIdle()
+
+        testViewModel.createTagState.test {
+            val state = awaitItem()
+            assertTrue("Expected CreateTagState.Error but got ${state::class.simpleName}", state is CreateTagState.Error)
+            assertEquals("Tag already exists", (state as CreateTagState.Error).message)
+        }
     }
 
-    @Ignore("MockK + StandardTestDispatcher issue with suspend functions - createTag() doesn't complete in test")
     @Test
     fun `resetCreateTagState sets createTagState to Idle`() = runTest {
-        coEvery { tagRepository.createTag(name = any(), color = any()) } returns
-                Result.failure(Exception("Error"))
+        // Create a non-relaxed mock to ensure our stub is used
+        val strictTagRepository = mockk<TagRepository>()
+        every { strictTagRepository.observeTags() } returns flowOf(emptyList())
+        coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
+            Result.failure(Exception("Error"))
 
-        viewModel.createTag(name = "Test")
+        val testViewModel = UploadViewModel(
+            context = context,
+            documentRepository = documentRepository,
+            tagRepository = strictTagRepository,
+            documentTypeRepository = documentTypeRepository,
+            correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
+            uploadQueueRepository = uploadQueueRepository,
+            networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
+            ioDispatcher = testDispatcher
+        )
         advanceUntilIdle()
 
-        // Verify we're in error state
-        assertTrue(viewModel.createTagState.value is CreateTagState.Error)
+        // Trigger error state
+        testViewModel.createTag(name = "Test")
+        advanceUntilIdle()
 
-        // Reset
-        viewModel.resetCreateTagState()
+        // Use Turbine to wait for error state, then reset
+        testViewModel.createTagState.test {
+            val state = awaitItem()
+            assertTrue(state is CreateTagState.Error)
 
-        assertEquals(CreateTagState.Idle, viewModel.createTagState.value)
+            // Reset
+            testViewModel.resetCreateTagState()
+
+            assertEquals(CreateTagState.Idle, awaitItem())
+        }
     }
 
     // ==================== Initial State Tests ====================
