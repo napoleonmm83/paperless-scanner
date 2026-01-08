@@ -24,22 +24,22 @@ services:
   # Run unit tests
   ci-test:
     extends: ci-base
-    command: sh -c "chmod +x ./gradlew && ./gradlew testDebugUnitTest --no-daemon --no-configuration-cache"
+    command: sh -c "chmod +x ./gradlew && ./gradlew testDebugUnitTest --no-daemon "
 
   # Run lint check
   ci-lint:
     extends: ci-base
-    command: sh -c "chmod +x ./gradlew && ./gradlew lintDebug --no-daemon --no-configuration-cache"
+    command: sh -c "chmod +x ./gradlew && ./gradlew lintDebug --no-daemon "
 
   # Build debug APK
   ci-build:
     extends: ci-base
-    command: sh -c "chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon --no-configuration-cache"
+    command: sh -c "chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon "
 
   # Build release AAB
   ci-bundle:
     extends: ci-base
-    command: sh -c "chmod +x ./gradlew && ./gradlew bundleRelease --no-daemon --no-configuration-cache"
+    command: sh -c "chmod +x ./gradlew && ./gradlew bundleRelease --no-daemon "
     environment:
       - GRADLE_OPTS=-Dorg.gradle.daemon=false -Xmx4g
       - GRADLE_USER_HOME=/root/.gradle
@@ -55,11 +55,11 @@ services:
       sh -c "
         chmod +x ./gradlew &&
         echo '=== Running Tests ===' &&
-        ./gradlew testDebugUnitTest --no-daemon --no-configuration-cache &&
+        ./gradlew testDebugUnitTest --no-daemon  &&
         echo '=== Running Lint ===' &&
-        ./gradlew lintDebug --no-daemon --no-configuration-cache &&
+        ./gradlew lintDebug --no-daemon  &&
         echo '=== Building Debug APK ===' &&
-        ./gradlew assembleDebug --no-daemon --no-configuration-cache &&
+        ./gradlew assembleDebug --no-daemon  &&
         echo '=== All CI steps passed! ==='
       "
 
@@ -70,7 +70,7 @@ services:
       sh -c "
         chmod +x ./gradlew &&
         gem install fastlane &&
-        ./gradlew bundleRelease --no-daemon --no-configuration-cache &&
+        ./gradlew bundleRelease --no-daemon  &&
         fastlane android internal
       "
     environment:

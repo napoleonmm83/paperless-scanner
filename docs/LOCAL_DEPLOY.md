@@ -4,6 +4,24 @@ Dieses Dokument beschreibt, wie du die Android App lokal bauen und zum Play Stor
 
 ---
 
+## WICHTIG: Vor jedem Push
+
+**IMMER vor `git push` ausfuehren:**
+
+```bash
+# Validiert EXAKT wie GitHub Actions
+./scripts/validate-ci.sh
+```
+
+Oder mit Docker:
+```bash
+./scripts/validate-ci.sh --docker
+```
+
+Der Pre-push Hook fuehrt dies automatisch aus. Falls er fehlschlaegt, NICHT pushen!
+
+---
+
 ## Option 1: Docker (Empfohlen)
 
 Die einfachste Methode - keine lokale Installation von JDK/Fastlane noetig.
