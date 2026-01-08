@@ -1,24 +1,30 @@
 package com.paperless.scanner.worker
 
-import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
+import android.util.Log
+import androidx.work.Data
+import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
-import androidx.work.WorkerParameters
-import androidx.work.testing.TestListenableWorkerBuilder
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.google.common.util.concurrent.ListenableFuture
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.Runs
 import io.mockk.slot
+import io.mockk.spyk
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -50,21 +56,44 @@ class UploadWorkerTest {
         context = RuntimeEnvironment.getApplication()
         uploadQueueRepository = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
+
+        // Mock Android Log class to avoid "Method not mocked" errors
+        mockkStatic(Log::class)
+        every { Log.d(any(), any()) } returns 0
+        every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
+        every { Log.i(any(), any()) } returns 0
+        every { Log.w(any<String>(), any<String>()) } returns 0
+        every { Log.v(any(), any()) } returns 0
+    }
+
+    @After
+    fun tearDown() {
+        unmockkStatic(Log::class)
     }
 
     private fun createWorker(): UploadWorker {
-        return UploadWorker(
-            context = context,
-            workerParams = mockk(relaxed = true),
-            uploadQueueRepository = uploadQueueRepository,
-            documentRepository = documentRepository
+        val worker = spyk(
+            UploadWorker(
+                context = context,
+                workerParams = mockk(relaxed = true),
+                uploadQueueRepository = uploadQueueRepository,
+                documentRepository = documentRepository
+            )
         )
+        // Mock suspend function setForeground to avoid WorkManager context issues
+        coEvery { worker.setForeground(any()) } just Runs
+        // Mock setProgressAsync - returns immediately completed future
+        every { worker.setProgressAsync(any()) } returns mockk<ListenableFuture<Void>> {
+            every { isDone } returns true
+            every { get() } returns null
+        }
+        return worker
     }
 
     // ==================== No Pending Uploads Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork returns success when no pending uploads`() = runBlocking {
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
         coEvery { uploadQueueRepository.getNextPendingUpload() } returns null
@@ -77,8 +106,7 @@ class UploadWorkerTest {
 
     // ==================== Single Upload Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork processes single upload successfully`() = runBlocking {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
@@ -103,8 +131,7 @@ class UploadWorkerTest {
         coVerify { uploadQueueRepository.markAsCompleted(1) }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork marks upload as failed on error`() = runBlocking {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
@@ -130,8 +157,7 @@ class UploadWorkerTest {
         coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork uses document title when available`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -167,8 +193,7 @@ class UploadWorkerTest {
         }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork passes tag ids to repository`() = runBlocking {
         val tagIds = listOf(1, 2, 3)
         val pendingUpload = createPendingUpload(
@@ -205,8 +230,7 @@ class UploadWorkerTest {
         }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork passes document type id to repository`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -242,8 +266,7 @@ class UploadWorkerTest {
         }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork passes correspondent id to repository`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -281,8 +304,7 @@ class UploadWorkerTest {
 
     // ==================== Multi-Page Upload Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork processes multi-page upload successfully`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -328,8 +350,7 @@ class UploadWorkerTest {
         }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork marks multi-page upload as failed on error`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -360,8 +381,7 @@ class UploadWorkerTest {
 
     // ==================== Multiple Uploads Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork processes multiple uploads successfully`() = runBlocking {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
@@ -389,8 +409,7 @@ class UploadWorkerTest {
         coVerify { uploadQueueRepository.markAsCompleted(3) }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork returns success with partial failures`() = runBlocking {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
@@ -430,8 +449,7 @@ class UploadWorkerTest {
         coVerify { uploadQueueRepository.markAsFailed(2, "Failed") }
     }
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork returns failure when all uploads fail`() = runBlocking {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
@@ -459,8 +477,7 @@ class UploadWorkerTest {
 
     // ==================== Retry Behavior Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork logs max retries warning when retry count exceeded`() = runBlocking {
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -490,8 +507,7 @@ class UploadWorkerTest {
 
     // ==================== Safety Limit Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork breaks loop when same upload returned twice`() = runBlocking {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
@@ -519,8 +535,7 @@ class UploadWorkerTest {
 
     // ==================== Exception Handling Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork handles unexpected exception during upload`() = runBlocking {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
@@ -546,8 +561,7 @@ class UploadWorkerTest {
 
     // ==================== Progress Callback Tests ====================
 
-    @Ignore("Worker integration test - needs Robolectric configuration fixes")
-    @Test
+        @Test
     fun `doWork invokes progress callback during upload`() = runBlocking {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val progressSlot = slot<(Float) -> Unit>()
