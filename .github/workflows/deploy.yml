@@ -45,18 +45,28 @@ jobs:
         run: chmod +x gradlew
 
       - name: Decode Keystore
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > keystore.jks
+            echo "Keystore decoded successfully"
+          else
+            echo "::error::KEYSTORE_BASE64 secret is not set"
+            exit 1
+          fi
 
       - name: Decode Play Store Key
-        if: ${{ env.PLAY_STORE_KEY_JSON != '' }}
-        run: |
-          echo "${{ secrets.PLAY_STORE_KEY_JSON }}" | base64 --decode > fastlane/play-store-key.json
         env:
           PLAY_STORE_KEY_JSON: ${{ secrets.PLAY_STORE_KEY_JSON }}
+        run: |
+          if [ -n "$PLAY_STORE_KEY_JSON" ]; then
+            echo "$PLAY_STORE_KEY_JSON" | base64 --decode > fastlane/play-store-key.json
+            echo "Play Store key decoded successfully"
+          else
+            echo "::error::PLAY_STORE_KEY_JSON secret is not set"
+            exit 1
+          fi
 
       - name: Get version
         id: version
