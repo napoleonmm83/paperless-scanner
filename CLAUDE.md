@@ -260,6 +260,54 @@ Bei JEDER Implementierung:
 - **Kotlin Flow bevorzugen statt suspend functions für reaktive Daten**
 - **Room Flow für Datenbank-Beobachtung verwenden**
 
+### 🌍 AUTOMATISCHE ÜBERSETZUNG (ZWINGEND!)
+
+**Bei JEDER Änderung an `values/strings.xml` MÜSSEN alle Übersetzungen aktualisiert werden!**
+
+#### Unterstützte Sprachen (16 Sprachen)
+| Code | Sprache | Code | Sprache |
+|------|---------|------|---------|
+| en | Englisch | da | Dänisch |
+| fr | Französisch | no | Norwegisch |
+| es | Spanisch | fi | Finnisch |
+| it | Italienisch | cs | Tschechisch |
+| pt | Portugiesisch | hu | Ungarisch |
+| nl | Niederländisch | el | Griechisch |
+| pl | Polnisch | ro | Rumänisch |
+| sv | Schwedisch | tr | Türkisch |
+
+#### Workflow bei neuen/geänderten Strings
+
+1. **Neue Strings in `values/strings.xml` hinzufügen** (Deutsch als Basis)
+2. **SOFORT alle 16 Übersetzungsdateien aktualisieren:**
+   ```
+   app/src/main/res/values-{code}/strings.xml
+   ```
+3. **Gleiche String-Keys verwenden** in allen Dateien
+4. **Qualitätsprüfung:** Übersetzungen müssen natürlich klingen, nicht wörtlich
+
+#### Beispiel
+```xml
+<!-- values/strings.xml (Deutsch - Basis) -->
+<string name="new_feature_title">Neue Funktion</string>
+
+<!-- values-en/strings.xml -->
+<string name="new_feature_title">New Feature</string>
+
+<!-- values-fr/strings.xml -->
+<string name="new_feature_title">Nouvelle fonctionnalité</string>
+
+<!-- ... alle anderen Sprachen -->
+```
+
+#### WICHTIG
+- **NIEMALS** neue Strings nur in Deutsch hinzufügen
+- **NIEMALS** Übersetzungen vergessen oder aufschieben
+- **IMMER** alle 16 Dateien im gleichen Commit aktualisieren
+- Bei Unsicherheit: User fragen, ob Übersetzungen korrekt sind
+
+---
+
 ### DON'T
 - **NIEMALS Quick Fixes implementieren wenn Best Practice möglich ist**
 - **NIEMALS Lifecycle Observer für manuelles Refresh wenn Room Flow verfügbar**

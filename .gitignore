@@ -106,3 +106,7 @@ gradle.properties.local
 .actrc
 setup-github-secrets.sh
 setup-github-secrets.bat
+
+# Local CI test results
+lint-results.txt
+test-results.txt

@@ -74,3 +74,53 @@ jobs:
           name: lint-results
           path: app/build/reports/lint-results-debug.html
           retention-days: 7
+
+  validate:
+    name: Validation Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Grant execute permission for scripts
+        run: chmod +x scripts/*.sh
+
+      - name: Check translation completeness
+        run: ./scripts/check-translations.sh
+
+      - name: Check for hardcoded strings in Kotlin
+        run: |
+          echo "Checking for potential hardcoded strings..."
+          # Find text="" attributes in Composables that should use stringResource
+          HARDCODED=$(grep -rn 'text = "' app/src/main/java --include="*.kt" | grep -v "// OK" | grep -v "TODO" | head -20 || true)
+          if [ -n "$HARDCODED" ]; then
+            echo "⚠️ Potential hardcoded strings found (review manually):"
+            echo "$HARDCODED"
+            echo ""
+            echo "Consider using stringResource(R.string.xxx) instead."
+          else
+            echo "✓ No obvious hardcoded strings found"
+          fi
+
+      - name: Validate XML resources
+        run: |
+          echo "Validating XML resources..."
+          # Check for duplicate string IDs in base strings.xml
+          DUPLICATES=$(grep '<string name="' app/src/main/res/values/strings.xml | sed 's/.*name="\([^"]*\)".*/\1/' | sort | uniq -d)
+          if [ -n "$DUPLICATES" ]; then
+            echo "❌ Duplicate string IDs found:"
+            echo "$DUPLICATES"
+            exit 1
+          else
+            echo "✓ No duplicate string IDs"
+          fi
+
+          # Check for empty strings
+          EMPTY=$(grep '<string name="[^"]*"></string>' app/src/main/res/values/strings.xml || true)
+          if [ -n "$EMPTY" ]; then
+            echo "⚠️ Empty strings found:"
+            echo "$EMPTY"
+          else
+            echo "✓ No empty strings"
+          fi
