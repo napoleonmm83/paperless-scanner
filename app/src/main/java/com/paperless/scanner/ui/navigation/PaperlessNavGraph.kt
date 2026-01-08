@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
+import com.paperless.scanner.ui.theme.PaperlessAnimations
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
 import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
@@ -148,7 +149,11 @@ fun PaperlessNavGraph(
                 navArgument("documentId") {
                     type = NavType.StringType
                 }
-            )
+            ),
+            enterTransition = { PaperlessAnimations.screenEnterTransition },
+            exitTransition = { PaperlessAnimations.screenExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.screenPopExitTransition }
         ) {
             DocumentDetailScreen(
                 onNavigateBack = {
@@ -170,7 +175,11 @@ fun PaperlessNavGraph(
                 navArgument("documentTitle") {
                     type = NavType.StringType
                 }
-            )
+            ),
+            enterTransition = { PaperlessAnimations.screenEnterTransition },
+            exitTransition = { PaperlessAnimations.screenExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.screenPopExitTransition }
         ) {
             PdfViewerScreen(
                 onNavigateBack = {
@@ -194,7 +203,11 @@ fun PaperlessNavGraph(
                 navArgument("documentUri") {
                     type = NavType.StringType
                 }
-            )
+            ),
+            enterTransition = { PaperlessAnimations.verticalEnterTransition },
+            exitTransition = { PaperlessAnimations.verticalExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.verticalExitTransition }
         ) { backStackEntry ->
             val documentUriString = backStackEntry.arguments?.getString("documentUri")
             val documentUri = documentUriString?.let { Uri.parse(it) }
@@ -220,7 +233,11 @@ fun PaperlessNavGraph(
                 navArgument("documentUris") {
                     type = NavType.StringType
                 }
-            )
+            ),
+            enterTransition = { PaperlessAnimations.verticalEnterTransition },
+            exitTransition = { PaperlessAnimations.verticalExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.verticalExitTransition }
         ) { backStackEntry ->
             val documentUrisString = backStackEntry.arguments?.getString("documentUris")
             val documentUris = documentUrisString?.split("|")?.mapNotNull { encodedUri ->
@@ -252,7 +269,11 @@ fun PaperlessNavGraph(
                 navArgument("imageUris") {
                     type = NavType.StringType
                 }
-            )
+            ),
+            enterTransition = { PaperlessAnimations.verticalEnterTransition },
+            exitTransition = { PaperlessAnimations.verticalExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.verticalExitTransition }
         ) { backStackEntry ->
             val imageUrisString = backStackEntry.arguments?.getString("imageUris")
             val imageUris = imageUrisString?.split("|")?.mapNotNull { encodedUri ->

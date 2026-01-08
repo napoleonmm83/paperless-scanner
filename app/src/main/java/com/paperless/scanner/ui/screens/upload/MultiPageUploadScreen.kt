@@ -176,7 +176,7 @@ fun MultiPageUploadScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PictureAsPdf,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_pdf),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -307,7 +307,7 @@ fun MultiPageUploadScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_error),
                             tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -328,7 +328,7 @@ fun MultiPageUploadScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.cd_refresh),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -390,7 +390,7 @@ fun MultiPageUploadScreen(
                 } else {
                     Icon(
                         imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null
+                        contentDescription = stringResource(R.string.cd_upload)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(

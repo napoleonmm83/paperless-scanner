@@ -270,7 +270,9 @@ fun OnboardingLoginScreen(
                                 } else {
                                     Icons.Filled.Visibility
                                 },
-                                contentDescription = null
+                                contentDescription = stringResource(
+                                    if (showPassword) R.string.cd_hide_password else R.string.cd_show_password
+                                )
                             )
                         }
                     },
@@ -311,7 +313,9 @@ fun OnboardingLoginScreen(
                                 } else {
                                     Icons.Filled.Visibility
                                 },
-                                contentDescription = null
+                                contentDescription = stringResource(
+                                    if (showToken) R.string.cd_hide_password else R.string.cd_show_password
+                                )
                             )
                         }
                     },
@@ -334,7 +338,7 @@ fun OnboardingLoginScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.CameraAlt,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_scan_token),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
@@ -359,7 +363,7 @@ fun OnboardingLoginScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Warning,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_warning),
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.error
                         )
@@ -404,7 +408,7 @@ fun OnboardingLoginScreen(
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_login),
                         modifier = Modifier
                             .padding(start = 8.dp)
                             .size(20.dp)

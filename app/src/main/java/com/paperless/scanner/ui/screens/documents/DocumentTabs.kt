@@ -107,7 +107,7 @@ fun DetailsTabContent(
                 } else {
                     Icon(
                         imageVector = Icons.Filled.Description,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_document_thumbnail),
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -225,7 +225,7 @@ fun DetailsTabContent(
         ) {
             Icon(
                 imageVector = Icons.Filled.Description,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_pdf),
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -397,7 +397,7 @@ fun NotesTabContent(
                         } else {
                             Icon(
                                 imageVector = Icons.Filled.Send,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.cd_send),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -430,7 +430,7 @@ fun NotesTabContent(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Description,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_no_notes),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -495,7 +495,7 @@ fun HistoryTabContent(uiState: DocumentDetailUiState) {
             ) {
                 Icon(
                     imageVector = Icons.Filled.CalendarToday,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_calendar),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -535,7 +535,7 @@ private fun HistoryEntryCard(entry: com.paperless.scanner.domain.model.AuditLogE
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Person,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_person),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -747,7 +747,7 @@ private fun InfoCard(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = label,
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
@@ -819,7 +819,7 @@ private fun NoteCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Filled.Person,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_person),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )

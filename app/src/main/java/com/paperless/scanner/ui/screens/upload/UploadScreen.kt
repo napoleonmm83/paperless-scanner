@@ -231,7 +231,7 @@ fun UploadScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_error),
                             tint = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -252,7 +252,7 @@ fun UploadScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.cd_refresh),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -314,7 +314,7 @@ fun UploadScreen(
                 } else {
                     Icon(
                         imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null
+                        contentDescription = stringResource(R.string.cd_upload)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(

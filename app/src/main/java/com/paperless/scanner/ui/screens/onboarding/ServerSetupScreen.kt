@@ -284,7 +284,7 @@ fun ServerSetupScreen(
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_continue),
                     modifier = Modifier
                         .padding(start = 8.dp)
                         .size(20.dp)

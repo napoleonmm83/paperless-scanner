@@ -146,7 +146,7 @@ fun LabelsScreen(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -366,7 +366,7 @@ private fun AddLabelCard(onClick: () -> Unit) {
         ) {
             Icon(
                 imageVector = Icons.Filled.Add,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_add),
                 modifier = Modifier.size(28.dp),
                 tint = MaterialTheme.colorScheme.onPrimary
             )
@@ -636,7 +636,7 @@ private fun LabelDetailView(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Description,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_no_documents),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
@@ -682,7 +682,7 @@ private fun LabelDetailView(
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Description,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.cd_document_thumbnail),
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -87,7 +87,7 @@ fun SuccessScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_check),
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -103,7 +103,7 @@ fun SuccessScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Celebration,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_success),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onTertiary
                     )
@@ -154,7 +154,7 @@ fun SuccessScreen(
             // Tips
             Text(
                 text = stringResource(R.string.success_tips_header),
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 letterSpacing = 1.sp
@@ -191,7 +191,7 @@ fun SuccessScreen(
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_continue),
                     modifier = Modifier
                         .padding(start = 8.dp)
                         .size(20.dp)

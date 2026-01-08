@@ -50,6 +50,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.R
 
@@ -107,7 +109,7 @@ fun SettingsScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Person,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_person),
                             modifier = Modifier.size(28.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
@@ -233,7 +235,7 @@ fun SettingsScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_logout),
                     modifier = Modifier.size(20.dp),
                     tint = MaterialTheme.colorScheme.error
                 )
@@ -301,7 +303,7 @@ fun SettingsScreen(
                             if (quality == uiState.uploadQuality) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
-                                    contentDescription = stringResource(R.string.settings_selected),
+                                    contentDescription = stringResource(R.string.cd_selected),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -413,7 +415,7 @@ private fun SettingsInfoItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = title,
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -451,7 +453,7 @@ private fun SettingsClickableItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = title,
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -489,7 +491,7 @@ private fun SettingsToggleItem(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = title,
             modifier = Modifier.size(24.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )

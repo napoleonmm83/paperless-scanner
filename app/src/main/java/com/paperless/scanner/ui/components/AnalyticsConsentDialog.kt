@@ -161,7 +161,7 @@ fun AnalyticsConsentDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_check),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))

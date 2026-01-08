@@ -122,7 +122,7 @@ private fun NavButton(
         )
         Text(
             text = item.label,
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
             color = if (isSelected)
                 MaterialTheme.colorScheme.primary
@@ -166,7 +166,7 @@ private fun ScanNavButton(
         }
         Text(
             text = "Scan",
-            fontSize = 10.sp,
+            style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
             color = if (isSelected)
                 MaterialTheme.colorScheme.primary

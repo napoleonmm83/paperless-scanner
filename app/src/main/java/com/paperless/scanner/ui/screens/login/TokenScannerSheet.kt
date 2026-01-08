@@ -270,7 +270,7 @@ fun TokenScannerSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_camera_permission),
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -413,7 +413,7 @@ fun TokenScannerSheet(
                             if (foundToken != null) {
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.cd_token_found),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )

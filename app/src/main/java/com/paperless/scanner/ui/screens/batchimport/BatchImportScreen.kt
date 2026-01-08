@@ -153,7 +153,7 @@ fun BatchImportScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Photo,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_photo),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -443,7 +443,7 @@ fun BatchImportScreen(
                 } else {
                     Icon(
                         imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null
+                        contentDescription = stringResource(R.string.cd_upload)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(

@@ -346,7 +346,7 @@ private fun ScanOptionCard(
             ) {
                 Icon(
                     imageVector = icon,
-                    contentDescription = null,
+                    contentDescription = label,
                     modifier = Modifier.size(28.dp),
                     tint = Color.Black.copy(alpha = 0.8f)
                 )
@@ -523,7 +523,7 @@ private fun MultiPageContent(
             ) {
                 Icon(
                     imageVector = Icons.Default.Upload,
-                    contentDescription = null
+                    contentDescription = stringResource(R.string.cd_upload)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
@@ -549,7 +549,7 @@ private fun MultiPageContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_add),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -564,7 +564,7 @@ private fun MultiPageContent(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_discard),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -728,7 +728,7 @@ private fun AddPageCard(onClick: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_add_page),
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )

@@ -292,7 +292,7 @@ private fun PdfView(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_previous_page),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
@@ -303,7 +303,7 @@ private fun PdfView(
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_next_page),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -476,7 +476,7 @@ private fun ErrorView(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 imageVector = Icons.Filled.Error,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_error),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.error
             )

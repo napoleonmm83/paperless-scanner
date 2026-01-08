@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,8 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 
 data class DocumentItem(
     val id: Int,
@@ -109,7 +113,7 @@ fun DocumentsScreen(
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Filled.Search,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
@@ -201,7 +205,7 @@ fun DocumentsScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Description,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_no_documents),
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     )
@@ -222,12 +226,23 @@ fun DocumentsScreen(
                 }
             }
         } else {
-            LazyColumn(
+            // Responsive grid: 1 column on phones, 2 on tablets portrait, 3 on tablets landscape
+            val windowSizeClass = LocalWindowSizeClass.current
+            val columns = when (windowSizeClass.widthSizeClass) {
+                WindowWidthSizeClass.Compact -> 1
+                WindowWidthSizeClass.Medium -> 2
+                WindowWidthSizeClass.Expanded -> 3
+                else -> 1
+            }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                contentPadding = PaddingValues(
                     horizontal = 24.dp,
                     vertical = 8.dp
                 ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(uiState.documents, key = { it.id }) { document ->
@@ -271,7 +286,7 @@ private fun DocumentCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Description,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_document_thumbnail),
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
@@ -335,7 +350,7 @@ private fun DocumentCard(
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_open_document),
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )

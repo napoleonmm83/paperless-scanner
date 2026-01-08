@@ -39,7 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -197,7 +199,7 @@ fun TagSelectionSection(
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_create_tag),
                         modifier = Modifier.size(AssistChipDefaults.IconSize)
                     )
                 }
@@ -236,7 +238,7 @@ fun UploadErrorCard(
         ) {
             Icon(
                 imageVector = Icons.Default.Warning,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_warning),
                 tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(48.dp)
             )
@@ -266,7 +268,7 @@ fun UploadErrorCard(
                     Button(onClick = onRetry) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.cd_refresh),
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))

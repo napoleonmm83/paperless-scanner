@@ -56,7 +56,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.theme.DarkTechPrimary
@@ -196,7 +195,7 @@ fun HomeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_scan),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -231,7 +230,7 @@ fun HomeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Description,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.home_all_documents),
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
                     )
@@ -322,7 +321,7 @@ fun HomeScreen(
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.home_see_all),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -348,7 +347,7 @@ fun HomeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Description,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.home_no_documents),
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
@@ -397,7 +396,7 @@ fun HomeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Tag,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_filter),
                         modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -464,7 +463,7 @@ private fun StatCard(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = label,
                 modifier = Modifier.size(28.dp),
                 tint = if (isPrimary) {
                     MaterialTheme.colorScheme.primary
@@ -483,8 +482,7 @@ private fun StatCard(
                 text = label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -520,7 +518,7 @@ private fun RecentDocumentCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Description,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_document_thumbnail),
                     modifier = Modifier.size(24.dp),
                     tint = MaterialTheme.colorScheme.onPrimary
                 )
@@ -542,7 +540,7 @@ private fun RecentDocumentCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
-                            contentDescription = null,
+                            contentDescription = document.timeAgo,
                             modifier = Modifier.size(12.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -576,7 +574,7 @@ private fun RecentDocumentCard(
 
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_expand),
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -653,7 +651,7 @@ private fun ProcessingTaskCard(
                     if (statusIcon != null) {
                         Icon(
                             imageVector = statusIcon,
-                            contentDescription = null,
+                            contentDescription = statusText,
                             modifier = Modifier.size(24.dp),
                             tint = iconColor
                         )

@@ -14,6 +14,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -27,6 +30,7 @@ import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.components.AnalyticsConsentDialog
 import com.paperless.scanner.ui.navigation.PaperlessNavGraph
 import com.paperless.scanner.ui.navigation.Screen
+import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -45,6 +49,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled silently */ }
 
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -63,7 +68,10 @@ class MainActivity : ComponentActivity() {
         analyticsService.setEnabled(hasConsent)
 
         setContent {
-            PaperlessScannerTheme {
+            val windowSizeClass = calculateWindowSizeClass(this)
+
+            CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+                PaperlessScannerTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -104,6 +112,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
             }
         }
     }

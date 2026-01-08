@@ -196,7 +196,7 @@ fun DocumentDetailScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
                             imageVector = Icons.Filled.Error,
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.document_detail_error),
                             modifier = Modifier.size(48.dp),
                             tint = MaterialTheme.colorScheme.error
                         )

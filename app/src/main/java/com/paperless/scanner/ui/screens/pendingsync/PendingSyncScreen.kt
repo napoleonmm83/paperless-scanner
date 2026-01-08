@@ -176,7 +176,7 @@ private fun SectionHeader(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = null,
+                contentDescription = title,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
@@ -246,7 +246,7 @@ private fun UploadItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Error,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_error),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(16.dp)
                     )
@@ -339,7 +339,7 @@ private fun PendingChangeItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Error,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.cd_error),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(16.dp)
                     )
@@ -433,7 +433,7 @@ private fun EmptyState(message: String) {
         ) {
             Icon(
                 imageVector = Icons.Default.CloudQueue,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_no_sync),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
