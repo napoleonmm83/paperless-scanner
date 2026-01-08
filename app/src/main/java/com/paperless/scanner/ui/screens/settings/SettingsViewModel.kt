@@ -4,6 +4,8 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +26,14 @@ data class SettingsUiState(
     val serverUrl: String = "",
     val isConnected: Boolean = false,
     val showUploadNotifications: Boolean = true,
-    val uploadQuality: UploadQuality = UploadQuality.AUTO
+    val uploadQuality: UploadQuality = UploadQuality.AUTO,
+    val analyticsEnabled: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val analyticsService: AnalyticsService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -46,12 +50,14 @@ class SettingsViewModel @Inject constructor(
             val uploadNotifications = tokenManager.uploadNotificationsEnabled.first()
             val qualityKey = tokenManager.uploadQuality.first()
             val quality = UploadQuality.entries.find { it.key == qualityKey } ?: UploadQuality.AUTO
+            val analyticsConsent = tokenManager.analyticsConsent.first() ?: false
 
             _uiState.value = SettingsUiState(
                 serverUrl = serverUrl,
                 isConnected = !token.isNullOrBlank(),
                 showUploadNotifications = uploadNotifications,
-                uploadQuality = quality
+                uploadQuality = quality,
+                analyticsEnabled = analyticsConsent
             )
         }
     }
@@ -67,6 +73,15 @@ class SettingsViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(uploadQuality = quality)
         viewModelScope.launch {
             tokenManager.setUploadQuality(quality.key)
+        }
+    }
+
+    fun setAnalyticsEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(analyticsEnabled = enabled)
+        viewModelScope.launch {
+            tokenManager.setAnalyticsConsent(enabled)
+            analyticsService.setEnabled(enabled)
+            analyticsService.trackEvent(AnalyticsEvent.AnalyticsConsentChanged(granted = enabled))
         }
     }
 

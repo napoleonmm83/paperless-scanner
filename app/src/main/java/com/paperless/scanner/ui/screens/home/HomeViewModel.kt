@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentRepository
@@ -79,7 +81,8 @@ class HomeViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val syncManager: com.paperless.scanner.data.sync.SyncManager
+    private val syncManager: com.paperless.scanner.data.sync.SyncManager,
+    private val analyticsService: AnalyticsService
 ) : ViewModel() {
 
     companion object {
@@ -110,6 +113,7 @@ class HomeViewModel @Inject constructor(
     private var wasOffline = false
 
     init {
+        analyticsService.trackEvent(AnalyticsEvent.AppOpened)
         loadDashboardData()
         startNetworkMonitoring()
         observePendingUploads()
@@ -370,6 +374,13 @@ class HomeViewModel @Inject constructor(
     private fun startNetworkMonitoring() {
         viewModelScope.launch {
             networkMonitor.isOnline.collect { currentlyOnline ->
+                // Track network status changes
+                analyticsService.trackEvent(AnalyticsEvent.NetworkStatusChanged(isOnline = currentlyOnline))
+
+                if (!currentlyOnline) {
+                    analyticsService.trackEvent(AnalyticsEvent.OfflineModeUsed)
+                }
+
                 // Auto-refresh when coming back online
                 if (currentlyOnline && wasOffline) {
                     logger.log(Level.INFO, "Network reconnected - auto-refreshing data")

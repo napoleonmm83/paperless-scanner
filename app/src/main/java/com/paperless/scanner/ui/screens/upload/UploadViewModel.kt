@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -35,6 +37,7 @@ class UploadViewModel @Inject constructor(
     private val networkUtils: NetworkUtils,
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val analyticsService: AnalyticsService,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -119,6 +122,9 @@ class UploadViewModel @Inject constructor(
         lastUploadParams = UploadParams.Single(uri, title, tagIds, documentTypeId, correspondentId)
 
         viewModelScope.launch(ioDispatcher) {
+            val startTime = System.currentTimeMillis()
+            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = 1, isMultiPage = false))
+
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing upload for later sync")
@@ -130,6 +136,7 @@ class UploadViewModel @Inject constructor(
                     correspondentId = correspondentId
                 )
                 lastUploadParams = null
+                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
                 _uiState.update { UploadUiState.Queued }
                 return@launch
             }
@@ -147,10 +154,13 @@ class UploadViewModel @Inject constructor(
                 }
             )
                 .onSuccess { taskId ->
+                    val durationMs = System.currentTimeMillis() - startTime
+                    analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = 1, durationMs = durationMs))
                     lastUploadParams = null
                     _uiState.update { UploadUiState.Success(taskId) }
                 }
                 .onFailure { exception ->
+                    analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "upload_error"))
                     _uiState.update {
                         UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
                     }
@@ -169,6 +179,10 @@ class UploadViewModel @Inject constructor(
         lastUploadParams = UploadParams.MultiPage(uris, title, tagIds, documentTypeId, correspondentId)
 
         viewModelScope.launch(ioDispatcher) {
+            val startTime = System.currentTimeMillis()
+            val pageCount = uris.size
+            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
+
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
@@ -180,6 +194,7 @@ class UploadViewModel @Inject constructor(
                     correspondentId = correspondentId
                 )
                 lastUploadParams = null
+                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
                 _uiState.update { UploadUiState.Queued }
                 return@launch
             }
@@ -197,10 +212,13 @@ class UploadViewModel @Inject constructor(
                 }
             )
                 .onSuccess { taskId ->
+                    val durationMs = System.currentTimeMillis() - startTime
+                    analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = pageCount, durationMs = durationMs))
                     lastUploadParams = null
                     _uiState.update { UploadUiState.Success(taskId) }
                 }
                 .onFailure { exception ->
+                    analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "multi_page_upload_error"))
                     _uiState.update {
                         UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
                     }
@@ -209,6 +227,7 @@ class UploadViewModel @Inject constructor(
     }
 
     fun retry() {
+        analyticsService.trackEvent(AnalyticsEvent.UploadRetried)
         when (val params = lastUploadParams) {
             is UploadParams.Single -> uploadDocument(
                 uri = params.uri,
@@ -255,6 +274,7 @@ class UploadViewModel @Inject constructor(
             tagRepository.createTag(name = name, color = color)
                 .onSuccess { newTag ->
                     Log.d(TAG, "Tag created: ${newTag.name}")
+                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
                     // BEST PRACTICE: No manual list update needed!
                     // observeTagsReactively() automatically updates dropdown.
                     _createTagState.update { CreateTagState.Success(newTag) }

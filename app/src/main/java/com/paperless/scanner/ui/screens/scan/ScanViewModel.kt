@@ -8,6 +8,8 @@ import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +47,7 @@ data class ScanUiState(
 @HiltViewModel
 class ScanViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val analyticsService: AnalyticsService,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -60,6 +63,8 @@ class ScanViewModel @Inject constructor(
                     pageNumber = startIndex + index + 1
                 )
             }
+            val newTotalPages = state.pageCount + uris.size
+            analyticsService.trackEvent(AnalyticsEvent.ScanPageAdded(totalPages = newTotalPages))
             state.copy(pages = state.pages + newPages)
         }
     }
@@ -69,6 +74,7 @@ class ScanViewModel @Inject constructor(
             val removedIndex = state.pages.indexOfFirst { it.id == pageId }
             if (removedIndex == -1) return@update state
 
+            analyticsService.trackEvent(AnalyticsEvent.ScanPageRemoved)
             val removedPage = state.pages[removedIndex]
             val filteredPages = state.pages.filter { it.id != pageId }
             val renumberedPages = filteredPages.mapIndexed { index, page ->
@@ -109,6 +115,7 @@ class ScanViewModel @Inject constructor(
                 return@update state
             }
 
+            analyticsService.trackEvent(AnalyticsEvent.ScanPagesReordered)
             val mutablePages = state.pages.toMutableList()
             val page = mutablePages.removeAt(fromIndex)
             mutablePages.add(toIndex, page)
@@ -121,6 +128,7 @@ class ScanViewModel @Inject constructor(
     }
 
     fun rotatePage(pageId: String) {
+        analyticsService.trackEvent(AnalyticsEvent.ScanPageRotated)
         _uiState.update { state ->
             val updatedPages = state.pages.map { page ->
                 if (page.id == pageId) {
@@ -145,6 +153,8 @@ class ScanViewModel @Inject constructor(
      * Returns URIs with rotation applied. Creates rotated copies for pages with rotation != 0.
      */
     suspend fun getRotatedPageUris(): List<Uri> = withContext(Dispatchers.IO) {
+        val pageCount = _uiState.value.pageCount
+        analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pageCount))
         _uiState.value.pages.map { page ->
             if (page.rotation == 0) {
                 page.uri

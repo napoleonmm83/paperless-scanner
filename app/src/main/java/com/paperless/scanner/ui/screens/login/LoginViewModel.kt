@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
@@ -26,6 +28,7 @@ class LoginViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
     private val tokenManager: TokenManager,
+    private val analyticsService: AnalyticsService,
     val biometricHelper: BiometricHelper
 ) : ViewModel() {
 
@@ -134,6 +137,8 @@ class LoginViewModel @Inject constructor(
         }
 
         Log.d(TAG, "Starting login with URL: $urlToUse")
+        analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
+
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
@@ -141,11 +146,13 @@ class LoginViewModel @Inject constructor(
 
             authRepository.login(urlToUse, username, password)
                 .onSuccess {
+                    analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("password"))
                     withContext(Dispatchers.Main) {
                         _uiState.update { LoginUiState.Success }
                     }
                 }
                 .onFailure { exception ->
+                    analyticsService.trackEvent(AnalyticsEvent.LoginFailed("auth_error"))
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             LoginUiState.Error(
@@ -170,6 +177,8 @@ class LoginViewModel @Inject constructor(
         }
 
         Log.d(TAG, "Starting token login with URL: $urlToUse")
+        analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
+
         viewModelScope.launch(Dispatchers.IO) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
@@ -178,11 +187,13 @@ class LoginViewModel @Inject constructor(
             authRepository.validateToken(urlToUse, token)
                 .onSuccess {
                     tokenManager.saveCredentials(urlToUse, token)
+                    analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("token"))
                     withContext(Dispatchers.Main) {
                         _uiState.update { LoginUiState.Success }
                     }
                 }
                 .onFailure { exception ->
+                    analyticsService.trackEvent(AnalyticsEvent.LoginFailed("invalid_token"))
                     withContext(Dispatchers.Main) {
                         _uiState.update {
                             LoginUiState.Error(
@@ -195,16 +206,19 @@ class LoginViewModel @Inject constructor(
     }
 
     fun onBiometricSuccess() {
+        analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("biometric"))
         _uiState.update { LoginUiState.Success }
     }
 
     fun onBiometricError(message: String) {
+        analyticsService.trackEvent(AnalyticsEvent.LoginFailed("biometric_error"))
         _uiState.update { LoginUiState.Error(message) }
     }
 
     fun enableBiometric() {
         viewModelScope.launch {
             tokenManager.setBiometricEnabled(true)
+            analyticsService.trackEvent(AnalyticsEvent.BiometricEnabled)
             checkBiometricAvailability()
         }
     }

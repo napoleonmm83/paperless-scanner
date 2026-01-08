@@ -406,4 +406,17 @@
 
     <!-- Share -->
     <string name="share_via">Teilen via</string>
+
+    <!-- Analytics Consent -->
+    <string name="analytics_consent_title">ANALYTICS</string>
+    <string name="analytics_consent_subtitle">Hilf uns, die App zu verbessern</string>
+    <string name="analytics_consent_description">Wir sammeln anonymisierte Nutzungsdaten, um die App zu verbessern. Es werden keine persönlichen Daten erfasst.</string>
+    <string name="analytics_consent_bullet_1">Anonymisierte Nutzungsstatistiken</string>
+    <string name="analytics_consent_bullet_2">Crash-Reports zur Fehlerbehebung</string>
+    <string name="analytics_consent_bullet_3">Performance-Metriken</string>
+    <string name="analytics_consent_privacy">Datenschutzrichtlinie</string>
+    <string name="analytics_consent_accept">Akzeptieren</string>
+    <string name="analytics_consent_decline">Ablehnen</string>
+    <string name="analytics_settings_title">Analytics &amp; Crash-Reports</string>
+    <string name="analytics_settings_subtitle">Anonymisierte Daten zur Verbesserung der App</string>
 </resources>

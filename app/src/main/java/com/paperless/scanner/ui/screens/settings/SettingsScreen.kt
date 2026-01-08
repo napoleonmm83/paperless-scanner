@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Description
@@ -172,6 +173,19 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_upload_quality),
                 value = stringResource(uiState.uploadQuality.displayNameRes),
                 onClick = { showQualityDialog = true }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingsToggleItem(
+                icon = Icons.Filled.Analytics,
+                title = stringResource(R.string.analytics_settings_title),
+                subtitle = stringResource(R.string.analytics_settings_subtitle),
+                checked = uiState.analyticsEnabled,
+                onCheckedChange = { viewModel.setAnalyticsEnabled(it) }
             )
         }
 

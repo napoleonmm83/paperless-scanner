@@ -10,6 +10,9 @@ plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
     alias(libs.plugins.paparazzi)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.firebase.perf)
 }
 
 // Load version from properties file
@@ -222,6 +225,12 @@ dependencies {
     implementation(libs.itext.kernel)
     implementation(libs.itext.io)
     implementation(libs.itext.layout)
+
+    // Firebase Analytics & Crashlytics
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.perf)
 
     // Testing
     testImplementation(libs.junit)

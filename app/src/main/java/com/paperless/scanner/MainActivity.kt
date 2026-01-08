@@ -16,15 +16,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.ui.components.AnalyticsConsentDialog
 import com.paperless.scanner.ui.navigation.PaperlessNavGraph
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -32,6 +37,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var tokenManager: TokenManager
+
+    @Inject
+    lateinit var analyticsService: AnalyticsService
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -50,6 +58,10 @@ class MainActivity : ComponentActivity() {
 
         val sharedUris = handleShareIntent(intent)
 
+        // Initialize analytics based on stored consent
+        val hasConsent = tokenManager.isAnalyticsConsentGrantedSync()
+        analyticsService.setEnabled(hasConsent)
+
         setContent {
             PaperlessScannerTheme {
                 Surface(
@@ -57,7 +69,9 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val token by tokenManager.token.collectAsState(initial = null)
+                    val analyticsConsentAsked by tokenManager.analyticsConsentAsked.collectAsState(initial = true)
                     val navController = rememberNavController()
+                    val coroutineScope = rememberCoroutineScope()
 
                     val startDestination = if (token.isNullOrBlank()) {
                         Screen.Welcome.route
@@ -70,6 +84,25 @@ class MainActivity : ComponentActivity() {
                         startDestination = startDestination,
                         sharedUris = sharedUris
                     )
+
+                    // Show consent dialog on first launch
+                    if (!analyticsConsentAsked) {
+                        AnalyticsConsentDialog(
+                            onAccept = {
+                                coroutineScope.launch {
+                                    tokenManager.setAnalyticsConsent(true)
+                                    analyticsService.setEnabled(true)
+                                    analyticsService.trackEvent(AnalyticsEvent.AnalyticsConsentChanged(granted = true))
+                                }
+                            },
+                            onDecline = {
+                                coroutineScope.launch {
+                                    tokenManager.setAnalyticsConsent(false)
+                                    analyticsService.setEnabled(false)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

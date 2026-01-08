@@ -5,6 +5,10 @@ detekt = "1.23.7"
 ktlint = "12.1.2"
 paparazzi = "1.3.4"
 gradleVersions = "0.51.0"
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
+firebaseCrashlyticsPlugin = "3.0.2"
+firebasePerfPlugin = "1.4.2"
 coreKtx = "1.15.0"
 lifecycleRuntimeKtx = "2.10.0"
 activityCompose = "1.9.3"
@@ -125,6 +129,12 @@ navigation-testing = { group = "androidx.navigation", name = "navigation-testing
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 work-testing = { group = "androidx.work", name = "work-testing", version.ref = "workManager" }
 
+# Firebase
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
+firebase-perf = { group = "com.google.firebase", name = "firebase-perf-ktx" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -135,3 +145,6 @@ detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
 paparazzi = { id = "app.cash.paparazzi", version.ref = "paparazzi" }
 gradle-versions = { id = "com.github.ben-manes.versions", version.ref = "gradleVersions" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
+firebase-perf = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }

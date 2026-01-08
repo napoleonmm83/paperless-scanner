@@ -22,6 +22,8 @@ class TokenManager(private val context: Context) {
         private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
         private val UPLOAD_NOTIFICATIONS_KEY = booleanPreferencesKey("upload_notifications")
         private val UPLOAD_QUALITY_KEY = stringPreferencesKey("upload_quality")
+        private val ANALYTICS_CONSENT_KEY = booleanPreferencesKey("analytics_consent")
+        private val ANALYTICS_CONSENT_ASKED_KEY = booleanPreferencesKey("analytics_consent_asked")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -42,6 +44,20 @@ class TokenManager(private val context: Context) {
 
     val uploadQuality: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[UPLOAD_QUALITY_KEY] ?: "auto"
+    }
+
+    /** Whether user has granted analytics consent (null = not asked yet) */
+    val analyticsConsent: Flow<Boolean?> = context.dataStore.data.map { preferences ->
+        if (preferences[ANALYTICS_CONSENT_ASKED_KEY] == true) {
+            preferences[ANALYTICS_CONSENT_KEY] ?: false
+        } else {
+            null // Not asked yet
+        }
+    }
+
+    /** Whether consent dialog has been shown */
+    val analyticsConsentAsked: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ANALYTICS_CONSENT_ASKED_KEY] ?: false
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
@@ -66,6 +82,24 @@ class TokenManager(private val context: Context) {
     suspend fun setUploadQuality(quality: String) {
         context.dataStore.edit { preferences ->
             preferences[UPLOAD_QUALITY_KEY] = quality
+        }
+    }
+
+    /** Set analytics consent (also marks consent as asked) */
+    suspend fun setAnalyticsConsent(granted: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ANALYTICS_CONSENT_KEY] = granted
+            preferences[ANALYTICS_CONSENT_ASKED_KEY] = true
+        }
+    }
+
+    /** Check if analytics consent was granted (sync version for initialization) */
+    fun isAnalyticsConsentGrantedSync(): Boolean = runBlocking {
+        val asked = context.dataStore.data.first()[ANALYTICS_CONSENT_ASKED_KEY] ?: false
+        if (asked) {
+            context.dataStore.data.first()[ANALYTICS_CONSENT_KEY] ?: false
+        } else {
+            false
         }
     }
 
