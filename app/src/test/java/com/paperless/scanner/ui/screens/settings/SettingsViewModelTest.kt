@@ -39,6 +39,7 @@ class SettingsViewModelTest {
         coEvery { tokenManager.token } returns flowOf("test-token")
         coEvery { tokenManager.uploadNotificationsEnabled } returns flowOf(true)
         coEvery { tokenManager.uploadQuality } returns flowOf("auto")
+        coEvery { tokenManager.analyticsConsent } returns flowOf(false)
     }
 
     @After
