@@ -4,16 +4,29 @@ Android-Client zum Scannen und Hochladen von Dokumenten zu einer selbstgehostete
 
 ## Features
 
+### Free Features ✨
 - **Login** mit Server-URL und Credentials
 - **Dokumentenscan** mit automatischer Kantenerkennung (MLKit Document Scanner)
-- **AI-gestützte Tag-Vorschläge** ✨ via Firebase AI (Gemini 2.0 Flash)
-  - Automatische Titel-Extraktion
-  - Tag-Matching gegen vorhandene Tags
-  - Datum/Correspondent Erkennung
-  - 300 kostenlose AI-Aufrufe/Monat
 - **Upload** zu Paperless-ngx mit optionalem Titel
 - **Tag-Auswahl** aus vorhandenen Tags
 - **Material 3 Design** mit dynamischen Farben
+- **Offline-Modus** mit Upload-Queue
+- **Batch-Import** mehrerer Dokumente
+
+### Premium Features 🌟 (Subscription Required)
+- **AI-gestützte Dokumentanalyse** via Firebase AI (Gemini 2.0 Flash)
+  - Automatische Titel-Extraktion
+  - Intelligentes Tag-Matching gegen vorhandene Tags
+  - Datum & Correspondent Erkennung
+  - Vorschläge für neue Tags
+- **Unbegrenzte AI-Nutzung** (Fair Use Policy)
+- **Vorrangiger Support**
+
+**Preise:**
+- Monatlich: €4.99/Monat
+- Jährlich: €49.99/Jahr (spare 2 Monate)
+
+[Details zu Terms & Privacy](docs/TERMS_OF_SERVICE.md)
 
 ## Screenshots
 
@@ -124,6 +137,27 @@ app/src/main/java/com/paperless/scanner/
 ├── MainActivity.kt
 └── PaperlessApp.kt
 ```
+
+## Privacy & Security 🔒
+
+**Privacy First:**
+- Keine Datenerfassung in der kostenlosen Version
+- Analytics nur mit expliziter Zustimmung (opt-in)
+- AI-Features nur bei Premium-Abo (opt-in via Kauf)
+- Keine Speicherung von Bildern bei Google nach AI-Analyse
+- Vollständige Kontrolle über Ihre Daten
+
+[Vollständige Datenschutzerklärung](docs/PRIVACY_POLICY.md)
+
+## Documentation
+
+| Dokument | Beschreibung |
+|----------|--------------|
+| [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) | Datenschutzerklärung (DE/EN) |
+| [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md) | Nutzungsbedingungen (DE/EN) |
+| [TECHNICAL.md](docs/TECHNICAL.md) | Technische Dokumentation |
+| [ANALYTICS_DASHBOARD.md](docs/ANALYTICS_DASHBOARD.md) | Analytics & Business Monitoring |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Paperless-ngx API Referenz |
 
 ## Lizenz
 
