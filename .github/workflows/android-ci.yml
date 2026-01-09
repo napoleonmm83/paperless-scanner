@@ -264,7 +264,8 @@ jobs:
         run: chmod +x gradlew
         shell: bash
 
-      - name: Setup Google Services JSON
+      - name: Setup Google Services JSON (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         shell: bash
@@ -274,6 +275,20 @@ jobs:
           else
             echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
           fi
+
+      - name: Setup Google Services JSON (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: powershell
+        run: |
+          if ($env:GOOGLE_SERVICES_JSON) {
+            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "google-services.json decoded from secret"
+          } else {
+            '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "::warning::Using dummy google-services.json for CI"
+          }
 
       - name: Run lint (Windows)
         if: runner.os == 'Windows'
