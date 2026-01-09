@@ -86,10 +86,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorderAfterLongPress
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 import coil.compose.AsyncImage
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
@@ -388,21 +386,19 @@ private fun MultiPageContent(
     // Haptic feedback
     val haptic = LocalHapticFeedback.current
 
+    // LazyRow state
+    val lazyRowState = rememberLazyListState()
+
     // Reorderable state
-    val reorderableState = rememberReorderableLazyListState(
-        onMove = { from, to ->
-            // Adjust for the "Add" button at the end
-            val fromIndex = from.index
-            val toIndex = to.index
-            if (fromIndex < uiState.pageCount && toIndex < uiState.pageCount) {
-                onMovePage(fromIndex, toIndex)
-                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            }
-        },
-        onDragEnd = { _, _ ->
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    val reorderableState = rememberReorderableLazyListState(lazyRowState) { from, to ->
+        // Adjust for the "Add" button at the end
+        val fromIndex = from.index
+        val toIndex = to.index
+        if (fromIndex < uiState.pageCount && toIndex < uiState.pageCount) {
+            onMovePage(fromIndex, toIndex)
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
-    )
+    }
 
     // Show preview dialog
     previewPageIndex?.let { index ->
@@ -472,20 +468,19 @@ private fun MultiPageContent(
         }
 
         LazyRow(
-            state = reorderableState.listState,
+            state = lazyRowState,
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .reorderable(reorderableState)
         ) {
             itemsIndexed(
                 items = uiState.pages,
                 key = { _, page -> page.id }
             ) { index, page ->
                 ReorderableItem(
-                    reorderableState = reorderableState,
+                    state = reorderableState,
                     key = page.id
                 ) { isDragging ->
                     PageThumbnail(
@@ -495,7 +490,7 @@ private fun MultiPageContent(
                         onClick = { previewPageIndex = index },
                         onRemove = { onRemovePage(page.id) },
                         onRotate = { onRotatePage(page.id) },
-                        modifier = Modifier.detectReorderAfterLongPress(reorderableState)
+                        modifier = Modifier.longPressDraggableHandle()
                     )
                 }
             }
