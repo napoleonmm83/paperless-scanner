@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Falha no carregamento</string>
     <string name="error_queue_add">Erro ao adicionar à fila</string>
     <string name="error_create_tag">Não foi possível criar a etiqueta</string>
+    <string name="error_analyze_document">Não foi possível analisar o documento</string>
     <string name="pdf_viewer_default_title">Documento</string>
 
     <!-- General -->

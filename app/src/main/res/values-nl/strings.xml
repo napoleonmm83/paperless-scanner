@@ -272,6 +272,7 @@
     <string name="upload_error_generic">Upload mislukt</string>
     <string name="error_queue_add">Fout bij toevoegen aan wachtrij</string>
     <string name="error_create_tag">Tag kon niet worden aangemaakt</string>
+    <string name="error_analyze_document">Document kon niet worden geanalyseerd</string>
     <string name="pdf_viewer_default_title">Document</string>
     <string name="loading">Laden...</string>
     <string name="retry">Opnieuw proberen</string>

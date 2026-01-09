@@ -385,6 +385,7 @@
     <string name="error_login_failed">Η σύνδεση απέτυχε</string>
     <string name="error_token_invalid">Μη έγκυρο token</string>
     <string name="error_server_unreachable">Ο διακομιστής δεν είναι προσβάσιμος</string>
+    <string name="error_analyze_document">Αδυναμία ανάλυσης του εγγράφου</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Σάρωση κλειδιού</string>

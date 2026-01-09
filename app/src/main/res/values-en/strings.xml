@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Upload failed</string>
     <string name="error_queue_add">Error adding to queue</string>
     <string name="error_create_tag">Could not create tag</string>
+    <string name="error_analyze_document">Could not analyze document</string>
     <string name="pdf_viewer_default_title">Document</string>
 
     <!-- General -->

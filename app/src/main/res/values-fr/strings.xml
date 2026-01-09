@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Échec du téléchargement</string>
     <string name="error_queue_add">Erreur lors de l\'ajout à la file d\'attente</string>
     <string name="error_create_tag">Impossible de créer le tag</string>
+    <string name="error_analyze_document">Impossible d\'analyser le document</string>
     <string name="pdf_viewer_default_title">Document</string>
 
     <!-- General -->

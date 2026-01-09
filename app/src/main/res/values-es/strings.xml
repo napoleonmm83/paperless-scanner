@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Error al subir</string>
     <string name="error_queue_add">Error al añadir a la cola</string>
     <string name="error_create_tag">No se pudo crear la etiqueta</string>
+    <string name="error_analyze_document">No se pudo analizar el documento</string>
     <string name="pdf_viewer_default_title">Documento</string>
 
     <!-- General -->

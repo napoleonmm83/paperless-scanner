@@ -385,6 +385,7 @@
     <string name="error_login_failed">Přihlášení selhalo</string>
     <string name="error_token_invalid">Neplatný token</string>
     <string name="error_server_unreachable">Server nedostupný</string>
+    <string name="error_analyze_document">Dokument nelze analyzovat</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Naskenovat klíč</string>

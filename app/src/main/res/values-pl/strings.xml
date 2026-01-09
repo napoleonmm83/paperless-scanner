@@ -272,6 +272,7 @@
     <string name="upload_error_generic">Przesyłanie nie powiodło się</string>
     <string name="error_queue_add">Błąd podczas dodawania do kolejki</string>
     <string name="error_create_tag">Nie można utworzyć tagu</string>
+    <string name="error_analyze_document">Nie można przeanalizować dokumentu</string>
     <string name="pdf_viewer_default_title">Dokument</string>
     <string name="loading">Ładowanie...</string>
     <string name="retry">Ponów</string>

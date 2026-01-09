@@ -385,6 +385,7 @@
     <string name="error_login_failed">Kirjautuminen epäonnistui</string>
     <string name="error_token_invalid">Virheellinen token</string>
     <string name="error_server_unreachable">Palvelimeen ei saada yhteyttä</string>
+    <string name="error_analyze_document">Asiakirjaa ei voitu analysoida</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Skannaa avain</string>

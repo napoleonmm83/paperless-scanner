@@ -385,6 +385,7 @@
     <string name="error_login_failed">Autentificare eșuată</string>
     <string name="error_token_invalid">Token invalid</string>
     <string name="error_server_unreachable">Serverul nu este accesibil</string>
+    <string name="error_analyze_document">Documentul nu a putut fi analizat</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Scanează cheia</string>

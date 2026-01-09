@@ -272,6 +272,7 @@
     <string name="upload_error_generic">Uppladdning misslyckades</string>
     <string name="error_queue_add">Fel vid tillägg i kön</string>
     <string name="error_create_tag">Kunde inte skapa tagg</string>
+    <string name="error_analyze_document">Kunde inte analysera dokument</string>
     <string name="pdf_viewer_default_title">Dokument</string>
     <string name="loading">Laddar...</string>
     <string name="retry">Försök igen</string>

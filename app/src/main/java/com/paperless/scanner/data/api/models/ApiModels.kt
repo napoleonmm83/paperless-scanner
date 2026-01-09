@@ -342,3 +342,20 @@ data class UpdateDocumentWithPermissionsRequest(
     @SerializedName("set_permissions")
     val setPermissions: SetPermissionsRequest? = null
 )
+
+/**
+ * Response from Paperless-ngx suggestions endpoint.
+ * Contains ML-based suggestions for document metadata.
+ */
+data class SuggestionsResponse(
+    @SerializedName("correspondents")
+    val correspondents: List<Int> = emptyList(),
+    @SerializedName("tags")
+    val tags: List<Int> = emptyList(),
+    @SerializedName("document_types")
+    val documentTypes: List<Int> = emptyList(),
+    @SerializedName("storage_paths")
+    val storagePaths: List<Int> = emptyList(),
+    @SerializedName("dates")
+    val dates: List<String> = emptyList()
+)

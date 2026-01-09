@@ -385,6 +385,7 @@
     <string name="error_login_failed">Login mislykkedes</string>
     <string name="error_token_invalid">Token ugyldig</string>
     <string name="error_server_unreachable">Server ikke tilgængelig</string>
+    <string name="error_analyze_document">Dokumentet kunne ikke analyseres</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Scan nøgle</string>

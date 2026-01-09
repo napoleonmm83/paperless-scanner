@@ -385,6 +385,7 @@
     <string name="error_login_failed">Bejelentkezés sikertelen</string>
     <string name="error_token_invalid">Érvénytelen token</string>
     <string name="error_server_unreachable">Szerver nem elérhető</string>
+    <string name="error_analyze_document">A dokumentum nem elemezhető</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Kulcs beolvasása</string>

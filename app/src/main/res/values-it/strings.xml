@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Caricamento fallito</string>
     <string name="error_queue_add">Errore nell\'aggiunta alla coda</string>
     <string name="error_create_tag">Impossibile creare il tag</string>
+    <string name="error_analyze_document">Impossibile analizzare il documento</string>
     <string name="pdf_viewer_default_title">Documento</string>
 
     <!-- General -->

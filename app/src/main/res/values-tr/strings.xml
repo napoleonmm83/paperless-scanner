@@ -385,6 +385,7 @@
     <string name="error_login_failed">Giriş başarısız</string>
     <string name="error_token_invalid">Geçersiz token</string>
     <string name="error_server_unreachable">Sunucuya ulaşılamıyor</string>
+    <string name="error_analyze_document">Belge analiz edilemedi</string>
 
     <!-- Token Scanner -->
     <string name="token_scanner_title">Anahtarı tara</string>

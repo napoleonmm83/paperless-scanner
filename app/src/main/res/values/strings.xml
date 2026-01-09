@@ -316,6 +316,7 @@
     <string name="upload_error_generic">Upload fehlgeschlagen</string>
     <string name="error_queue_add">Fehler beim Hinzufügen zur Warteschlange</string>
     <string name="error_create_tag">Tag konnte nicht erstellt werden</string>
+    <string name="error_analyze_document">Dokument konnte nicht analysiert werden</string>
     <string name="pdf_viewer_default_title">Dokument</string>
 
     <!-- General -->

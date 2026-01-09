@@ -1,11 +1,17 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.ai.AiAnalysisService
+import com.paperless.scanner.data.ai.TagMatchingEngine
+import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionSource
+import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.domain.model.Correspondent
@@ -19,10 +25,10 @@ import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,6 +44,8 @@ class UploadViewModel @Inject constructor(
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val analyticsService: AnalyticsService,
+    private val aiAnalysisService: AiAnalysisService,
+    private val tagMatchingEngine: TagMatchingEngine,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -55,6 +63,13 @@ class UploadViewModel @Inject constructor(
 
     private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
     val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
+
+    // AI Suggestions State
+    private val _aiSuggestions = MutableStateFlow<DocumentAnalysis?>(null)
+    val aiSuggestions: StateFlow<DocumentAnalysis?> = _aiSuggestions.asStateFlow()
+
+    private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
+    val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
 
     // Store last upload params for retry
     private var lastUploadParams: UploadParams? = null
@@ -291,6 +306,110 @@ class UploadViewModel @Inject constructor(
     fun resetCreateTagState() {
         _createTagState.update { CreateTagState.Idle }
     }
+
+    /**
+     * Analyze document image for AI-powered suggestions.
+     * Uses TagMatchingEngine for local matching (always available).
+     * Uses AiAnalysisService for Firebase AI analysis (Premium feature).
+     */
+    fun analyzeDocument(uri: Uri, usePremiumAi: Boolean = false) {
+        viewModelScope.launch(ioDispatcher) {
+            _analysisState.update { AnalysisState.Analyzing }
+
+            try {
+                // Get available tags for matching
+                val availableTags = _tags.value
+
+                // Step 1: Try to read image and extract text for local matching
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bitmap = inputStream?.use { BitmapFactory.decodeStream(it) }
+
+                if (bitmap == null) {
+                    Log.w(TAG, "Could not decode image for analysis")
+                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
+                    return@launch
+                }
+
+                // Step 2: Local tag matching (always free, works offline)
+                val localSuggestions = if (availableTags.isNotEmpty()) {
+                    // For now, use tag names as pseudo-text for matching
+                    // In future, could use OCR to extract actual text
+                    tagMatchingEngine.findMatchingTags(
+                        text = "", // No OCR yet - matching will be based on tag patterns
+                        availableTags = availableTags
+                    )
+                } else {
+                    emptyList()
+                }
+
+                // Step 3: Firebase AI analysis (Premium feature)
+                val aiAnalysis = if (usePremiumAi) {
+                    aiAnalysisService.analyzeImage(bitmap, availableTags)
+                        .onFailure { e ->
+                            Log.w(TAG, "AI analysis failed, using local suggestions only", e)
+                        }
+                        .getOrNull()
+                } else {
+                    null
+                }
+
+                // Step 4: Merge suggestions (AI has priority, then local)
+                val mergedAnalysis = mergeAnalysisResults(aiAnalysis, localSuggestions)
+
+                _aiSuggestions.update { mergedAnalysis }
+                _analysisState.update { AnalysisState.Success }
+
+                Log.d(TAG, "Analysis complete: ${mergedAnalysis?.suggestedTags?.size ?: 0} tag suggestions")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Document analysis failed", e)
+                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+            }
+        }
+    }
+
+    /**
+     * Merge AI analysis results with local tag matching.
+     * AI suggestions take priority, local suggestions fill gaps.
+     */
+    private fun mergeAnalysisResults(
+        aiAnalysis: DocumentAnalysis?,
+        localSuggestions: List<TagSuggestion>
+    ): DocumentAnalysis {
+        val aiTags = aiAnalysis?.suggestedTags ?: emptyList()
+        val aiTagIds = aiTags.mapNotNull { it.tagId }.toSet()
+
+        // Add local suggestions that aren't already in AI results
+        val additionalLocalTags = localSuggestions
+            .filter { it.tagId !in aiTagIds }
+            .take(3) // Limit additional local suggestions
+
+        val mergedTags = (aiTags + additionalLocalTags)
+            .sortedByDescending { it.confidence }
+            .take(5) // Max 5 suggestions total
+
+        return DocumentAnalysis(
+            suggestedTitle = aiAnalysis?.suggestedTitle,
+            suggestedTags = mergedTags,
+            suggestedCorrespondent = aiAnalysis?.suggestedCorrespondent,
+            suggestedDocumentType = aiAnalysis?.suggestedDocumentType,
+            suggestedDate = aiAnalysis?.suggestedDate,
+            extractedText = aiAnalysis?.extractedText,
+            confidence = if (mergedTags.isNotEmpty()) {
+                mergedTags.first().confidence
+            } else {
+                0f
+            }
+        )
+    }
+
+    /**
+     * Clear AI suggestions (e.g., when starting new upload).
+     */
+    fun clearSuggestions() {
+        _aiSuggestions.update { null }
+        _analysisState.update { AnalysisState.Idle }
+    }
 }
 
 sealed class UploadParams {
@@ -324,4 +443,11 @@ sealed class CreateTagState {
     data object Creating : CreateTagState()
     data class Success(val tag: Tag) : CreateTagState()
     data class Error(val message: String) : CreateTagState()
+}
+
+sealed class AnalysisState {
+    data object Idle : AnalysisState()
+    data object Analyzing : AnalysisState()
+    data object Success : AnalysisState()
+    data class Error(val message: String) : AnalysisState()
 }

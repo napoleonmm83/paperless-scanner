@@ -10,6 +10,7 @@ import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.DocumentsResponse
 import com.paperless.scanner.data.api.models.GroupsResponse
 import com.paperless.scanner.data.api.models.PaperlessTask
+import com.paperless.scanner.data.api.models.SuggestionsResponse
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.api.models.TokenResponse
@@ -95,6 +96,15 @@ interface PaperlessApi {
         @Path("id") id: Int,
         @Query("full_perms") fullPerms: Boolean = true
     ): Document
+
+    /**
+     * Get ML-based suggestions for a document.
+     * Returns suggested tags, correspondents, document types based on content analysis.
+     */
+    @GET("api/documents/{id}/suggestions/")
+    suspend fun getDocumentSuggestions(
+        @Path("id") documentId: Int
+    ): SuggestionsResponse
 
     @GET("api/documents/{id}/download/")
     @Streaming

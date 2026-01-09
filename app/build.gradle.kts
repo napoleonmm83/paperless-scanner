@@ -239,6 +239,9 @@ dependencies {
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.perf)
 
+    // Firebase AI (Gemini)
+    implementation(libs.firebase.ai)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
