@@ -290,4 +290,21 @@ object AppModule {
 
     @Provides
     fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    // Premium/Billing
+
+    @Provides
+    @Singleton
+    fun provideBillingManager(
+        @ApplicationContext context: Context
+    ): com.paperless.scanner.data.billing.BillingManager =
+        com.paperless.scanner.data.billing.BillingManager(context)
+
+    @Provides
+    @Singleton
+    fun providePremiumFeatureManager(
+        billingManager: com.paperless.scanner.data.billing.BillingManager,
+        tokenManager: TokenManager
+    ): com.paperless.scanner.data.billing.PremiumFeatureManager =
+        com.paperless.scanner.data.billing.PremiumFeatureManager(billingManager, tokenManager)
 }

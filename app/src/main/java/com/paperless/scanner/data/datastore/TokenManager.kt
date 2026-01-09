@@ -24,6 +24,11 @@ class TokenManager(private val context: Context) {
         private val UPLOAD_QUALITY_KEY = stringPreferencesKey("upload_quality")
         private val ANALYTICS_CONSENT_KEY = booleanPreferencesKey("analytics_consent")
         private val ANALYTICS_CONSENT_ASKED_KEY = booleanPreferencesKey("analytics_consent_asked")
+
+        // AI Feature Preferences
+        private val AI_SUGGESTIONS_ENABLED_KEY = booleanPreferencesKey("ai_suggestions_enabled")
+        private val AI_NEW_TAGS_ENABLED_KEY = booleanPreferencesKey("ai_new_tags_enabled")
+        private val AI_WIFI_ONLY_KEY = booleanPreferencesKey("ai_wifi_only")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -58,6 +63,21 @@ class TokenManager(private val context: Context) {
     /** Whether consent dialog has been shown */
     val analyticsConsentAsked: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[ANALYTICS_CONSENT_ASKED_KEY] ?: false
+    }
+
+    /** Whether AI suggestions are enabled (user preference) */
+    val aiSuggestionsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AI_SUGGESTIONS_ENABLED_KEY] ?: true // Default: enabled
+    }
+
+    /** Whether AI can suggest new tags that don't exist yet */
+    val aiNewTagsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AI_NEW_TAGS_ENABLED_KEY] ?: true // Default: enabled
+    }
+
+    /** Whether AI features should only work on WiFi */
+    val aiWifiOnly: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AI_WIFI_ONLY_KEY] ?: false // Default: allow mobile data
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
@@ -123,5 +143,25 @@ class TokenManager(private val context: Context) {
 
     fun hasStoredCredentials(): Boolean {
         return getTokenSync() != null && getServerUrlSync() != null
+    }
+
+    // AI Feature Settings
+
+    suspend fun setAiSuggestionsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_SUGGESTIONS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setAiNewTagsEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_NEW_TAGS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setAiWifiOnly(wifiOnly: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_WIFI_ONLY_KEY] = wifiOnly
+        }
     }
 }
