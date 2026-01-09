@@ -59,13 +59,21 @@ jobs:
 
           echo "API Response: $RESPONSE"
 
-          # Handle null runners array or API errors
-          ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online")) | length' 2>/dev/null || echo "0")
+          # Check for Windows runner (Priority 1)
+          WINDOWS_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperlesswin"])))) | length' 2>/dev/null || echo "0")
 
-          echo "Online self-hosted runners: $ONLINE"
+          # Check for Mac runner (Priority 2)
+          MAC_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperless"])) and (.labels | map(.name) | contains(["macOS"])))) | length' 2>/dev/null || echo "0")
 
-          if [ "$ONLINE" -gt 0 ]; then
-            echo "✅ Self-hosted runner available - using it"
+          echo "Windows runners online: $WINDOWS_ONLINE"
+          echo "Mac runners online: $MAC_ONLINE"
+
+          if [ "$WINDOWS_ONLINE" -gt 0 ]; then
+            echo "✅ Windows runner available - using it (Priority 1)"
+            echo 'runner=["self-hosted", "paperlesswin"]' >> $GITHUB_OUTPUT
+            echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
+          elif [ "$MAC_ONLINE" -gt 0 ]; then
+            echo "✅ Mac runner available - using it (Priority 2)"
             echo 'runner=["self-hosted", "paperless"]' >> $GITHUB_OUTPUT
             echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
           else
