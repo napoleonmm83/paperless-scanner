@@ -207,8 +207,12 @@ class HomeViewModel @Inject constructor(
         pollingJob = viewModelScope.launch {
             while (isActive) {
                 delay(POLLING_INTERVAL_MS)
+                val previousTasks = _uiState.value.processingTasks
                 val tasks = loadProcessingTasks()
                 _uiState.update { it.copy(processingTasks = tasks) }
+
+                // Sync newly completed documents to local DB
+                syncCompletedDocuments(previousTasks, tasks)
 
                 // Stop polling if no more pending tasks
                 if (tasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
@@ -218,6 +222,39 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { it.copy(stats = stats) }
                     break
                 }
+            }
+        }
+    }
+
+    /**
+     * Sync completed documents to local DB so they appear in Recent Documents automatically.
+     * When a task changes from PROCESSING → SUCCESS and has a documentId,
+     * fetch the document from API and save to local DB.
+     */
+    private suspend fun syncCompletedDocuments(
+        previousTasks: List<ProcessingTask>,
+        currentTasks: List<ProcessingTask>
+    ) {
+        // Find tasks that just completed successfully
+        val newlyCompletedTasks = currentTasks.filter { currentTask ->
+            currentTask.status == TaskStatus.SUCCESS &&
+            currentTask.documentId != null &&
+            previousTasks.none { prevTask ->
+                prevTask.taskId == currentTask.taskId && prevTask.status == TaskStatus.SUCCESS
+            }
+        }
+
+        // Fetch and cache each completed document
+        newlyCompletedTasks.forEach { task ->
+            task.documentId?.let { docId ->
+                logger.log(Level.INFO, "Syncing completed document $docId to local DB")
+                documentRepository.getDocument(docId, forceRefresh = true)
+                    .onSuccess {
+                        logger.log(Level.INFO, "Document $docId synced successfully")
+                    }
+                    .onFailure { error ->
+                        logger.log(Level.WARNING, "Failed to sync document $docId: ${error.message}")
+                    }
             }
         }
     }
