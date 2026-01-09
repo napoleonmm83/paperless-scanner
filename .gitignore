@@ -110,3 +110,13 @@ setup-github-secrets.bat
 # Local CI test results
 lint-results.txt
 test-results.txt
+
+# Firebase
+.firebase/
+.runtimeconfig.json
+firebase-debug.log
+firebase-debug.*.log
+ui-debug.log
+functions/lib/
+functions/node_modules/
+functions/.runtimeconfig.json
