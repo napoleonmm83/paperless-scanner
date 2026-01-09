@@ -165,4 +165,134 @@ sealed class AnalyticsEvent(
         "notifications_changed",
         mapOf("enabled" to enabled)
     )
+
+    // ==================== AI Feature Events ====================
+
+    /**
+     * AI feature used for document analysis
+     *
+     * @param featureType Type of AI feature: "analyze_image", "analyze_pdf", "suggest_tags", "generate_title", "generate_summary"
+     * @param inputTokens Number of input tokens sent to AI
+     * @param outputTokens Number of output tokens received from AI
+     * @param estimatedCostUsd Estimated cost in USD (calculated using Gemini Flash pricing)
+     * @param subscriptionType User's subscription: "free", "monthly", "yearly"
+     * @param success Whether the AI operation succeeded
+     */
+    data class AiFeatureUsed(
+        val featureType: String,
+        val inputTokens: Int,
+        val outputTokens: Int,
+        val estimatedCostUsd: Double,
+        val subscriptionType: String,
+        val success: Boolean = true
+    ) : AnalyticsEvent(
+        "ai_feature_used",
+        mapOf(
+            "feature_type" to featureType,
+            "input_tokens" to inputTokens,
+            "output_tokens" to outputTokens,
+            "estimated_cost_usd" to estimatedCostUsd,
+            "subscription_type" to subscriptionType,
+            "success" to success
+        )
+    )
+
+    /**
+     * AI suggestion accepted by user
+     *
+     * @param featureType Type of AI feature that generated the suggestion
+     * @param suggestionCount Number of suggestions accepted
+     */
+    data class AiSuggestionAccepted(
+        val featureType: String,
+        val suggestionCount: Int = 1
+    ) : AnalyticsEvent(
+        "ai_suggestion_accepted",
+        mapOf(
+            "feature_type" to featureType,
+            "suggestion_count" to suggestionCount
+        )
+    )
+
+    /**
+     * AI suggestion rejected by user
+     *
+     * @param featureType Type of AI feature that generated the suggestion
+     */
+    data class AiSuggestionRejected(
+        val featureType: String
+    ) : AnalyticsEvent(
+        "ai_suggestion_rejected",
+        mapOf("feature_type" to featureType)
+    )
+
+    /**
+     * User upgraded to Premium subscription
+     *
+     * @param plan Subscription plan: "monthly" or "yearly"
+     * @param priceUsd Price in USD
+     */
+    data class PremiumSubscribed(
+        val plan: String,
+        val priceUsd: Double
+    ) : AnalyticsEvent(
+        "premium_subscribed",
+        mapOf(
+            "plan" to plan,
+            "price_usd" to priceUsd
+        )
+    )
+
+    /**
+     * Premium upgrade prompt shown to user
+     *
+     * @param trigger What triggered the prompt: "ai_feature_locked", "settings", "upload_screen"
+     */
+    data class PremiumPromptShown(
+        val trigger: String
+    ) : AnalyticsEvent(
+        "premium_prompt_shown",
+        mapOf("trigger" to trigger)
+    )
+
+    /**
+     * User dismissed Premium upgrade prompt
+     *
+     * @param trigger What triggered the prompt
+     */
+    data class PremiumPromptDismissed(
+        val trigger: String
+    ) : AnalyticsEvent(
+        "premium_prompt_dismissed",
+        mapOf("trigger" to trigger)
+    )
+
+    /**
+     * AI usage limit warning shown
+     *
+     * @param currentCalls Current number of AI calls this month
+     * @param limitType Type of limit: "soft_100", "soft_200", "hard_300"
+     */
+    data class AiUsageLimitWarning(
+        val currentCalls: Int,
+        val limitType: String
+    ) : AnalyticsEvent(
+        "ai_usage_limit_warning",
+        mapOf(
+            "current_calls" to currentCalls,
+            "limit_type" to limitType
+        )
+    )
+
+    /**
+     * AI usage limit reached (hard block)
+     *
+     * @param monthlyCallCount Total calls this month
+     */
+    data class AiUsageLimitReached(
+        val monthlyCallCount: Int
+    ) : AnalyticsEvent(
+        "ai_usage_limit_reached",
+        mapOf("monthly_call_count" to monthlyCallCount)
+    )
 }
