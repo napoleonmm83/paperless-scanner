@@ -112,3 +112,38 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         """)
     }
 }
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create ai_usage_logs table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS ai_usage_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                featureType TEXT NOT NULL,
+                inputTokens INTEGER NOT NULL,
+                outputTokens INTEGER NOT NULL,
+                estimatedCostUsd REAL NOT NULL,
+                success INTEGER NOT NULL,
+                subscriptionMonth TEXT NOT NULL,
+                subscriptionType TEXT NOT NULL
+            )
+        """)
+
+        // Create indices for faster queries
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_ai_usage_logs_subscriptionMonth
+            ON ai_usage_logs(subscriptionMonth)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_ai_usage_logs_timestamp
+            ON ai_usage_logs(timestamp)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_ai_usage_logs_featureType
+            ON ai_usage_logs(featureType)
+        """)
+    }
+}

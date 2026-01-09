@@ -7,6 +7,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.RetryInterceptor
 import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.PendingUploadDao
+import com.paperless.scanner.data.database.dao.AiUsageDao
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
@@ -14,6 +15,7 @@ import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
+import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
@@ -182,7 +184,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-        ).addMigrations(MIGRATION_1_2)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
 
         // For debug builds, allow destructive migration if migration fails
         if (BuildConfig.DEBUG) {
@@ -233,6 +235,12 @@ object AppModule {
     fun provideSyncMetadataDao(
         database: AppDatabase
     ): SyncMetadataDao = database.syncMetadataDao()
+
+    @Provides
+    @Singleton
+    fun provideAiUsageDao(
+        database: AppDatabase
+    ): AiUsageDao = database.aiUsageDao()
 
     @Provides
     @Singleton
