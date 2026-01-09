@@ -25,8 +25,12 @@ import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,6 +68,7 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
+    var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -143,6 +148,136 @@ fun SettingsScreen(
                             )
                     )
                 }
+            }
+        }
+
+        // Premium / AI Assistant Section
+        SettingsSection(title = stringResource(R.string.premium_section_title)) {
+            // Premium Status Card
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        onClick = {
+                            if (!uiState.isPremiumActive) {
+                                showPremiumUpgradeSheet = true
+                            }
+                        }
+                    )
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AutoAwesome,
+                    contentDescription = stringResource(R.string.premium_section_title),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.premium_section_title),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (uiState.isPremiumActive) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.premium_badge),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = if (uiState.isPremiumActive) {
+                            if (uiState.premiumExpiryDate != null)
+                                stringResource(R.string.premium_status_active, uiState.premiumExpiryDate!!)
+                            else
+                                stringResource(R.string.premium_status_active, "∞")
+                        } else {
+                            stringResource(R.string.premium_status_inactive)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (!uiState.isPremiumActive) {
+                    Icon(
+                        imageVector = Icons.Filled.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // AI Suggestions Toggle (only show if Premium active)
+            if (uiState.isPremiumActive) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsToggleItem(
+                    icon = Icons.Filled.AutoAwesome,
+                    title = stringResource(R.string.premium_settings_ai_suggestions),
+                    subtitle = stringResource(R.string.premium_settings_ai_suggestions_desc),
+                    checked = uiState.aiSuggestionsEnabled,
+                    onCheckedChange = { viewModel.setAiSuggestionsEnabled(it) }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsToggleItem(
+                    icon = Icons.Filled.Wifi,
+                    title = stringResource(R.string.premium_settings_wifi_only),
+                    subtitle = stringResource(R.string.premium_settings_wifi_only_desc),
+                    checked = uiState.aiWifiOnly,
+                    onCheckedChange = { viewModel.setAiWifiOnly(it) }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsToggleItem(
+                    icon = Icons.Filled.Description,
+                    title = stringResource(R.string.premium_settings_new_tags),
+                    subtitle = stringResource(R.string.premium_settings_new_tags_desc),
+                    checked = uiState.aiNewTagsEnabled,
+                    onCheckedChange = { viewModel.setAiNewTagsEnabled(it) }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsClickableItem(
+                    icon = Icons.Filled.Settings,
+                    title = stringResource(R.string.premium_settings_manage_subscription),
+                    value = "",
+                    onClick = { viewModel.openSubscriptionManagement() }
+                )
             }
         }
 
@@ -342,6 +477,23 @@ fun SettingsScreen(
                 TextButton(onClick = { showLicensesDialog = false }) {
                     Text(stringResource(R.string.settings_close))
                 }
+            }
+        )
+    }
+
+    // Premium Upgrade Sheet
+    if (showPremiumUpgradeSheet) {
+        PremiumUpgradeSheet(
+            onDismiss = { showPremiumUpgradeSheet = false },
+            onSubscribe = { productId ->
+                // TODO: Implement subscription purchase
+                // viewModel.launchPurchaseFlow(productId)
+                showPremiumUpgradeSheet = false
+            },
+            onRestore = {
+                // TODO: Implement restore purchases
+                // viewModel.restorePurchases()
+                showPremiumUpgradeSheet = false
             }
         )
     }

@@ -526,4 +526,54 @@
     <string name="ai_analyzing">Analysiere Dokument mit AI...</string>
     <string name="ai_suggestions_ready">AI-Vorschläge bereit</string>
     <string name="ai_no_suggestions">Keine Vorschläge verfügbar</string>
+
+    <!-- Premium / Subscription -->
+    <string name="premium_section_title">AI-ASSISTENT</string>
+    <string name="premium_badge">PRO</string>
+    <string name="premium_status_active">Premium aktiv bis %1$s</string>
+    <string name="premium_status_inactive">Premium freischalten</string>
+    <string name="premium_unlock">Premium freischalten</string>
+
+    <!-- Premium Settings -->
+    <string name="premium_settings_ai_suggestions">AI-Vorschläge</string>
+    <string name="premium_settings_ai_suggestions_desc">Automatische Tag-Vorschläge mit AI</string>
+    <string name="premium_settings_wifi_only">Nur bei WLAN</string>
+    <string name="premium_settings_wifi_only_desc">AI-Features nur bei WLAN-Verbindung nutzen</string>
+    <string name="premium_settings_new_tags">Neue Tags vorschlagen</string>
+    <string name="premium_settings_new_tags_desc">AI kann Tags vorschlagen, die noch nicht existieren</string>
+    <string name="premium_settings_manage_subscription">Abo verwalten</string>
+    <string name="premium_settings_restore_purchases">Käufe wiederherstellen</string>
+    <string name="premium_required">Premium erforderlich</string>
+
+    <!-- Premium Upgrade Sheet -->
+    <string name="premium_upgrade_title">AI-Assistent freischalten</string>
+    <string name="premium_upgrade_subtitle">Intelligente Dokumentanalyse mit KI</string>
+    <string name="premium_feature_ai_analysis">Automatische Tag-Vorschläge</string>
+    <string name="premium_feature_ai_analysis_desc">KI analysiert deine Dokumente und schlägt passende Tags vor</string>
+    <string name="premium_feature_ai_title">Titel-Extraktion</string>
+    <string name="premium_feature_ai_title_desc">Automatische Erkennung von Dokumenttiteln</string>
+    <string name="premium_feature_ai_correspondent">Absender-Erkennung</string>
+    <string name="premium_feature_ai_correspondent_desc">Automatische Zuordnung von Korrespondenten</string>
+    <string name="premium_feature_ai_type">Dokumenttyp-Klassifizierung</string>
+    <string name="premium_feature_ai_type_desc">Erkennt ob Rechnung, Vertrag, Brief, etc.</string>
+    <string name="premium_feature_unlimited">Unbegrenzte AI-Analysen</string>
+    <string name="premium_feature_unlimited_desc">Keine monatlichen Limits mehr</string>
+
+    <!-- Subscription Options -->
+    <string name="premium_option_monthly">Monatlich</string>
+    <string name="premium_option_yearly">Jährlich</string>
+    <string name="premium_price_monthly">%1$s / Monat</string>
+    <string name="premium_price_yearly">%1$s / Jahr</string>
+    <string name="premium_price_yearly_savings">Spare 2 Monate</string>
+    <string name="premium_button_upgrade">Jetzt upgraden</string>
+    <string name="premium_button_later">Später</string>
+    <string name="premium_button_restore">Käufe wiederherstellen</string>
+
+    <!-- Premium Messages -->
+    <string name="premium_purchase_success">Premium erfolgreich aktiviert!</string>
+    <string name="premium_purchase_cancelled">Kauf abgebrochen</string>
+    <string name="premium_purchase_error">Fehler beim Kauf: %1$s</string>
+    <string name="premium_restore_success">%1$d Käufe wiederhergestellt</string>
+    <string name="premium_restore_none">Keine Käufe gefunden</string>
+    <string name="premium_restore_error">Fehler beim Wiederherstellen: %1$s</string>
 </resources>

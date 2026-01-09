@@ -1,9 +1,12 @@
 package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +28,8 @@ class SettingsViewModelTest {
 
     private lateinit var tokenManager: TokenManager
     private lateinit var analyticsService: AnalyticsService
+    private lateinit var billingManager: BillingManager
+    private lateinit var premiumFeatureManager: PremiumFeatureManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -33,6 +38,8 @@ class SettingsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         tokenManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
+        billingManager = mockk(relaxed = true)
+        premiumFeatureManager = mockk(relaxed = true)
 
         // Default mock responses
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
@@ -40,6 +47,13 @@ class SettingsViewModelTest {
         coEvery { tokenManager.uploadNotificationsEnabled } returns flowOf(true)
         coEvery { tokenManager.uploadQuality } returns flowOf("auto")
         coEvery { tokenManager.analyticsConsent } returns flowOf(false)
+
+        // Premium-related mocks
+        coEvery { tokenManager.aiSuggestionsEnabled } returns flowOf(true)
+        coEvery { tokenManager.aiNewTagsEnabled } returns flowOf(true)
+        coEvery { tokenManager.aiWifiOnly } returns flowOf(false)
+        every { billingManager.isSubscriptionActive } returns flowOf(false)
+        every { billingManager.isSubscriptionActiveSync() } returns false
     }
 
     @After
@@ -50,7 +64,9 @@ class SettingsViewModelTest {
     private fun createViewModel(): SettingsViewModel {
         return SettingsViewModel(
             tokenManager = tokenManager,
-            analyticsService = analyticsService
+            analyticsService = analyticsService,
+            billingManager = billingManager,
+            premiumFeatureManager = premiumFeatureManager
         )
     }
 

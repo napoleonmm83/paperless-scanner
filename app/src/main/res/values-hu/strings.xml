@@ -529,4 +529,54 @@
     <string name="ai_analyzing">Dokumentum elemzése AI-val...</string>
     <string name="ai_suggestions_ready">AI javaslatok készen</string>
     <string name="ai_no_suggestions">Nincsenek elérhető javaslatok</string>
+
+    <!-- Premium / Subscription -->
+    <string name="premium_section_title">AI ASSZISZTENS</string>
+    <string name="premium_badge">PRO</string>
+    <string name="premium_status_active">Premium aktív %1$s-ig</string>
+    <string name="premium_status_inactive">Premium feloldása</string>
+    <string name="premium_unlock">Premium feloldása</string>
+
+    <!-- Premium Settings -->
+    <string name="premium_settings_ai_suggestions">AI javaslatok</string>
+    <string name="premium_settings_ai_suggestions_desc">Automatikus címke javaslatok AI-val</string>
+    <string name="premium_settings_wifi_only">Csak WiFi</string>
+    <string name="premium_settings_wifi_only_desc">AI funkciók használata csak WiFi esetén</string>
+    <string name="premium_settings_new_tags">Új címkék javaslása</string>
+    <string name="premium_settings_new_tags_desc">Az AI javasol olyan címkéket, amelyek még nem léteznek</string>
+    <string name="premium_settings_manage_subscription">Előfizetés kezelése</string>
+    <string name="premium_settings_restore_purchases">Vásárlások visszaállítása</string>
+    <string name="premium_required">Premium szükséges</string>
+
+    <!-- Premium Upgrade Sheet -->
+    <string name="premium_upgrade_title">AI asszisztens feloldása</string>
+    <string name="premium_upgrade_subtitle">Intelligens dokumentumelemzés AI-val</string>
+    <string name="premium_feature_ai_analysis">Automatikus címke javaslatok</string>
+    <string name="premium_feature_ai_analysis_desc">Az AI elemzi a dokumentumokat és releváns címkéket javasol</string>
+    <string name="premium_feature_ai_title">Cím kinyerése</string>
+    <string name="premium_feature_ai_title_desc">Dokumentumcímek automatikus felismerése</string>
+    <string name="premium_feature_ai_correspondent">Feladó felismerése</string>
+    <string name="premium_feature_ai_correspondent_desc">Levelezők automatikus hozzárendelése</string>
+    <string name="premium_feature_ai_type">Dokumentumtípus osztályozás</string>
+    <string name="premium_feature_ai_type_desc">Számla, szerződés, levél stb. felismerése</string>
+    <string name="premium_feature_unlimited">Korlátlan AI elemzések</string>
+    <string name="premium_feature_unlimited_desc">Nincs havi limit</string>
+
+    <!-- Subscription Options -->
+    <string name="premium_option_monthly">Havonta</string>
+    <string name="premium_option_yearly">Évente</string>
+    <string name="premium_price_monthly">%1$s / hónap</string>
+    <string name="premium_price_yearly">%1$s / év</string>
+    <string name="premium_price_yearly_savings">Takarítson meg 2 hónapot</string>
+    <string name="premium_button_upgrade">Frissítés most</string>
+    <string name="premium_button_later">Később</string>
+    <string name="premium_button_restore">Vásárlások visszaállítása</string>
+
+    <!-- Premium Messages -->
+    <string name="premium_purchase_success">Premium sikeresen aktiválva!</string>
+    <string name="premium_purchase_cancelled">Vásárlás megszakítva</string>
+    <string name="premium_purchase_error">Vásárlási hiba: %1$s</string>
+    <string name="premium_restore_success">%1$d vásárlás visszaállítva</string>
+    <string name="premium_restore_none">Nem találhatók vásárlások</string>
+    <string name="premium_restore_error">Visszaállítási hiba: %1$s</string>
 </resources>

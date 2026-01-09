@@ -529,4 +529,54 @@
     <string name="ai_analyzing">Analýza dokumentu pomocí AI...</string>
     <string name="ai_suggestions_ready">Návrhy AI připraveny</string>
     <string name="ai_no_suggestions">Žádné návrhy k dispozici</string>
+
+    <!-- Premium / Subscription -->
+    <string name="premium_section_title">AI ASISTENT</string>
+    <string name="premium_badge">PRO</string>
+    <string name="premium_status_active">Premium aktivní do %1$s</string>
+    <string name="premium_status_inactive">Odemknout Premium</string>
+    <string name="premium_unlock">Odemknout Premium</string>
+
+    <!-- Premium Settings -->
+    <string name="premium_settings_ai_suggestions">AI návrhy</string>
+    <string name="premium_settings_ai_suggestions_desc">Automatické návrhy tagů s AI</string>
+    <string name="premium_settings_wifi_only">Pouze WiFi</string>
+    <string name="premium_settings_wifi_only_desc">Používat AI funkce pouze při WiFi</string>
+    <string name="premium_settings_new_tags">Navrhovat nové tagy</string>
+    <string name="premium_settings_new_tags_desc">AI může navrhovat tagy, které ještě neexistují</string>
+    <string name="premium_settings_manage_subscription">Spravovat předplatné</string>
+    <string name="premium_settings_restore_purchases">Obnovit nákupy</string>
+    <string name="premium_required">Vyžadováno Premium</string>
+
+    <!-- Premium Upgrade Sheet -->
+    <string name="premium_upgrade_title">Odemknout AI asistenta</string>
+    <string name="premium_upgrade_subtitle">Inteligentní analýza dokumentů s AI</string>
+    <string name="premium_feature_ai_analysis">Automatické návrhy tagů</string>
+    <string name="premium_feature_ai_analysis_desc">AI analyzuje vaše dokumenty a navrhuje relevantní tagy</string>
+    <string name="premium_feature_ai_title">Extrakce názvu</string>
+    <string name="premium_feature_ai_title_desc">Automatické rozpoznání názvů dokumentů</string>
+    <string name="premium_feature_ai_correspondent">Rozpoznání odesílatele</string>
+    <string name="premium_feature_ai_correspondent_desc">Automatické přiřazení korespondentů</string>
+    <string name="premium_feature_ai_type">Klasifikace typu dokumentu</string>
+    <string name="premium_feature_ai_type_desc">Rozpozná fakturu, smlouvu, dopis atd.</string>
+    <string name="premium_feature_unlimited">Neomezené AI analýzy</string>
+    <string name="premium_feature_unlimited_desc">Bez měsíčních limitů</string>
+
+    <!-- Subscription Options -->
+    <string name="premium_option_monthly">Měsíčně</string>
+    <string name="premium_option_yearly">Ročně</string>
+    <string name="premium_price_monthly">%1$s / měsíc</string>
+    <string name="premium_price_yearly">%1$s / rok</string>
+    <string name="premium_price_yearly_savings">Ušetřete 2 měsíce</string>
+    <string name="premium_button_upgrade">Upgradovat nyní</string>
+    <string name="premium_button_later">Později</string>
+    <string name="premium_button_restore">Obnovit nákupy</string>
+
+    <!-- Premium Messages -->
+    <string name="premium_purchase_success">Premium úspěšně aktivováno!</string>
+    <string name="premium_purchase_cancelled">Nákup zrušen</string>
+    <string name="premium_purchase_error">Chyba nákupu: %1$s</string>
+    <string name="premium_restore_success">%1$d nákupů obnoveno</string>
+    <string name="premium_restore_none">Žádné nákupy nenalezeny</string>
+    <string name="premium_restore_error">Chyba obnovení: %1$s</string>
 </resources>
