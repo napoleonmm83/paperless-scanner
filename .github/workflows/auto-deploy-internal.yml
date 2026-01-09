@@ -85,7 +85,25 @@ jobs:
           fi
         shell: bash
 
+      - name: Setup Android SDK path (self-hosted Windows)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
+        run: |
+          echo "Setting up Android SDK for self-hosted Windows runner..."
+          $ANDROID_SDK = "$env:LOCALAPPDATA\Android\Sdk"
+          if (Test-Path $ANDROID_SDK) {
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $env:GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $env:GITHUB_ENV
+            echo "$ANDROID_SDK\platform-tools" >> $env:GITHUB_PATH
+            echo "$ANDROID_SDK\cmdline-tools\latest\bin" >> $env:GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          } else {
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          }
+        shell: pwsh
+
       - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
         run: chmod +x gradlew
         shell: bash
 
@@ -152,6 +170,23 @@ jobs:
           fi
         shell: bash
 
+      - name: Setup Android SDK path (self-hosted Windows)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
+        run: |
+          echo "Setting up Android SDK for self-hosted Windows runner..."
+          $ANDROID_SDK = "$env:LOCALAPPDATA\Android\Sdk"
+          if (Test-Path $ANDROID_SDK) {
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $env:GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $env:GITHUB_ENV
+            echo "$ANDROID_SDK\platform-tools" >> $env:GITHUB_PATH
+            echo "$ANDROID_SDK\cmdline-tools\latest\bin" >> $env:GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          } else {
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          }
+        shell: pwsh
+
       - name: Set up Ruby (GitHub-hosted)
         if: needs.check-runner.outputs.is-self-hosted != 'true'
         uses: ruby/setup-ruby@v1
@@ -189,6 +224,22 @@ jobs:
           $HOMEBREW_PREFIX/opt/ruby/bin/ruby --version
         shell: bash
 
+      - name: Setup Ruby via RubyInstaller (self-hosted Windows)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
+        run: |
+          echo "Setting up Ruby for self-hosted Windows..."
+          # Check if Ruby is already installed
+          $rubyPath = Get-Command ruby -ErrorAction SilentlyContinue
+          if ($rubyPath) {
+            echo "✅ Ruby already installed: $($rubyPath.Source)"
+            ruby --version
+          } else {
+            echo "❌ Ruby not found. Please install Ruby from https://rubyinstaller.org/"
+            echo "Recommended: Ruby+Devkit 3.2.x (x64)"
+            exit 1
+          }
+        shell: pwsh
+
       - name: Install Fastlane
         run: |
           echo "Installing Fastlane..."
@@ -199,6 +250,7 @@ jobs:
         shell: bash
 
       - name: Grant execute permission for gradlew
+        if: runner.os != 'Windows'
         run: chmod +x gradlew
         shell: bash
 
