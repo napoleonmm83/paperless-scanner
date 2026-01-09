@@ -152,14 +152,31 @@ jobs:
           fi
         shell: bash
 
-      - name: Set up Ruby
+      - name: Set up Ruby (GitHub-hosted)
+        if: needs.check-runner.outputs.is-self-hosted != 'true'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
 
+      - name: Setup Ruby environment (self-hosted macOS)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
+        run: |
+          echo "Using system Ruby on self-hosted macOS..."
+          ruby --version
+          # Ensure gem bin directory is in PATH
+          GEM_BIN="$(ruby -e 'puts Gem.user_dir')/bin"
+          echo "$GEM_BIN" >> $GITHUB_PATH
+          echo "GEM_HOME=$(ruby -e 'puts Gem.user_dir')" >> $GITHUB_ENV
+          echo "✅ Ruby environment configured"
+        shell: bash
+
       - name: Install Fastlane
-        run: gem install fastlane
+        run: |
+          echo "Installing Fastlane..."
+          gem install fastlane --user-install --no-document
+          echo "✅ Fastlane installed"
+          fastlane --version
         shell: bash
 
       - name: Grant execute permission for gradlew
