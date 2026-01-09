@@ -6,6 +6,11 @@ Android-Client zum Scannen und Hochladen von Dokumenten zu einer selbstgehostete
 
 - **Login** mit Server-URL und Credentials
 - **Dokumentenscan** mit automatischer Kantenerkennung (MLKit Document Scanner)
+- **AI-gestützte Tag-Vorschläge** ✨ via Firebase AI (Gemini 2.0 Flash)
+  - Automatische Titel-Extraktion
+  - Tag-Matching gegen vorhandene Tags
+  - Datum/Correspondent Erkennung
+  - 300 kostenlose AI-Aufrufe/Monat
 - **Upload** zu Paperless-ngx mit optionalem Titel
 - **Tag-Auswahl** aus vorhandenen Tags
 - **Material 3 Design** mit dynamischen Farben
@@ -57,6 +62,27 @@ Benötigte API-Endpoints:
 - `GET /api/tags/` - Tags abrufen
 - `POST /api/documents/post_document/` - Dokument hochladen
 
+### Firebase AI (Optional)
+
+Die App nutzt Firebase AI für AI-gestützte Tag-Vorschläge. **Keine zusätzliche Konfiguration nötig** - verwendet das bestehende Firebase-Projekt.
+
+**Setup-Status:**
+- ✅ Firebase Projekt konfiguriert (`google-services.json`)
+- ✅ Firebase AI Backend aktiviert (`GenerativeBackend.firebaseAI()`)
+- ✅ Gemini 2.0 Flash Modell (1500 Anfragen/Tag kostenlos)
+- ✅ Usage Tracking & Limits (300 AI-Aufrufe/Monat)
+
+**Wie es funktioniert:**
+1. User scannt Dokument
+2. App sendet Bild an Firebase AI (Gemini)
+3. AI analysiert Dokument und schlägt Tags/Titel vor
+4. User kann Vorschläge übernehmen oder ignorieren
+5. Bei Limit-Erreichen: Automatischer Fallback auf Paperless Suggestions
+
+**Kosten:** ~€0.004 pro User/Monat (30 Scans) - 98% Profit-Marge bei €1.99 Abo
+
+Mehr Details: [`docs/TECHNICAL.md` → Firebase AI Integration](docs/TECHNICAL.md#25-firebase-ai-gemini-integration)
+
 ## Tech Stack
 
 | Komponente | Technologie |
@@ -66,6 +92,9 @@ Benötigte API-Endpoints:
 | DI | Hilt |
 | Networking | Retrofit + OkHttp |
 | Scanner | MLKit Document Scanner |
+| AI | Firebase AI (Gemini 2.0 Flash) |
+| Database | Room (AI Usage Tracking) |
+| Analytics | Firebase Analytics |
 | Storage | DataStore Preferences |
 | Image Loading | Coil |
 

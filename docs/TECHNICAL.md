@@ -51,13 +51,29 @@ com.paperless.scanner/
 │   │   └── models/
 │   │       └── ApiModels.kt     # DTOs
 │   │
+│   ├── ai/
+│   │   ├── AiAnalysisService.kt # Firebase AI (Gemini)
+│   │   └── models/
+│   │       └── DocumentAnalysis.kt # AI Response DTOs
+│   │
+│   ├── analytics/
+│   │   └── AnalyticsService.kt  # Firebase Analytics
+│   │
+│   ├── database/
+│   │   ├── AppDatabase.kt       # Room Database
+│   │   ├── dao/
+│   │   │   └── AiUsageDao.kt    # AI Usage Logs
+│   │   └── entities/
+│   │       └── AiUsageLog.kt    # Usage Tracking
+│   │
 │   ├── datastore/
 │   │   └── TokenManager.kt      # Credentials Storage
 │   │
 │   └── repository/
 │       ├── AuthRepository.kt    # Login/Logout
 │       ├── TagRepository.kt     # Tag CRUD
-│       └── DocumentRepository.kt # Upload
+│       ├── DocumentRepository.kt # Upload
+│       └── AiUsageRepository.kt # AI Usage Tracking
 │
 ├── ui/
 │   ├── theme/
@@ -209,6 +225,213 @@ scanner.getStartScanIntent(activity)
 | SCANNER_MODE_FULL | Vollständige UI mit Preview |
 | SCANNER_MODE_BASE | Minimale UI |
 | SCANNER_MODE_BASE_WITH_FILTER | Mit Bildfiltern |
+
+---
+
+### 2.5 Firebase AI (Gemini) Integration
+
+**AI-gestützte Dokumentanalyse** für automatische Tag-Vorschläge, Titel-Extraktion und Metadaten-Erkennung.
+
+#### Backend-Architektur
+
+```kotlin
+@Singleton
+class AiAnalysisService @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private val generativeModel by lazy {
+        Firebase.ai(backend = GenerativeBackend.firebaseAI())
+            .generativeModel(
+                modelName = "gemini-2.0-flash",
+                generationConfig = generationConfig {
+                    temperature = 0.3f
+                    maxOutputTokens = 1024
+                }
+            )
+    }
+}
+```
+
+#### Warum Firebase AI (nicht Google AI direkt)?
+
+| Aspekt | Firebase AI ✅ | Google AI |
+|--------|---------------|-----------|
+| **Setup** | Nutzt bestehendes Firebase Projekt | Benötigt separaten API Key |
+| **Sicherheit** | Kein API Key im Code nötig | API Key in BuildConfig (Risiko) |
+| **Billing** | Zentrales Firebase Billing | Separates Billing-Setup |
+| **Monitoring** | Firebase Console (Analytics + AI) | Separate Console |
+| **Kosten** | 1500 Anfragen/Tag (Free) | 1500 Anfragen/Tag (Free) |
+| **Funktion** | Gleiche Gemini Modelle | Gleiche Gemini Modelle |
+
+**Entscheidung:** Firebase AI Backend für einfachere Integration und zentrales Management.
+
+#### Analyse-Flow
+
+```
+┌──────────────┐    ┌─────────────────────┐    ┌──────────────────┐
+│ UploadScreen │───▶│ UploadViewModel     │───▶│ AiAnalysisService│
+│ (User tappt  │    │ analyzeDocument()   │    │ analyzeImage()   │
+│  "AI Scan")  │    └─────────────────────┘    └────────┬─────────┘
+└──────────────┘                                         │
+                                                         ▼
+                    ┌────────────────────────────────────────────┐
+                    │ Firebase AI (Gemini 2.0 Flash)             │
+                    │ - OCR Texterkennung                        │
+                    │ - Tag-Matching gegen verfügbare Tags      │
+                    │ - Titel-Extraktion                         │
+                    │ - Datum/Correspondent Erkennung            │
+                    └────────────┬───────────────────────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ DocumentAnalysis        │
+                    │ - suggestedTitle        │
+                    │ - suggestedTags[]       │
+                    │ - suggestedCorrespondent│
+                    │ - confidence: 0.0-1.0   │
+                    └────────────┬────────────┘
+                                 │
+                                 ▼
+                    ┌─────────────────────────┐
+                    │ UI: Tag Chips anzeigen  │
+                    │ (User kann übernehmen)  │
+                    └─────────────────────────┘
+```
+
+#### Prompt-Engineering
+
+Der AI-Prompt ist optimiert für **präzise Tag-Matching**:
+
+```kotlin
+private fun buildPrompt(availableTags: List<Tag>): String {
+    val tagList = availableTags.joinToString(", ") { tag ->
+        val desc = tag.match?.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: ""
+        "${tag.name}$desc"
+    }
+
+    return """
+        Analysiere dieses Dokument und extrahiere Metadaten.
+
+        VERFÜGBARE TAGS: $tagList
+
+        Antworte NUR mit JSON:
+        {
+          "title": "Kurzer Titel",
+          "tags": ["tag1", "tag2"],
+          "correspondent": "Absender oder null",
+          "document_type": "Typ oder null",
+          "date": "YYYY-MM-DD oder null",
+          "confidence": 0.0-1.0
+        }
+
+        REGELN:
+        1. Wähle Tags NUR aus der verfügbaren Liste
+        2. Confidence = Sicherheit der Analyse (0.0-1.0)
+        3. Bei Rechnungen: Suche nach Firma, Betrag, Datum
+    """.trimMargin()
+}
+```
+
+#### AI Usage Tracking & Limits
+
+**Motivation:** Kostenmanagement für Firebase AI API.
+
+**Implementierung:**
+
+1. **Room Database für Usage Logs:**
+```kotlin
+@Entity(tableName = "ai_usage_logs")
+data class AiUsageLog(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestamp: Long,
+    val featureType: String, // "document_analysis"
+    val inputTokens: Int,
+    val outputTokens: Int,
+    val success: Boolean,
+    val subscriptionType: String // "free" or "premium"
+)
+```
+
+2. **Monatliche Limits:**
+   - Free Tier: **300 AI-Aufrufe/Monat**
+   - Soft Limit @ 100: Info-Meldung
+   - Soft Limit @ 200: Warnung
+   - Hard Limit @ 300: AI deaktiviert, Fallback auf Paperless Suggestions
+
+3. **Reactive Monitoring:**
+```kotlin
+// In UploadViewModel:
+aiUsageRepository.observeCurrentMonthCallCount()
+    .collect { callCount ->
+        _remainingCalls.update { (300 - callCount).coerceAtLeast(0) }
+        _usageLimitStatus.update {
+            when {
+                callCount >= 300 -> UsageLimitStatus.HARD_LIMIT_REACHED
+                callCount >= 200 -> UsageLimitStatus.SOFT_LIMIT_200
+                callCount >= 100 -> UsageLimitStatus.SOFT_LIMIT_100
+                else -> UsageLimitStatus.WITHIN_LIMITS
+            }
+        }
+    }
+```
+
+#### Firebase Analytics Integration
+
+**Events getrackt:**
+- `ai_feature_usage` - Jede AI-Anfrage mit Token-Counts
+- `ai_suggestion_accepted` - User übernimmt AI-Vorschlag
+- `ai_suggestion_rejected` - User ignoriert Vorschlag
+- `ai_monthly_report` - Monatliches Nutzungs-Summary
+
+**Parameter:**
+```kotlin
+analyticsService.trackAiFeatureUsage(
+    featureType = "document_analysis",
+    inputTokens = 1000,
+    outputTokens = 200,
+    subscriptionType = "free"
+)
+```
+
+#### Fallback-Strategie (Free Tier)
+
+Wenn AI-Limit erreicht oder Premium nicht aktiv:
+
+1. **Paperless Server Suggestions API**
+   - `GET /api/documents/{id}/suggestions/`
+   - Nutzt Paperless-ngx Neural Network
+   - Keine Kosten für App
+
+2. **Lokales Tag-Matching**
+   - Fuzzy Match auf Tag-Namen
+   - Keyword-Match auf `Tag.match` Feld
+   - Rein lokal (offline-fähig)
+
+3. **Dokument-Historie**
+   - "Ähnliche Dokumente hatten Tag X"
+   - Basiert auf Room Cache
+
+#### Kosten-Kalkulation
+
+**Annahmen:**
+- Durchschnitt: 30 Scans/Monat pro User
+- Input: ~1000 Tokens (1 Bild + Prompt)
+- Output: ~200 Tokens (JSON Response)
+
+**Kosten pro Scan:**
+- Input: 1000 tokens × $0.000075 = $0.000075
+- Output: 200 tokens × $0.0003 = $0.00006
+- **Total: ~$0.00014 pro Scan**
+
+**Kosten pro User/Monat:**
+- 30 Scans × $0.00014 = **$0.0042** (~€0.004)
+- Mit 3× Safety-Puffer: **$0.013** (~€0.012)
+
+**Business Case:**
+- Abo-Preis: €1.99/Monat
+- Nach Google Play Fee (15%): €1.69
+- Nach AI-Kosten: €1.68
+- **Marge: ~98%** ✅
 
 ---
 

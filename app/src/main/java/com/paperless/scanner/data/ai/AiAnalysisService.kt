@@ -35,7 +35,9 @@ class AiAnalysisService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val generativeModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
+        // Firebase AI Backend (uses Firebase Vertex AI automatically via google-services.json)
+        // No explicit backend parameter needed - defaults to Firebase when configured
+        Firebase.ai.generativeModel(
             modelName = MODEL_NAME,
             generationConfig = generationConfig {
                 temperature = TEMPERATURE
