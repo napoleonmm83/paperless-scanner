@@ -11,11 +11,11 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CachedDocumentDao {
     // Reactive Flow - updates automatically on any DB change
-    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY created DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     fun observeDocuments(limit: Int, offset: Int): Flow<List<CachedDocument>>
 
     // Legacy suspend method - kept for backward compatibility
-    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY created DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     suspend fun getDocuments(limit: Int, offset: Int): List<CachedDocument>
 
     @Query("SELECT * FROM cached_documents WHERE id = :id AND isDeleted = 0")
