@@ -137,7 +137,8 @@ jobs:
         run: chmod +x gradlew
         shell: bash
 
-      - name: Setup Google Services JSON
+      - name: Setup Google Services JSON (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         shell: bash
@@ -151,7 +152,27 @@ jobs:
             echo "::warning::Using dummy google-services.json for CI"
           fi
 
-      - name: Run unit tests
+      - name: Setup Google Services JSON (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: powershell
+        run: |
+          if ($env:GOOGLE_SERVICES_JSON) {
+            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "google-services.json decoded from secret"
+          } else {
+            '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "::warning::Using dummy google-services.json for CI"
+          }
+
+      - name: Run unit tests (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat testReleaseUnitTest --no-daemon
+        shell: cmd
+
+      - name: Run unit tests (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew testReleaseUnitTest
         shell: bash
 
@@ -163,7 +184,13 @@ jobs:
           path: app/build/reports/tests/
           retention-days: 7
 
-      - name: Build release APK
+      - name: Build release APK (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat assembleRelease --no-daemon
+        shell: cmd
+
+      - name: Build release APK (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew assembleRelease
         shell: bash
 
@@ -248,7 +275,13 @@ jobs:
             echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
           fi
 
-      - name: Run lint
+      - name: Run lint (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat lintRelease --no-daemon
+        shell: cmd
+
+      - name: Run lint (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew lintRelease
         shell: bash
 
@@ -365,7 +398,13 @@ jobs:
         run: chmod +x gradlew
         shell: bash
 
-      - name: Run Detekt
+      - name: Run Detekt (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat detekt --continue --no-daemon || exit 0
+        shell: cmd
+
+      - name: Run Detekt (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew detekt --continue || true
         shell: bash
 
@@ -377,7 +416,13 @@ jobs:
           path: app/build/reports/detekt/
           retention-days: 7
 
-      - name: Run KtLint
+      - name: Run KtLint (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat ktlintCheck --continue --no-daemon || exit 0
+        shell: cmd
+
+      - name: Run KtLint (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew ktlintCheck --continue || true
         shell: bash
 
