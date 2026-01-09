@@ -4,11 +4,18 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.github/**'
-      - '!.github/workflows/**'
+    paths:
+      # Only deploy when app-relevant files change
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - 'fastlane/**'
+      - '.github/workflows/auto-deploy-internal.yml'
 
 # Required permissions for pushing version bumps
 permissions:

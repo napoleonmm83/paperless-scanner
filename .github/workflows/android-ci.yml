@@ -3,8 +3,30 @@ name: Android CI
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      # Only run CI when app-relevant files change
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
   pull_request:
     branches: [ main, develop ]
+    paths:
+      # Only run CI when app-relevant files change
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
   schedule:
     # Run dependency check weekly on Sundays at 6:00 AM UTC
     - cron: '0 6 * * 0'
