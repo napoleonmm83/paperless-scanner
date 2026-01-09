@@ -242,6 +242,9 @@ dependencies {
     // Firebase AI (Gemini)
     implementation(libs.firebase.ai)
 
+    // Google Play Billing
+    implementation(libs.billing)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

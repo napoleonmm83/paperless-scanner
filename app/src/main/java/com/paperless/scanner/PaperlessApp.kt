@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
 import dagger.hilt.android.HiltAndroidApp
@@ -21,6 +22,9 @@ class PaperlessApp : Application(), Configuration.Provider {
     @Inject
     lateinit var networkMonitor: NetworkMonitor
 
+    @Inject
+    lateinit var billingManager: BillingManager
+
     override fun onCreate() {
         super.onCreate()
 
@@ -28,6 +32,9 @@ class PaperlessApp : Application(), Configuration.Provider {
         initializeOfflineMode()
 
         cleanupOldCacheFiles()
+
+        // Initialize Google Play Billing
+        billingManager.initialize()
     }
 
     private fun initializeOfflineMode() {

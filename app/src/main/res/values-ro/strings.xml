@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Restabilește achizițiile</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium activat cu succes!</string>
     <string name="premium_purchase_cancelled">Achiziție anulată</string>
     <string name="premium_purchase_error">Eroare achiziție: %1$s</string>

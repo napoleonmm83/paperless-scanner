@@ -572,6 +572,7 @@
     <string name="premium_button_restore">Restore Purchases</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium successfully activated!</string>
     <string name="premium_purchase_cancelled">Purchase cancelled</string>
     <string name="premium_purchase_error">Purchase error: %1$s</string>

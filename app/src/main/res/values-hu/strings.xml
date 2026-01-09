@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Vásárlások visszaállítása</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium sikeresen aktiválva!</string>
     <string name="premium_purchase_cancelled">Vásárlás megszakítva</string>
     <string name="premium_purchase_error">Vásárlási hiba: %1$s</string>

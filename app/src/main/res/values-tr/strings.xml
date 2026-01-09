@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Satın almaları geri yükle</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium başarıyla etkinleştirildi!</string>
     <string name="premium_purchase_cancelled">Satın alma iptal edildi</string>
     <string name="premium_purchase_error">Satın alma hatası: %1$s</string>

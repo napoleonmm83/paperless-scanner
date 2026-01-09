@@ -45,8 +45,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import android.app.Activity
+import kotlinx.coroutines.launch
+import com.paperless.scanner.data.billing.PurchaseResult
+import com.paperless.scanner.data.billing.RestoreResult
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -65,10 +71,13 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
+    var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -486,14 +495,57 @@ fun SettingsScreen(
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
             onSubscribe = { productId ->
-                // TODO: Implement subscription purchase
-                // viewModel.launchPurchaseFlow(productId)
-                showPremiumUpgradeSheet = false
+                val activity = context as? Activity
+                if (activity != null) {
+                    coroutineScope.launch {
+                        when (val result = viewModel.launchPurchaseFlow(activity, productId)) {
+                            is PurchaseResult.Success -> {
+                                purchaseResultMessage = context.getString(R.string.premium_purchase_success)
+                                showPremiumUpgradeSheet = false
+                            }
+                            is PurchaseResult.Cancelled -> {
+                                // User cancelled, just close sheet
+                                showPremiumUpgradeSheet = false
+                            }
+                            is PurchaseResult.Error -> {
+                                purchaseResultMessage = context.getString(R.string.premium_purchase_error, result.message)
+                            }
+                        }
+                    }
+                } else {
+                    purchaseResultMessage = "Unable to launch purchase flow"
+                    showPremiumUpgradeSheet = false
+                }
             },
             onRestore = {
-                // TODO: Implement restore purchases
-                // viewModel.restorePurchases()
-                showPremiumUpgradeSheet = false
+                coroutineScope.launch {
+                    when (val result = viewModel.restorePurchases()) {
+                        is RestoreResult.Success -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_success, result.restoredCount)
+                            showPremiumUpgradeSheet = false
+                        }
+                        is RestoreResult.NoPurchasesFound -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_none)
+                        }
+                        is RestoreResult.Error -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_error, result.message)
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    // Purchase Result Dialog
+    purchaseResultMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { purchaseResultMessage = null },
+            title = { Text(stringResource(R.string.premium_status)) },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { purchaseResultMessage = null }) {
+                    Text(stringResource(R.string.ok))
+                }
             }
         )
     }

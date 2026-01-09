@@ -160,8 +160,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    suspend fun launchPurchaseFlow(productId: String): PurchaseResult {
-        return billingManager.launchPurchaseFlow(productId)
+    suspend fun launchPurchaseFlow(activity: android.app.Activity, productId: String): PurchaseResult {
+        return billingManager.launchPurchaseFlow(activity, productId)
     }
 
     suspend fun restorePurchases(): RestoreResult {

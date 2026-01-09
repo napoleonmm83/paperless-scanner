@@ -513,6 +513,7 @@
     <string name="premium_button_restore">Återställ köp</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktiverat framgångsrikt!</string>
     <string name="premium_purchase_cancelled">Köp avbrutet</string>
     <string name="premium_purchase_error">Köpfel: %1$s</string>

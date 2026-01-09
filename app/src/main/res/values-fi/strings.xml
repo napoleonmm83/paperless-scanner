@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Palauta ostokset</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktivoitu onnistuneesti!</string>
     <string name="premium_purchase_cancelled">Osto peruutettu</string>
     <string name="premium_purchase_error">Ostovirhe: %1$s</string>

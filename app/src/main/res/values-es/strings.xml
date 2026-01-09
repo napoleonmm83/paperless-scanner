@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Restaurar compras</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">¡Premium activado con éxito!</string>
     <string name="premium_purchase_cancelled">Compra cancelada</string>
     <string name="premium_purchase_error">Error de compra: %1$s</string>

@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Επαναφορά αγορών</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Το Premium ενεργοποιήθηκε επιτυχώς!</string>
     <string name="premium_purchase_cancelled">Η αγορά ακυρώθηκε</string>
     <string name="premium_purchase_error">Σφάλμα αγοράς: %1$s</string>

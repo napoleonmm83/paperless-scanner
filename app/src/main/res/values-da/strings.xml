@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Gendan køb</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktiveret med succes!</string>
     <string name="premium_purchase_cancelled">Køb annulleret</string>
     <string name="premium_purchase_error">Købsfejl: %1$s</string>

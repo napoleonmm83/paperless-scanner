@@ -573,6 +573,7 @@
     <string name="premium_button_restore">Obnovit nákupy</string>
 
     <!-- Premium Messages -->
+    <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium úspěšně aktivováno!</string>
     <string name="premium_purchase_cancelled">Nákup zrušen</string>
     <string name="premium_purchase_error">Chyba nákupu: %1$s</string>
