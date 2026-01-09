@@ -426,22 +426,59 @@ Bei JEDER Implementierung:
 
 Dies ist eine ABSOLUTE Anforderung ohne Ausnahmen. Fehlgeschlagene GitHub Actions Builds verschwenden Zeit und Ressourcen.
 
-### Pflicht-Checks vor JEDEM Commit/Push
+### Automatische Git Hooks (EMPFOHLEN)
+
+Git Hooks sind bereits konfiguriert und werden automatisch ausgeführt:
+
+| Hook | Wann | Was wird geprüft |
+|------|------|------------------|
+| **pre-commit** | Bei `git commit` | Schnelle Syntax-Checks (Kotlin Compile, Duplicates) |
+| **pre-push** | Bei `git push` | **VOLLSTÄNDIGE CI** (Release Tests, Lint, Build) |
+
+Die Hooks verwenden **RELEASE-Varianten** - exakt wie GitHub Actions!
+
+### WICHTIG: RELEASE statt DEBUG!
+
+**GitHub Actions verwendet RELEASE-Varianten, nicht DEBUG!**
+
+```bash
+# GitHub Actions führt aus:
+./gradlew testReleaseUnitTest    # NICHT testDebugUnitTest
+./gradlew lintRelease            # NICHT lintDebug
+./gradlew assembleRelease        # NICHT assembleDebug
+```
+
+### Manuelle CI-Validierung
+
+Für manuelle Checks vor dem Commit/Push:
+
+```bash
+# Vollständige CI-Simulation (EXAKT wie GitHub Actions):
+./scripts/validate-ci.sh
+
+# Quick-Mode (ohne assembleRelease):
+./scripts/validate-ci.sh --quick
+
+# Mit ausführlicher Ausgabe:
+./scripts/validate-ci.sh --verbose
+```
+
+### Pflicht-Checks (was validate-ci.sh prüft)
 
 ```bash
 # ALLE diese Checks müssen 100% erfolgreich sein:
 
-# 1. Kompilierung (MUSS erfolgreich sein)
-./gradlew compileDebugKotlin --no-daemon
+# Phase 1: Validation (wie GitHub Actions "validate" job)
+./scripts/check-translations.sh   # Translation Completeness
+# + Duplicate String IDs Check
+# + Empty Strings Check
 
-# 2. Lint Check (MUSS erfolgreich sein)
-./gradlew lintDebug --no-daemon
+# Phase 2: Build & Test (wie GitHub Actions "build" job)
+./gradlew testReleaseUnitTest --no-daemon   # RELEASE!
+./gradlew assembleRelease --no-daemon       # RELEASE!
 
-# 3. Unit Tests (MUSS erfolgreich sein)
-./gradlew testDebugUnitTest --no-daemon
-
-# Oder nutze das validate-ci.sh Script:
-./scripts/validate-ci.sh
+# Phase 3: Lint (wie GitHub Actions "lint" job)
+./gradlew lintRelease --no-daemon           # RELEASE!
 ```
 
 ### Bei Fehlern: STOPP!
@@ -451,11 +488,12 @@ Dies ist eine ABSOLUTE Anforderung ohne Ausnahmen. Fehlgeschlagene GitHub Action
 - **NIEMALS** darauf hoffen dass es "auf GitHub schon funktioniert"
 - Fehler ZUERST beheben, dann erneut alle Checks ausführen
 
-### Warum so strikt?
+### Warum RELEASE statt DEBUG?
 
-- Jeder fehlgeschlagene CI-Build kostet 15-20 Minuten
-- Dependabot PRs müssen vor dem Merge lokal validiert werden
-- Breaking Changes (Kotlin, KSP, Hilt) müssen lokal getestet werden
+- GitHub Actions baut die Release-Variante
+- Release hat strengere ProGuard/R8 Regeln
+- Release-spezifische Lint-Checks
+- Vermeidet "Works on my machine" Probleme
 
 ### JDK Anforderung
 
