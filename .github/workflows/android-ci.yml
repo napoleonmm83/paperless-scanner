@@ -130,7 +130,7 @@ jobs:
             echo "❌ Android SDK not found at: $ANDROID_SDK"
             exit 1
           }
-        shell: pwsh
+        shell: powershell
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
@@ -230,7 +230,7 @@ jobs:
             echo "❌ Android SDK not found at: $ANDROID_SDK"
             exit 1
           }
-        shell: pwsh
+        shell: powershell
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
@@ -358,7 +358,7 @@ jobs:
             echo "❌ Android SDK not found at: $ANDROID_SDK"
             exit 1
           }
-        shell: pwsh
+        shell: powershell
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
@@ -439,7 +439,7 @@ jobs:
             echo "❌ Android SDK not found at: $ANDROID_SDK"
             exit 1
           }
-        shell: pwsh
+        shell: powershell
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
