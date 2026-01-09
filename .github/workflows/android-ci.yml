@@ -201,7 +201,17 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
-      - name: Show runner info
+      - name: Show runner info (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "## Runner Information" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Runner:** ${{ runner.name }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **OS:** ${{ runner.os }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+        shell: powershell
+
+      - name: Show runner info (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           echo "## Runner Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Runner:** ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
