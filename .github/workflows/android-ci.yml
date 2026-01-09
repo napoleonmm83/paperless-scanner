@@ -68,6 +68,23 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Setup Android SDK path (self-hosted macOS)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
+        run: |
+          echo "Setting up Android SDK for self-hosted macOS runner..."
+          ANDROID_SDK="$HOME/Library/Android/sdk"
+          if [ -d "$ANDROID_SDK" ]; then
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          else
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          fi
+        shell: bash
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         shell: bash
@@ -132,6 +149,23 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: gradle
+
+      - name: Setup Android SDK path (self-hosted macOS)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
+        run: |
+          echo "Setting up Android SDK for self-hosted macOS runner..."
+          ANDROID_SDK="$HOME/Library/Android/sdk"
+          if [ -d "$ANDROID_SDK" ]; then
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          else
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          fi
+        shell: bash
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -226,6 +260,23 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Setup Android SDK path (self-hosted macOS)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
+        run: |
+          echo "Setting up Android SDK for self-hosted macOS runner..."
+          ANDROID_SDK="$HOME/Library/Android/sdk"
+          if [ -d "$ANDROID_SDK" ]; then
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          else
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          fi
+        shell: bash
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
         shell: bash
@@ -271,6 +322,23 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: gradle
+
+      - name: Setup Android SDK path (self-hosted macOS)
+        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
+        run: |
+          echo "Setting up Android SDK for self-hosted macOS runner..."
+          ANDROID_SDK="$HOME/Library/Android/sdk"
+          if [ -d "$ANDROID_SDK" ]; then
+            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+            echo "✅ Android SDK found at: $ANDROID_SDK"
+          else
+            echo "❌ Android SDK not found at: $ANDROID_SDK"
+            exit 1
+          fi
+        shell: bash
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
