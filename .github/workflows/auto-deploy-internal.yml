@@ -159,22 +159,41 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
 
-      - name: Setup Ruby environment (self-hosted macOS)
+      - name: Setup Ruby via Homebrew (self-hosted macOS)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
         run: |
-          echo "Using system Ruby on self-hosted macOS..."
-          ruby --version
-          # Ensure gem bin directory is in PATH
-          GEM_BIN="$(ruby -e 'puts Gem.user_dir')/bin"
-          echo "$GEM_BIN" >> $GITHUB_PATH
-          echo "GEM_HOME=$(ruby -e 'puts Gem.user_dir')" >> $GITHUB_ENV
-          echo "✅ Ruby environment configured"
+          echo "Setting up Ruby via Homebrew for self-hosted macOS..."
+          # Ensure Homebrew is in PATH
+          eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/brew shellenv)" 2>/dev/null || true
+
+          # Install Ruby if not present via Homebrew
+          if ! brew list ruby &>/dev/null; then
+            echo "Installing Ruby via Homebrew..."
+            brew install ruby
+          else
+            echo "Ruby already installed via Homebrew"
+          fi
+
+          # Add Homebrew Ruby to PATH (takes precedence over system Ruby)
+          HOMEBREW_PREFIX=$(brew --prefix)
+          echo "$HOMEBREW_PREFIX/opt/ruby/bin" >> $GITHUB_PATH
+          echo "$HOMEBREW_PREFIX/lib/ruby/gems/3.4.0/bin" >> $GITHUB_PATH
+
+          # Set GEM_HOME for user installs
+          export PATH="$HOMEBREW_PREFIX/opt/ruby/bin:$PATH"
+          GEM_HOME="$($HOMEBREW_PREFIX/opt/ruby/bin/ruby -e 'puts Gem.user_dir')"
+          echo "GEM_HOME=$GEM_HOME" >> $GITHUB_ENV
+          echo "$GEM_HOME/bin" >> $GITHUB_PATH
+
+          echo "✅ Homebrew Ruby configured"
+          $HOMEBREW_PREFIX/opt/ruby/bin/ruby --version
         shell: bash
 
       - name: Install Fastlane
         run: |
           echo "Installing Fastlane..."
-          gem install fastlane --user-install --no-document
+          ruby --version
+          gem install fastlane --no-document
           echo "✅ Fastlane installed"
           fastlane --version
         shell: bash
