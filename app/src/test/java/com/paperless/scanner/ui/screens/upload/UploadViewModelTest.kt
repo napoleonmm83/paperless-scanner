@@ -13,8 +13,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
-import com.paperless.scanner.data.ai.AiAnalysisService
-import com.paperless.scanner.data.ai.TagMatchingEngine
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.NetworkUtils
@@ -63,9 +62,8 @@ class UploadViewModelTest {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var networkUtils: NetworkUtils
     private lateinit var analyticsService: AnalyticsService
-    private lateinit var aiAnalysisService: AiAnalysisService
+    private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var aiUsageRepository: AiUsageRepository
-    private lateinit var tagMatchingEngine: TagMatchingEngine
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -90,9 +88,8 @@ class UploadViewModelTest {
         networkMonitor = mockk(relaxed = true)
         networkUtils = mockk()
         analyticsService = mockk(relaxed = true)
-        aiAnalysisService = mockk(relaxed = true)
+        suggestionOrchestrator = mockk(relaxed = true)
         aiUsageRepository = mockk(relaxed = true)
-        tagMatchingEngine = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -114,9 +111,8 @@ class UploadViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
-            aiAnalysisService = aiAnalysisService,
+            suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
     }
@@ -147,9 +143,8 @@ class UploadViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
-            aiAnalysisService = aiAnalysisService,
+            suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -181,9 +176,8 @@ class UploadViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
-            aiAnalysisService = aiAnalysisService,
+            suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -521,9 +515,8 @@ class UploadViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
-            aiAnalysisService = aiAnalysisService,
+            suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -556,9 +549,8 @@ class UploadViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
-            aiAnalysisService = aiAnalysisService,
+            suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

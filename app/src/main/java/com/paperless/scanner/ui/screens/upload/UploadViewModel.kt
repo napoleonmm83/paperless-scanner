@@ -7,9 +7,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
-import com.paperless.scanner.data.ai.AiAnalysisService
-import com.paperless.scanner.data.ai.TagMatchingEngine
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.data.analytics.AnalyticsEvent
@@ -46,9 +46,8 @@ class UploadViewModel @Inject constructor(
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val analyticsService: AnalyticsService,
-    private val aiAnalysisService: AiAnalysisService,
+    private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
-    private val tagMatchingEngine: TagMatchingEngine,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -341,32 +340,27 @@ class UploadViewModel @Inject constructor(
     }
 
     /**
-     * Analyze document image for AI-powered suggestions.
-     * Uses TagMatchingEngine for local matching (always available).
-     * Uses AiAnalysisService for Firebase AI analysis (Premium feature).
+     * Analyze document image using centralized SuggestionOrchestrator.
      *
-     * BEST PRACTICE: Enforces usage limits before calling AI.
-     * Falls back to local suggestions when limit is reached.
+     * BEST PRACTICE: Uses intelligent fallback chain:
+     * 1. Premium + Within Limits → Firebase AI
+     * 2. Online + documentId → Paperless API (not applicable pre-upload)
+     * 3. ALWAYS → Local Tag Matching (offline-capable)
+     *
+     * The orchestrator handles Premium checks, network status, and merging automatically.
      */
     fun analyzeDocument(uri: Uri, usePremiumAi: Boolean = false) {
         viewModelScope.launch(ioDispatcher) {
             _analysisState.update { AnalysisState.Analyzing }
 
             try {
-                // Get available tags for matching
-                val availableTags = _tags.value
-
-                // Step 1: Check usage limits BEFORE calling AI
+                // Check usage limits for UI feedback
                 val limitStatus = aiUsageRepository.checkUsageLimit()
-                val canUseAi = usePremiumAi && limitStatus != UsageLimitStatus.HARD_LIMIT_REACHED
-
-                // Log limit status for debugging
-                Log.d(TAG, "Usage limit status: $limitStatus, canUseAi: $canUseAi")
 
                 // Show limit warning/info based on status
                 when (limitStatus) {
                     UsageLimitStatus.HARD_LIMIT_REACHED -> {
-                        Log.w(TAG, "Hard limit reached - AI disabled, using local suggestions only")
+                        Log.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
                         _analysisState.update { AnalysisState.LimitReached }
                     }
                     UsageLimitStatus.SOFT_LIMIT_200 -> {
@@ -382,9 +376,10 @@ class UploadViewModel @Inject constructor(
                     }
                 }
 
-                // Step 2: Try to read image and extract text for local matching
-                val inputStream = context.contentResolver.openInputStream(uri)
-                val bitmap = inputStream?.use { BitmapFactory.decodeStream(it) }
+                // Decode bitmap for AI/local analysis
+                val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it)
+                }
 
                 if (bitmap == null) {
                     Log.w(TAG, "Could not decode image for analysis")
@@ -392,32 +387,22 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Step 3: Local tag matching (always free, works offline)
-                val localSuggestions = if (availableTags.isNotEmpty()) {
-                    // For now, use tag names as pseudo-text for matching
-                    // In future, could use OCR to extract actual text
-                    tagMatchingEngine.findMatchingTags(
-                        text = "", // No OCR yet - matching will be based on tag patterns
-                        availableTags = availableTags
-                    )
-                } else {
-                    emptyList()
-                }
+                // Use SuggestionOrchestrator for centralized suggestion logic
+                // Handles Premium check, fallback chain (AI → Paperless → Local), and merging
+                val result = suggestionOrchestrator.getSuggestions(
+                    bitmap = bitmap,
+                    extractedText = "", // TODO: Add OCR text extraction in future
+                    documentId = null // Not applicable for pre-upload analysis
+                )
 
-                // Step 4: Firebase AI analysis (Premium feature + within usage limits)
-                val aiAnalysis = if (canUseAi) {
-                    val startTime = System.currentTimeMillis()
+                when (result) {
+                    is SuggestionResult.Success -> {
+                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
 
-                    aiAnalysisService.analyzeImage(bitmap, availableTags)
-                        .onSuccess {
-                            val durationMs = System.currentTimeMillis() - startTime
-                            Log.d(TAG, "AI analysis succeeded in ${durationMs}ms")
-
-                            // Track AI usage in local database
-                            // Note: Actual token counts would come from AI service
-                            // Using estimated values for now
-                            val estimatedInputTokens = 1000 // ~1 image
-                            val estimatedOutputTokens = 200 // ~200 tokens for suggestions
+                        // Track AI usage if AI was used
+                        if (result.source == SuggestionSource.FIREBASE_AI) {
+                            val estimatedInputTokens = 1000  // ~1 image
+                            val estimatedOutputTokens = 200  // ~200 tokens for suggestions
 
                             aiUsageRepository.logUsage(
                                 featureType = "document_analysis",
@@ -427,7 +412,6 @@ class UploadViewModel @Inject constructor(
                                 subscriptionType = "free" // TODO: Update when premium implemented
                             )
 
-                            // Track analytics
                             analyticsService.trackAiFeatureUsage(
                                 featureType = "document_analysis",
                                 inputTokens = estimatedInputTokens,
@@ -435,77 +419,32 @@ class UploadViewModel @Inject constructor(
                                 subscriptionType = "free"
                             )
                         }
-                        .onFailure { e ->
-                            Log.w(TAG, "AI analysis failed, using local suggestions only", e)
 
-                            // Track failed AI usage
-                            aiUsageRepository.logUsage(
-                                featureType = "document_analysis",
-                                inputTokens = 1000,
-                                outputTokens = 0,
-                                success = false,
-                                subscriptionType = "free"
-                            )
+                        _aiSuggestions.update { result.analysis }
+
+                        // Update state based on source and limit status
+                        _analysisState.update {
+                            when {
+                                limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED -> AnalysisState.LimitReached
+                                else -> AnalysisState.Success
+                            }
                         }
-                        .getOrNull()
-                } else {
-                    null
+                    }
+                    is SuggestionResult.Error -> {
+                        Log.e(TAG, "Suggestion orchestration failed: ${result.message}")
+                        _analysisState.update { AnalysisState.Error(result.message) }
+                    }
+                    is SuggestionResult.Loading -> {
+                        // Should not happen in this context, but handle for exhaustiveness
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
                 }
-
-                // Step 5: Merge suggestions (AI has priority, then local)
-                val mergedAnalysis = mergeAnalysisResults(aiAnalysis, localSuggestions)
-
-                _aiSuggestions.update { mergedAnalysis }
-
-                // Update state based on limit status
-                if (limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED) {
-                    _analysisState.update { AnalysisState.LimitReached }
-                } else {
-                    _analysisState.update { AnalysisState.Success }
-                }
-
-                Log.d(TAG, "Analysis complete: ${mergedAnalysis?.suggestedTags?.size ?: 0} tag suggestions")
 
             } catch (e: Exception) {
                 Log.e(TAG, "Document analysis failed", e)
                 _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
             }
         }
-    }
-
-    /**
-     * Merge AI analysis results with local tag matching.
-     * AI suggestions take priority, local suggestions fill gaps.
-     */
-    private fun mergeAnalysisResults(
-        aiAnalysis: DocumentAnalysis?,
-        localSuggestions: List<TagSuggestion>
-    ): DocumentAnalysis {
-        val aiTags = aiAnalysis?.suggestedTags ?: emptyList()
-        val aiTagIds = aiTags.mapNotNull { it.tagId }.toSet()
-
-        // Add local suggestions that aren't already in AI results
-        val additionalLocalTags = localSuggestions
-            .filter { it.tagId !in aiTagIds }
-            .take(3) // Limit additional local suggestions
-
-        val mergedTags = (aiTags + additionalLocalTags)
-            .sortedByDescending { it.confidence }
-            .take(5) // Max 5 suggestions total
-
-        return DocumentAnalysis(
-            suggestedTitle = aiAnalysis?.suggestedTitle,
-            suggestedTags = mergedTags,
-            suggestedCorrespondent = aiAnalysis?.suggestedCorrespondent,
-            suggestedDocumentType = aiAnalysis?.suggestedDocumentType,
-            suggestedDate = aiAnalysis?.suggestedDate,
-            extractedText = aiAnalysis?.extractedText,
-            confidence = if (mergedTags.isNotEmpty()) {
-                mergedTags.first().confidence
-            } else {
-                0f
-            }
-        )
     }
 
     /**
