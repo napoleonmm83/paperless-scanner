@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Käyttöoikeudet tallennettu</string>
     <string name="tab_permissions_no_edit_permission">Ei muokkausoikeutta</string>
     <string name="tab_permissions_selected">%1$d valittu</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI-käyttötiedot</string>
+    <string name="ai_limit_info_message">Käytät AI-ominaisuuksia intensiivisesti (%1$d / 300 kutsua tässä kuussa). Seuraa käyttöäsi!</string>
+    <string name="ai_limit_warning_title">AI-raja Lähes Saavutettu</string>
+    <string name="ai_limit_warning_message">Olet käyttänyt %1$d / 300 AI-kutsua tässä kuussa. Raja saavutetaan pian.</string>
+    <string name="ai_limit_reached_title">Kuukausittainen AI-raja Saavutettu</string>
+    <string name="ai_limit_reached_message">Olet saavuttanut kuukausittaisen 300 AI-kutsun rajan.\n\nEhdotukset perustuvat nyt Paperless-palvelimeen ja paikallisiin tietoihin.</string>
+    <string name="ai_limit_next_month">Käytettävissä uudelleen ensi kuussa: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI-kutsua jäljellä</string>
+    <string name="ai_calls_used">%1$d / 300 AI-kutsua käytetty</string>
+    <string name="ai_fallback_active">AI-raja saavutettu • Paperless-ehdotukset aktiiviset</string>
+    <string name="ai_analyzing">Analysoidaan asiakirjaa AI:lla...</string>
+    <string name="ai_suggestions_ready">AI-ehdotukset valmiit</string>
+    <string name="ai_no_suggestions">Ei ehdotuksia saatavilla</string>
 </resources>

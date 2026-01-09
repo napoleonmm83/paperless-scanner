@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Τα δικαιώματα αποθηκεύτηκαν</string>
     <string name="tab_permissions_no_edit_permission">Δεν υπάρχει δικαίωμα επεξεργασίας</string>
     <string name="tab_permissions_selected">%1$d επιλεγμένα</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">Πληροφορίες χρήσης AI</string>
+    <string name="ai_limit_info_message">Χρησιμοποιείτε εντατικά τις λειτουργίες AI (%1$d από 300 κλήσεις αυτόν τον μήνα). Παρακολουθήστε τη χρήση σας!</string>
+    <string name="ai_limit_warning_title">Το όριο AI σχεδόν επιτεύχθηκε</string>
+    <string name="ai_limit_warning_message">Έχετε χρησιμοποιήσει %1$d από 300 κλήσεις AI αυτόν τον μήνα. Το όριο θα επιτευχθεί σύντομα.</string>
+    <string name="ai_limit_reached_title">Μηνιαίο όριο AI επιτεύχθηκε</string>
+    <string name="ai_limit_reached_message">Έχετε φτάσει το μηνιαίο όριο των 300 κλήσεων AI.\n\nΟι προτάσεις βασίζονται τώρα στον διακομιστή Paperless και σε τοπικά δεδομένα.</string>
+    <string name="ai_limit_next_month">Διαθέσιμο ξανά τον επόμενο μήνα: %1$s</string>
+    <string name="ai_calls_remaining">%1$d κλήσεις AI απομένουν</string>
+    <string name="ai_calls_used">%1$d / 300 κλήσεις AI χρησιμοποιήθηκαν</string>
+    <string name="ai_fallback_active">Όριο AI επιτεύχθηκε • Προτάσεις Paperless ενεργές</string>
+    <string name="ai_analyzing">Ανάλυση εγγράφου με AI...</string>
+    <string name="ai_suggestions_ready">Προτάσεις AI έτοιμες</string>
+    <string name="ai_no_suggestions">Δεν υπάρχουν διαθέσιμες προτάσεις</string>
 </resources>

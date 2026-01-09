@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Jogosultságok sikeresen mentve</string>
     <string name="tab_permissions_no_edit_permission">Nincs szerkesztési jogosultság</string>
     <string name="tab_permissions_selected">%1$d kiválasztva</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI használati információ</string>
+    <string name="ai_limit_info_message">Intenzíven használod az AI funkciókat (%1$d a 300 hívásból ebben a hónapban). Figyeld a használatodat!</string>
+    <string name="ai_limit_warning_title">AI Limit Majdnem Elérve</string>
+    <string name="ai_limit_warning_message">%1$d / 300 AI hívást használtál fel ebben a hónapban. A limit hamarosan elérhető.</string>
+    <string name="ai_limit_reached_title">Havi AI Limit Elérve</string>
+    <string name="ai_limit_reached_message">Elérted a havi 300 AI hívás limitet.\n\nA javaslatok mostantól a Paperless szerveren és helyi adatokon alapulnak.</string>
+    <string name="ai_limit_next_month">Újra elérhető jövő hónapban: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI hívás maradt</string>
+    <string name="ai_calls_used">%1$d / 300 AI hívás felhasználva</string>
+    <string name="ai_fallback_active">AI limit elérve • Paperless javaslatok aktívak</string>
+    <string name="ai_analyzing">Dokumentum elemzése AI-val...</string>
+    <string name="ai_suggestions_ready">AI javaslatok készen</string>
+    <string name="ai_no_suggestions">Nincsenek elérhető javaslatok</string>
 </resources>

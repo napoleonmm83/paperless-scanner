@@ -511,4 +511,19 @@
     <string name="cd_security_tip">Sicherheitshinweis</string>
     <string name="cd_app_logo">Paperless Scanner Logo</string>
     <string name="cd_feature_highlight">Feature</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI-Nutzung Info</string>
+    <string name="ai_limit_info_message">Du nutzt AI-Features intensiv (%1$d von 300 Aufrufen diesen Monat). Behalte deine Nutzung im Auge!</string>
+    <string name="ai_limit_warning_title">AI-Limit fast erreicht</string>
+    <string name="ai_limit_warning_message">Du hast %1$d von 300 AI-Aufrufen diesen Monat genutzt. Das Limit wird bald erreicht.</string>
+    <string name="ai_limit_reached_title">Monatliches AI-Limit erreicht</string>
+    <string name="ai_limit_reached_message">Du hast dein monatliches AI-Limit von 300 Aufrufen erreicht.\n\nVorschläge basieren jetzt auf dem Paperless Server und lokalen Daten.</string>
+    <string name="ai_limit_next_month">Nächsten Monat wieder verfügbar: %1$s</string>
+    <string name="ai_calls_remaining">Noch %1$d AI-Aufrufe verfügbar</string>
+    <string name="ai_calls_used">%1$d / 300 AI-Aufrufe genutzt</string>
+    <string name="ai_fallback_active">AI-Limit erreicht • Paperless Suggestions aktiv</string>
+    <string name="ai_analyzing">Analysiere Dokument mit AI...</string>
+    <string name="ai_suggestions_ready">AI-Vorschläge bereit</string>
+    <string name="ai_no_suggestions">Keine Vorschläge verfügbar</string>
 </resources>

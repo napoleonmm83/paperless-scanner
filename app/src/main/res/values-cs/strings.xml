@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Oprávnění úspěšně uložena</string>
     <string name="tab_permissions_no_edit_permission">Žádné oprávnění k úpravě</string>
     <string name="tab_permissions_selected">%1$d vybráno</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">Informace o používání AI</string>
+    <string name="ai_limit_info_message">Intenzivně používáte funkce AI (%1$d z 300 volání tento měsíc). Sledujte své používání!</string>
+    <string name="ai_limit_warning_title">Limit AI Téměř Dosažen</string>
+    <string name="ai_limit_warning_message">Použili jste %1$d z 300 volání AI tento měsíc. Limit bude brzy dosažen.</string>
+    <string name="ai_limit_reached_title">Měsíční Limit AI Dosažen</string>
+    <string name="ai_limit_reached_message">Dosáhli jste měsíčního limitu 300 volání AI.\n\nNávrhy jsou nyní založeny na serveru Paperless a místních datech.</string>
+    <string name="ai_limit_next_month">Znovu dostupné příští měsíc: %1$s</string>
+    <string name="ai_calls_remaining">Zbývá %1$d volání AI</string>
+    <string name="ai_calls_used">%1$d / 300 volání AI použito</string>
+    <string name="ai_fallback_active">Limit AI dosažen • Návrhy Paperless aktivní</string>
+    <string name="ai_analyzing">Analýza dokumentu pomocí AI...</string>
+    <string name="ai_suggestions_ready">Návrhy AI připraveny</string>
+    <string name="ai_no_suggestions">Žádné návrhy k dispozici</string>
 </resources>

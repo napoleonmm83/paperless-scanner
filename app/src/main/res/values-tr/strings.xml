@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">İzinler başarıyla kaydedildi</string>
     <string name="tab_permissions_no_edit_permission">Düzenleme izni yok</string>
     <string name="tab_permissions_selected">%1$d seçili</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI Kullanım Bilgisi</string>
+    <string name="ai_limit_info_message">AI özelliklerini yoğun şekilde kullanıyorsunuz (bu ay 300 çağrıdan %1$d). Kullanımınızı takip edin!</string>
+    <string name="ai_limit_warning_title">AI Limiti Neredeyse Doldu</string>
+    <string name="ai_limit_warning_message">Bu ay 300 AI çağrısından %1$d tanesini kullandınız. Limit yakında dolacak.</string>
+    <string name="ai_limit_reached_title">Aylık AI Limiti Doldu</string>
+    <string name="ai_limit_reached_message">300 AI çağrısı aylık limitinize ulaştınız.\n\nÖneriler artık Paperless sunucusu ve yerel verilere dayalıdır.</string>
+    <string name="ai_limit_next_month">Gelecek ay tekrar kullanılabilir: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI çağrısı kaldı</string>
+    <string name="ai_calls_used">%1$d / 300 AI çağrısı kullanıldı</string>
+    <string name="ai_fallback_active">AI limiti doldu • Paperless önerileri aktif</string>
+    <string name="ai_analyzing">Belge AI ile analiz ediliyor...</string>
+    <string name="ai_suggestions_ready">AI önerileri hazır</string>
+    <string name="ai_no_suggestions">Kullanılabilir öneri yok</string>
 </resources>

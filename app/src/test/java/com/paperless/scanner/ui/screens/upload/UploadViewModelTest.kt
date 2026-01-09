@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
@@ -63,6 +64,7 @@ class UploadViewModelTest {
     private lateinit var networkUtils: NetworkUtils
     private lateinit var analyticsService: AnalyticsService
     private lateinit var aiAnalysisService: AiAnalysisService
+    private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var tagMatchingEngine: TagMatchingEngine
 
     private val testDispatcher = StandardTestDispatcher()
@@ -89,12 +91,16 @@ class UploadViewModelTest {
         networkUtils = mockk()
         analyticsService = mockk(relaxed = true)
         aiAnalysisService = mockk(relaxed = true)
+        aiUsageRepository = mockk(relaxed = true)
         tagMatchingEngine = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(emptyList())
         every { correspondentRepository.observeCorrespondents() } returns flowOf(emptyList())
+
+        // Mock AI usage limits Flow
+        every { aiUsageRepository.observeCurrentMonthCallCount() } returns flowOf(0)
 
         every { networkMonitor.checkOnlineStatus() } returns true
 
@@ -109,6 +115,7 @@ class UploadViewModelTest {
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
             aiAnalysisService = aiAnalysisService,
+            aiUsageRepository = aiUsageRepository,
             tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
@@ -141,6 +148,7 @@ class UploadViewModelTest {
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
             aiAnalysisService = aiAnalysisService,
+            aiUsageRepository = aiUsageRepository,
             tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
@@ -174,6 +182,7 @@ class UploadViewModelTest {
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
             aiAnalysisService = aiAnalysisService,
+            aiUsageRepository = aiUsageRepository,
             tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
@@ -513,6 +522,7 @@ class UploadViewModelTest {
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
             aiAnalysisService = aiAnalysisService,
+            aiUsageRepository = aiUsageRepository,
             tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )
@@ -547,6 +557,7 @@ class UploadViewModelTest {
             networkMonitor = networkMonitor,
             analyticsService = analyticsService,
             aiAnalysisService = aiAnalysisService,
+            aiUsageRepository = aiUsageRepository,
             tagMatchingEngine = tagMatchingEngine,
             ioDispatcher = testDispatcher
         )

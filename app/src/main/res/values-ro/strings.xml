@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Permisiuni salvate cu succes</string>
     <string name="tab_permissions_no_edit_permission">Fără permisiune de editare</string>
     <string name="tab_permissions_selected">%1$d selectat(e)</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">Informații despre utilizarea AI</string>
+    <string name="ai_limit_info_message">Utilizați intens funcțiile AI (%1$d din 300 apeluri în această lună). Urmăriți-vă utilizarea!</string>
+    <string name="ai_limit_warning_title">Limita AI Aproape Atinsă</string>
+    <string name="ai_limit_warning_message">Ați utilizat %1$d din 300 apeluri AI în această lună. Limita va fi atinsă în curând.</string>
+    <string name="ai_limit_reached_title">Limita Lunară AI Atinsă</string>
+    <string name="ai_limit_reached_message">Ați atins limita lunară de 300 apeluri AI.\n\nSugestiile se bazează acum pe serverul Paperless și datele locale.</string>
+    <string name="ai_limit_next_month">Disponibil din nou luna viitoare: %1$s</string>
+    <string name="ai_calls_remaining">%1$d apeluri AI rămase</string>
+    <string name="ai_calls_used">%1$d / 300 apeluri AI utilizate</string>
+    <string name="ai_fallback_active">Limita AI atinsă • Sugestii Paperless active</string>
+    <string name="ai_analyzing">Analiza documentului cu AI...</string>
+    <string name="ai_suggestions_ready">Sugestii AI gata</string>
+    <string name="ai_no_suggestions">Nicio sugestie disponibilă</string>
 </resources>

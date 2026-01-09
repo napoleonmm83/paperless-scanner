@@ -17,10 +17,12 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -45,6 +47,7 @@ class UploadViewModel @Inject constructor(
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val analyticsService: AnalyticsService,
     private val aiAnalysisService: AiAnalysisService,
+    private val aiUsageRepository: AiUsageRepository,
     private val tagMatchingEngine: TagMatchingEngine,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
@@ -71,6 +74,13 @@ class UploadViewModel @Inject constructor(
     private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
     val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
 
+    // AI Usage Limit State
+    private val _usageLimitStatus = MutableStateFlow<UsageLimitStatus>(UsageLimitStatus.WITHIN_LIMITS)
+    val usageLimitStatus: StateFlow<UsageLimitStatus> = _usageLimitStatus.asStateFlow()
+
+    private val _remainingCalls = MutableStateFlow<Int>(300)
+    val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
+
     // Store last upload params for retry
     private var lastUploadParams: UploadParams? = null
 
@@ -78,6 +88,7 @@ class UploadViewModel @Inject constructor(
         observeTagsReactively()
         observeDocumentTypesReactively()
         observeCorrespondentsReactively()
+        observeUsageLimits()
     }
 
     /**
@@ -113,6 +124,28 @@ class UploadViewModel @Inject constructor(
         viewModelScope.launch {
             correspondentRepository.observeCorrespondents().collect { correspondentList ->
                 _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for AI usage limits.
+     * Automatically updates UI when usage changes.
+     */
+    private fun observeUsageLimits() {
+        viewModelScope.launch {
+            aiUsageRepository.observeCurrentMonthCallCount().collect { callCount ->
+                // Update remaining calls
+                _remainingCalls.update { (300 - callCount).coerceAtLeast(0) }
+
+                // Update usage limit status
+                val status = when {
+                    callCount >= 300 -> UsageLimitStatus.HARD_LIMIT_REACHED
+                    callCount >= 200 -> UsageLimitStatus.SOFT_LIMIT_200
+                    callCount >= 100 -> UsageLimitStatus.SOFT_LIMIT_100
+                    else -> UsageLimitStatus.WITHIN_LIMITS
+                }
+                _usageLimitStatus.update { status }
             }
         }
     }
@@ -311,6 +344,9 @@ class UploadViewModel @Inject constructor(
      * Analyze document image for AI-powered suggestions.
      * Uses TagMatchingEngine for local matching (always available).
      * Uses AiAnalysisService for Firebase AI analysis (Premium feature).
+     *
+     * BEST PRACTICE: Enforces usage limits before calling AI.
+     * Falls back to local suggestions when limit is reached.
      */
     fun analyzeDocument(uri: Uri, usePremiumAi: Boolean = false) {
         viewModelScope.launch(ioDispatcher) {
@@ -320,7 +356,33 @@ class UploadViewModel @Inject constructor(
                 // Get available tags for matching
                 val availableTags = _tags.value
 
-                // Step 1: Try to read image and extract text for local matching
+                // Step 1: Check usage limits BEFORE calling AI
+                val limitStatus = aiUsageRepository.checkUsageLimit()
+                val canUseAi = usePremiumAi && limitStatus != UsageLimitStatus.HARD_LIMIT_REACHED
+
+                // Log limit status for debugging
+                Log.d(TAG, "Usage limit status: $limitStatus, canUseAi: $canUseAi")
+
+                // Show limit warning/info based on status
+                when (limitStatus) {
+                    UsageLimitStatus.HARD_LIMIT_REACHED -> {
+                        Log.w(TAG, "Hard limit reached - AI disabled, using local suggestions only")
+                        _analysisState.update { AnalysisState.LimitReached }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_200 -> {
+                        Log.i(TAG, "Soft limit 200 reached - showing warning")
+                        _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_100 -> {
+                        Log.i(TAG, "Soft limit 100 reached - showing info")
+                        _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
+                    }
+                    else -> {
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
+                }
+
+                // Step 2: Try to read image and extract text for local matching
                 val inputStream = context.contentResolver.openInputStream(uri)
                 val bitmap = inputStream?.use { BitmapFactory.decodeStream(it) }
 
@@ -330,7 +392,7 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Step 2: Local tag matching (always free, works offline)
+                // Step 3: Local tag matching (always free, works offline)
                 val localSuggestions = if (availableTags.isNotEmpty()) {
                     // For now, use tag names as pseudo-text for matching
                     // In future, could use OCR to extract actual text
@@ -342,22 +404,65 @@ class UploadViewModel @Inject constructor(
                     emptyList()
                 }
 
-                // Step 3: Firebase AI analysis (Premium feature)
-                val aiAnalysis = if (usePremiumAi) {
+                // Step 4: Firebase AI analysis (Premium feature + within usage limits)
+                val aiAnalysis = if (canUseAi) {
+                    val startTime = System.currentTimeMillis()
+
                     aiAnalysisService.analyzeImage(bitmap, availableTags)
+                        .onSuccess {
+                            val durationMs = System.currentTimeMillis() - startTime
+                            Log.d(TAG, "AI analysis succeeded in ${durationMs}ms")
+
+                            // Track AI usage in local database
+                            // Note: Actual token counts would come from AI service
+                            // Using estimated values for now
+                            val estimatedInputTokens = 1000 // ~1 image
+                            val estimatedOutputTokens = 200 // ~200 tokens for suggestions
+
+                            aiUsageRepository.logUsage(
+                                featureType = "document_analysis",
+                                inputTokens = estimatedInputTokens,
+                                outputTokens = estimatedOutputTokens,
+                                success = true,
+                                subscriptionType = "free" // TODO: Update when premium implemented
+                            )
+
+                            // Track analytics
+                            analyticsService.trackAiFeatureUsage(
+                                featureType = "document_analysis",
+                                inputTokens = estimatedInputTokens,
+                                outputTokens = estimatedOutputTokens,
+                                subscriptionType = "free"
+                            )
+                        }
                         .onFailure { e ->
                             Log.w(TAG, "AI analysis failed, using local suggestions only", e)
+
+                            // Track failed AI usage
+                            aiUsageRepository.logUsage(
+                                featureType = "document_analysis",
+                                inputTokens = 1000,
+                                outputTokens = 0,
+                                success = false,
+                                subscriptionType = "free"
+                            )
                         }
                         .getOrNull()
                 } else {
                     null
                 }
 
-                // Step 4: Merge suggestions (AI has priority, then local)
+                // Step 5: Merge suggestions (AI has priority, then local)
                 val mergedAnalysis = mergeAnalysisResults(aiAnalysis, localSuggestions)
 
                 _aiSuggestions.update { mergedAnalysis }
-                _analysisState.update { AnalysisState.Success }
+
+                // Update state based on limit status
+                if (limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED) {
+                    _analysisState.update { AnalysisState.LimitReached }
+                } else {
+                    _analysisState.update { AnalysisState.Success }
+                }
 
                 Log.d(TAG, "Analysis complete: ${mergedAnalysis?.suggestedTags?.size ?: 0} tag suggestions")
 
@@ -450,4 +555,7 @@ sealed class AnalysisState {
     data object Analyzing : AnalysisState()
     data object Success : AnalysisState()
     data class Error(val message: String) : AnalysisState()
+    data class LimitInfo(val remainingCalls: Int) : AnalysisState() // 100+ calls used
+    data class LimitWarning(val remainingCalls: Int) : AnalysisState() // 200+ calls used
+    data object LimitReached : AnalysisState() // 300+ calls used (hard limit)
 }

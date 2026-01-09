@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Tillatelser lagret</string>
     <string name="tab_permissions_no_edit_permission">Ingen tillatelse til å redigere</string>
     <string name="tab_permissions_selected">%1$d valgt</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI-bruksinformasjon</string>
+    <string name="ai_limit_info_message">Du bruker AI-funksjoner intensivt (%1$d av 300 anrop denne måneden). Hold øye med bruken din!</string>
+    <string name="ai_limit_warning_title">AI-grense Nesten Nådd</string>
+    <string name="ai_limit_warning_message">Du har brukt %1$d av 300 AI-anrop denne måneden. Grensen vil snart bli nådd.</string>
+    <string name="ai_limit_reached_title">Månedlig AI-grense Nådd</string>
+    <string name="ai_limit_reached_message">Du har nådd din månedlige grense på 300 AI-anrop.\n\nForslag er nå basert på Paperless-serveren og lokale data.</string>
+    <string name="ai_limit_next_month">Tilgjengelig igjen neste måned: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI-anrop gjenstår</string>
+    <string name="ai_calls_used">%1$d / 300 AI-anrop brukt</string>
+    <string name="ai_fallback_active">AI-grense nådd • Paperless-forslag aktive</string>
+    <string name="ai_analyzing">Analyserer dokument med AI...</string>
+    <string name="ai_suggestions_ready">AI-forslag klare</string>
+    <string name="ai_no_suggestions">Ingen forslag tilgjengelige</string>
 </resources>

@@ -454,4 +454,19 @@
     <string name="tab_permissions_save_success">Uprawnienia zapisane pomyślnie</string>
     <string name="tab_permissions_no_edit_permission">Brak uprawnień do edycji</string>
     <string name="tab_permissions_selected">%1$d wybrano</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">Informacje o użyciu AI</string>
+    <string name="ai_limit_info_message">Intensywnie korzystasz z funkcji AI (%1$d z 300 połączeń w tym miesiącu). Śledź swoje użycie!</string>
+    <string name="ai_limit_warning_title">Limit AI Prawie Osiągnięty</string>
+    <string name="ai_limit_warning_message">Użyłeś %1$d z 300 połączeń AI w tym miesiącu. Limit zostanie wkrótce osiągnięty.</string>
+    <string name="ai_limit_reached_title">Osiągnięto Miesięczny Limit AI</string>
+    <string name="ai_limit_reached_message">Osiągnąłeś miesięczny limit 300 połączeń AI.\n\nSugestie są teraz oparte na serwerze Paperless i danych lokalnych.</string>
+    <string name="ai_limit_next_month">Dostępne ponownie w przyszłym miesiącu: %1$s</string>
+    <string name="ai_calls_remaining">Pozostało %1$d połączeń AI</string>
+    <string name="ai_calls_used">%1$d / 300 połączeń AI użyto</string>
+    <string name="ai_fallback_active">Osiągnięto limit AI • Sugestie Paperless aktywne</string>
+    <string name="ai_analyzing">Analiza dokumentu za pomocą AI...</string>
+    <string name="ai_suggestions_ready">Sugestie AI gotowe</string>
+    <string name="ai_no_suggestions">Brak dostępnych sugestii</string>
 </resources>

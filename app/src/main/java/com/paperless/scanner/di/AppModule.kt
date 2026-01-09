@@ -17,6 +17,7 @@ import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
@@ -241,6 +242,12 @@ object AppModule {
     fun provideAiUsageDao(
         database: AppDatabase
     ): AiUsageDao = database.aiUsageDao()
+
+    @Provides
+    @Singleton
+    fun provideAiUsageRepository(
+        aiUsageDao: AiUsageDao
+    ): AiUsageRepository = AiUsageRepository(aiUsageDao)
 
     @Provides
     @Singleton

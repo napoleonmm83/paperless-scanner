@@ -514,4 +514,19 @@
     <string name="tab_permissions_save_success">Autorizzazioni salvate con successo</string>
     <string name="tab_permissions_no_edit_permission">Nessuna autorizzazione per modificare</string>
     <string name="tab_permissions_selected">%1$d selezionato/i</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">Informazioni sull\'uso IA</string>
+    <string name="ai_limit_info_message">Stai usando intensivamente le funzionalità IA (%1$d di 300 chiamate questo mese). Tieni traccia del tuo utilizzo!</string>
+    <string name="ai_limit_warning_title">Limite IA Quasi Raggiunto</string>
+    <string name="ai_limit_warning_message">Hai utilizzato %1$d di 300 chiamate IA questo mese. Il limite sarà raggiunto presto.</string>
+    <string name="ai_limit_reached_title">Limite IA Mensile Raggiunto</string>
+    <string name="ai_limit_reached_message">Hai raggiunto il tuo limite mensile di 300 chiamate IA.\n\nI suggerimenti sono ora basati sul server Paperless e sui dati locali.</string>
+    <string name="ai_limit_next_month">Disponibile di nuovo il prossimo mese: %1$s</string>
+    <string name="ai_calls_remaining">%1$d chiamate IA rimanenti</string>
+    <string name="ai_calls_used">%1$d / 300 chiamate IA utilizzate</string>
+    <string name="ai_fallback_active">Limite IA raggiunto • Suggerimenti Paperless attivi</string>
+    <string name="ai_analyzing">Analisi del documento con IA...</string>
+    <string name="ai_suggestions_ready">Suggerimenti IA pronti</string>
+    <string name="ai_no_suggestions">Nessun suggerimento disponibile</string>
 </resources>

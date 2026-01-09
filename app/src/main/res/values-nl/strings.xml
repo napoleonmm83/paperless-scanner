@@ -454,4 +454,19 @@
     <string name="tab_permissions_save_success">Machtigingen succesvol opgeslagen</string>
     <string name="tab_permissions_no_edit_permission">Geen toestemming om te bewerken</string>
     <string name="tab_permissions_selected">%1$d geselecteerd</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI-gebruiksinformatie</string>
+    <string name="ai_limit_info_message">Je gebruikt AI-functies intensief (%1$d van 300 oproepen deze maand). Houd je gebruik bij!</string>
+    <string name="ai_limit_warning_title">AI-limiet Bijna Bereikt</string>
+    <string name="ai_limit_warning_message">Je hebt %1$d van 300 AI-oproepen deze maand gebruikt. De limiet wordt binnenkort bereikt.</string>
+    <string name="ai_limit_reached_title">Maandelijkse AI-limiet Bereikt</string>
+    <string name="ai_limit_reached_message">Je hebt je maandelijkse limiet van 300 AI-oproepen bereikt.\n\nSuggesties zijn nu gebaseerd op de Paperless-server en lokale gegevens.</string>
+    <string name="ai_limit_next_month">Volgende maand weer beschikbaar: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI-oproepen resterend</string>
+    <string name="ai_calls_used">%1$d / 300 AI-oproepen gebruikt</string>
+    <string name="ai_fallback_active">AI-limiet bereikt • Paperless-suggesties actief</string>
+    <string name="ai_analyzing">Document analyseren met AI...</string>
+    <string name="ai_suggestions_ready">AI-suggesties klaar</string>
+    <string name="ai_no_suggestions">Geen suggesties beschikbaar</string>
 </resources>

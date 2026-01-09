@@ -454,4 +454,19 @@
     <string name="tab_permissions_save_success">Behörigheter sparade</string>
     <string name="tab_permissions_no_edit_permission">Ingen behörighet att redigera</string>
     <string name="tab_permissions_selected">%1$d valda</string>
+
+    <!-- AI Usage Limits -->
+    <string name="ai_limit_info_title">AI-användningsinformation</string>
+    <string name="ai_limit_info_message">Du använder AI-funktioner intensivt (%1$d av 300 samtal denna månad). Håll koll på din användning!</string>
+    <string name="ai_limit_warning_title">AI-gräns Nästan Nådd</string>
+    <string name="ai_limit_warning_message">Du har använt %1$d av 300 AI-samtal denna månad. Gränsen kommer snart att nås.</string>
+    <string name="ai_limit_reached_title">Månatlig AI-gräns Nådd</string>
+    <string name="ai_limit_reached_message">Du har nått din månatliga gräns på 300 AI-samtal.\n\nFörslag baseras nu på Paperless-servern och lokal data.</string>
+    <string name="ai_limit_next_month">Tillgängligt igen nästa månad: %1$s</string>
+    <string name="ai_calls_remaining">%1$d AI-samtal kvar</string>
+    <string name="ai_calls_used">%1$d / 300 AI-samtal använt</string>
+    <string name="ai_fallback_active">AI-gräns nådd • Paperless-förslag aktiva</string>
+    <string name="ai_analyzing">Analyserar dokument med AI...</string>
+    <string name="ai_suggestions_ready">AI-förslag klara</string>
+    <string name="ai_no_suggestions">Inga förslag tillgängliga</string>
 </resources>
