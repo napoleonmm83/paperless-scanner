@@ -47,6 +47,7 @@ class SettingsViewModelTest {
         coEvery { tokenManager.uploadNotificationsEnabled } returns flowOf(true)
         coEvery { tokenManager.uploadQuality } returns flowOf("auto")
         coEvery { tokenManager.analyticsConsent } returns flowOf(false)
+        coEvery { tokenManager.themeMode } returns flowOf("system")
 
         // Premium-related mocks
         coEvery { tokenManager.aiSuggestionsEnabled } returns flowOf(true)
