@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">¿Realmente deseas cerrar sesión? Tendrás que iniciar sesión de nuevo.</string>
     <string name="settings_selected">Seleccionado</string>
     <string name="settings_close">Cerrar</string>
+    <string name="settings_theme">Tema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Sistema</string>
+    <string name="theme_mode_light">Claro</string>
+    <string name="theme_mode_dark">Oscuro</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Crear nueva etiqueta</string>

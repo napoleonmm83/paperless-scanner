@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -168,7 +169,8 @@ fun MultiPageUploadScreen(
                     .padding(16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -205,7 +207,8 @@ fun MultiPageUploadScreen(
                 itemsIndexed(documentUris, key = { _, uri -> uri.toString() }) { index, uri ->
                     Card(
                         modifier = Modifier.width(100.dp),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Box {
                             AsyncImage(
@@ -297,7 +300,8 @@ fun MultiPageUploadScreen(
                         .padding(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                 ) {
                     Row(
                         modifier = Modifier

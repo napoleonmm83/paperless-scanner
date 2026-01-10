@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Opravdu se chcete odhlásit? Poté se budete muset znovu přihlásit.</string>
     <string name="settings_selected">Vybráno</string>
     <string name="settings_close">Zavřít</string>
+    <string name="settings_theme">Motiv</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Systém</string>
+    <string name="theme_mode_light">Světlý</string>
+    <string name="theme_mode_dark">Tmavý</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Vytvořit nový štítek</string>

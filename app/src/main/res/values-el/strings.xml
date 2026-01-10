@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Θέλετε σίγουρα να αποσυνδεθείτε; Θα πρέπει να συνδεθείτε ξανά μετά.</string>
     <string name="settings_selected">Επιλεγμένο</string>
     <string name="settings_close">Κλείσιμο</string>
+    <string name="settings_theme">Θέμα</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Σύστημα</string>
+    <string name="theme_mode_light">Φωτεινό</string>
+    <string name="theme_mode_dark">Σκούρο</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Δημιουργία νέας ετικέτας</string>

@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Biztosan ki szeretnél jelentkezni? Utána újra be kell jelentkezned.</string>
     <string name="settings_selected">Kiválasztva</string>
     <string name="settings_close">Bezárás</string>
+    <string name="settings_theme">Téma</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Rendszer</string>
+    <string name="theme_mode_light">Világos</string>
+    <string name="theme_mode_dark">Sötét</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Új címke létrehozása</string>

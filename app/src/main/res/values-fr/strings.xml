@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Voulez-vous vraiment vous déconnecter ? Vous devrez vous reconnecter ensuite.</string>
     <string name="settings_selected">Sélectionné</string>
     <string name="settings_close">Fermer</string>
+    <string name="settings_theme">Thème</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Système</string>
+    <string name="theme_mode_light">Clair</string>
+    <string name="theme_mode_dark">Sombre</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Créer un nouveau tag</string>

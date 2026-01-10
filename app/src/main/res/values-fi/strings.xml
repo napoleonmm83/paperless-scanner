@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Haluatko varmasti kirjautua ulos? Sinun täytyy kirjautua uudelleen sen jälkeen.</string>
     <string name="settings_selected">Valittu</string>
     <string name="settings_close">Sulje</string>
+    <string name="settings_theme">Teema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Järjestelmä</string>
+    <string name="theme_mode_light">Vaalea</string>
+    <string name="theme_mode_dark">Tumma</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Luo uusi tunniste</string>

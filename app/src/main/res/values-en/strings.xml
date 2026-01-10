@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Do you really want to sign out? You will need to sign in again afterwards.</string>
     <string name="settings_selected">Selected</string>
     <string name="settings_close">Close</string>
+    <string name="settings_theme">Theme</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Create new tag</string>

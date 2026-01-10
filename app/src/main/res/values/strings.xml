@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Möchtest du dich wirklich abmelden? Du musst dich danach erneut anmelden.</string>
     <string name="settings_selected">Ausgewählt</string>
     <string name="settings_close">Schliessen</string>
+    <string name="settings_theme">Design</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Hell</string>
+    <string name="theme_mode_dark">Dunkel</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Neuen Tag erstellen</string>

@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Ești sigur că vrei să te deconectezi? Va trebui să te reconectezi după.</string>
     <string name="settings_selected">Selectat</string>
     <string name="settings_close">Închide</string>
+    <string name="settings_theme">Temă</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Sistem</string>
+    <string name="theme_mode_light">Luminos</string>
+    <string name="theme_mode_dark">Întunecat</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Creează etichetă nouă</string>

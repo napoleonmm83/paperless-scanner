@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Vuoi davvero uscire? Dovrai accedere di nuovo.</string>
     <string name="settings_selected">Selezionato</string>
     <string name="settings_close">Chiudi</string>
+    <string name="settings_theme">Tema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Sistema</string>
+    <string name="theme_mode_light">Chiaro</string>
+    <string name="theme_mode_dark">Scuro</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Crea nuovo tag</string>

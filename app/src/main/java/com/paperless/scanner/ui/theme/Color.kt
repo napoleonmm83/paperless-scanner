@@ -1,6 +1,17 @@
 package com.paperless.scanner.ui.theme
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import com.paperless.scanner.R
+
+// ============================================
+// Theme Mode Enum
+// ============================================
+enum class ThemeMode(val key: String, @StringRes val displayNameRes: Int) {
+    SYSTEM("system", R.string.theme_mode_system),
+    LIGHT("light", R.string.theme_mode_light),
+    DARK("dark", R.string.theme_mode_dark)
+}
 
 // ============================================
 // Dark Tech Precision Color Palette
@@ -74,6 +85,71 @@ val md_theme_dark_inversePrimary = DarkTechOnPrimary
 
 val md_theme_dark_surfaceTint = DarkTechPrimary
 val md_theme_dark_scrim = Color(0xFF000000)
+
+// ============================================
+// Light Tech Precision Color Palette
+// Primary becomes background, dark becomes foreground
+// ============================================
+
+// Primary Brand Color remains the same for accents
+val LightTechPrimary = DarkTechBackground  // Deep black for accents
+val LightTechOnPrimary = DarkTechPrimary   // Neon yellow text on primary
+
+// Background Colors - Neon Yellow/Green tones
+val LightTechBackground = DarkTechPrimary  // #E1FF8D - Main background
+val LightTechSurface = Color(0xFFD4F27D)   // Slightly darker surface
+val LightTechSurfaceVariant = Color(0xFFC7E56E) // Even more contrast
+
+// Text Colors - Dark for readability
+val LightTechOnBackground = Color(0xFF0A0A0A)
+val LightTechOnSurface = Color(0xFF0A0A0A)
+val LightTechOnSurfaceMuted = Color(0xFF3F3F46)
+
+// Outline/Border Colors - Black for contrast on yellow background
+val LightTechOutline = Color(0xFF1A1A1A)       // Dark black for clear borders
+val LightTechOutlineVariant = Color(0xFF2A2A2A) // Slightly lighter black
+
+// ============================================
+// Material 3 Light Theme Color Scheme
+// ============================================
+
+val md_theme_light_primary = LightTechPrimary
+val md_theme_light_onPrimary = LightTechOnPrimary
+val md_theme_light_primaryContainer = Color(0xFF1F1F1F)
+val md_theme_light_onPrimaryContainer = DarkTechPrimary
+
+val md_theme_light_secondary = LightTechPrimary
+val md_theme_light_onSecondary = LightTechOnPrimary
+val md_theme_light_secondaryContainer = LightTechSurfaceVariant
+val md_theme_light_onSecondaryContainer = LightTechOnSurface
+
+val md_theme_light_tertiary = Color(0xFF2E3A59)
+val md_theme_light_onTertiary = Color.White
+val md_theme_light_tertiaryContainer = Color(0xFF4A5A7A)
+val md_theme_light_onTertiaryContainer = Color.White
+
+val md_theme_light_error = DarkTechError
+val md_theme_light_onError = Color.White
+val md_theme_light_errorContainer = Color(0xFFFFDAD6)
+val md_theme_light_onErrorContainer = Color(0xFF410002)
+
+val md_theme_light_background = LightTechBackground
+val md_theme_light_onBackground = LightTechOnBackground
+
+val md_theme_light_surface = LightTechSurface
+val md_theme_light_onSurface = LightTechOnSurface
+val md_theme_light_surfaceVariant = LightTechSurfaceVariant
+val md_theme_light_onSurfaceVariant = LightTechOnSurfaceMuted
+
+val md_theme_light_outline = LightTechOutline
+val md_theme_light_outlineVariant = LightTechOutlineVariant
+
+val md_theme_light_inverseSurface = DarkTechSurface
+val md_theme_light_inverseOnSurface = DarkTechOnSurface
+val md_theme_light_inversePrimary = DarkTechPrimary
+
+val md_theme_light_surfaceTint = LightTechPrimary
+val md_theme_light_scrim = Color(0xFF000000)
 
 // ============================================
 // Legacy Colors (kept for backwards compatibility)

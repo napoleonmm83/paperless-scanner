@@ -11,6 +11,7 @@ import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,8 @@ data class SettingsUiState(
     val showUploadNotifications: Boolean = true,
     val uploadQuality: UploadQuality = UploadQuality.AUTO,
     val analyticsEnabled: Boolean = false,
+    // Theme
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     // Premium / Subscription
     val isPremiumActive: Boolean = false,
     val premiumExpiryDate: String? = null,
@@ -65,6 +68,8 @@ class SettingsViewModel @Inject constructor(
             val qualityKey = tokenManager.uploadQuality.first()
             val quality = UploadQuality.entries.find { it.key == qualityKey } ?: UploadQuality.AUTO
             val analyticsConsent = tokenManager.analyticsConsent.first() ?: false
+            val themeModeKey = tokenManager.themeMode.first()
+            val themeMode = ThemeMode.entries.find { it.key == themeModeKey } ?: ThemeMode.SYSTEM
             val isPremiumActive = billingManager.isSubscriptionActiveSync()
             val aiSuggestionsEnabled = tokenManager.aiSuggestionsEnabled.first()
             val aiNewTagsEnabled = tokenManager.aiNewTagsEnabled.first()
@@ -76,6 +81,7 @@ class SettingsViewModel @Inject constructor(
                 showUploadNotifications = uploadNotifications,
                 uploadQuality = quality,
                 analyticsEnabled = analyticsConsent,
+                themeMode = themeMode,
                 isPremiumActive = isPremiumActive,
                 premiumExpiryDate = null, // TODO: Get from BillingManager when available
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
@@ -108,6 +114,14 @@ class SettingsViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(aiWifiOnly = wifiOnly)
                 }
             }
+
+            // Observe Theme mode changes
+            launch {
+                tokenManager.themeMode.collect { modeKey ->
+                    val mode = ThemeMode.entries.find { it.key == modeKey } ?: ThemeMode.SYSTEM
+                    _uiState.value = _uiState.value.copy(themeMode = mode)
+                }
+            }
         }
     }
 
@@ -131,6 +145,13 @@ class SettingsViewModel @Inject constructor(
             tokenManager.setAnalyticsConsent(enabled)
             analyticsService.setEnabled(enabled)
             analyticsService.trackEvent(AnalyticsEvent.AnalyticsConsentChanged(granted = enabled))
+        }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        _uiState.value = _uiState.value.copy(themeMode = mode)
+        viewModelScope.launch {
+            tokenManager.setThemeMode(mode.key)
         }
     }
 

@@ -255,6 +255,14 @@
     <string name="settings_logout_confirm_message">Weet je zeker dat je wilt uitloggen? Je moet daarna opnieuw inloggen.</string>
     <string name="settings_selected">Geselecteerd</string>
     <string name="settings_close">Sluiten</string>
+    <string name="settings_theme">Thema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Systeem</string>
+    <string name="theme_mode_light">Licht</string>
+    <string name="theme_mode_dark">Donker</string>
+
+    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Nieuwe tag maken</string>
     <string name="create_tag_name_label">Tag naam</string>
     <string name="create_tag_color_label">Kleur (optioneel)</string>

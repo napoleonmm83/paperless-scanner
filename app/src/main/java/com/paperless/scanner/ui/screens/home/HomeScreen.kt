@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -219,7 +220,8 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
                 shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Row(
                     modifier = Modifier
@@ -337,7 +339,8 @@ fun HomeScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                 ) {
                     Column(
                         modifier = Modifier
@@ -388,7 +391,8 @@ fun HomeScreen(
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -500,7 +504,8 @@ private fun RecentDocumentCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Row(
             modifier = Modifier
@@ -598,14 +603,14 @@ private fun ProcessingTaskCard(
             MaterialTheme.colorScheme.surfaceVariant,
             null,
             MaterialTheme.colorScheme.onSurfaceVariant,
-            MaterialTheme.colorScheme.onSurface,
+            MaterialTheme.colorScheme.onSurfaceVariant,
             statusWaiting
         )
         TaskStatus.PROCESSING -> Quintuple(
             MaterialTheme.colorScheme.primaryContainer,
             null,
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.onSurface,
+            MaterialTheme.colorScheme.onPrimaryContainer,
+            MaterialTheme.colorScheme.onPrimaryContainer,
             statusProcessing
         )
         TaskStatus.SUCCESS -> Quintuple(
@@ -618,8 +623,8 @@ private fun ProcessingTaskCard(
         TaskStatus.FAILURE -> Quintuple(
             MaterialTheme.colorScheme.errorContainer,
             Icons.Filled.Error,
-            MaterialTheme.colorScheme.error,
-            MaterialTheme.colorScheme.onSurface,
+            MaterialTheme.colorScheme.onErrorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
             statusFailure
         )
     }
@@ -632,6 +637,7 @@ private fun ProcessingTaskCard(
             containerColor = backgroundColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         enabled = task.status == TaskStatus.SUCCESS && task.documentId != null
     ) {
         Column(
@@ -685,12 +691,12 @@ private fun ProcessingTaskCard(
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = textColor.copy(alpha = 0.7f)
                         )
                         Text(
                             text = task.timeAgo,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = textColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -705,7 +711,7 @@ private fun ProcessingTaskCard(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.home_dismiss),
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = textColor.copy(alpha = 0.7f)
                         )
                     }
                 }

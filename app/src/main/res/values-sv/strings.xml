@@ -255,6 +255,14 @@
     <string name="settings_logout_confirm_message">Vill du verkligen logga ut? Du måste logga in igen efteråt.</string>
     <string name="settings_selected">Vald</string>
     <string name="settings_close">Stäng</string>
+    <string name="settings_theme">Tema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Ljust</string>
+    <string name="theme_mode_dark">Mörkt</string>
+
+    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Skapa ny tagg</string>
     <string name="create_tag_name_label">Taggnamn</string>
     <string name="create_tag_color_label">Färg (valfritt)</string>

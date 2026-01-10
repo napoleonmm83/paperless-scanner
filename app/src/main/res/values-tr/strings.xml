@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Çıkış yapmak istediğinizden emin misiniz? Sonra tekrar giriş yapmanız gerekecek.</string>
     <string name="settings_selected">Seçili</string>
     <string name="settings_close">Kapat</string>
+    <string name="settings_theme">Tema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Sistem</string>
+    <string name="theme_mode_light">Açık</string>
+    <string name="theme_mode_dark">Koyu</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Yeni etiket oluştur</string>

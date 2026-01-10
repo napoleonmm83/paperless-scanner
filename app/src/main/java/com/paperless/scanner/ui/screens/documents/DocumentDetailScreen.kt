@@ -299,7 +299,8 @@ fun DocumentDetailScreen(
                 onDismissRequest = {
                     showEditSheet = false
                 },
-                sheetState = sheetState
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.background
             ) {
                 EditDocumentSheet(
                     title = uiState.title,

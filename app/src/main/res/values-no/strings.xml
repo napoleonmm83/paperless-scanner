@@ -293,6 +293,12 @@
     <string name="settings_logout_confirm_message">Vil du virkelig logge ut? Du må logge inn igjen etterpå.</string>
     <string name="settings_selected">Valgt</string>
     <string name="settings_close">Lukk</string>
+    <string name="settings_theme">Tema</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Lyst</string>
+    <string name="theme_mode_dark">Mørkt</string>
 
     <!-- Create Tag Dialog -->
     <string name="create_tag_title">Opprett ny tag</string>

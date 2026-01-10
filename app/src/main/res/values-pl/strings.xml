@@ -255,6 +255,14 @@
     <string name="settings_logout_confirm_message">Czy na pewno chcesz się wylogować? Będziesz musiał zalogować się ponownie.</string>
     <string name="settings_selected">Wybrano</string>
     <string name="settings_close">Zamknij</string>
+    <string name="settings_theme">Motyw</string>
+
+    <!-- Theme Settings -->
+    <string name="theme_mode_system">Systemowy</string>
+    <string name="theme_mode_light">Jasny</string>
+    <string name="theme_mode_dark">Ciemny</string>
+
+    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Utwórz nowy tag</string>
     <string name="create_tag_name_label">Nazwa tagu</string>
     <string name="create_tag_color_label">Kolor (opcjonalnie)</string>
