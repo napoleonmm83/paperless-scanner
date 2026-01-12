@@ -122,7 +122,8 @@ jobs:
         run: chmod +x gradlew
         shell: bash
 
-      - name: Decode Google Services JSON
+      - name: Decode Google Services JSON (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         shell: bash
@@ -132,21 +133,50 @@ jobs:
             echo "google-services.json decoded successfully"
           else
             echo "::warning::GOOGLE_SERVICES_JSON secret not set, using dummy"
-            # Create dummy with both package names for build to succeed
             echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
           fi
 
-      - name: Run unit tests
+      - name: Decode Google Services JSON (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: powershell
+        run: |
+          if ($env:GOOGLE_SERVICES_JSON) {
+            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "google-services.json decoded successfully"
+          } else {
+            Write-Host "::warning::GOOGLE_SERVICES_JSON secret not set, using dummy"
+            '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
+          }
+
+      - name: Run unit tests (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat testReleaseUnitTest --no-daemon
+        shell: cmd
+
+      - name: Run unit tests (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew testReleaseUnitTest
         shell: bash
 
-      - name: Show runner info
+      - name: Show runner info (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          "## Test Runner Information" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Runner:** ${{ runner.name }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **OS:** ${{ runner.os }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "- **Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Show runner info (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           echo "## Test Runner Information" >> $GITHUB_STEP_SUMMARY
           echo "- **Runner:** ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **OS:** ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" >> $GITHUB_STEP_SUMMARY
-        shell: bash
 
   # Then deploy to Internal Track
   deploy:
@@ -255,21 +285,45 @@ jobs:
           }
         shell: powershell
 
-      - name: Install Fastlane
+      - name: Install Fastlane (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Write-Host "Installing Fastlane..."
+          ruby --version
+          gem install fastlane --no-document
+          Write-Host "✅ Fastlane installed"
+          fastlane --version
+
+      - name: Install Fastlane (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           echo "Installing Fastlane..."
           ruby --version
           gem install fastlane --no-document
           echo "✅ Fastlane installed"
           fastlane --version
-        shell: bash
 
       - name: Grant execute permission for gradlew
         if: runner.os != 'Windows'
         run: chmod +x gradlew
         shell: bash
 
-      - name: Get current version
+      - name: Get current version (Windows)
+        if: runner.os == 'Windows'
+        id: current_version_win
+        shell: powershell
+        run: |
+          $content = Get-Content version.properties
+          $MAJOR = ($content | Select-String "VERSION_MAJOR=(.*)").Matches.Groups[1].Value
+          $MINOR = ($content | Select-String "VERSION_MINOR=(.*)").Matches.Groups[1].Value
+          $PATCH = ($content | Select-String "VERSION_PATCH=(.*)").Matches.Groups[1].Value
+          "CURRENT_VERSION=$MAJOR.$MINOR.$PATCH" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Current version: $MAJOR.$MINOR.$PATCH"
+
+      - name: Get current version (Linux/macOS)
+        if: runner.os != 'Windows'
         id: current_version
         shell: bash
         run: |
@@ -279,7 +333,26 @@ jobs:
           echo "CURRENT_VERSION=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
           echo "Current version: ${MAJOR}.${MINOR}.${PATCH}"
 
-      - name: Bump patch version
+      - name: Bump patch version (Windows)
+        if: runner.os == 'Windows'
+        id: bump_version_win
+        shell: powershell
+        run: |
+          $content = Get-Content version.properties -Raw
+          $MAJOR = [int](($content | Select-String "VERSION_MAJOR=(\d+)").Matches.Groups[1].Value)
+          $MINOR = [int](($content | Select-String "VERSION_MINOR=(\d+)").Matches.Groups[1].Value)
+          $PATCH = [int](($content | Select-String "VERSION_PATCH=(\d+)").Matches.Groups[1].Value)
+          $NEW_PATCH = $PATCH + 1
+          $content = $content -replace "VERSION_PATCH=\d+", "VERSION_PATCH=$NEW_PATCH"
+          $content | Set-Content version.properties -NoNewline
+          $NEW_VERSION = "$MAJOR.$MINOR.$NEW_PATCH"
+          $VERSION_CODE = $MAJOR * 10000 + $MINOR * 100 + $NEW_PATCH
+          "NEW_VERSION=$NEW_VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "VERSION_CODE=$VERSION_CODE" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "New version: $NEW_VERSION (code: $VERSION_CODE)"
+
+      - name: Bump patch version (Linux/macOS)
+        if: runner.os != 'Windows'
         id: bump_version
         shell: bash
         run: |
@@ -305,7 +378,18 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION (code: $VERSION_CODE)"
 
-      - name: Commit version bump
+      - name: Commit version bump (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add version.properties
+          git commit -m "chore: bump version to ${{ steps.bump_version_win.outputs.NEW_VERSION }} for internal release [skip ci]"
+          git push
+
+      - name: Commit version bump (Linux/macOS)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           git config user.name "GitHub Actions Bot"
@@ -314,7 +398,22 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.bump_version.outputs.NEW_VERSION }} for internal release [skip ci]"
           git push
 
-      - name: Decode Keystore
+      - name: Decode Keystore (Windows)
+        if: runner.os == 'Windows'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        shell: powershell
+        run: |
+          if ($env:KEYSTORE_BASE64) {
+            [System.IO.File]::WriteAllBytes("keystore.jks", [System.Convert]::FromBase64String($env:KEYSTORE_BASE64))
+            Write-Host "Keystore decoded successfully"
+          } else {
+            Write-Host "::error::KEYSTORE_BASE64 secret is not set"
+            exit 1
+          }
+
+      - name: Decode Keystore (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         shell: bash
@@ -327,7 +426,22 @@ jobs:
             exit 1
           fi
 
-      - name: Decode Play Store Key
+      - name: Decode Play Store Key (Windows)
+        if: runner.os == 'Windows'
+        env:
+          PLAY_STORE_KEY_JSON: ${{ secrets.PLAY_STORE_KEY_JSON }}
+        shell: powershell
+        run: |
+          if ($env:PLAY_STORE_KEY_JSON) {
+            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:PLAY_STORE_KEY_JSON)) | Out-File -FilePath fastlane/play-store-key.json -Encoding UTF8
+            Write-Host "Play Store key decoded successfully"
+          } else {
+            Write-Host "::error::PLAY_STORE_KEY_JSON secret is not set"
+            exit 1
+          }
+
+      - name: Decode Play Store Key (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           PLAY_STORE_KEY_JSON: ${{ secrets.PLAY_STORE_KEY_JSON }}
         shell: bash
@@ -340,7 +454,22 @@ jobs:
             exit 1
           fi
 
-      - name: Decode Google Services JSON
+      - name: Decode Google Services JSON (Windows)
+        if: runner.os == 'Windows'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        shell: powershell
+        run: |
+          if ($env:GOOGLE_SERVICES_JSON) {
+            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            Write-Host "google-services.json decoded successfully"
+          } else {
+            Write-Host "::error::GOOGLE_SERVICES_JSON secret is not set"
+            exit 1
+          }
+
+      - name: Decode Google Services JSON (Linux/macOS)
+        if: runner.os != 'Windows'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         shell: bash
@@ -353,7 +482,18 @@ jobs:
             exit 1
           fi
 
-      - name: Build release AAB
+      - name: Build release AAB (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat bundleRelease --no-daemon
+        shell: cmd
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Build release AAB (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./gradlew bundleRelease
         shell: bash
         env:
@@ -362,7 +502,18 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Deploy to Internal Track
+      - name: Deploy to Internal Track (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: fastlane android internal
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Deploy to Internal Track (Linux/macOS)
+        if: runner.os != 'Windows'
         run: fastlane android internal
         shell: bash
         env:
@@ -374,11 +525,27 @@ jobs:
       - name: Upload AAB as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-bundle-${{ steps.bump_version.outputs.NEW_VERSION }}
+          name: app-bundle-${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
           path: app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      - name: Create deployment summary
+      - name: Create deployment summary (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          "## 🚀 Deployment Summary" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Version:** ${{ steps.bump_version_win.outputs.NEW_VERSION }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Version Code:** ${{ steps.bump_version_win.outputs.VERSION_CODE }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Track:** Internal" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Commit:** ${{ github.sha }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Runner:** ${{ runner.name }} (${{ runner.os }})" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "**Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "✅ Successfully deployed to Google Play Console Internal Track" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+
+      - name: Create deployment summary (Linux/macOS)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
