@@ -143,11 +143,13 @@ jobs:
         shell: powershell
         run: |
           if ($env:GOOGLE_SERVICES_JSON) {
-            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            $content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON))
+            [System.IO.File]::WriteAllText("app/google-services.json", $content, [System.Text.UTF8Encoding]::new($false))
             Write-Host "google-services.json decoded successfully"
           } else {
             Write-Host "::warning::GOOGLE_SERVICES_JSON secret not set, using dummy"
-            '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
+            $dummy = '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}'
+            [System.IO.File]::WriteAllText("app/google-services.json", $dummy, [System.Text.UTF8Encoding]::new($false))
           }
 
       - name: Run unit tests (Windows)
@@ -433,7 +435,8 @@ jobs:
         shell: powershell
         run: |
           if ($env:PLAY_STORE_KEY_JSON) {
-            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:PLAY_STORE_KEY_JSON)) | Out-File -FilePath fastlane/play-store-key.json -Encoding UTF8
+            $content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:PLAY_STORE_KEY_JSON))
+            [System.IO.File]::WriteAllText("fastlane/play-store-key.json", $content, [System.Text.UTF8Encoding]::new($false))
             Write-Host "Play Store key decoded successfully"
           } else {
             Write-Host "::error::PLAY_STORE_KEY_JSON secret is not set"
@@ -461,7 +464,8 @@ jobs:
         shell: powershell
         run: |
           if ($env:GOOGLE_SERVICES_JSON) {
-            [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON)) | Out-File -FilePath app/google-services.json -Encoding UTF8
+            $content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($env:GOOGLE_SERVICES_JSON))
+            [System.IO.File]::WriteAllText("app/google-services.json", $content, [System.Text.UTF8Encoding]::new($false))
             Write-Host "google-services.json decoded successfully"
           } else {
             Write-Host "::error::GOOGLE_SERVICES_JSON secret is not set"
