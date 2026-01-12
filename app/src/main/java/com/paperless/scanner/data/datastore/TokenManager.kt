@@ -29,6 +29,10 @@ class TokenManager(private val context: Context) {
         private val AI_SUGGESTIONS_ENABLED_KEY = booleanPreferencesKey("ai_suggestions_enabled")
         private val AI_NEW_TAGS_ENABLED_KEY = booleanPreferencesKey("ai_new_tags_enabled")
         private val AI_WIFI_ONLY_KEY = booleanPreferencesKey("ai_wifi_only")
+        private val AI_DEBUG_MODE_KEY = booleanPreferencesKey("ai_debug_mode")
+
+        // Theme Preferences
+        private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -78,6 +82,19 @@ class TokenManager(private val context: Context) {
     /** Whether AI features should only work on WiFi */
     val aiWifiOnly: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[AI_WIFI_ONLY_KEY] ?: false // Default: allow mobile data
+    }
+
+    /**
+     * Whether AI debug mode is enabled (unlocked by 7x tap on version).
+     * This allows testers to access AI features in release builds.
+     */
+    val aiDebugModeEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[AI_DEBUG_MODE_KEY] ?: false
+    }
+
+    /** Theme mode preference (system, light, dark) */
+    val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[THEME_MODE_KEY] ?: "system" // Default: follow system
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
@@ -163,5 +180,34 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[AI_WIFI_ONLY_KEY] = wifiOnly
         }
+    }
+
+    /**
+     * Enable or disable AI debug mode (unlocked by 7x tap on version).
+     */
+    suspend fun setAiDebugModeEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[AI_DEBUG_MODE_KEY] = enabled
+        }
+    }
+
+    /**
+     * Check if AI debug mode is enabled (sync version).
+     */
+    fun isAiDebugModeEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[AI_DEBUG_MODE_KEY] ?: false
+    }
+
+    // Theme Settings
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { preferences ->
+            preferences[THEME_MODE_KEY] = mode
+        }
+    }
+
+    /** Get theme mode synchronously (for app initialization) */
+    fun getThemeModeSync(): String = runBlocking {
+        context.dataStore.data.first()[THEME_MODE_KEY] ?: "system"
     }
 }

@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Zkusit znovu</string>
     <string name="upload_progress">Nahrávání: %1$d%%</string>
     <string name="upload_uploading">Nahrávání...</string>
+    <string name="upload_tags_section_title">Vybrat štítky</string>
+    <string name="upload_tag_new">Nový</string>
+    <string name="upload_tags_show_less">Méně</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Hromadný import</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Jednotlivě</string>
     <string name="batch_import_button_single">Jako jeden dokument</string>
     <string name="batch_import_preview">Náhled</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Obrázek %1$d</string>
+    <string name="batch_import_pdf_file">PDF soubor</string>
+    <string name="batch_import_file">Soubor</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Typ dokumentu (pro všechny)</string>
     <string name="batch_import_correspondent">Korespondent (pro všechny)</string>
     <string name="batch_import_tags">Štítky (pro všechny)</string>
     <string name="batch_import_not_selected">Nevybráno</string>
     <string name="batch_import_adding_progress">Přidávání: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Štítek \"%1$s\" vytvořen</string>
     <string name="batch_import_adding">Přidávání...</string>
-    <string name="batch_import_button">Importovat %1$d obrázků</string>
+    <string name="batch_import_button">Nahrát</string>
+    <string name="batch_import_tap_to_remove">Klepnutím odstraníte</string>
+    <string name="batch_import_remove">Odstranit</string>
+    <string name="batch_import_failed_title">Import se nezdařil</string>
+    <string name="batch_import_retry">Opakovat</string>
+    <string name="batch_import_hold_to_sort">Podržte pro změnu pořadí</string>
+    <string name="batch_import_add_more">Přidat další</string>
+    <string name="batch_import_rotate">Otočit</string>
+    <string name="batch_import_drag_hint">Přetáhněte pro seřazení</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadata</string>
+    <string name="batch_metadata_mode_single_info">%1$d souborů bude sloučeno do jednoho PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d souborů bude nahráno jednotlivě</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Nahrát PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Téměř plné</string>
     <string name="scan_upload_single">Nahrát</string>
     <string name="scan_upload_pdf">Nahrát jako PDF</string>
+    <string name="scan_add_metadata">Přidat metadata</string>
     <string name="scan_more_pages">Další stránky</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Zahodit</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Později</string>
     <string name="premium_button_restore">Obnovit nákupy</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Návrhy</string>
+    <string name="suggestions_ai_title">AI návrhy</string>
+    <string name="suggestions_analyzing">Analyzuji dokument...</string>
+    <string name="suggestions_apply">Použít</string>
+    <string name="suggestions_apply_all">Použít vše</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Místní</string>
+    <string name="suggestions_tag_suggestion">Návrh tagu</string>
+    <string name="suggestions_title_suggestion">Návrh názvu</string>
+    <string name="suggestions_correspondent_suggestion">Návrh korespondenta</string>
+    <string name="suggestions_type_suggestion">Návrh typu</string>
+    <string name="suggestions_no_suggestions">Žádné návrhy</string>
+    <string name="suggestions_confidence">%1$d%% jistota</string>
+    <string name="suggestions_new_tag">Nový tag</string>
+    <string name="suggestions_get_suggestions">Získat návrhy</string>
+    <string name="cd_suggestions">Návrhy</string>
+    <string name="cd_ai_sparkle">AI funkce</string>
+    <string name="cd_apply_suggestion">Použít návrh</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium úspěšně aktivováno!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d nákupů obnoveno</string>
     <string name="premium_restore_none">Žádné nákupy nenalezeny</string>
     <string name="premium_restore_error">Chyba obnovení: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Ještě %1$d kroků do vývojářského režimu</string>
+    <string name="settings_debug_mode_enabled">AI vývojářský režim aktivován</string>
+    <string name="settings_debug_mode_disabled">AI vývojářský režim deaktivován</string>
+    <string name="settings_debug_mode_already_enabled">Vývojářský režim je již aktivován</string>
 </resources>

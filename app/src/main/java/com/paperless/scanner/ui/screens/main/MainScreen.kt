@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import com.paperless.scanner.ui.components.AdaptiveNavigation
+import com.paperless.scanner.ui.navigation.BatchSourceType
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.screens.documents.DocumentsScreen
 import com.paperless.scanner.ui.screens.home.HomeScreen
@@ -17,7 +18,7 @@ fun MainScreen(
     currentRoute: String,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
-    onBatchImport: (List<Uri>) -> Unit,
+    onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
     onDocumentClick: (Int) -> Unit,
     onLogout: () -> Unit
 ) {

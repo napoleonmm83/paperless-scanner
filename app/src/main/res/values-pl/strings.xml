@@ -41,6 +41,9 @@
     <string name="upload_retry_button">Ponów</string>
     <string name="upload_progress">Przesyłanie: %1$d%%</string>
     <string name="upload_uploading">Przesyłanie...</string>
+    <string name="upload_tags_section_title">Wybierz tagi</string>
+    <string name="upload_tag_new">Nowy</string>
+    <string name="upload_tags_show_less">Mniej</string>
     <string name="batch_import_title">Import zbiorczy</string>
     <string name="batch_import_back">Wstecz</string>
     <string name="batch_import_success_single">Dokument dodany do kolejki!</string>
@@ -51,15 +54,35 @@
     <string name="batch_import_button_individual">Osobno</string>
     <string name="batch_import_button_single">Jako jeden dokument</string>
     <string name="batch_import_preview">Podgląd</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Obraz %1$d</string>
+    <string name="batch_import_pdf_file">Plik PDF</string>
+    <string name="batch_import_file">Plik</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Typ dokumentu (dla wszystkich)</string>
     <string name="batch_import_correspondent">Korespondent (dla wszystkich)</string>
     <string name="batch_import_tags">Tagi (dla wszystkich)</string>
     <string name="batch_import_not_selected">Nie wybrano</string>
     <string name="batch_import_adding_progress">Dodawanie: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tag \"%1$s\" utworzony</string>
     <string name="batch_import_adding">Dodawanie...</string>
-    <string name="batch_import_button">Importuj %1$d obrazów</string>
+    <string name="batch_import_button">Prześlij</string>
+    <string name="batch_import_tap_to_remove">Dotknij, aby usunąć</string>
+    <string name="batch_import_remove">Usuń</string>
+    <string name="batch_import_failed_title">Import nie powiódł się</string>
+    <string name="batch_import_retry">Ponów</string>
+    <string name="batch_import_hold_to_sort">Przytrzymaj aby zmienić kolejność</string>
+    <string name="batch_import_add_more">Dodaj więcej</string>
+    <string name="batch_import_rotate">Obróć</string>
+    <string name="batch_import_drag_hint">Przeciągnij aby posortować</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadane</string>
+    <string name="batch_metadata_mode_single_info">%1$d plików zostanie połączonych w jeden PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d plików zostanie przesłanych osobno</string>
+
+    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Prześlij PDF</string>
     <string name="multipage_upload_back">Wstecz</string>
     <string name="multipage_upload_success">PDF z %1$d stronami przesłany pomyślnie!</string>
@@ -187,6 +210,7 @@
     <string name="scan_almost_full">Prawie pełne</string>
     <string name="scan_upload_single">Prześlij</string>
     <string name="scan_upload_pdf">Prześlij jako PDF</string>
+    <string name="scan_add_metadata">Dodaj metadane</string>
     <string name="scan_more_pages">Więcej stron</string>
     <string name="scan_maximum">Maksimum</string>
     <string name="scan_discard">Odrzuć</string>
@@ -520,6 +544,27 @@
     <string name="premium_button_later">Później</string>
     <string name="premium_button_restore">Przywróć zakupy</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Sugestie</string>
+    <string name="suggestions_ai_title">Sugestie AI</string>
+    <string name="suggestions_analyzing">Analizowanie dokumentu...</string>
+    <string name="suggestions_apply">Zastosuj</string>
+    <string name="suggestions_apply_all">Zastosuj wszystkie</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Lokalny</string>
+    <string name="suggestions_tag_suggestion">Sugestia tagu</string>
+    <string name="suggestions_title_suggestion">Sugestia tytułu</string>
+    <string name="suggestions_correspondent_suggestion">Sugestia korespondenta</string>
+    <string name="suggestions_type_suggestion">Sugestia typu</string>
+    <string name="suggestions_no_suggestions">Brak sugestii</string>
+    <string name="suggestions_confidence">%1$d%% pewności</string>
+    <string name="suggestions_new_tag">Nowy tag</string>
+    <string name="suggestions_get_suggestions">Pobierz sugestie</string>
+    <string name="cd_suggestions">Sugestie</string>
+    <string name="cd_ai_sparkle">Funkcja AI</string>
+    <string name="cd_apply_suggestion">Zastosuj sugestię</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktywowane pomyślnie!</string>
@@ -528,4 +573,8 @@
     <string name="premium_restore_success">Przywrócono %1$d zakupów</string>
     <string name="premium_restore_none">Nie znaleziono zakupów</string>
     <string name="premium_restore_error">Błąd przywracania: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Jeszcze %1$d kroków do trybu deweloperskiego</string>
+    <string name="settings_debug_mode_enabled">Tryb deweloperski AI włączony</string>
+    <string name="settings_debug_mode_disabled">Tryb deweloperski AI wyłączony</string>
+    <string name="settings_debug_mode_already_enabled">Tryb deweloperski jest już włączony</string>
 </resources>

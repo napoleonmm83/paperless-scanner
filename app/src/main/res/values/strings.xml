@@ -51,19 +51,27 @@
     <string name="upload_retry_button">Retry</string>
     <string name="upload_progress">Hochladen: %1$d%%</string>
     <string name="upload_uploading">Wird hochgeladen...</string>
+    <string name="upload_tags_section_title">Tags auswählen</string>
+    <string name="upload_tag_new">Neu</string>
+    <string name="upload_tags_show_less">Weniger</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Batch Import</string>
     <string name="batch_import_back">Zurück</string>
     <string name="batch_import_success_single">Dokument zur Warteschlange hinzugefügt!</string>
     <string name="batch_import_success_multiple">%1$d Dokumente zur Warteschlange hinzugefügt!</string>
+    <string name="batch_import_tag_created">Tag \"%1$s\" erstellt</string>
     <string name="batch_import_images_selected">%1$d Bilder ausgewählt</string>
     <string name="batch_import_mode_single">Als ein Dokument</string>
     <string name="batch_import_mode_individual">Als einzelne Dokumente</string>
     <string name="batch_import_button_individual">Einzeln</string>
     <string name="batch_import_button_single">Als ein Dokument</string>
     <string name="batch_import_preview">Vorschau</string>
+    <string name="batch_import_title_label">Titel (für alle)</string>
+    <string name="batch_import_title_placeholder">z.B. Rechnungen Januar 2025</string>
     <string name="batch_import_image_description">Bild %1$d</string>
+    <string name="batch_import_pdf_file">PDF-Datei</string>
+    <string name="batch_import_file">Datei</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Dokumententyp (für alle)</string>
     <string name="batch_import_correspondent">Korrespondent (für alle)</string>
@@ -71,7 +79,20 @@
     <string name="batch_import_not_selected">Nicht ausgewählt</string>
     <string name="batch_import_adding_progress">Hinzufügen: %1$d / %2$d</string>
     <string name="batch_import_adding">Wird hinzugefügt...</string>
-    <string name="batch_import_button">%1$d Bilder importieren</string>
+    <string name="batch_import_button">Hochladen</string>
+    <string name="batch_import_tap_to_remove">Zum Entfernen tippen</string>
+    <string name="batch_import_remove">Entfernen</string>
+    <string name="batch_import_failed_title">Import fehlgeschlagen</string>
+    <string name="batch_import_retry">Erneut versuchen</string>
+    <string name="batch_import_hold_to_sort">Gedrückt halten zum Sortieren</string>
+    <string name="batch_import_add_more">Weitere hinzufügen</string>
+    <string name="batch_import_rotate">Drehen</string>
+    <string name="batch_import_drag_hint">Zum Sortieren ziehen</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadaten</string>
+    <string name="batch_metadata_mode_single_info">%1$d Dateien werden zu einem PDF zusammengefügt</string>
+    <string name="batch_metadata_mode_individual_info">%1$d Dateien werden einzeln hochgeladen</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF hochladen</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Fast voll</string>
     <string name="scan_upload_single">Hochladen</string>
     <string name="scan_upload_pdf">Als PDF hochladen</string>
+    <string name="scan_add_metadata">Metadaten hinzufügen</string>
     <string name="scan_more_pages">Weitere Seiten</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Verwerfen</string>
@@ -294,6 +316,12 @@
     <string name="settings_selected">Ausgewählt</string>
     <string name="settings_close">Schliessen</string>
     <string name="settings_theme">Design</string>
+
+    <!-- AI Debug Mode (7x tap activation) -->
+    <string name="settings_debug_mode_steps_remaining">Noch %1$d Schritte bis zum Entwicklermodus</string>
+    <string name="settings_debug_mode_enabled">AI-Entwicklermodus aktiviert</string>
+    <string name="settings_debug_mode_disabled">AI-Entwicklermodus deaktiviert</string>
+    <string name="settings_debug_mode_already_enabled">Entwicklermodus ist bereits aktiviert</string>
 
     <!-- Theme Settings -->
     <string name="theme_mode_system">System</string>
@@ -574,6 +602,27 @@
     <string name="premium_button_upgrade">Jetzt upgraden</string>
     <string name="premium_button_later">Später</string>
     <string name="premium_button_restore">Käufe wiederherstellen</string>
+
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Vorschläge</string>
+    <string name="suggestions_ai_title">AI-Vorschläge</string>
+    <string name="suggestions_analyzing">Analysiere Dokument...</string>
+    <string name="suggestions_apply">Übernehmen</string>
+    <string name="suggestions_apply_all">Alle übernehmen</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Lokal</string>
+    <string name="suggestions_tag_suggestion">Tag-Vorschlag</string>
+    <string name="suggestions_title_suggestion">Titel-Vorschlag</string>
+    <string name="suggestions_correspondent_suggestion">Korrespondent-Vorschlag</string>
+    <string name="suggestions_type_suggestion">Typ-Vorschlag</string>
+    <string name="suggestions_no_suggestions">Keine Vorschläge</string>
+    <string name="suggestions_confidence">%1$d%% Treffsicherheit</string>
+    <string name="suggestions_new_tag">Neuer Tag</string>
+    <string name="suggestions_get_suggestions">Vorschläge abrufen</string>
+    <string name="cd_suggestions">Vorschläge</string>
+    <string name="cd_ai_sparkle">AI-Feature</string>
+    <string name="cd_apply_suggestion">Vorschlag übernehmen</string>
 
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>

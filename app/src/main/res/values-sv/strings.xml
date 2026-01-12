@@ -41,6 +41,9 @@
     <string name="upload_retry_button">Försök igen</string>
     <string name="upload_progress">Laddar upp: %1$d%%</string>
     <string name="upload_uploading">Laddar upp...</string>
+    <string name="upload_tags_section_title">Välj taggar</string>
+    <string name="upload_tag_new">Ny</string>
+    <string name="upload_tags_show_less">Mindre</string>
     <string name="batch_import_title">Massimport</string>
     <string name="batch_import_back">Tillbaka</string>
     <string name="batch_import_success_single">Dokument tillagt i kön!</string>
@@ -51,15 +54,35 @@
     <string name="batch_import_button_individual">Separat</string>
     <string name="batch_import_button_single">Som ett dokument</string>
     <string name="batch_import_preview">Förhandsvisning</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Bild %1$d</string>
+    <string name="batch_import_pdf_file">PDF-fil</string>
+    <string name="batch_import_file">Fil</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Dokumenttyp (för alla)</string>
     <string name="batch_import_correspondent">Korrespondent (för alla)</string>
     <string name="batch_import_tags">Taggar (för alla)</string>
     <string name="batch_import_not_selected">Ej vald</string>
     <string name="batch_import_adding_progress">Lägger till: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tagg \"%1$s\" skapad</string>
     <string name="batch_import_adding">Lägger till...</string>
-    <string name="batch_import_button">Importera %1$d bilder</string>
+    <string name="batch_import_button">Ladda upp</string>
+    <string name="batch_import_tap_to_remove">Tryck för att ta bort</string>
+    <string name="batch_import_remove">Ta bort</string>
+    <string name="batch_import_failed_title">Import misslyckades</string>
+    <string name="batch_import_retry">Försök igen</string>
+    <string name="batch_import_hold_to_sort">Håll för att ordna om</string>
+    <string name="batch_import_add_more">Lägg till fler</string>
+    <string name="batch_import_rotate">Rotera</string>
+    <string name="batch_import_drag_hint">Dra för att sortera</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadata</string>
+    <string name="batch_metadata_mode_single_info">%1$d filer sammanfogas till en PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d filer laddas upp separat</string>
+
+    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Ladda upp PDF</string>
     <string name="multipage_upload_back">Tillbaka</string>
     <string name="multipage_upload_success">PDF med %1$d sidor uppladdad!</string>
@@ -187,6 +210,7 @@
     <string name="scan_almost_full">Nästan fullt</string>
     <string name="scan_upload_single">Ladda upp</string>
     <string name="scan_upload_pdf">Ladda upp som PDF</string>
+    <string name="scan_add_metadata">Lägg till metadata</string>
     <string name="scan_more_pages">Fler sidor</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Kasta</string>
@@ -520,6 +544,27 @@
     <string name="premium_button_later">Senare</string>
     <string name="premium_button_restore">Återställ köp</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Förslag</string>
+    <string name="suggestions_ai_title">AI-förslag</string>
+    <string name="suggestions_analyzing">Analyserar dokument...</string>
+    <string name="suggestions_apply">Tillämpa</string>
+    <string name="suggestions_apply_all">Tillämpa alla</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Lokal</string>
+    <string name="suggestions_tag_suggestion">Taggförslag</string>
+    <string name="suggestions_title_suggestion">Titelförslag</string>
+    <string name="suggestions_correspondent_suggestion">Korrespondentförslag</string>
+    <string name="suggestions_type_suggestion">Typförslag</string>
+    <string name="suggestions_no_suggestions">Inga förslag</string>
+    <string name="suggestions_confidence">%1$d%% säkerhet</string>
+    <string name="suggestions_new_tag">Ny tagg</string>
+    <string name="suggestions_get_suggestions">Hämta förslag</string>
+    <string name="cd_suggestions">Förslag</string>
+    <string name="cd_ai_sparkle">AI-funktion</string>
+    <string name="cd_apply_suggestion">Tillämpa förslag</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktiverat framgångsrikt!</string>
@@ -528,4 +573,8 @@
     <string name="premium_restore_success">%1$d köp återställda</string>
     <string name="premium_restore_none">Inga köp hittade</string>
     <string name="premium_restore_error">Återställningsfel: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d steg kvar till utvecklarläge</string>
+    <string name="settings_debug_mode_enabled">AI-utvecklarläge aktiverat</string>
+    <string name="settings_debug_mode_disabled">AI-utvecklarläge inaktiverat</string>
+    <string name="settings_debug_mode_already_enabled">Utvecklarläge är redan aktiverat</string>
 </resources>

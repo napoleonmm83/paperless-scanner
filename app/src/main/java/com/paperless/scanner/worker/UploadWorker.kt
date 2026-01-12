@@ -20,6 +20,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.util.FileUtils
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.delay
@@ -152,6 +153,16 @@ class UploadWorker @AssistedInject constructor(
                     Log.d(TAG, "Upload successful: ${pendingUpload.id}")
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
+
+                    // Clean up local file copies after successful upload
+                    val urisToClean = if (pendingUpload.isMultiPage) {
+                        uploadQueueRepository.getAllUris(pendingUpload)
+                    } else {
+                        listOf(Uri.parse(pendingUpload.uri))
+                    }
+                    urisToClean.forEach { uri ->
+                        FileUtils.deleteLocalCopy(uri)
+                    }
                 }.onFailure { e ->
                     Log.e(TAG, "Upload failed: ${pendingUpload.id}", e)
                     uploadQueueRepository.markAsFailed(pendingUpload.id, e.message)
@@ -159,6 +170,15 @@ class UploadWorker @AssistedInject constructor(
 
                     if (pendingUpload.retryCount >= MAX_RETRIES) {
                         Log.w(TAG, "Max retries reached for: ${pendingUpload.id}")
+                        // Clean up local files on permanent failure too
+                        val urisToClean = if (pendingUpload.isMultiPage) {
+                            uploadQueueRepository.getAllUris(pendingUpload)
+                        } else {
+                            listOf(Uri.parse(pendingUpload.uri))
+                        }
+                        urisToClean.forEach { uri ->
+                            FileUtils.deleteLocalCopy(uri)
+                        }
                     }
                 }
 

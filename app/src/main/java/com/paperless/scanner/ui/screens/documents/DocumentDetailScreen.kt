@@ -76,6 +76,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 
 enum class DocumentTab {
     DETAILS,
@@ -94,9 +95,15 @@ fun DocumentDetailScreen(
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val createTagState by viewModel.createTagState.collectAsState()
+    val aiSuggestions by viewModel.aiSuggestions.collectAsState()
+    val analysisState by viewModel.analysisState.collectAsState()
+    val suggestionSource by viewModel.suggestionSource.collectAsState()
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
+    var showCreateTagDialog by remember { mutableStateOf(false) }
+    var newlyCreatedTagId by remember { mutableStateOf<Int?>(null) }
     var selectedTab by remember { mutableStateOf(DocumentTab.DETAILS) }
 
     val sheetState = rememberModalBottomSheetState()
@@ -117,6 +124,22 @@ fun DocumentDetailScreen(
                 showEditSheet = false
             }
             viewModel.resetUpdateSuccess()
+        }
+    }
+
+    // Handle tag creation state
+    LaunchedEffect(createTagState) {
+        when (val tagState = createTagState) {
+            is CreateTagState.Success -> {
+                newlyCreatedTagId = tagState.tag.id
+                showCreateTagDialog = false
+                viewModel.resetCreateTagState()
+            }
+            is CreateTagState.Error -> {
+                // Error is shown in dialog, just reset
+                viewModel.resetCreateTagState()
+            }
+            else -> {}
         }
     }
 
@@ -298,6 +321,7 @@ fun DocumentDetailScreen(
             ModalBottomSheet(
                 onDismissRequest = {
                     showEditSheet = false
+                    newlyCreatedTagId = null
                 },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.background
@@ -312,6 +336,18 @@ fun DocumentDetailScreen(
                     availableCorrespondents = uiState.availableCorrespondents,
                     availableDocumentTypes = uiState.availableDocumentTypes,
                     isUpdating = uiState.isUpdating,
+                    newlyCreatedTagId = newlyCreatedTagId,
+                    // AI Suggestions
+                    isAiAvailable = viewModel.isAiAvailable,
+                    analysisState = analysisState,
+                    aiSuggestions = aiSuggestions,
+                    suggestionSource = suggestionSource,
+                    onAnalyzeClick = { viewModel.analyzeDocumentThumbnail() },
+                    onApplyTagSuggestion = { tagSuggestion ->
+                        // Create new tag if it doesn't exist
+                        viewModel.createTag(tagSuggestion.tagName)
+                    },
+                    onCreateNewTag = { showCreateTagDialog = true },
                     onSave = { title, tagIds, correspondentId, documentTypeId, asn ->
                         viewModel.updateDocument(
                             title = title,
@@ -324,6 +360,20 @@ fun DocumentDetailScreen(
                     }
                 )
             }
+        }
+
+        // Create Tag Dialog
+        if (showCreateTagDialog) {
+            CreateTagDialog(
+                isCreating = createTagState is CreateTagState.Creating,
+                onDismiss = {
+                    showCreateTagDialog = false
+                    viewModel.resetCreateTagState()
+                },
+                onCreate = { name, color ->
+                    viewModel.createTag(name, color)
+                }
+            )
         }
     }
 }

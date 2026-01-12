@@ -70,9 +70,11 @@ class DocumentRepository @Inject constructor(
 
             val titleBody = title?.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            val tagsBody = if (tagIds.isNotEmpty()) {
-                tagIds.joinToString(",").toRequestBody("text/plain".toMediaTypeOrNull())
-            } else null
+            // Create separate MultipartBody.Part for each tag ID
+            // Paperless-ngx expects: tags=1, tags=2, tags=3 (not tags="1,2,3")
+            val tagsParts = tagIds.map { tagId ->
+                MultipartBody.Part.createFormData("tags", tagId.toString())
+            }
 
             val documentTypeBody = documentTypeId?.toString()
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
@@ -83,7 +85,7 @@ class DocumentRepository @Inject constructor(
             val response = api.uploadDocument(
                 document = documentPart,
                 title = titleBody,
-                tags = tagsBody,
+                tags = tagsParts,
                 documentType = documentTypeBody,
                 correspondent = correspondentBody
             )
@@ -95,7 +97,13 @@ class DocumentRepository @Inject constructor(
         } catch (e: IOException) {
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+            val errorBody = try {
+                e.response()?.errorBody()?.string()
+            } catch (_: Exception) {
+                null
+            }
+            android.util.Log.e("DocumentRepository", "Upload failed: HTTP ${e.code()}, body: $errorBody")
+            Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             Result.failure(PaperlessException.ContentError(e.message ?: "Datei konnte nicht gelesen werden"))
         } catch (e: Exception) {
@@ -127,9 +135,11 @@ class DocumentRepository @Inject constructor(
 
             val titleBody = title?.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            val tagsBody = if (tagIds.isNotEmpty()) {
-                tagIds.joinToString(",").toRequestBody("text/plain".toMediaTypeOrNull())
-            } else null
+            // Create separate MultipartBody.Part for each tag ID
+            // Paperless-ngx expects: tags=1, tags=2, tags=3 (not tags="1,2,3")
+            val tagsParts = tagIds.map { tagId ->
+                MultipartBody.Part.createFormData("tags", tagId.toString())
+            }
 
             val documentTypeBody = documentTypeId?.toString()
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
@@ -140,7 +150,7 @@ class DocumentRepository @Inject constructor(
             val response = api.uploadDocument(
                 document = documentPart,
                 title = titleBody,
-                tags = tagsBody,
+                tags = tagsParts,
                 documentType = documentTypeBody,
                 correspondent = correspondentBody
             )
@@ -152,7 +162,13 @@ class DocumentRepository @Inject constructor(
         } catch (e: IOException) {
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+            val errorBody = try {
+                e.response()?.errorBody()?.string()
+            } catch (_: Exception) {
+                null
+            }
+            android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: $errorBody")
+            Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             Result.failure(PaperlessException.ContentError(e.message ?: "PDF konnte nicht erstellt werden"))
         } catch (e: IllegalStateException) {

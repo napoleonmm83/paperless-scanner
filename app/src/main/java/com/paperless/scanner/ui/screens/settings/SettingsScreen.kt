@@ -45,10 +45,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import android.app.Activity
@@ -82,6 +85,14 @@ fun SettingsScreen(
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
     var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
+
+    // 7-tap Easter egg for AI debug mode activation
+    var versionTapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableLongStateOf(0L) }
+    val tapTimeoutMs = 2000L // Reset counter after 2 seconds of inactivity
+    val requiredTaps = 7
+    // Reusable Toast for instant feedback (cancel previous before showing new)
+    val developerModeToast = remember { mutableStateOf<Toast?>(null) }
 
     Column(
         modifier = Modifier
@@ -354,10 +365,60 @@ fun SettingsScreen(
 
         // About Section
         SettingsSection(title = stringResource(R.string.settings_section_about)) {
-            SettingsInfoItem(
+            // Version item with 7-tap Easter egg for AI debug mode
+            SettingsClickableItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_app_version),
-                value = BuildConfig.VERSION_NAME
+                value = if (uiState.aiDebugModeEnabled) {
+                    "${BuildConfig.VERSION_NAME} (AI Debug)"
+                } else {
+                    BuildConfig.VERSION_NAME
+                },
+                onClick = {
+                    val currentTime = System.currentTimeMillis()
+
+                    // Helper to show toast with instant feedback (cancel previous)
+                    fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+                        developerModeToast.value?.cancel()
+                        developerModeToast.value = Toast.makeText(context, message, duration).also { it.show() }
+                    }
+
+                    // Reset counter if too much time has passed
+                    if (currentTime - lastTapTime > tapTimeoutMs) {
+                        versionTapCount = 0
+                    }
+                    lastTapTime = currentTime
+
+                    // Already enabled - show message and toggle off option
+                    if (uiState.aiDebugModeEnabled) {
+                        versionTapCount++
+                        if (versionTapCount >= requiredTaps) {
+                            // Disable debug mode
+                            viewModel.setAiDebugModeEnabled(false)
+                            showToast(context.getString(R.string.settings_debug_mode_disabled))
+                            versionTapCount = 0
+                        } else {
+                            showToast(context.getString(R.string.settings_debug_mode_already_enabled))
+                        }
+                        return@SettingsClickableItem
+                    }
+
+                    versionTapCount++
+
+                    when {
+                        versionTapCount >= requiredTaps -> {
+                            // Enable AI debug mode
+                            viewModel.setAiDebugModeEnabled(true)
+                            showToast(context.getString(R.string.settings_debug_mode_enabled), Toast.LENGTH_LONG)
+                            versionTapCount = 0
+                        }
+                        versionTapCount >= 3 -> {
+                            // Show countdown from 3 taps onwards
+                            val remaining = requiredTaps - versionTapCount
+                            showToast(context.getString(R.string.settings_debug_mode_steps_remaining, remaining))
+                        }
+                    }
+                }
             )
 
             HorizontalDivider(

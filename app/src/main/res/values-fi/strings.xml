@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Yritä uudelleen</string>
     <string name="upload_progress">Ladataan: %1$d%%</string>
     <string name="upload_uploading">Ladataan...</string>
+    <string name="upload_tags_section_title">Valitse tunnisteet</string>
+    <string name="upload_tag_new">Uusi</string>
+    <string name="upload_tags_show_less">Vähemmän</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Massatuonti</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Erillisinä</string>
     <string name="batch_import_button_single">Yhtenä asiakirjana</string>
     <string name="batch_import_preview">Esikatselu</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Kuva %1$d</string>
+    <string name="batch_import_pdf_file">PDF-tiedosto</string>
+    <string name="batch_import_file">Tiedosto</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Asiakirjatyyppi (kaikille)</string>
     <string name="batch_import_correspondent">Kirjeenvaihtaja (kaikille)</string>
     <string name="batch_import_tags">Tunnisteet (kaikille)</string>
     <string name="batch_import_not_selected">Ei valittu</string>
     <string name="batch_import_adding_progress">Lisätään: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tunniste \"%1$s\" luotu</string>
     <string name="batch_import_adding">Lisätään...</string>
-    <string name="batch_import_button">Tuo %1$d kuvaa</string>
+    <string name="batch_import_button">Lataa</string>
+    <string name="batch_import_tap_to_remove">Napauta poistaaksesi</string>
+    <string name="batch_import_remove">Poista</string>
+    <string name="batch_import_failed_title">Tuonti epäonnistui</string>
+    <string name="batch_import_retry">Yritä uudelleen</string>
+    <string name="batch_import_hold_to_sort">Pidä pohjassa järjestääksesi</string>
+    <string name="batch_import_add_more">Lisää lisää</string>
+    <string name="batch_import_rotate">Kierrä</string>
+    <string name="batch_import_drag_hint">Vedä lajitellaksesi</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metatiedot</string>
+    <string name="batch_metadata_mode_single_info">%1$d tiedostoa yhdistetään yhdeksi PDF:ksi</string>
+    <string name="batch_metadata_mode_individual_info">%1$d tiedostoa ladataan erikseen</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Lataa PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Melkein täynnä</string>
     <string name="scan_upload_single">Lataa</string>
     <string name="scan_upload_pdf">Lataa PDF:nä</string>
+    <string name="scan_add_metadata">Lisää metatiedot</string>
     <string name="scan_more_pages">Lisää sivuja</string>
     <string name="scan_maximum">Maksimi</string>
     <string name="scan_discard">Hylkää</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Myöhemmin</string>
     <string name="premium_button_restore">Palauta ostokset</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Ehdotukset</string>
+    <string name="suggestions_ai_title">AI-ehdotukset</string>
+    <string name="suggestions_analyzing">Analysoidaan dokumenttia...</string>
+    <string name="suggestions_apply">Käytä</string>
+    <string name="suggestions_apply_all">Käytä kaikki</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Paikallinen</string>
+    <string name="suggestions_tag_suggestion">Tunniste-ehdotus</string>
+    <string name="suggestions_title_suggestion">Otsikko-ehdotus</string>
+    <string name="suggestions_correspondent_suggestion">Kirjeenvaihtaja-ehdotus</string>
+    <string name="suggestions_type_suggestion">Tyyppi-ehdotus</string>
+    <string name="suggestions_no_suggestions">Ei ehdotuksia</string>
+    <string name="suggestions_confidence">%1$d%% varmuus</string>
+    <string name="suggestions_new_tag">Uusi tunniste</string>
+    <string name="suggestions_get_suggestions">Hae ehdotukset</string>
+    <string name="cd_suggestions">Ehdotukset</string>
+    <string name="cd_ai_sparkle">AI-toiminto</string>
+    <string name="cd_apply_suggestion">Käytä ehdotus</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktivoitu onnistuneesti!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d ostosta palautettu</string>
     <string name="premium_restore_none">Ostoksia ei löytynyt</string>
     <string name="premium_restore_error">Palautusvirhe: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d vaihetta kehittäjätilaan</string>
+    <string name="settings_debug_mode_enabled">AI-kehittäjätila käytössä</string>
+    <string name="settings_debug_mode_disabled">AI-kehittäjätila pois käytöstä</string>
+    <string name="settings_debug_mode_already_enabled">Kehittäjätila on jo käytössä</string>
 </resources>

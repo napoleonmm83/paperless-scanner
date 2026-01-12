@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Prøv igen</string>
     <string name="upload_progress">Uploader: %1$d%%</string>
     <string name="upload_uploading">Uploader...</string>
+    <string name="upload_tags_section_title">Vælg tags</string>
+    <string name="upload_tag_new">Ny</string>
+    <string name="upload_tags_show_less">Færre</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Batch-import</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Separat</string>
     <string name="batch_import_button_single">Som ét dokument</string>
     <string name="batch_import_preview">Forhåndsvisning</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Billede %1$d</string>
+    <string name="batch_import_pdf_file">PDF-fil</string>
+    <string name="batch_import_file">Fil</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Dokumenttype (for alle)</string>
     <string name="batch_import_correspondent">Korrespondent (for alle)</string>
     <string name="batch_import_tags">Tags (for alle)</string>
     <string name="batch_import_not_selected">Ikke valgt</string>
     <string name="batch_import_adding_progress">Tilføjer: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tag \"%1$s\" oprettet</string>
     <string name="batch_import_adding">Tilføjer...</string>
-    <string name="batch_import_button">Importér %1$d billeder</string>
+    <string name="batch_import_button">Upload</string>
+    <string name="batch_import_tap_to_remove">Tryk for at fjerne</string>
+    <string name="batch_import_remove">Fjern</string>
+    <string name="batch_import_failed_title">Import mislykkedes</string>
+    <string name="batch_import_retry">Prøv igen</string>
+    <string name="batch_import_hold_to_sort">Hold for at omarrangere</string>
+    <string name="batch_import_add_more">Tilføj flere</string>
+    <string name="batch_import_rotate">Roter</string>
+    <string name="batch_import_drag_hint">Træk for at sortere</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadata</string>
+    <string name="batch_metadata_mode_single_info">%1$d filer samles til én PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d filer uploades enkeltvis</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Upload PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Næsten fuld</string>
     <string name="scan_upload_single">Upload</string>
     <string name="scan_upload_pdf">Upload som PDF</string>
+    <string name="scan_add_metadata">Tilføj metadata</string>
     <string name="scan_more_pages">Flere sider</string>
     <string name="scan_maximum">Maksimum</string>
     <string name="scan_discard">Kassér</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Senere</string>
     <string name="premium_button_restore">Gendan køb</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Forslag</string>
+    <string name="suggestions_ai_title">AI-forslag</string>
+    <string name="suggestions_analyzing">Analyserer dokument...</string>
+    <string name="suggestions_apply">Anvend</string>
+    <string name="suggestions_apply_all">Anvend alle</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Lokal</string>
+    <string name="suggestions_tag_suggestion">Tag-forslag</string>
+    <string name="suggestions_title_suggestion">Titel-forslag</string>
+    <string name="suggestions_correspondent_suggestion">Korrespondent-forslag</string>
+    <string name="suggestions_type_suggestion">Type-forslag</string>
+    <string name="suggestions_no_suggestions">Ingen forslag</string>
+    <string name="suggestions_confidence">%1$d%% sikkerhed</string>
+    <string name="suggestions_new_tag">Nyt tag</string>
+    <string name="suggestions_get_suggestions">Hent forslag</string>
+    <string name="cd_suggestions">Forslag</string>
+    <string name="cd_ai_sparkle">AI-funktion</string>
+    <string name="cd_apply_suggestion">Anvend forslag</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktiveret med succes!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d køb gendannet</string>
     <string name="premium_restore_none">Ingen køb fundet</string>
     <string name="premium_restore_error">Gendannelsesfejl: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d trin tilbage til udviklertilstand</string>
+    <string name="settings_debug_mode_enabled">AI-udviklertilstand aktiveret</string>
+    <string name="settings_debug_mode_disabled">AI-udviklertilstand deaktiveret</string>
+    <string name="settings_debug_mode_already_enabled">Udviklertilstand er allerede aktiveret</string>
 </resources>

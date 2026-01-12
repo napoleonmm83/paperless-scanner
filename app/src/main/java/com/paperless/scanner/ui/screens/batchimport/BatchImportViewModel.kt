@@ -1,11 +1,26 @@
 package com.paperless.scanner.ui.screens.batchimport
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.util.Log
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.paperless.scanner.R
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionResult
+import com.paperless.scanner.data.ai.models.SuggestionSource
+import com.paperless.scanner.data.ai.models.TagSuggestion
+import com.paperless.scanner.data.billing.PremiumFeature
+import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.repository.AiUsageRepository
+import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -13,6 +28,8 @@ import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.worker.UploadWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +49,10 @@ class BatchImportViewModel @Inject constructor(
     private val uploadWorkManager: UploadWorkManager,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
-    private val correspondentRepository: CorrespondentRepository
+    private val correspondentRepository: CorrespondentRepository,
+    private val suggestionOrchestrator: SuggestionOrchestrator,
+    private val aiUsageRepository: AiUsageRepository,
+    private val premiumFeatureManager: PremiumFeatureManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<BatchImportUiState>(BatchImportUiState.Idle)
@@ -46,10 +67,55 @@ class BatchImportViewModel @Inject constructor(
     private val _correspondents = MutableStateFlow<List<Correspondent>>(emptyList())
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
 
+    private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
+    val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
+
+    // AI Suggestions State
+    private val _aiSuggestions = MutableStateFlow<DocumentAnalysis?>(null)
+    val aiSuggestions: StateFlow<DocumentAnalysis?> = _aiSuggestions.asStateFlow()
+
+    private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
+    val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
+
+    private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
+    val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
+
+    /**
+     * Whether AI suggestions are available (Debug build or Premium subscription).
+     */
+    val isAiAvailable: Boolean
+        get() = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
+
+    // AI Usage Limit State
+    private val _usageLimitStatus = MutableStateFlow<UsageLimitStatus>(UsageLimitStatus.WITHIN_LIMITS)
+    val usageLimitStatus: StateFlow<UsageLimitStatus> = _usageLimitStatus.asStateFlow()
+
+    private val _remainingCalls = MutableStateFlow<Int>(300)
+    val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
+
     init {
         observeTagsReactively()
         observeDocumentTypesReactively()
         observeCorrespondentsReactively()
+        observeUsageLimits()
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for AI usage limits.
+     */
+    private fun observeUsageLimits() {
+        viewModelScope.launch {
+            aiUsageRepository.observeCurrentMonthCallCount().collect { callCount ->
+                _remainingCalls.update { (300 - callCount).coerceAtLeast(0) }
+                val status = when {
+                    callCount >= 300 -> UsageLimitStatus.HARD_LIMIT_REACHED
+                    callCount >= 200 -> UsageLimitStatus.SOFT_LIMIT_200
+                    callCount >= 100 -> UsageLimitStatus.SOFT_LIMIT_100
+                    else -> UsageLimitStatus.WITHIN_LIMITS
+                }
+                _usageLimitStatus.update { status }
+            }
+        }
     }
 
     /**
@@ -96,13 +162,14 @@ class BatchImportViewModel @Inject constructor(
 
     fun queueBatchImport(
         imageUris: List<Uri>,
+        title: String?,
         tagIds: List<Int>,
         documentTypeId: Int?,
         correspondentId: Int?,
         uploadAsSingleDocument: Boolean = false,
         uploadImmediately: Boolean = true
     ) {
-        Log.d(TAG, "queueBatchImport called with ${imageUris.size} images, asSingle=$uploadAsSingleDocument, uploadImmediately=$uploadImmediately")
+        Log.d(TAG, "queueBatchImport called with ${imageUris.size} images, title=$title, asSingle=$uploadAsSingleDocument, uploadImmediately=$uploadImmediately")
         if (imageUris.isEmpty()) {
             Log.d(TAG, "No images to import, returning")
             return
@@ -110,30 +177,63 @@ class BatchImportViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // CRITICAL: Copy content URIs to local storage before queuing
+                // Content URIs from SAF (file picker) lose permissions when passed to WorkManager
+                // Local file URIs can be safely accessed by background workers
+                Log.d(TAG, "Copying files to local storage...")
+                _uiState.update { BatchImportUiState.Queuing(0, imageUris.size) }
+
+                val localUris = imageUris.mapIndexedNotNull { index, uri ->
+                    val localUri = if (FileUtils.isLocalFileUri(uri)) {
+                        // Already a local file, no need to copy
+                        Log.d(TAG, "URI $index is already local: $uri")
+                        uri
+                    } else {
+                        // Copy content URI to local storage
+                        val copied = FileUtils.copyToLocalStorage(context, uri)
+                        if (copied == null) {
+                            Log.e(TAG, "Failed to copy URI $index: $uri")
+                        }
+                        copied
+                    }
+                    _uiState.update { BatchImportUiState.Queuing(index + 1, imageUris.size) }
+                    localUri
+                }
+
+                if (localUris.isEmpty()) {
+                    Log.e(TAG, "All file copies failed")
+                    _uiState.update {
+                        BatchImportUiState.Error(context.getString(R.string.error_queue_add))
+                    }
+                    return@launch
+                }
+
+                if (localUris.size < imageUris.size) {
+                    Log.w(TAG, "Some files could not be copied: ${imageUris.size - localUris.size} failed")
+                }
+
+                Log.d(TAG, "Successfully copied ${localUris.size} files to local storage")
+
                 if (uploadAsSingleDocument) {
                     // Alle Bilder als ein Multi-Page Dokument
-                    _uiState.update { BatchImportUiState.Queuing(0, 1) }
                     uploadQueueRepository.queueMultiPageUpload(
-                        uris = imageUris,
-                        title = null,
+                        uris = localUris,
+                        title = title,
                         tagIds = tagIds,
                         documentTypeId = documentTypeId,
                         correspondentId = correspondentId
                     )
-                    _uiState.update { BatchImportUiState.Queuing(1, 1) }
                     Log.d(TAG, "Multi-page document queued")
                 } else {
                     // Jedes Bild einzeln hochladen
-                    _uiState.update { BatchImportUiState.Queuing(0, imageUris.size) }
-                    imageUris.forEachIndexed { index, uri ->
+                    localUris.forEach { uri ->
                         uploadQueueRepository.queueUpload(
                             uri = uri,
-                            title = null,
+                            title = title,
                             tagIds = tagIds,
                             documentTypeId = documentTypeId,
                             correspondentId = correspondentId
                         )
-                        _uiState.update { BatchImportUiState.Queuing(index + 1, imageUris.size) }
                     }
                 }
 
@@ -144,7 +244,7 @@ class BatchImportViewModel @Inject constructor(
                     uploadWorkManager.scheduleUpload()
                 }
 
-                val successCount = if (uploadAsSingleDocument) 1 else imageUris.size
+                val successCount = if (uploadAsSingleDocument) 1 else localUris.size
                 _uiState.update { BatchImportUiState.Success(successCount) }
                 Log.d(TAG, "Batch import completed successfully")
             } catch (e: Exception) {
@@ -165,6 +265,158 @@ class BatchImportViewModel @Inject constructor(
     fun resetState() {
         _uiState.update { BatchImportUiState.Idle }
     }
+
+    fun createTag(name: String, color: String? = null) {
+        viewModelScope.launch {
+            _createTagState.update { CreateTagState.Creating }
+            tagRepository.createTag(name, color).fold(
+                onSuccess = { tag ->
+                    _createTagState.update { CreateTagState.Success(tag) }
+                },
+                onFailure = { error ->
+                    _createTagState.update {
+                        CreateTagState.Error(error.message ?: context.getString(R.string.error_create_tag))
+                    }
+                }
+            )
+        }
+    }
+
+    fun resetCreateTagState() {
+        _createTagState.update { CreateTagState.Idle }
+    }
+
+    /**
+     * Analyze the first document image using SuggestionOrchestrator.
+     * For batch import, we analyze the first image to get tag suggestions.
+     * Supports both images (loaded via Coil) and PDFs (rendered via PdfRenderer).
+     */
+    fun analyzeDocument(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _analysisState.update { AnalysisState.Analyzing }
+
+            try {
+                // Check usage limits for UI feedback
+                val limitStatus = aiUsageRepository.checkUsageLimit()
+
+                when (limitStatus) {
+                    UsageLimitStatus.HARD_LIMIT_REACHED -> {
+                        Log.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
+                        _analysisState.update { AnalysisState.LimitReached }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_200 -> {
+                        Log.i(TAG, "Soft limit 200 reached - showing warning")
+                        _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_100 -> {
+                        Log.i(TAG, "Soft limit 100 reached - showing info")
+                        _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
+                    }
+                    else -> {
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
+                }
+
+                // Check if the file is a PDF
+                val isPdf = FileUtils.isPdfFile(context, uri)
+                Log.d(TAG, "Analyzing document: $uri, isPdf: $isPdf")
+
+                val bitmap: Bitmap? = if (isPdf) {
+                    // For PDFs, render the first page as a bitmap
+                    Log.d(TAG, "Rendering PDF first page for AI analysis")
+                    FileUtils.renderPdfFirstPage(context, uri, maxWidth = 1024)
+                } else {
+                    // For images, use Coil to load the bitmap
+                    // Coil handles content URI permissions correctly
+                    val imageLoader = ImageLoader(context)
+                    val request = ImageRequest.Builder(context)
+                        .data(uri)
+                        .allowHardware(false) // Need software bitmap for AI analysis
+                        .build()
+
+                    val imageResult = imageLoader.execute(request)
+                    if (imageResult is SuccessResult) {
+                        (imageResult.drawable as? BitmapDrawable)?.bitmap
+                            ?: imageResult.drawable.toBitmap()
+                    } else {
+                        Log.w(TAG, "Failed to load image with Coil: ${uri}")
+                        null
+                    }
+                }
+
+                if (bitmap == null) {
+                    Log.w(TAG, "Could not decode ${if (isPdf) "PDF" else "image"} for analysis")
+                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
+                    return@launch
+                }
+
+                // Use SuggestionOrchestrator for centralized suggestion logic
+                val result = suggestionOrchestrator.getSuggestions(
+                    bitmap = bitmap,
+                    extractedText = "",
+                    documentId = null
+                )
+
+                when (result) {
+                    is SuggestionResult.Success -> {
+                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+
+                        _suggestionSource.update { result.source }
+
+                        // Track AI usage if AI was used
+                        if (result.source == SuggestionSource.FIREBASE_AI) {
+                            val estimatedInputTokens = 1000
+                            val estimatedOutputTokens = 200
+
+                            aiUsageRepository.logUsage(
+                                featureType = "document_analysis",
+                                inputTokens = estimatedInputTokens,
+                                outputTokens = estimatedOutputTokens,
+                                success = true,
+                                subscriptionType = "free"
+                            )
+                        }
+
+                        _aiSuggestions.update { result.analysis }
+
+                        _analysisState.update {
+                            when {
+                                limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED -> AnalysisState.LimitReached
+                                else -> AnalysisState.Success
+                            }
+                        }
+                    }
+                    is SuggestionResult.Error -> {
+                        Log.e(TAG, "Suggestion orchestration failed: ${result.message}")
+                        _analysisState.update { AnalysisState.Error(result.message) }
+                    }
+                    is SuggestionResult.Loading -> {
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Document analysis failed", e)
+                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+            }
+        }
+    }
+
+    /**
+     * Clear AI suggestions.
+     */
+    fun clearSuggestions() {
+        _aiSuggestions.update { null }
+        _analysisState.update { AnalysisState.Idle }
+        _suggestionSource.update { null }
+    }
+}
+
+sealed class CreateTagState {
+    data object Idle : CreateTagState()
+    data object Creating : CreateTagState()
+    data class Success(val tag: Tag) : CreateTagState()
+    data class Error(val message: String) : CreateTagState()
 }
 
 sealed class BatchImportUiState {

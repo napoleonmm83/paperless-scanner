@@ -1,23 +1,13 @@
 package com.paperless.scanner.ui.screens.documents
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -31,23 +21,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
+import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionSource
+import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
+import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditDocumentSheet(
     title: String,
@@ -59,6 +53,15 @@ fun EditDocumentSheet(
     availableCorrespondents: List<Correspondent>,
     availableDocumentTypes: List<DocumentType>,
     isUpdating: Boolean,
+    newlyCreatedTagId: Int? = null,
+    // AI Suggestions
+    isAiAvailable: Boolean = false,
+    analysisState: AnalysisState = AnalysisState.Idle,
+    aiSuggestions: DocumentAnalysis? = null,
+    suggestionSource: SuggestionSource? = null,
+    onAnalyzeClick: () -> Unit = {},
+    onApplyTagSuggestion: (TagSuggestion) -> Unit = {},
+    onCreateNewTag: () -> Unit,
     onSave: (
         title: String,
         tagIds: List<Int>,
@@ -69,6 +72,13 @@ fun EditDocumentSheet(
 ) {
     var editedTitle by remember { mutableStateOf(title) }
     var editedTagIds by remember { mutableStateOf(selectedTagIds) }
+
+    // Add newly created tag to selection
+    LaunchedEffect(newlyCreatedTagId) {
+        if (newlyCreatedTagId != null && !editedTagIds.contains(newlyCreatedTagId)) {
+            editedTagIds = editedTagIds + newlyCreatedTagId
+        }
+    }
     var editedCorrespondentId by remember { mutableStateOf(selectedCorrespondentId) }
     var editedDocumentTypeId by remember { mutableStateOf(selectedDocumentTypeId) }
     var editedAsn by remember { mutableStateOf(archiveSerialNumber?.toString() ?: "") }
@@ -110,36 +120,50 @@ fun EditDocumentSheet(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Tags Selection
-        Text(
-            text = stringResource(R.string.document_edit_tags_label),
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Medium
-        )
+        // AI Suggestions Section - Only shown when AI is available
+        if (isAiAvailable) {
+            SuggestionsSection(
+                analysisState = analysisState,
+                suggestions = aiSuggestions,
+                suggestionSource = suggestionSource,
+                existingTags = availableTags,
+                selectedTagIds = editedTagIds.toSet(),
+                currentTitle = editedTitle,
+                onAnalyzeClick = onAnalyzeClick,
+                onApplyTagSuggestion = { tagSuggestion ->
+                    val tagId = tagSuggestion.tagId ?: availableTags.find {
+                        it.name.equals(tagSuggestion.tagName, ignoreCase = true)
+                    }?.id
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            availableTags.forEach { tag ->
-                val isSelected = editedTagIds.contains(tag.id)
-                TagChip(
-                    tag = tag,
-                    isSelected = isSelected,
-                    enabled = !isUpdating,
-                    onClick = {
-                        editedTagIds = if (isSelected) {
-                            editedTagIds - tag.id
-                        } else {
-                            editedTagIds + tag.id
+                    if (tagId != null) {
+                        if (!editedTagIds.contains(tagId)) {
+                            editedTagIds = editedTagIds + tagId
                         }
+                    } else {
+                        onApplyTagSuggestion(tagSuggestion)
                     }
-                )
-            }
+                },
+                onApplyTitle = { suggestedTitle ->
+                    editedTitle = suggestedTitle
+                }
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
+
+        // Tags Selection with create new functionality
+        TagSelectionSection(
+            tags = availableTags,
+            selectedTagIds = editedTagIds.toSet(),
+            onToggleTag = { tagId ->
+                editedTagIds = if (editedTagIds.contains(tagId)) {
+                    editedTagIds - tagId
+                } else {
+                    editedTagIds + tagId
+                }
+            },
+            onCreateNew = onCreateNewTag
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -300,60 +324,5 @@ fun EditDocumentSheet(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun TagChip(
-    tag: Tag,
-    isSelected: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val tagColor = parseTagColor(tag.color, primaryColor)
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(
-                if (isSelected) tagColor.copy(alpha = 0.3f)
-                else MaterialTheme.colorScheme.surfaceVariant
-            )
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) tagColor else MaterialTheme.colorScheme.outline,
-                shape = RoundedCornerShape(50)
-            )
-            .clickable(enabled = enabled) { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(tagColor)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = tag.name,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-private fun parseTagColor(colorString: String?, fallbackColor: Color): Color {
-    if (colorString == null) return fallbackColor
-    return try {
-        if (colorString.startsWith("#")) {
-            Color(android.graphics.Color.parseColor(colorString))
-        } else {
-            fallbackColor
-        }
-    } catch (e: Exception) {
-        fallbackColor
     }
 }

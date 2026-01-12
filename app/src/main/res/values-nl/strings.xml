@@ -41,6 +41,9 @@
     <string name="upload_retry_button">Opnieuw</string>
     <string name="upload_progress">Uploaden: %1$d%%</string>
     <string name="upload_uploading">Uploaden...</string>
+    <string name="upload_tags_section_title">Tags selecteren</string>
+    <string name="upload_tag_new">Nieuw</string>
+    <string name="upload_tags_show_less">Minder</string>
     <string name="batch_import_title">Batch import</string>
     <string name="batch_import_back">Terug</string>
     <string name="batch_import_success_single">Document toegevoegd aan wachtrij!</string>
@@ -51,15 +54,35 @@
     <string name="batch_import_button_individual">Afzonderlijk</string>
     <string name="batch_import_button_single">Als één document</string>
     <string name="batch_import_preview">Voorbeeld</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Afbeelding %1$d</string>
+    <string name="batch_import_pdf_file">PDF-bestand</string>
+    <string name="batch_import_file">Bestand</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Documenttype (voor alle)</string>
     <string name="batch_import_correspondent">Correspondent (voor alle)</string>
     <string name="batch_import_tags">Tags (voor alle)</string>
     <string name="batch_import_not_selected">Niet geselecteerd</string>
     <string name="batch_import_adding_progress">Toevoegen: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tag \"%1$s\" aangemaakt</string>
     <string name="batch_import_adding">Toevoegen...</string>
-    <string name="batch_import_button">%1$d afbeeldingen importeren</string>
+    <string name="batch_import_button">Uploaden</string>
+    <string name="batch_import_tap_to_remove">Tik om te verwijderen</string>
+    <string name="batch_import_remove">Verwijderen</string>
+    <string name="batch_import_failed_title">Import mislukt</string>
+    <string name="batch_import_retry">Opnieuw proberen</string>
+    <string name="batch_import_hold_to_sort">Houd vast om te sorteren</string>
+    <string name="batch_import_add_more">Meer toevoegen</string>
+    <string name="batch_import_rotate">Draaien</string>
+    <string name="batch_import_drag_hint">Sleep om te sorteren</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadata</string>
+    <string name="batch_metadata_mode_single_info">%1$d bestanden worden samengevoegd tot één PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d bestanden worden afzonderlijk geüpload</string>
+
+    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF uploaden</string>
     <string name="multipage_upload_back">Terug</string>
     <string name="multipage_upload_success">PDF met %1$d pagina\'s succesvol geüpload!</string>
@@ -187,6 +210,7 @@
     <string name="scan_almost_full">Bijna vol</string>
     <string name="scan_upload_single">Uploaden</string>
     <string name="scan_upload_pdf">Als PDF uploaden</string>
+    <string name="scan_add_metadata">Metadata toevoegen</string>
     <string name="scan_more_pages">Meer pagina\'s</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Verwerpen</string>
@@ -520,6 +544,27 @@
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Aankopen herstellen</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Suggesties</string>
+    <string name="suggestions_ai_title">AI Suggesties</string>
+    <string name="suggestions_analyzing">Document analyseren...</string>
+    <string name="suggestions_apply">Toepassen</string>
+    <string name="suggestions_apply_all">Alles toepassen</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Lokaal</string>
+    <string name="suggestions_tag_suggestion">Tag suggestie</string>
+    <string name="suggestions_title_suggestion">Titel suggestie</string>
+    <string name="suggestions_correspondent_suggestion">Correspondent suggestie</string>
+    <string name="suggestions_type_suggestion">Type suggestie</string>
+    <string name="suggestions_no_suggestions">Geen suggesties</string>
+    <string name="suggestions_confidence">%1$d%% zekerheid</string>
+    <string name="suggestions_new_tag">Nieuwe tag</string>
+    <string name="suggestions_get_suggestions">Suggesties ophalen</string>
+    <string name="cd_suggestions">Suggesties</string>
+    <string name="cd_ai_sparkle">AI functie</string>
+    <string name="cd_apply_suggestion">Suggestie toepassen</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium succesvol geactiveerd!</string>
@@ -528,4 +573,8 @@
     <string name="premium_restore_success">%1$d aankopen hersteld</string>
     <string name="premium_restore_none">Geen aankopen gevonden</string>
     <string name="premium_restore_error">Herstel fout: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Nog %1$d stappen voor ontwikkelaarsmodus</string>
+    <string name="settings_debug_mode_enabled">AI-ontwikkelaarsmodus geactiveerd</string>
+    <string name="settings_debug_mode_disabled">AI-ontwikkelaarsmodus gedeactiveerd</string>
+    <string name="settings_debug_mode_already_enabled">Ontwikkelaarsmodus is al geactiveerd</string>
 </resources>

@@ -55,12 +55,17 @@ import coil.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
+import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadScreen(
     documentUri: Uri,
+    preSelectedTagIds: List<Int> = emptyList(),
+    preTitle: String? = null,
+    preDocumentTypeId: Int? = null,
+    preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
     viewModel: UploadViewModel = hiltViewModel()
@@ -70,13 +75,23 @@ fun UploadScreen(
     val documentTypes by viewModel.documentTypes.collectAsState()
     val correspondents by viewModel.correspondents.collectAsState()
     val createTagState by viewModel.createTagState.collectAsState()
+    val aiSuggestions by viewModel.aiSuggestions.collectAsState()
+    val analysisState by viewModel.analysisState.collectAsState()
+    val suggestionSource by viewModel.suggestionSource.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
-    var title by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable { mutableStateOf(preTitle ?: "") }
     val selectedTagIds = remember { mutableStateListOf<Int>() }
-    var selectedDocumentTypeId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var selectedDocumentTypeId by rememberSaveable { mutableStateOf(preDocumentTypeId) }
+    var selectedCorrespondentId by rememberSaveable { mutableStateOf(preCorrespondentId) }
+
+    // Initialize with pre-selected tags from ScanScreen
+    LaunchedEffect(preSelectedTagIds) {
+        if (preSelectedTagIds.isNotEmpty() && selectedTagIds.isEmpty()) {
+            selectedTagIds.addAll(preSelectedTagIds)
+        }
+    }
 
     // BEST PRACTICE: No manual loading needed!
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
@@ -196,6 +211,44 @@ fun UploadScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // AI Suggestions Section - Only shown when AI is available (Debug/Premium)
+            // In Release builds without Premium, suggestions are available AFTER upload
+            // via Paperless API in DocumentDetailScreen
+            if (viewModel.isAiAvailable) {
+                SuggestionsSection(
+                    analysisState = analysisState,
+                    suggestions = aiSuggestions,
+                    suggestionSource = suggestionSource,
+                    existingTags = tags,
+                    selectedTagIds = selectedTagIds.toSet(),
+                    currentTitle = title,
+                    onAnalyzeClick = {
+                        viewModel.analyzeDocument(documentUri)
+                    },
+                    onApplyTagSuggestion = { tagSuggestion ->
+                        // Use tagId from AI if available, otherwise search in local tags
+                        val tagId = tagSuggestion.tagId ?: tags.find {
+                            it.name.equals(tagSuggestion.tagName, ignoreCase = true)
+                        }?.id
+
+                        if (tagId != null) {
+                            // Existing tag - add directly to selection
+                            if (!selectedTagIds.contains(tagId)) {
+                                selectedTagIds.add(tagId)
+                            }
+                        } else {
+                            // New tag suggestion - create it
+                            viewModel.createTag(tagSuggestion.tagName)
+                        }
+                    },
+                    onApplyTitle = { suggestedTitle ->
+                        title = suggestedTitle
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             // Tags Section
             TagSelectionSection(

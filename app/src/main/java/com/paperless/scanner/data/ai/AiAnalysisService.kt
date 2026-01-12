@@ -34,6 +34,16 @@ import javax.inject.Singleton
 class AiAnalysisService @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    companion object {
+        private const val TAG = "AiAnalysisService"
+        private const val MODEL_NAME = "gemini-2.0-flash"
+        private const val TEMPERATURE = 0.3f
+        private const val MAX_OUTPUT_TOKENS = 1024
+        private const val TIMEOUT_MS = 30_000L
+        private const val NEW_TAG_CONFIDENCE_FACTOR = 0.8f
+        private val DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
+    }
+
     private val generativeModel by lazy {
         // Firebase AI Backend (uses Firebase Vertex AI automatically via google-services.json)
         // No explicit backend parameter needed - defaults to Firebase when configured
@@ -63,7 +73,9 @@ class AiAnalysisService @Inject constructor(
     ): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
             withTimeout(TIMEOUT_MS) {
+                android.util.Log.d(TAG, "Starting AI analysis with ${availableTags.size} available tags")
                 val prompt = buildPrompt(availableTags, availableCorrespondents, availableDocumentTypes)
+                android.util.Log.d(TAG, "Prompt built, sending to Gemini...")
 
                 val content = content {
                     image(bitmap)
@@ -73,7 +85,11 @@ class AiAnalysisService @Inject constructor(
                 val response = generativeModel.generateContent(content)
                 val responseText = response.text ?: throw IllegalStateException("Empty AI response")
 
-                parseResponse(responseText, availableTags)
+                android.util.Log.d(TAG, "AI Response received: $responseText")
+
+                val analysis = parseResponse(responseText, availableTags)
+                android.util.Log.d(TAG, "Parsed analysis: ${analysis.suggestedTags.size} tags, title=${analysis.suggestedTitle}")
+                analysis
             }
         }
     }
@@ -151,12 +167,19 @@ class AiAnalysisService @Inject constructor(
             |}
             |
             |REGELN:
-            |1. Wähle Tags NUR aus der Liste der verfügbaren Tags
-            |2. Falls kein passender Tag existiert, füge ihn zu "new_tags" hinzu
+            |1. Wähle passende Tags aus der Liste der verfügbaren Tags (falls vorhanden)
+            |2. WICHTIG: Schlage IMMER mindestens 2-3 neue Tags in "new_tags" vor, die das Dokument kategorisieren!
+            |   Beispiele für sinnvolle Tags:
+            |   - Dokumentart: Rechnung, Vertrag, Brief, Anleitung, Etikett, Garantie
+            |   - Kategorie: Finanzen, Technik, Hardware, Versicherung, Gesundheit
+            |   - Firma/Marke: Samsung, Amazon, Telekom (wenn erkennbar)
+            |   - Status: Wichtig, Archiv, Ablage
             |3. Der Titel sollte kurz und beschreibend sein (max 50 Zeichen)
             |4. Erkenne Datum, Absender und Dokumenttyp aus dem Inhalt
             |5. Bei Rechnungen: Suche nach Rechnungsnummer, Betrag, Firma
             |6. Confidence gibt an, wie sicher die Analyse ist (0.0 = unsicher, 1.0 = sicher)
+            |
+            |WICHTIG: Das Feld "new_tags" sollte NIEMALS leer sein! Schlage immer relevante Tags vor.
             |
             |Antworte NUR mit dem JSON, keine weitere Erklärung.
         """.trimMargin()
@@ -229,14 +252,5 @@ class AiAnalysisService @Inject constructor(
         } else {
             throw IllegalStateException("No valid JSON found in response")
         }
-    }
-
-    companion object {
-        private const val MODEL_NAME = "gemini-2.0-flash"
-        private const val TEMPERATURE = 0.3f
-        private const val MAX_OUTPUT_TOKENS = 1024
-        private const val TIMEOUT_MS = 30_000L
-        private const val NEW_TAG_CONFIDENCE_FACTOR = 0.8f
-        private val DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
     }
 }

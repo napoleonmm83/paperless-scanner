@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.billing.PremiumFeature
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
@@ -23,6 +25,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
+import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -48,6 +51,7 @@ class UploadViewModel @Inject constructor(
     private val analyticsService: AnalyticsService,
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
+    private val premiumFeatureManager: PremiumFeatureManager,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -72,6 +76,18 @@ class UploadViewModel @Inject constructor(
 
     private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
     val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
+
+    private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
+    val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
+
+    /**
+     * Whether AI suggestions are available (Debug build or Premium subscription).
+     * Used to conditionally show the SuggestionsSection in UploadScreen.
+     * In release builds without Premium, suggestions are only available AFTER upload
+     * via the Paperless API in DocumentDetailScreen.
+     */
+    val isAiAvailable: Boolean
+        get() = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
 
     // AI Usage Limit State
     private val _usageLimitStatus = MutableStateFlow<UsageLimitStatus>(UsageLimitStatus.WITHIN_LIMITS)
@@ -175,8 +191,18 @@ class UploadViewModel @Inject constructor(
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing upload for later sync")
+                // Copy file to local storage to ensure WorkManager can access it later
+                val localUri = if (FileUtils.isLocalFileUri(uri)) {
+                    uri
+                } else {
+                    FileUtils.copyToLocalStorage(context, uri) ?: run {
+                        Log.e(TAG, "Failed to copy file for offline queue: $uri")
+                        _uiState.update { UploadUiState.Error(context.getString(R.string.error_queue_add)) }
+                        return@launch
+                    }
+                }
                 uploadQueueRepository.queueUpload(
-                    uri = uri,
+                    uri = localUri,
                     title = title,
                     tagIds = tagIds,
                     documentTypeId = documentTypeId,
@@ -233,8 +259,21 @@ class UploadViewModel @Inject constructor(
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
+                // Copy files to local storage to ensure WorkManager can access them later
+                val localUris = uris.mapNotNull { uri ->
+                    if (FileUtils.isLocalFileUri(uri)) {
+                        uri
+                    } else {
+                        FileUtils.copyToLocalStorage(context, uri)
+                    }
+                }
+                if (localUris.isEmpty()) {
+                    Log.e(TAG, "Failed to copy any files for offline queue")
+                    _uiState.update { UploadUiState.Error(context.getString(R.string.error_queue_add)) }
+                    return@launch
+                }
                 uploadQueueRepository.queueMultiPageUpload(
-                    uris = uris,
+                    uris = localUris,
                     title = title,
                     tagIds = tagIds,
                     documentTypeId = documentTypeId,
@@ -328,6 +367,20 @@ class UploadViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     Log.e(TAG, "Failed to create tag", e)
+                    // Handle duplicate tag error - try to find existing tag
+                    if (e.message?.contains("unique constraint") == true ||
+                        e.message?.contains("already exists") == true) {
+                        Log.d(TAG, "Tag '$name' already exists, trying to find it...")
+                        // Refresh tags from server and try to find the existing tag
+                        tagRepository.getTags(forceRefresh = true)
+                        val existingTag = tagRepository.observeTags().first()
+                            .find { it.name.equals(name, ignoreCase = true) }
+                        if (existingTag != null) {
+                            Log.d(TAG, "Found existing tag: ${existingTag.name} (id=${existingTag.id})")
+                            _createTagState.update { CreateTagState.Success(existingTag) }
+                            return@launch
+                        }
+                    }
                     _createTagState.update {
                         CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
                     }
@@ -399,6 +452,9 @@ class UploadViewModel @Inject constructor(
                     is SuggestionResult.Success -> {
                         Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
 
+                        // Store the suggestion source for UI display
+                        _suggestionSource.update { result.source }
+
                         // Track AI usage if AI was used
                         if (result.source == SuggestionSource.FIREBASE_AI) {
                             val estimatedInputTokens = 1000  // ~1 image
@@ -453,6 +509,7 @@ class UploadViewModel @Inject constructor(
     fun clearSuggestions() {
         _aiSuggestions.update { null }
         _analysisState.update { AnalysisState.Idle }
+        _suggestionSource.update { null }
     }
 }
 

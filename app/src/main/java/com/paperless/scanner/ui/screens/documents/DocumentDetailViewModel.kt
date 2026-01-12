@@ -1,27 +1,40 @@
 package com.paperless.scanner.ui.screens.documents
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionResult
+import com.paperless.scanner.data.ai.models.SuggestionSource
+import com.paperless.scanner.data.billing.PremiumFeature
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.UsageLimitStatus
+import com.paperless.scanner.ui.screens.upload.AnalysisState
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.net.URL
 import javax.inject.Inject
 
 // User/Group models for permissions UI
@@ -34,6 +47,14 @@ data class GroupInfo(
     val id: Int,
     val name: String
 )
+
+// Tag creation state
+sealed class CreateTagState {
+    data object Idle : CreateTagState()
+    data object Creating : CreateTagState()
+    data class Success(val tag: Tag) : CreateTagState()
+    data class Error(val message: String) : CreateTagState()
+}
 
 data class DocumentDetailUiState(
     val id: Int = 0,
@@ -93,13 +114,43 @@ class DocumentDetailViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
     private val documentTypeRepository: DocumentTypeRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val suggestionOrchestrator: SuggestionOrchestrator,
+    private val aiUsageRepository: AiUsageRepository,
+    private val premiumFeatureManager: PremiumFeatureManager
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "DocumentDetailViewModel"
+    }
 
     private val documentId: Int = savedStateHandle.get<String>("documentId")?.toIntOrNull() ?: 0
 
     private val _uiState = MutableStateFlow(DocumentDetailUiState())
     val uiState: StateFlow<DocumentDetailUiState> = _uiState.asStateFlow()
+
+    private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
+    val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
+
+    // AI Suggestions State
+    private val _aiSuggestions = MutableStateFlow<DocumentAnalysis?>(null)
+    val aiSuggestions: StateFlow<DocumentAnalysis?> = _aiSuggestions.asStateFlow()
+
+    private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
+    val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
+
+    private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
+    val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
+
+    /**
+     * Whether AI suggestions are available (Debug build or Premium subscription).
+     */
+    val isAiAvailable: Boolean
+        get() = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
+
+    // AI Usage Limit State
+    private val _remainingCalls = MutableStateFlow<Int>(300)
+    val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
 
     private var tagMap: Map<Int, Tag> = emptyMap()
     private var correspondentMap: Map<Int, Correspondent> = emptyMap()
@@ -384,5 +435,146 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun resetUpdatePermissionsSuccess() {
         _uiState.update { it.copy(updatePermissionsSuccess = false) }
+    }
+
+    // Tag creation
+    fun createTag(name: String, color: String? = null) {
+        viewModelScope.launch {
+            _createTagState.update { CreateTagState.Creating }
+            tagRepository.createTag(name, color).fold(
+                onSuccess = { tag ->
+                    // Add to available tags immediately
+                    _uiState.update { state ->
+                        state.copy(
+                            availableTags = (state.availableTags + tag).sortedBy { it.name.lowercase() }
+                        )
+                    }
+                    _createTagState.update { CreateTagState.Success(tag) }
+                },
+                onFailure = { error ->
+                    _createTagState.update {
+                        CreateTagState.Error(error.message ?: context.getString(R.string.error_create_tag))
+                    }
+                }
+            )
+        }
+    }
+
+    fun resetCreateTagState() {
+        _createTagState.update { CreateTagState.Idle }
+    }
+
+    /**
+     * Analyze the document thumbnail using SuggestionOrchestrator.
+     * Downloads the thumbnail image and uses AI to suggest tags.
+     */
+    fun analyzeDocumentThumbnail() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _analysisState.update { AnalysisState.Analyzing }
+
+            try {
+                val state = _uiState.value
+                val thumbnailUrl = state.thumbnailUrl
+                val authToken = state.authToken
+
+                if (thumbnailUrl == null || authToken == null) {
+                    Log.w(TAG, "Thumbnail URL or auth token not available")
+                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
+                    return@launch
+                }
+
+                // Check usage limits
+                val limitStatus = aiUsageRepository.checkUsageLimit()
+
+                when (limitStatus) {
+                    UsageLimitStatus.HARD_LIMIT_REACHED -> {
+                        Log.w(TAG, "Hard limit reached - AI disabled")
+                        _analysisState.update { AnalysisState.LimitReached }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_200 -> {
+                        Log.i(TAG, "Soft limit 200 reached")
+                        _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
+                    }
+                    UsageLimitStatus.SOFT_LIMIT_100 -> {
+                        Log.i(TAG, "Soft limit 100 reached")
+                        _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
+                    }
+                    else -> {
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
+                }
+
+                // Download thumbnail image
+                val connection = URL(thumbnailUrl).openConnection()
+                connection.setRequestProperty("Authorization", "Token $authToken")
+                val bitmap = connection.getInputStream().use { inputStream ->
+                    BitmapFactory.decodeStream(inputStream)
+                }
+
+                if (bitmap == null) {
+                    Log.w(TAG, "Could not decode thumbnail image")
+                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
+                    return@launch
+                }
+
+                // Use SuggestionOrchestrator for centralized suggestion logic
+                val result = suggestionOrchestrator.getSuggestions(
+                    bitmap = bitmap,
+                    extractedText = state.content ?: "",
+                    documentId = documentId
+                )
+
+                when (result) {
+                    is SuggestionResult.Success -> {
+                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+
+                        _suggestionSource.update { result.source }
+
+                        // Track AI usage if AI was used
+                        if (result.source == SuggestionSource.FIREBASE_AI) {
+                            val estimatedInputTokens = 1000
+                            val estimatedOutputTokens = 200
+
+                            aiUsageRepository.logUsage(
+                                featureType = "document_analysis",
+                                inputTokens = estimatedInputTokens,
+                                outputTokens = estimatedOutputTokens,
+                                success = true,
+                                subscriptionType = "free"
+                            )
+                        }
+
+                        _aiSuggestions.update { result.analysis }
+
+                        _analysisState.update {
+                            when {
+                                limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED -> AnalysisState.LimitReached
+                                else -> AnalysisState.Success
+                            }
+                        }
+                    }
+                    is SuggestionResult.Error -> {
+                        Log.e(TAG, "Suggestion orchestration failed: ${result.message}")
+                        _analysisState.update { AnalysisState.Error(result.message) }
+                    }
+                    is SuggestionResult.Loading -> {
+                        _analysisState.update { AnalysisState.Analyzing }
+                    }
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Document analysis failed", e)
+                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+            }
+        }
+    }
+
+    /**
+     * Clear AI suggestions.
+     */
+    fun clearSuggestions() {
+        _aiSuggestions.update { null }
+        _analysisState.update { AnalysisState.Idle }
+        _suggestionSource.update { null }
     }
 }

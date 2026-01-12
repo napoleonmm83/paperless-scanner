@@ -177,8 +177,15 @@ class AiAnalysisIntegrationTest {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.failure(Exception("Firebase AI error"))
 
-        // Mock Paperless API success
-        val paperlessSuggestions = createMockDocumentAnalysis()
+        // Mock Paperless API success with actual tags
+        val paperlessSuggestions = createMockDocumentAnalysis(
+            tags = listOf(
+                com.paperless.scanner.data.ai.models.TagSuggestion(
+                    tagId = 1, tagName = "Invoice", confidence = 0.85f,
+                    reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_PAPERLESS_API
+                )
+            )
+        )
         coEvery {
             paperlessSuggestionsService.getSuggestions(any())
         } returns Result.success(paperlessSuggestions)
@@ -315,8 +322,8 @@ class AiAnalysisIntegrationTest {
     // ==================== Suggestion Merging Tests ====================
 
     @Test
-    fun `suggestions are merged and deduplicated correctly`() = runTest {
-        // Given: Multiple sources return overlapping suggestions
+    fun `suggestions are AI-only when AI analysis succeeds`() = runTest {
+        // Given: AI analysis succeeds with suggestions
         every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
         every { networkMonitor.checkOnlineStatus() } returns true
 
@@ -335,7 +342,7 @@ class AiAnalysisIntegrationTest {
         )
         coEvery { aiService.analyzeImage(any(), any(), any(), any()) } returns Result.success(aiSuggestions)
 
-        // Local matching also finds "Invoice" but with lower confidence
+        // Local matching would find additional tags - but should NOT be called when AI succeeds
         val localSuggestions = listOf(
             com.paperless.scanner.data.ai.models.TagSuggestion(
                 tagId = 1, tagName = "Invoice", confidence = 0.7f,
@@ -360,28 +367,31 @@ class AiAnalysisIntegrationTest {
             documentTypeRepository = documentTypeRepository
         )
 
-        // When: Request suggestions
+        // When: Request suggestions with AI available
         val bitmap = mockk<Bitmap>(relaxed = true)
         val result = orchestrator.getSuggestions(
             bitmap = bitmap,
             extractedText = "Invoice document"
         )
 
-        // Then: Suggestions should be merged and deduplicated
+        // Then: Only AI suggestions returned (local matching skipped when AI succeeds)
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
+        assertEquals(SuggestionSource.FIREBASE_AI, success.source)
 
-        // Should have 3 unique tags: Invoice (AI confidence 0.95), Receipt (AI 0.85), Contract (local 0.6)
-        assertEquals(3, success.analysis.suggestedTags.size)
+        // Should have only 2 AI tags (local matching was NOT run)
+        assertEquals(2, success.analysis.suggestedTags.size)
 
-        // Invoice should use higher AI confidence, not local
+        // Verify local matching was NOT called (AI-only mode)
+        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
+
+        // Invoice should have AI confidence
         val invoiceTag = success.analysis.suggestedTags.find { it.tagId == 1 }
         assertNotNull(invoiceTag)
         assertEquals(0.95f, invoiceTag!!.confidence, 0.01f)
 
         // Tags should be sorted by confidence descending
         assertTrue(success.analysis.suggestedTags[0].confidence >= success.analysis.suggestedTags[1].confidence)
-        assertTrue(success.analysis.suggestedTags[1].confidence >= success.analysis.suggestedTags[2].confidence)
     }
 
     // ==================== Error Handling Tests ====================

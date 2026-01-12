@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Tekrar dene</string>
     <string name="upload_progress">Yükleniyor: %1$d%%</string>
     <string name="upload_uploading">Yükleniyor...</string>
+    <string name="upload_tags_section_title">Etiket seç</string>
+    <string name="upload_tag_new">Yeni</string>
+    <string name="upload_tags_show_less">Daha az</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Toplu içe aktarma</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Ayrı</string>
     <string name="batch_import_button_single">Tek belge olarak</string>
     <string name="batch_import_preview">Önizleme</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Görsel %1$d</string>
+    <string name="batch_import_pdf_file">PDF dosyası</string>
+    <string name="batch_import_file">Dosya</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Belge türü (tümü için)</string>
     <string name="batch_import_correspondent">Muhatap (tümü için)</string>
     <string name="batch_import_tags">Etiketler (tümü için)</string>
     <string name="batch_import_not_selected">Seçilmedi</string>
     <string name="batch_import_adding_progress">Ekleniyor: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">\"%1$s\" etiketi oluşturuldu</string>
     <string name="batch_import_adding">Ekleniyor...</string>
-    <string name="batch_import_button">%1$d görsel içe aktar</string>
+    <string name="batch_import_button">Yükle</string>
+    <string name="batch_import_tap_to_remove">Kaldırmak için dokunun</string>
+    <string name="batch_import_remove">Kaldır</string>
+    <string name="batch_import_failed_title">İçe aktarma başarısız</string>
+    <string name="batch_import_retry">Tekrar dene</string>
+    <string name="batch_import_hold_to_sort">Yeniden sıralamak için basılı tutun</string>
+    <string name="batch_import_add_more">Daha fazla ekle</string>
+    <string name="batch_import_rotate">Döndür</string>
+    <string name="batch_import_drag_hint">Sıralamak için sürükleyin</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Meta veriler</string>
+    <string name="batch_metadata_mode_single_info">%1$d dosya tek PDF\'e birleştirilecek</string>
+    <string name="batch_metadata_mode_individual_info">%1$d dosya ayrı ayrı yüklenecek</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF yükle</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Neredeyse dolu</string>
     <string name="scan_upload_single">Yükle</string>
     <string name="scan_upload_pdf">PDF olarak yükle</string>
+    <string name="scan_add_metadata">Meta veri ekle</string>
     <string name="scan_more_pages">Daha fazla sayfa</string>
     <string name="scan_maximum">Maksimum</string>
     <string name="scan_discard">At</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Daha sonra</string>
     <string name="premium_button_restore">Satın almaları geri yükle</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Öneriler</string>
+    <string name="suggestions_ai_title">AI Önerileri</string>
+    <string name="suggestions_analyzing">Belge analiz ediliyor...</string>
+    <string name="suggestions_apply">Uygula</string>
+    <string name="suggestions_apply_all">Tümünü uygula</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Yerel</string>
+    <string name="suggestions_tag_suggestion">Etiket önerisi</string>
+    <string name="suggestions_title_suggestion">Başlık önerisi</string>
+    <string name="suggestions_correspondent_suggestion">Muhatap önerisi</string>
+    <string name="suggestions_type_suggestion">Tür önerisi</string>
+    <string name="suggestions_no_suggestions">Öneri yok</string>
+    <string name="suggestions_confidence">%1$d%% güvenilirlik</string>
+    <string name="suggestions_new_tag">Yeni etiket</string>
+    <string name="suggestions_get_suggestions">Önerileri al</string>
+    <string name="cd_suggestions">Öneriler</string>
+    <string name="cd_ai_sparkle">AI özelliği</string>
+    <string name="cd_apply_suggestion">Öneriyi uygula</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium başarıyla etkinleştirildi!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d satın alma geri yüklendi</string>
     <string name="premium_restore_none">Satın alma bulunamadı</string>
     <string name="premium_restore_error">Geri yükleme hatası: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Geliştirici moduna %1$d adım kaldı</string>
+    <string name="settings_debug_mode_enabled">AI geliştirici modu etkinleştirildi</string>
+    <string name="settings_debug_mode_disabled">AI geliştirici modu devre dışı bırakıldı</string>
+    <string name="settings_debug_mode_already_enabled">Geliştirici modu zaten etkin</string>
 </resources>

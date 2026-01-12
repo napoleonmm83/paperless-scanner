@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
+import com.paperless.scanner.ui.screens.batchimport.BatchMetadataScreen
 import com.paperless.scanner.ui.theme.PaperlessAnimations
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
@@ -127,8 +128,8 @@ fun PaperlessNavGraph(
                     onMultipleDocumentsScanned = { uris ->
                         navController.navigate(Screen.MultiPageUpload.createRoute(uris))
                     },
-                    onBatchImport = { uris ->
-                        navController.navigate(Screen.BatchImport.createRoute(uris))
+                    onBatchImport = { uris, sourceType ->
+                        navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
                     },
                     onDocumentClick = { documentId ->
                         navController.navigate(Screen.DocumentDetail.createRoute(documentId))
@@ -268,6 +269,9 @@ fun PaperlessNavGraph(
             arguments = listOf(
                 navArgument("imageUris") {
                     type = NavType.StringType
+                },
+                navArgument("sourceType") {
+                    type = NavType.StringType
                 }
             ),
             enterTransition = { PaperlessAnimations.verticalEnterTransition },
@@ -283,10 +287,56 @@ fun PaperlessNavGraph(
                     null
                 }
             } ?: emptyList()
+            val sourceTypeString = backStackEntry.arguments?.getString("sourceType")
+            val sourceType = try {
+                BatchSourceType.valueOf(sourceTypeString ?: "GALLERY")
+            } catch (e: Exception) {
+                BatchSourceType.GALLERY
+            }
 
             if (imageUris.isNotEmpty()) {
                 BatchImportScreen(
                     imageUris = imageUris,
+                    sourceType = sourceType,
+                    onContinueToMetadata = { selectedUris, uploadAsSingleDocument ->
+                        navController.navigate(Screen.BatchMetadata.createRoute(selectedUris, uploadAsSingleDocument))
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = Screen.BatchMetadata.route,
+            arguments = listOf(
+                navArgument("documentUris") {
+                    type = NavType.StringType
+                },
+                navArgument("uploadAsSingleDocument") {
+                    type = NavType.BoolType
+                }
+            ),
+            enterTransition = { PaperlessAnimations.verticalEnterTransition },
+            exitTransition = { PaperlessAnimations.verticalExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.verticalExitTransition }
+        ) { backStackEntry ->
+            val documentUrisString = backStackEntry.arguments?.getString("documentUris")
+            val documentUris = documentUrisString?.split("|")?.mapNotNull { encodedUri ->
+                try {
+                    Uri.parse(Uri.decode(encodedUri))
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+            val uploadAsSingleDocument = backStackEntry.arguments?.getBoolean("uploadAsSingleDocument") ?: false
+
+            if (documentUris.isNotEmpty()) {
+                BatchMetadataScreen(
+                    imageUris = documentUris,
+                    uploadAsSingleDocument = uploadAsSingleDocument,
                     onImportSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Home.route) { inclusive = true }

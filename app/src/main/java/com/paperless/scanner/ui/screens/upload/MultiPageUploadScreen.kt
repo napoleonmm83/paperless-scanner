@@ -63,12 +63,17 @@ import coil.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
+import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MultiPageUploadScreen(
     documentUris: List<Uri>,
+    preSelectedTagIds: List<Int> = emptyList(),
+    preTitle: String? = null,
+    preDocumentTypeId: Int? = null,
+    preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
     viewModel: UploadViewModel = hiltViewModel()
@@ -78,13 +83,23 @@ fun MultiPageUploadScreen(
     val documentTypes by viewModel.documentTypes.collectAsState()
     val correspondents by viewModel.correspondents.collectAsState()
     val createTagState by viewModel.createTagState.collectAsState()
+    val aiSuggestions by viewModel.aiSuggestions.collectAsState()
+    val analysisState by viewModel.analysisState.collectAsState()
+    val suggestionSource by viewModel.suggestionSource.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
-    var title by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable { mutableStateOf(preTitle ?: "") }
     val selectedTagIds = remember { mutableStateListOf<Int>() }
-    var selectedDocumentTypeId by rememberSaveable { mutableStateOf<Int?>(null) }
-    var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
+    var selectedDocumentTypeId by rememberSaveable { mutableStateOf(preDocumentTypeId) }
+    var selectedCorrespondentId by rememberSaveable { mutableStateOf(preCorrespondentId) }
+
+    // Initialize with pre-selected tags from ScanScreen
+    LaunchedEffect(preSelectedTagIds) {
+        if (preSelectedTagIds.isNotEmpty() && selectedTagIds.isEmpty()) {
+            selectedTagIds.addAll(preSelectedTagIds)
+        }
+    }
 
     // BEST PRACTICE: No manual loading needed!
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
@@ -274,6 +289,40 @@ fun MultiPageUploadScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // AI Suggestions Section - Only shown when AI is available (Debug/Premium)
+            if (viewModel.isAiAvailable && documentUris.isNotEmpty()) {
+                SuggestionsSection(
+                    analysisState = analysisState,
+                    suggestions = aiSuggestions,
+                    suggestionSource = suggestionSource,
+                    existingTags = tags,
+                    selectedTagIds = selectedTagIds.toSet(),
+                    currentTitle = title,
+                    onAnalyzeClick = {
+                        // Analyze the first page
+                        viewModel.analyzeDocument(documentUris.first())
+                    },
+                    onApplyTagSuggestion = { tagSuggestion ->
+                        val tagId = tagSuggestion.tagId ?: tags.find {
+                            it.name.equals(tagSuggestion.tagName, ignoreCase = true)
+                        }?.id
+
+                        if (tagId != null) {
+                            if (!selectedTagIds.contains(tagId)) {
+                                selectedTagIds.add(tagId)
+                            }
+                        } else {
+                            viewModel.createTag(tagSuggestion.tagName)
+                        }
+                    },
+                    onApplyTitle = { suggestedTitle ->
+                        title = suggestedTitle
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
 
             // Tags Section
             TagSelectionSection(

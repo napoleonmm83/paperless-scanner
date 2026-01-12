@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Δοκιμή ξανά</string>
     <string name="upload_progress">Μεταφόρτωση: %1$d%%</string>
     <string name="upload_uploading">Μεταφόρτωση...</string>
+    <string name="upload_tags_section_title">Επιλογή ετικετών</string>
+    <string name="upload_tag_new">Νέο</string>
+    <string name="upload_tags_show_less">Λιγότερα</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Μαζική εισαγωγή</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Ξεχωριστά</string>
     <string name="batch_import_button_single">Ως ένα έγγραφο</string>
     <string name="batch_import_preview">Προεπισκόπηση</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Εικόνα %1$d</string>
+    <string name="batch_import_pdf_file">Αρχείο PDF</string>
+    <string name="batch_import_file">Αρχείο</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Τύπος εγγράφου (για όλα)</string>
     <string name="batch_import_correspondent">Ανταποκριτής (για όλα)</string>
     <string name="batch_import_tags">Ετικέτες (για όλα)</string>
     <string name="batch_import_not_selected">Δεν επιλέχθηκε</string>
     <string name="batch_import_adding_progress">Προσθήκη: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Η ετικέτα \"%1$s\" δημιουργήθηκε</string>
     <string name="batch_import_adding">Προσθήκη...</string>
-    <string name="batch_import_button">Εισαγωγή %1$d εικόνων</string>
+    <string name="batch_import_button">Μεταφόρτωση</string>
+    <string name="batch_import_tap_to_remove">Πατήστε για αφαίρεση</string>
+    <string name="batch_import_remove">Αφαίρεση</string>
+    <string name="batch_import_failed_title">Η εισαγωγή απέτυχε</string>
+    <string name="batch_import_retry">Επανάληψη</string>
+    <string name="batch_import_hold_to_sort">Κρατήστε πατημένο για αναδιάταξη</string>
+    <string name="batch_import_add_more">Προσθήκη περισσότερων</string>
+    <string name="batch_import_rotate">Περιστροφή</string>
+    <string name="batch_import_drag_hint">Σύρετε για ταξινόμηση</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Μεταδεδομένα</string>
+    <string name="batch_metadata_mode_single_info">%1$d αρχεία θα ενωθούν σε ένα PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d αρχεία θα μεταφορτωθούν ξεχωριστά</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Μεταφόρτωση PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Σχεδόν γεμάτο</string>
     <string name="scan_upload_single">Μεταφόρτωση</string>
     <string name="scan_upload_pdf">Μεταφόρτωση ως PDF</string>
+    <string name="scan_add_metadata">Προσθήκη μεταδεδομένων</string>
     <string name="scan_more_pages">Περισσότερες σελίδες</string>
     <string name="scan_maximum">Μέγιστο</string>
     <string name="scan_discard">Απόρριψη</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Αργότερα</string>
     <string name="premium_button_restore">Επαναφορά αγορών</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Προτάσεις</string>
+    <string name="suggestions_ai_title">Προτάσεις AI</string>
+    <string name="suggestions_analyzing">Ανάλυση εγγράφου...</string>
+    <string name="suggestions_apply">Εφαρμογή</string>
+    <string name="suggestions_apply_all">Εφαρμογή όλων</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Τοπικό</string>
+    <string name="suggestions_tag_suggestion">Πρόταση ετικέτας</string>
+    <string name="suggestions_title_suggestion">Πρόταση τίτλου</string>
+    <string name="suggestions_correspondent_suggestion">Πρόταση ανταποκριτή</string>
+    <string name="suggestions_type_suggestion">Πρόταση τύπου</string>
+    <string name="suggestions_no_suggestions">Χωρίς προτάσεις</string>
+    <string name="suggestions_confidence">%1$d%% βεβαιότητα</string>
+    <string name="suggestions_new_tag">Νέα ετικέτα</string>
+    <string name="suggestions_get_suggestions">Λήψη προτάσεων</string>
+    <string name="cd_suggestions">Προτάσεις</string>
+    <string name="cd_ai_sparkle">Λειτουργία AI</string>
+    <string name="cd_apply_suggestion">Εφαρμογή πρότασης</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Το Premium ενεργοποιήθηκε επιτυχώς!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d αγορές επαναφέρθηκαν</string>
     <string name="premium_restore_none">Δεν βρέθηκαν αγορές</string>
     <string name="premium_restore_error">Σφάλμα επαναφοράς: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d βήματα ακόμα για λειτουργία προγραμματιστή</string>
+    <string name="settings_debug_mode_enabled">Λειτουργία προγραμματιστή AI ενεργοποιημένη</string>
+    <string name="settings_debug_mode_disabled">Λειτουργία προγραμματιστή AI απενεργοποιημένη</string>
+    <string name="settings_debug_mode_already_enabled">Η λειτουργία προγραμματιστή είναι ήδη ενεργοποιημένη</string>
 </resources>

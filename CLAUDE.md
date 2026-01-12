@@ -18,6 +18,48 @@ VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart
 
 ---
 
+# CRITICAL: REQUIREMENT CLARIFICATION RULE - 95% UNDERSTANDING
+
+**BEVOR du mit der Implementierung beginnst, stelle Rückfragen bis du zu 95% sicher bist, dass wir das gleiche Verständnis haben!**
+
+## Pflicht-Workflow bei neuen Aufgaben:
+
+1. **Aufgabe analysieren** → Verstehe die Anforderung oberflächlich
+2. **Unklarheiten identifizieren** → Was ist nicht spezifiziert?
+3. **Gezielte Fragen stellen** → Verwende `AskUserQuestion` für:
+   - Technische Details (Welche API? Welches Pattern?)
+   - UI/UX-Entscheidungen (Wo platzieren? Wie aussehen?)
+   - Edge Cases (Was bei Fehler X? Was bei Zustand Y?)
+   - Scope-Klärung (Nur dieses Feature? Auch Tests? Auch Doku?)
+4. **Verständnis bestätigen** → Fasse zusammen was du verstanden hast
+5. **ERST DANN implementieren** → Nach expliziter Bestätigung
+
+## Fragen-Kategorien:
+
+| Kategorie | Beispiel-Fragen |
+|-----------|-----------------|
+| **Scope** | "Soll nur die Grundfunktion oder auch Error-Handling implementiert werden?" |
+| **Technik** | "Soll ich Room Flow oder suspend functions verwenden?" |
+| **UI** | "Soll der Button im Header oder Footer platziert werden?" |
+| **Edge Cases** | "Was soll passieren wenn die API nicht erreichbar ist?" |
+| **Integration** | "Soll das mit dem bestehenden XY-System integriert werden?" |
+
+## NIEMALS ohne Klärung starten bei:
+
+- Vagen Aufgaben ("Verbessere die Performance")
+- Neuen Features ohne klare Spezifikation
+- Änderungen an bestehenden Flows
+- UI-Anpassungen ohne Mockup/Beschreibung
+- Architektur-Entscheidungen
+
+## Ausnahmen (keine Fragen nötig):
+
+- Eindeutige Bug-Fixes mit klarer Ursache
+- Explizite Schritt-für-Schritt Anweisungen vom User
+- Triviale Änderungen (Typos, Formatierung)
+
+---
+
 # Archon Integration & Workflow
 
 **CRITICAL: This project uses Archon MCP server for knowledge management, task tracking, and project organization. ALWAYS start with Archon MCP server task management.**

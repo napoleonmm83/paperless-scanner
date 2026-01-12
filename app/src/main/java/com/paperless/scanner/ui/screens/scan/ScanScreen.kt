@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -87,6 +87,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.navigation.BatchSourceType
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import coil.compose.AsyncImage
@@ -96,7 +97,10 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import com.paperless.scanner.util.FileUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val MAX_PAGES = 20
 
@@ -105,7 +109,7 @@ private const val MAX_PAGES = 20
 fun ScanScreen(
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
-    onBatchImport: (List<Uri>) -> Unit,
+    onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
     viewModel: ScanViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -142,7 +146,18 @@ fun ScanScreen(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            onBatchImport(uris)
+            // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
+            // Content URIs lose permissions when passed through navigation
+            scope.launch(Dispatchers.IO) {
+                val localUris = uris.mapNotNull { uri ->
+                    FileUtils.copyToLocalStorage(context, uri)
+                }
+                if (localUris.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        onBatchImport(localUris, BatchSourceType.GALLERY)
+                    }
+                }
+            }
         }
     }
 
@@ -150,7 +165,18 @@ fun ScanScreen(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            onBatchImport(uris)
+            // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
+            // Content URIs lose permissions when passed through navigation
+            scope.launch(Dispatchers.IO) {
+                val localUris = uris.mapNotNull { uri ->
+                    FileUtils.copyToLocalStorage(context, uri)
+                }
+                if (localUris.isNotEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        onBatchImport(localUris, BatchSourceType.FILES)
+                    }
+                }
+            }
         }
     }
 
@@ -202,11 +228,11 @@ fun ScanScreen(
                     onRotatePage = { viewModel.rotatePage(it) },
                     onMovePage = { from, to -> viewModel.movePage(from, to) },
                     onClear = { viewModel.clearPages() },
-                    onUpload = {
+                    onContinue = {
                         // Get rotated URIs in coroutine scope
                         scope.launch {
                             val uris = viewModel.getRotatedPageUris()
-                            // Clear pages before navigating to upload
+                            // Clear pages before navigating to metadata screen
                             viewModel.clearPages()
                             if (uris.size == 1) {
                                 onDocumentScanned(uris.first())
@@ -242,6 +268,7 @@ fun ScanScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
+
 }
 
 @Composable
@@ -281,29 +308,32 @@ private fun ModeSelectionContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Scan option
+            // Scan option - uses onPrimary for proper contrast in both themes
             ScanOptionCard(
                 icon = Icons.Filled.CameraAlt,
                 label = stringResource(R.string.scan_option_scan),
                 backgroundColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 onClick = onScanClick,
                 modifier = Modifier.weight(1f)
             )
 
-            // Gallery option
+            // Gallery option - always light blue, needs dark text
             ScanOptionCard(
                 icon = Icons.Filled.PhotoLibrary,
                 label = stringResource(R.string.scan_option_gallery),
                 backgroundColor = Color(0xFF8DD7FF),
+                contentColor = Color.Black.copy(alpha = 0.85f),
                 onClick = onGalleryClick,
                 modifier = Modifier.weight(1f)
             )
 
-            // Files option
+            // Files option - always light purple, needs dark text
             ScanOptionCard(
                 icon = Icons.Filled.FolderOpen,
                 label = stringResource(R.string.scan_option_files),
                 backgroundColor = Color(0xFFB88DFF),
+                contentColor = Color.Black.copy(alpha = 0.85f),
                 onClick = onFilesClick,
                 modifier = Modifier.weight(1f)
             )
@@ -317,7 +347,8 @@ private fun ModeSelectionContent(
 private fun ScanOptionCard(
     icon: ImageVector,
     label: String,
-    backgroundColor: androidx.compose.ui.graphics.Color,
+    backgroundColor: Color,
+    contentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -340,14 +371,14 @@ private fun ScanOptionCard(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black.copy(alpha = 0.15f)),
+                    .background(contentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
                     modifier = Modifier.size(28.dp),
-                    tint = Color.Black.copy(alpha = 0.8f)
+                    tint = contentColor.copy(alpha = 0.9f)
                 )
             }
 
@@ -357,7 +388,7 @@ private fun ScanOptionCard(
                 text = label,
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.Black.copy(alpha = 0.85f)
+                color = contentColor
             )
         }
     }
@@ -371,7 +402,7 @@ private fun MultiPageContent(
     onRotatePage: (String) -> Unit,
     onMovePage: (Int, Int) -> Unit,
     onClear: () -> Unit,
-    onUpload: () -> Unit
+    onContinue: () -> Unit
 ) {
     val isNearLimit = uiState.pageCount >= 18
     val isAtLimit = uiState.pageCount >= MAX_PAGES
@@ -474,7 +505,7 @@ private fun MultiPageContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .height(220.dp)
         ) {
             itemsIndexed(
                 items = uiState.pages,
@@ -504,6 +535,8 @@ private fun MultiPageContent(
             }
         }
 
+        Spacer(modifier = Modifier.weight(1f))
+
         // Action buttons
         Column(
             modifier = Modifier
@@ -512,19 +545,19 @@ private fun MultiPageContent(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
-                onClick = onUpload,
+                onClick = onContinue,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Upload,
-                    contentDescription = stringResource(R.string.cd_upload)
+                Text(
+                    text = stringResource(R.string.scan_add_metadata),
+                    style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = if (uiState.pageCount == 1) stringResource(R.string.scan_upload_single) else stringResource(R.string.scan_upload_pdf),
-                    style = MaterialTheme.typography.titleMedium
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = stringResource(R.string.scan_add_metadata)
                 )
             }
 

@@ -32,6 +32,7 @@ import com.paperless.scanner.ui.navigation.PaperlessNavGraph
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
+import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -69,9 +70,11 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
+            val themeModeKey by tokenManager.themeMode.collectAsState(initial = "system")
+            val themeMode = ThemeMode.entries.find { it.key == themeModeKey } ?: ThemeMode.SYSTEM
 
             CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
-                PaperlessScannerTheme {
+                PaperlessScannerTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

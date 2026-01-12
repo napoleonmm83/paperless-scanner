@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
@@ -27,12 +29,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
@@ -169,6 +174,8 @@ fun CorrespondentDropdown(
     }
 }
 
+private const val MAX_VISIBLE_TAGS = 8
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagSelectionSection(
@@ -178,12 +185,38 @@ fun TagSelectionSection(
     onCreateNew: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showAllTags by remember { mutableStateOf(false) }
+
+    // Sort tags: selected first, then alphabetically
+    val sortedTags = tags.sortedWith(
+        compareByDescending<Tag> { selectedTagIds.contains(it.id) }
+            .thenBy { it.name.lowercase() }
+    )
+
+    val visibleTags = if (showAllTags) sortedTags else sortedTags.take(MAX_VISIBLE_TAGS)
+    val hiddenCount = sortedTags.size - MAX_VISIBLE_TAGS
+    val hasMoreTags = hiddenCount > 0
+
     Column(modifier = modifier) {
-        Text(
-            text = "Tags auswählen",
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.upload_tags_section_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (tags.size > MAX_VISIBLE_TAGS) {
+                Text(
+                    text = "${tags.size} Tags",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -194,9 +227,10 @@ fun TagSelectionSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // "New" button
             AssistChip(
                 onClick = onCreateNew,
-                label = { Text("Neu") },
+                label = { Text(stringResource(R.string.upload_tag_new)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -206,11 +240,52 @@ fun TagSelectionSection(
                 }
             )
 
-            tags.forEach { tag ->
+            // Visible tags
+            val isDarkTheme = isSystemInDarkTheme()
+            val neonYellow = Color(0xFFE1FF8D)
+
+            visibleTags.forEach { tag ->
+                val isSelected = selectedTagIds.contains(tag.id)
                 FilterChip(
-                    selected = selectedTagIds.contains(tag.id),
+                    selected = isSelected,
                     onClick = { onToggleTag(tag.id) },
-                    label = { Text(tag.name) }
+                    label = {
+                        Text(
+                            text = tag.name,
+                            color = if (isSelected) {
+                                if (isDarkTheme) Color.Black else neonYellow
+                            } else {
+                                Color.Unspecified
+                            }
+                        )
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = if (isDarkTheme) neonYellow else Color.Black,
+                        selectedLabelColor = if (isDarkTheme) Color.Black else neonYellow
+                    )
+                )
+            }
+
+            // "Show more/less" chip
+            if (hasMoreTags) {
+                AssistChip(
+                    onClick = { showAllTags = !showAllTags },
+                    label = {
+                        Text(
+                            if (showAllTags) {
+                                stringResource(R.string.upload_tags_show_less)
+                            } else {
+                                "+$hiddenCount"
+                            }
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (showAllTags) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            modifier = Modifier.size(AssistChipDefaults.IconSize)
+                        )
+                    }
                 )
             }
         }

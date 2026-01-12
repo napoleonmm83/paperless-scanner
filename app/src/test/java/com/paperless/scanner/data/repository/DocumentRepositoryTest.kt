@@ -75,7 +75,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } returns expectedTaskId.toResponseBody()
 
         val result = documentRepository.uploadDocument(uri, "Test Document")
@@ -91,7 +91,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } returns "\"quoted-task-id\"".toResponseBody()
 
         val result = documentRepository.uploadDocument(uri)
@@ -101,13 +101,13 @@ class DocumentRepositoryTest {
     }
 
     @Test
-    fun `uploadDocument with tags sends comma separated ids`() = runTest {
+    fun `uploadDocument with tags sends separate parts for each tag`() = runTest {
         val uri = mockk<Uri>()
         val testContent = "image".toByteArray()
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } returns "task-123".toResponseBody()
 
         val result = documentRepository.uploadDocument(
@@ -121,7 +121,8 @@ class DocumentRepositoryTest {
                 document = any(),
                 title = any(),
                 tags = any(),
-                documentType = any()
+                documentType = any(),
+                correspondent = any()
             )
         }
     }
@@ -133,7 +134,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), null, null, null)
+            api.uploadDocument(any(), null, any(), null, null)
         } returns "task-id".toResponseBody()
 
         val result = documentRepository.uploadDocument(uri)
@@ -143,8 +144,9 @@ class DocumentRepositoryTest {
             api.uploadDocument(
                 document = any(),
                 title = null,
-                tags = null,
-                documentType = null
+                tags = emptyList(),
+                documentType = null,
+                correspondent = null
             )
         }
     }
@@ -156,7 +158,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } returns "task-id".toResponseBody()
 
         val result = documentRepository.uploadDocument(
@@ -175,7 +177,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } returns "task-id".toResponseBody()
 
         documentRepository.uploadDocument(uri)
@@ -203,7 +205,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(any(), any(), any(), any())
+            api.uploadDocument(any(), any(), any(), any(), any())
         } throws IOException("Network unavailable")
 
         val result = documentRepository.uploadDocument(uri)
@@ -221,7 +223,7 @@ class DocumentRepositoryTest {
 
         every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
         coEvery {
-            api.uploadDocument(capture(documentSlot), any(), any(), any())
+            api.uploadDocument(capture(documentSlot), any(), any(), any(), any())
         } returns "task-id".toResponseBody()
 
         documentRepository.uploadDocument(uri)

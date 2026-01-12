@@ -72,10 +72,13 @@ class SuggestionOrchestrator @Inject constructor(
         var aiAnalysis: DocumentAnalysis? = null
         var paperlessAnalysis: DocumentAnalysis? = null
         var localSuggestions: List<TagSuggestion> = emptyList()
+        var aiError: Throwable? = null
+        var aiAttempted = false
 
         // Step 1: Try Firebase AI (Premium only)
         if (premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)) {
             Log.d(TAG, "Premium active - attempting Firebase AI analysis")
+            aiAttempted = true
 
             val aiResult = when {
                 bitmap != null -> aiAnalysisService.analyzeImage(
@@ -99,7 +102,8 @@ class SuggestionOrchestrator @Inject constructor(
                     aiAnalysis = analysis
                     primarySource = SuggestionSource.FIREBASE_AI
                 }.onFailure { e ->
-                    Log.w(TAG, "Firebase AI analysis failed, continuing to fallback", e)
+                    Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
+                    aiError = e
                 }
             }
         } else {
@@ -122,15 +126,18 @@ class SuggestionOrchestrator @Inject constructor(
                 }
         }
 
-        // Step 3: Always try local matching (as fallback or supplement)
-        if (extractedText != null && extractedText.isNotBlank()) {
-            Log.d(TAG, "Running local tag matching")
+        // Step 3: Local matching only as FALLBACK when no AI/Paperless suggestions
+        // Skip local matching when AI analysis succeeded (AI is fully comprehensive)
+        if (aiAnalysis == null && extractedText != null && extractedText.isNotBlank()) {
+            Log.d(TAG, "No AI analysis - running local tag matching as fallback")
             localSuggestions = tagMatchingEngine.findMatchingTags(extractedText, availableTags)
             Log.d(TAG, "Local matching found ${localSuggestions.size} suggestions")
 
-            if (aiAnalysis == null && paperlessAnalysis == null) {
+            if (paperlessAnalysis == null) {
                 primarySource = SuggestionSource.LOCAL_MATCHING
             }
+        } else if (aiAnalysis != null) {
+            Log.d(TAG, "AI analysis available - skipping local matching (AI is primary source)")
         }
 
         // Merge all suggestions
@@ -141,6 +148,22 @@ class SuggestionOrchestrator @Inject constructor(
         )
 
         Log.d(TAG, "Orchestration complete: ${mergedAnalysis.suggestedTags.size} total suggestions, source: $primarySource")
+
+        // If AI was attempted but failed, and no other source provided suggestions, return error
+        if (mergedAnalysis.suggestedTags.isEmpty() && aiAttempted && aiError != null) {
+            val errorMessage = when {
+                aiError?.message?.contains("PERMISSION_DENIED") == true ->
+                    "Firebase AI nicht konfiguriert. Bitte aktiviere Vertex AI in der Firebase Console."
+                aiError?.message?.contains("timeout") == true ->
+                    "AI-Analyse Timeout. Bitte versuche es erneut."
+                aiError?.message?.contains("quota") == true ->
+                    "AI-Kontingent erschöpft. Bitte versuche es später erneut."
+                else ->
+                    "AI-Analyse fehlgeschlagen: ${aiError?.message ?: "Unbekannter Fehler"}"
+            }
+            Log.e(TAG, "All suggestion sources failed. AI error: ${aiError?.message}")
+            return@withContext SuggestionResult.Error(errorMessage, aiError)
+        }
 
         SuggestionResult.Success(
             analysis = mergedAnalysis,

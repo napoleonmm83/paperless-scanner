@@ -1,7 +1,10 @@
 package com.paperless.scanner.data.billing
 
+import androidx.annotation.VisibleForTesting
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.datastore.TokenManager
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -11,14 +14,19 @@ import javax.inject.Singleton
  * Central manager for Premium feature access control.
  *
  * This is the single source of truth for whether a Premium feature is available.
- * It combines:
- * - Subscription status (from BillingManager)
- * - User preferences (from TokenManager)
- * - Network requirements (for AI features)
+ *
+ * ## PHASE 1: Debug-Only Mode (CURRENT)
+ * AI features are only available in debug builds for internal testing.
+ * No billing/subscription required.
+ *
+ * ## PHASE 2: Production Mode (FUTURE)
+ * After successful testing, switch from BuildConfig.DEBUG to BillingManager.
+ * - Replace [_premiumAccessEnabled] with billingManager.isSubscriptionActive
+ * - Enable billing UI and purchase flow
  *
  * ARCHITECTURE: Graceful Degradation
- * - Free users: Paperless API suggestions + Local tag matching
- * - Premium users: Firebase AI + Paperless API + Local matching
+ * - Release builds: Paperless API suggestions + Local tag matching only
+ * - Debug builds: Firebase AI + Paperless API + Local matching
  *
  * Usage:
  * ```kotlin
@@ -30,7 +38,7 @@ import javax.inject.Singleton
  * ```
  *
  * @see PremiumFeature for available Premium features
- * @see BillingManager for subscription management
+ * @see BillingManager for subscription management (Phase 2)
  */
 @Singleton
 class PremiumFeatureManager @Inject constructor(
@@ -39,16 +47,48 @@ class PremiumFeatureManager @Inject constructor(
 ) {
 
     /**
+     * Internal state for premium access.
+     *
+     * PHASE 1: Initialized with BuildConfig.DEBUG OR user-activated debug mode
+     * PHASE 2: Replace with billingManager.isSubscriptionActive
+     *
+     * Debug mode can be activated by tapping 7x on app version in Settings.
+     * This allows testers to access AI features in release builds.
+     *
+     * @VisibleForTesting allows tests to override this value
+     */
+    @VisibleForTesting
+    internal val _premiumAccessEnabled = MutableStateFlow(
+        BuildConfig.DEBUG || tokenManager.isAiDebugModeEnabledSync()
+    )
+
+    /**
+     * Whether premium features are accessible.
+     * PHASE 1: Based on debug build status
+     * PHASE 2: Based on subscription status
+     */
+    val isPremiumAccessEnabled: Flow<Boolean> = _premiumAccessEnabled
+    // PHASE 2: Replace with: billingManager.isSubscriptionActive
+
+    /**
+     * Sync check for premium access status.
+     * PHASE 1: Returns BuildConfig.DEBUG (via MutableStateFlow)
+     * PHASE 2: Return billingManager.isSubscriptionActiveSync()
+     */
+    private fun isPremiumAccessEnabledSync(): Boolean = _premiumAccessEnabled.value
+    // PHASE 2: Replace with: billingManager.isSubscriptionActiveSync()
+
+    /**
      * Whether AI suggestions are enabled and available.
      * Combines:
-     * - Active Premium subscription
+     * - Debug build (Phase 1) OR Active Premium subscription (Phase 2)
      * - User preference (AI suggestions enabled in settings)
      */
     val isAiEnabled: Flow<Boolean> = combine(
-        billingManager.isSubscriptionActive,
+        _premiumAccessEnabled,
         tokenManager.aiSuggestionsEnabled
-    ) { hasSubscription, userEnabled ->
-        hasSubscription && userEnabled
+    ) { hasAccess, userEnabled ->
+        hasAccess && userEnabled
     }
 
     /**
@@ -71,18 +111,22 @@ class PremiumFeatureManager @Inject constructor(
      * Check if a specific Premium feature is available.
      * Synchronous version for immediate decision-making.
      *
+     * PHASE 1: Uses BuildConfig.DEBUG check
+     * PHASE 2: Will use billingManager.isSubscriptionActiveSync()
+     *
      * @param feature The feature to check
-     * @return true if feature is available (subscription active + preference enabled)
+     * @return true if feature is available (debug/subscription + preference enabled)
      */
     fun isFeatureAvailable(feature: PremiumFeature): Boolean {
         return when (feature) {
             PremiumFeature.AI_ANALYSIS -> {
-                // Requires active subscription (sync check)
-                billingManager.isSubscriptionActiveSync()
+                // PHASE 1: Debug build check
+                // PHASE 2: Replace with billingManager.isSubscriptionActiveSync()
+                isPremiumAccessEnabledSync()
             }
             PremiumFeature.AI_NEW_TAGS -> {
                 // Requires AI analysis + new tags enabled
-                billingManager.isSubscriptionActiveSync()
+                isPremiumAccessEnabledSync()
                 // TODO: Check tokenManager.aiNewTagsEnabled sync
             }
             PremiumFeature.AI_SUMMARY -> {
@@ -117,17 +161,20 @@ class PremiumFeatureManager @Inject constructor(
      * Require a Premium feature or return a result indicating upgrade needed.
      * Useful for feature-gated actions.
      *
+     * PHASE 1: Debug builds always have access (unless user disabled in settings)
+     * PHASE 2: Will check actual subscription status
+     *
      * @return FeatureAccessResult indicating access or upgrade required
      */
     suspend fun requireFeature(feature: PremiumFeature): FeatureAccessResult {
         return if (isFeatureAvailableAsync(feature)) {
             FeatureAccessResult.Granted
         } else {
-            if (billingManager.isSubscriptionActiveSync()) {
-                // Has subscription but feature disabled in settings
+            if (isPremiumAccessEnabledSync()) {
+                // Has access (debug/subscription) but feature disabled in settings
                 FeatureAccessResult.DisabledInSettings
             } else {
-                // No subscription
+                // No access (release build without subscription)
                 FeatureAccessResult.RequiresUpgrade
             }
         }
@@ -140,6 +187,14 @@ class PremiumFeatureManager @Inject constructor(
     fun showUpgradeDialog() {
         // TODO: Emit event to show upgrade dialog
         // Could use SharedFlow or event bus pattern
+    }
+
+    /**
+     * Refresh premium access state.
+     * Call this after enabling/disabling AI debug mode to update access immediately.
+     */
+    fun refreshPremiumAccess() {
+        _premiumAccessEnabled.value = BuildConfig.DEBUG || tokenManager.isAiDebugModeEnabledSync()
     }
 }
 

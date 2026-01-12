@@ -2,6 +2,14 @@ package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
 
+/**
+ * Source type for batch import - determines which picker to use when adding more files
+ */
+enum class BatchSourceType {
+    GALLERY,  // Photo picker (PickMultipleVisualMedia)
+    FILES     // File picker (OpenMultipleDocuments)
+}
+
 sealed class Screen(val route: String) {
     // Onboarding flow
     data object Welcome : Screen("welcome")
@@ -50,10 +58,16 @@ sealed class Screen(val route: String) {
             return "upload-multi/$encodedUris"
         }
     }
-    data object BatchImport : Screen("batch-import/{imageUris}") {
-        fun createRoute(imageUris: List<Uri>): String {
+    data object BatchImport : Screen("batch-import/{imageUris}/{sourceType}") {
+        fun createRoute(imageUris: List<Uri>, sourceType: BatchSourceType = BatchSourceType.GALLERY): String {
             val encodedUris = imageUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "batch-import/$encodedUris"
+            return "batch-import/$encodedUris/${sourceType.name}"
+        }
+    }
+    data object BatchMetadata : Screen("batch-metadata/{documentUris}/{uploadAsSingleDocument}") {
+        fun createRoute(documentUris: List<Uri>, uploadAsSingleDocument: Boolean): String {
+            val encodedUris = documentUris.joinToString("|") { Uri.encode(it.toString()) }
+            return "batch-metadata/$encodedUris/$uploadAsSingleDocument"
         }
     }
 }

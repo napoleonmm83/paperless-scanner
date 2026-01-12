@@ -2,7 +2,10 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
@@ -44,6 +47,9 @@ class DocumentDetailViewModelTest {
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var tokenManager: TokenManager
+    private lateinit var suggestionOrchestrator: SuggestionOrchestrator
+    private lateinit var aiUsageRepository: AiUsageRepository
+    private lateinit var premiumFeatureManager: PremiumFeatureManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -57,6 +63,9 @@ class DocumentDetailViewModelTest {
         correspondentRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
+        suggestionOrchestrator = mockk(relaxed = true)
+        aiUsageRepository = mockk(relaxed = true)
+        premiumFeatureManager = mockk(relaxed = true)
 
         // Default mock responses
         every { savedStateHandle.get<String>("documentId") } returns "123"
@@ -67,6 +76,7 @@ class DocumentDetailViewModelTest {
         coEvery { documentRepository.getDocumentHistory(any()) } returns Result.success(emptyList())
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
         coEvery { tokenManager.token } returns flowOf("test-token")
+        every { premiumFeatureManager.isFeatureAvailable(any()) } returns false
     }
 
     @After
@@ -82,7 +92,10 @@ class DocumentDetailViewModelTest {
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository,
-            tokenManager = tokenManager
+            tokenManager = tokenManager,
+            suggestionOrchestrator = suggestionOrchestrator,
+            aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager
         )
     }
 

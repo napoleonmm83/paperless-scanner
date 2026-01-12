@@ -14,14 +14,18 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.util.NetworkUtils
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,6 +68,7 @@ class UploadViewModelTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var aiUsageRepository: AiUsageRepository
+    private lateinit var premiumFeatureManager: PremiumFeatureManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -79,6 +84,13 @@ class UploadViewModelTest {
         every { Log.w(any(), any<String>()) } returns 0
         every { Log.i(any(), any()) } returns 0
 
+        // Mock FileUtils for offline queueing tests
+        // FileUtils copies content URIs to local storage - mock to return the same URI
+        mockkObject(FileUtils)
+        every { FileUtils.isLocalFileUri(any()) } returns true
+        every { FileUtils.copyToLocalStorage(any(), any()) } answers { secondArg() }
+        every { FileUtils.deleteLocalCopy(any()) } returns true
+
         context = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
@@ -90,6 +102,7 @@ class UploadViewModelTest {
         analyticsService = mockk(relaxed = true)
         suggestionOrchestrator = mockk(relaxed = true)
         aiUsageRepository = mockk(relaxed = true)
+        premiumFeatureManager = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -113,6 +126,7 @@ class UploadViewModelTest {
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
             ioDispatcher = testDispatcher
         )
     }
@@ -121,6 +135,7 @@ class UploadViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
         unmockkStatic(Log::class)
+        unmockkObject(FileUtils)
     }
 
     // ==================== Reactive Flow Tests ====================
@@ -145,6 +160,7 @@ class UploadViewModelTest {
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -178,6 +194,7 @@ class UploadViewModelTest {
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -503,7 +520,7 @@ class UploadViewModelTest {
         val strictTagRepository = mockk<TagRepository>()
         every { strictTagRepository.observeTags() } returns flowOf(emptyList())
         coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
-            Result.failure(Exception("Tag already exists"))
+            Result.failure(Exception("Network error"))
 
         val testViewModel = UploadViewModel(
             context = context,
@@ -517,17 +534,55 @@ class UploadViewModelTest {
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
 
-        testViewModel.createTag(name = "Duplicate")
+        testViewModel.createTag(name = "NewTag")
         advanceUntilIdle()
 
         testViewModel.createTagState.test {
             val state = awaitItem()
             assertTrue("Expected CreateTagState.Error but got ${state::class.simpleName}", state is CreateTagState.Error)
-            assertEquals("Tag already exists", (state as CreateTagState.Error).message)
+            assertEquals("Network error", (state as CreateTagState.Error).message)
+        }
+    }
+
+    @Test
+    fun `createTag recovers existing tag when duplicate error occurs`() = runTest {
+        // Create a non-relaxed mock to ensure our stub is used
+        val existingTag = Tag(id = 42, name = "Existing", color = "#FF0000", match = null)
+        val strictTagRepository = mockk<TagRepository>()
+        every { strictTagRepository.observeTags() } returns flowOf(listOf(existingTag))
+        coEvery { strictTagRepository.getTags(forceRefresh = true) } returns Result.success(listOf(existingTag))
+        coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
+            Result.failure(Exception("Object violates owner / name unique constraint"))
+
+        val testViewModel = UploadViewModel(
+            context = context,
+            documentRepository = documentRepository,
+            tagRepository = strictTagRepository,
+            documentTypeRepository = documentTypeRepository,
+            correspondentRepository = correspondentRepository,
+            networkUtils = networkUtils,
+            uploadQueueRepository = uploadQueueRepository,
+            networkMonitor = networkMonitor,
+            analyticsService = analyticsService,
+            suggestionOrchestrator = suggestionOrchestrator,
+            aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
+            ioDispatcher = testDispatcher
+        )
+        advanceUntilIdle()
+
+        testViewModel.createTag(name = "Existing")
+        advanceUntilIdle()
+
+        testViewModel.createTagState.test {
+            val state = awaitItem()
+            assertTrue("Expected CreateTagState.Success but got ${state::class.simpleName}", state is CreateTagState.Success)
+            assertEquals(existingTag, (state as CreateTagState.Success).tag)
         }
     }
 
@@ -551,6 +606,7 @@ class UploadViewModelTest {
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

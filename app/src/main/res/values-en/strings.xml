@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Retry</string>
     <string name="upload_progress">Uploading: %1$d%%</string>
     <string name="upload_uploading">Uploading...</string>
+    <string name="upload_tags_section_title">Select tags</string>
+    <string name="upload_tag_new">New</string>
+    <string name="upload_tags_show_less">Show less</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Batch Import</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Individual</string>
     <string name="batch_import_button_single">As one document</string>
     <string name="batch_import_preview">Preview</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Image %1$d</string>
+    <string name="batch_import_pdf_file">PDF file</string>
+    <string name="batch_import_file">File</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Document type (for all)</string>
     <string name="batch_import_correspondent">Correspondent (for all)</string>
     <string name="batch_import_tags">Tags (for all)</string>
     <string name="batch_import_not_selected">Not selected</string>
     <string name="batch_import_adding_progress">Adding: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Tag \"%1$s\" created</string>
     <string name="batch_import_adding">Adding...</string>
-    <string name="batch_import_button">Import %1$d images</string>
+    <string name="batch_import_button">Upload</string>
+    <string name="batch_import_tap_to_remove">Tap to remove</string>
+    <string name="batch_import_remove">Remove</string>
+    <string name="batch_import_failed_title">Import failed</string>
+    <string name="batch_import_retry">Retry</string>
+    <string name="batch_import_hold_to_sort">Hold to reorder</string>
+    <string name="batch_import_add_more">Add more</string>
+    <string name="batch_import_rotate">Rotate</string>
+    <string name="batch_import_drag_hint">Drag to sort</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadata</string>
+    <string name="batch_metadata_mode_single_info">%1$d files will be merged into one PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d files will be uploaded individually</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Upload PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Almost full</string>
     <string name="scan_upload_single">Upload</string>
     <string name="scan_upload_pdf">Upload as PDF</string>
+    <string name="scan_add_metadata">Add metadata</string>
     <string name="scan_more_pages">More pages</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Discard</string>
@@ -577,6 +599,27 @@
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Restore Purchases</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Suggestions</string>
+    <string name="suggestions_ai_title">AI Suggestions</string>
+    <string name="suggestions_analyzing">Analyzing document...</string>
+    <string name="suggestions_apply">Apply</string>
+    <string name="suggestions_apply_all">Apply all</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Local</string>
+    <string name="suggestions_tag_suggestion">Tag suggestion</string>
+    <string name="suggestions_title_suggestion">Title suggestion</string>
+    <string name="suggestions_correspondent_suggestion">Correspondent suggestion</string>
+    <string name="suggestions_type_suggestion">Type suggestion</string>
+    <string name="suggestions_no_suggestions">No suggestions</string>
+    <string name="suggestions_confidence">%1$d%% confidence</string>
+    <string name="suggestions_new_tag">New tag</string>
+    <string name="suggestions_get_suggestions">Get suggestions</string>
+    <string name="cd_suggestions">Suggestions</string>
+    <string name="cd_ai_sparkle">AI feature</string>
+    <string name="cd_apply_suggestion">Apply suggestion</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium successfully activated!</string>
@@ -585,4 +628,8 @@
     <string name="premium_restore_success">%1$d purchases restored</string>
     <string name="premium_restore_none">No purchases found</string>
     <string name="premium_restore_error">Restore error: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d steps remaining for developer mode</string>
+    <string name="settings_debug_mode_enabled">AI developer mode enabled</string>
+    <string name="settings_debug_mode_disabled">AI developer mode disabled</string>
+    <string name="settings_debug_mode_already_enabled">Developer mode is already enabled</string>
 </resources>

@@ -41,7 +41,9 @@ data class SettingsUiState(
     val premiumExpiryDate: String? = null,
     val aiSuggestionsEnabled: Boolean = true,
     val aiNewTagsEnabled: Boolean = true,
-    val aiWifiOnly: Boolean = false
+    val aiWifiOnly: Boolean = false,
+    // Debug mode (unlocked by 7x tap on version)
+    val aiDebugModeEnabled: Boolean = false
 )
 
 @HiltViewModel
@@ -74,6 +76,7 @@ class SettingsViewModel @Inject constructor(
             val aiSuggestionsEnabled = tokenManager.aiSuggestionsEnabled.first()
             val aiNewTagsEnabled = tokenManager.aiNewTagsEnabled.first()
             val aiWifiOnly = tokenManager.aiWifiOnly.first()
+            val aiDebugModeEnabled = tokenManager.aiDebugModeEnabled.first()
 
             _uiState.value = SettingsUiState(
                 serverUrl = serverUrl,
@@ -86,7 +89,8 @@ class SettingsViewModel @Inject constructor(
                 premiumExpiryDate = null, // TODO: Get from BillingManager when available
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
                 aiNewTagsEnabled = aiNewTagsEnabled,
-                aiWifiOnly = aiWifiOnly
+                aiWifiOnly = aiWifiOnly,
+                aiDebugModeEnabled = aiDebugModeEnabled
             )
 
             // Observe Premium status changes
@@ -120,6 +124,13 @@ class SettingsViewModel @Inject constructor(
                 tokenManager.themeMode.collect { modeKey ->
                     val mode = ThemeMode.entries.find { it.key == modeKey } ?: ThemeMode.SYSTEM
                     _uiState.value = _uiState.value.copy(themeMode = mode)
+                }
+            }
+
+            // Observe AI debug mode changes
+            launch {
+                tokenManager.aiDebugModeEnabled.collect { enabled ->
+                    _uiState.value = _uiState.value.copy(aiDebugModeEnabled = enabled)
                 }
             }
         }
@@ -178,6 +189,18 @@ class SettingsViewModel @Inject constructor(
     fun setAiWifiOnly(enabled: Boolean) {
         viewModelScope.launch {
             tokenManager.setAiWifiOnly(enabled)
+        }
+    }
+
+    /**
+     * Enable or disable AI debug mode (unlocked by 7x tap on version).
+     * This allows testers to access AI features in release builds.
+     */
+    fun setAiDebugModeEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            tokenManager.setAiDebugModeEnabled(enabled)
+            // Refresh premium access to pick up the change immediately
+            premiumFeatureManager.refreshPremiumAccess()
         }
     }
 

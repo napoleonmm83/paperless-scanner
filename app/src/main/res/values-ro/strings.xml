@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Reîncearcă</string>
     <string name="upload_progress">Se încarcă: %1$d%%</string>
     <string name="upload_uploading">Se încarcă...</string>
+    <string name="upload_tags_section_title">Selectați etichete</string>
+    <string name="upload_tag_new">Nou</string>
+    <string name="upload_tags_show_less">Mai puțin</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Import în masă</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Separat</string>
     <string name="batch_import_button_single">Ca un singur document</string>
     <string name="batch_import_preview">Previzualizare</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Imagine %1$d</string>
+    <string name="batch_import_pdf_file">Fișier PDF</string>
+    <string name="batch_import_file">Fișier</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Tip document (pentru toate)</string>
     <string name="batch_import_correspondent">Corespondent (pentru toate)</string>
     <string name="batch_import_tags">Etichete (pentru toate)</string>
     <string name="batch_import_not_selected">Neselectat</string>
     <string name="batch_import_adding_progress">Se adaugă: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">Eticheta \"%1$s\" creată</string>
     <string name="batch_import_adding">Se adaugă...</string>
-    <string name="batch_import_button">Importă %1$d imagini</string>
+    <string name="batch_import_button">Încarcă</string>
+    <string name="batch_import_tap_to_remove">Atingeți pentru a elimina</string>
+    <string name="batch_import_remove">Elimină</string>
+    <string name="batch_import_failed_title">Import eșuat</string>
+    <string name="batch_import_retry">Reîncearcă</string>
+    <string name="batch_import_hold_to_sort">Țineți apăsat pentru reordonare</string>
+    <string name="batch_import_add_more">Adaugă mai multe</string>
+    <string name="batch_import_rotate">Rotește</string>
+    <string name="batch_import_drag_hint">Trageți pentru a sorta</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metadate</string>
+    <string name="batch_metadata_mode_single_info">%1$d fișiere vor fi unite într-un PDF</string>
+    <string name="batch_metadata_mode_individual_info">%1$d fișiere vor fi încărcate individual</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Încarcă PDF</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Aproape plin</string>
     <string name="scan_upload_single">Încarcă</string>
     <string name="scan_upload_pdf">Încarcă ca PDF</string>
+    <string name="scan_add_metadata">Adaugă metadate</string>
     <string name="scan_more_pages">Mai multe pagini</string>
     <string name="scan_maximum">Maxim</string>
     <string name="scan_discard">Renunță</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Mai târziu</string>
     <string name="premium_button_restore">Restabilește achizițiile</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Sugestii</string>
+    <string name="suggestions_ai_title">Sugestii AI</string>
+    <string name="suggestions_analyzing">Se analizează documentul...</string>
+    <string name="suggestions_apply">Aplică</string>
+    <string name="suggestions_apply_all">Aplică toate</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Local</string>
+    <string name="suggestions_tag_suggestion">Sugestie etichetă</string>
+    <string name="suggestions_title_suggestion">Sugestie titlu</string>
+    <string name="suggestions_correspondent_suggestion">Sugestie corespondent</string>
+    <string name="suggestions_type_suggestion">Sugestie tip</string>
+    <string name="suggestions_no_suggestions">Fără sugestii</string>
+    <string name="suggestions_confidence">%1$d%% încredere</string>
+    <string name="suggestions_new_tag">Etichetă nouă</string>
+    <string name="suggestions_get_suggestions">Obține sugestii</string>
+    <string name="cd_suggestions">Sugestii</string>
+    <string name="cd_ai_sparkle">Funcție AI</string>
+    <string name="cd_apply_suggestion">Aplică sugestie</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium activat cu succes!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d achiziții restabilite</string>
     <string name="premium_restore_none">Nu s-au găsit achiziții</string>
     <string name="premium_restore_error">Eroare restabilire: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Încă %1$d pași până la modul dezvoltator</string>
+    <string name="settings_debug_mode_enabled">Modul dezvoltator AI activat</string>
+    <string name="settings_debug_mode_disabled">Modul dezvoltator AI dezactivat</string>
+    <string name="settings_debug_mode_already_enabled">Modul dezvoltator este deja activat</string>
 </resources>

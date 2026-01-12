@@ -669,3 +669,116 @@ HttpLoggingInterceptor().apply {
 | `Token not found` | Login fehlgeschlagen | Credentials prüfen |
 | `Scanner not available` | Kein Google Play | Gerät mit Play Services |
 | `CLEARTEXT not permitted` | HTTP ohne Config | network_security_config prüfen |
+
+---
+
+## 10. UI-Komponenten
+
+### 10.1 Animierter Rahmen (AI-Vorschlag-Kachel)
+
+Die AI-Vorschlag-Kachel (`SuggestionsSection.kt`) verwendet einen animierten, rotierenden Gradient-Rahmen:
+
+**Implementierung:**
+
+```kotlin
+// Animation Setup
+val infiniteTransition = rememberInfiniteTransition(label = "border_animation")
+val rotation by infiniteTransition.animateFloat(
+    initialValue = 0f,
+    targetValue = 360f,
+    animationSpec = infiniteRepeatable(
+        animation = tween(durationMillis = 3000, easing = LinearEasing),
+        repeatMode = RepeatMode.Restart
+    ),
+    label = "border_rotation"
+)
+
+// Gradient Colors (theme-aware)
+val gradientColors = if (isDarkTheme) {
+    // Dark mode: Neon-gelb Primary
+    listOf(primaryColor, primaryColor.copy(alpha = 0.7f), ...)
+} else {
+    // Light mode: Primary + Cyan-Akzent
+    listOf(primaryColor, accentColor.copy(alpha = 0.8f), ...)
+}
+
+// Draw animated border
+Box(
+    modifier = modifier
+        .clip(shape)
+        .drawBehind {
+            rotate(rotation) {
+                drawCircle(
+                    brush = Brush.sweepGradient(gradientColors),
+                    radius = size.maxDimension,
+                    center = Offset(size.width / 2, size.height / 2)
+                )
+            }
+        }
+        .padding(borderWidth.dp)
+        .clip(shape)
+        .background(MaterialTheme.colorScheme.surface)
+)
+```
+
+**Eigenschaften:**
+
+| Eigenschaft | Wert |
+|-------------|------|
+| Animationsdauer | 3 Sekunden (volle Rotation) |
+| Rahmenbreite | 1.5dp |
+| Easing | LinearEasing (gleichmäßig) |
+| Dark Mode Farbe | Primary (`#E1FF8D` neon-gelb) |
+| Light Mode Farbe | Primary + Cyan (`#00BCD4`) Akzent |
+
+### 10.2 Scan-Option-Karten (Theme-aware Content Color)
+
+Die Scan-Optionen auf dem ScanScreen verwenden dynamische Content-Farben für korrekten Kontrast in beiden Themes:
+
+**Problem:**
+- Light Mode: `primary` = `#0A0A0A` (schwarz)
+- Hardcodierte `Color.Black` für Icon/Text → unsichtbar auf schwarzem Hintergrund
+
+**Lösung:**
+
+```kotlin
+@Composable
+private fun ScanOptionCard(
+    icon: ImageVector,
+    label: String,
+    backgroundColor: Color,
+    contentColor: Color,  // NEU: Dynamische Content-Farbe
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(...) {
+        Icon(
+            imageVector = icon,
+            tint = contentColor.copy(alpha = 0.9f)  // Verwendet contentColor
+        )
+        Text(
+            text = label,
+            color = contentColor  // Verwendet contentColor
+        )
+    }
+}
+
+// Verwendung:
+ScanOptionCard(
+    backgroundColor = MaterialTheme.colorScheme.primary,
+    contentColor = MaterialTheme.colorScheme.onPrimary,  // Automatisch korrekt!
+    // ...
+)
+```
+
+**Farbzuordnung:**
+
+| Karte | Background | Content Color (Dark) | Content Color (Light) |
+|-------|------------|---------------------|----------------------|
+| Scan | `primary` | `#000000` (schwarz) | `#E1FF8D` (neon-gelb) |
+| Galerie | `#8DD7FF` | `#000000` (schwarz) | `#000000` (schwarz) |
+| Dateien | `#B88DFF` | `#000000` (schwarz) | `#000000` (schwarz) |
+
+**Ergebnis:**
+- Dark Mode: Neon-gelber Hintergrund mit schwarzem Icon/Text ✓
+- Light Mode: Schwarzer Hintergrund mit neon-gelbem Icon/Text ✓

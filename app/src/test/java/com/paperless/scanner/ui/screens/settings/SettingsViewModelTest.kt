@@ -53,6 +53,7 @@ class SettingsViewModelTest {
         coEvery { tokenManager.aiSuggestionsEnabled } returns flowOf(true)
         coEvery { tokenManager.aiNewTagsEnabled } returns flowOf(true)
         coEvery { tokenManager.aiWifiOnly } returns flowOf(false)
+        coEvery { tokenManager.aiDebugModeEnabled } returns flowOf(false)
         every { billingManager.isSubscriptionActive } returns flowOf(false)
         every { billingManager.isSubscriptionActiveSync() } returns false
     }

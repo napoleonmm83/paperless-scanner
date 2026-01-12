@@ -73,7 +73,7 @@ interface PaperlessApi {
     suspend fun uploadDocument(
         @Part document: MultipartBody.Part,
         @Part("title") title: RequestBody? = null,
-        @Part("tags") tags: RequestBody? = null,
+        @Part tags: List<MultipartBody.Part> = emptyList(),
         @Part("document_type") documentType: RequestBody? = null,
         @Part("correspondent") correspondent: RequestBody? = null
     ): ResponseBody

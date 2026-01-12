@@ -59,8 +59,19 @@ class TagRepository @Inject constructor(
         }
     }
 
-    suspend fun createTag(name: String, color: String? = null): Result<Tag> = safeApiCall {
-        api.createTag(CreateTagRequest(name = name, color = color)).toDomain()
+    suspend fun createTag(name: String, color: String? = null): Result<Tag> {
+        return try {
+            val response = api.createTag(CreateTagRequest(name = name, color = color))
+            val domainTag = response.toDomain()
+
+            // Insert into cache to trigger reactive Flow update immediately
+            // This ensures the new tag appears in existingTags right away
+            cachedTagDao.insert(response.toCachedEntity())
+
+            Result.success(domainTag)
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
     }
 
     suspend fun updateTag(id: Int, name: String, color: String? = null): Result<Tag> = safeApiCall {

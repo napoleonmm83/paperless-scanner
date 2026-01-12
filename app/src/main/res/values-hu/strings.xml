@@ -51,6 +51,9 @@
     <string name="upload_retry_button">Újrapróbálás</string>
     <string name="upload_progress">Feltöltés: %1$d%%</string>
     <string name="upload_uploading">Feltöltés...</string>
+    <string name="upload_tags_section_title">Címkék kiválasztása</string>
+    <string name="upload_tag_new">Új</string>
+    <string name="upload_tags_show_less">Kevesebb</string>
 
     <!-- Batch Import Screen -->
     <string name="batch_import_title">Tömeges importálás</string>
@@ -63,15 +66,33 @@
     <string name="batch_import_button_individual">Különálló</string>
     <string name="batch_import_button_single">Egy dokumentumként</string>
     <string name="batch_import_preview">Előnézet</string>
+    <string name="batch_import_title_label"></string>
+    <string name="batch_import_title_placeholder"></string>
     <string name="batch_import_image_description">Kép %1$d</string>
+    <string name="batch_import_pdf_file">PDF fájl</string>
+    <string name="batch_import_file">Fájl</string>
     <string name="batch_import_more_images">+%1$d</string>
     <string name="batch_import_document_type">Dokumentum típus (mindhez)</string>
     <string name="batch_import_correspondent">Levelező (mindhez)</string>
     <string name="batch_import_tags">Címkék (mindhez)</string>
     <string name="batch_import_not_selected">Nincs kiválasztva</string>
     <string name="batch_import_adding_progress">Hozzáadás: %1$d / %2$d</string>
+    <string name="batch_import_tag_created">„%1$s" címke létrehozva</string>
     <string name="batch_import_adding">Hozzáadás...</string>
-    <string name="batch_import_button">%1$d kép importálása</string>
+    <string name="batch_import_button">Feltöltés</string>
+    <string name="batch_import_tap_to_remove">Koppintson az eltávolításhoz</string>
+    <string name="batch_import_remove">Eltávolítás</string>
+    <string name="batch_import_failed_title">Importálás sikertelen</string>
+    <string name="batch_import_retry">Újra</string>
+    <string name="batch_import_hold_to_sort">Tartsa lenyomva az átrendezéshez</string>
+    <string name="batch_import_add_more">Továbbiak hozzáadása</string>
+    <string name="batch_import_rotate">Forgatás</string>
+    <string name="batch_import_drag_hint">Húzza a rendezéshez</string>
+
+    <!-- Batch Metadata Screen -->
+    <string name="batch_metadata_title">Metaadatok</string>
+    <string name="batch_metadata_mode_single_info">%1$d fájl egy PDF-fé egyesül</string>
+    <string name="batch_metadata_mode_individual_info">%1$d fájl egyenként töltődik fel</string>
 
     <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF feltöltése</string>
@@ -219,6 +240,7 @@
     <string name="scan_almost_full">Majdnem megtelt</string>
     <string name="scan_upload_single">Feltöltés</string>
     <string name="scan_upload_pdf">Feltöltés PDF-ként</string>
+    <string name="scan_add_metadata">Metaadatok hozzáadása</string>
     <string name="scan_more_pages">További oldalak</string>
     <string name="scan_maximum">Maximum</string>
     <string name="scan_discard">Elvetés</string>
@@ -578,6 +600,27 @@
     <string name="premium_button_later">Később</string>
     <string name="premium_button_restore">Vásárlások visszaállítása</string>
 
+    <!-- Suggestions Section -->
+    <string name="suggestions_title">Javaslatok</string>
+    <string name="suggestions_ai_title">AI javaslatok</string>
+    <string name="suggestions_analyzing">Dokumentum elemzése...</string>
+    <string name="suggestions_apply">Alkalmaz</string>
+    <string name="suggestions_apply_all">Összes alkalmazása</string>
+    <string name="suggestions_source_ai">AI</string>
+    <string name="suggestions_source_paperless">Paperless</string>
+    <string name="suggestions_source_local">Helyi</string>
+    <string name="suggestions_tag_suggestion">Címke javaslat</string>
+    <string name="suggestions_title_suggestion">Cím javaslat</string>
+    <string name="suggestions_correspondent_suggestion">Levelező javaslat</string>
+    <string name="suggestions_type_suggestion">Típus javaslat</string>
+    <string name="suggestions_no_suggestions">Nincs javaslat</string>
+    <string name="suggestions_confidence">%1$d%% bizonyosság</string>
+    <string name="suggestions_new_tag">Új címke</string>
+    <string name="suggestions_get_suggestions">Javaslatok lekérése</string>
+    <string name="cd_suggestions">Javaslatok</string>
+    <string name="cd_ai_sparkle">AI funkció</string>
+    <string name="cd_apply_suggestion">Javaslat alkalmazása</string>
+
     <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium sikeresen aktiválva!</string>
@@ -586,4 +629,8 @@
     <string name="premium_restore_success">%1$d vásárlás visszaállítva</string>
     <string name="premium_restore_none">Nem találhatók vásárlások</string>
     <string name="premium_restore_error">Visszaállítási hiba: %1$s</string>
+    <string name="settings_debug_mode_steps_remaining">Még %1$d lépés a fejlesztői módhoz</string>
+    <string name="settings_debug_mode_enabled">AI fejlesztői mód bekapcsolva</string>
+    <string name="settings_debug_mode_disabled">AI fejlesztői mód kikapcsolva</string>
+    <string name="settings_debug_mode_already_enabled">A fejlesztői mód már be van kapcsolva</string>
 </resources>
