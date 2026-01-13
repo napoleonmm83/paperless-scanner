@@ -351,20 +351,36 @@ jobs:
         id: bump_version
         shell: bash
         run: |
-          # Read current version
-          MAJOR=$(grep VERSION_MAJOR version.properties | cut -d'=' -f2)
-          MINOR=$(grep VERSION_MINOR version.properties | cut -d'=' -f2)
-          PATCH=$(grep VERSION_PATCH version.properties | cut -d'=' -f2)
+          # Read current version (tr -d removes Windows line endings)
+          MAJOR=$(grep VERSION_MAJOR version.properties | cut -d'=' -f2 | tr -d '\r\n')
+          MINOR=$(grep VERSION_MINOR version.properties | cut -d'=' -f2 | tr -d '\r\n')
+          PATCH=$(grep VERSION_PATCH version.properties | cut -d'=' -f2 | tr -d '\r\n')
+
+          # Default to 0 if empty
+          PATCH=${PATCH:-0}
+
+          echo "Current version: $MAJOR.$MINOR.$PATCH"
 
           # Increment patch
           NEW_PATCH=$((PATCH + 1))
 
-          # Update version.properties (sed works differently on macOS)
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/VERSION_PATCH=.*/VERSION_PATCH=$NEW_PATCH/" version.properties
-          else
-            sed -i "s/VERSION_PATCH=.*/VERSION_PATCH=$NEW_PATCH/" version.properties
-          fi
+          echo "New patch version: $NEW_PATCH"
+
+          # Update version.properties using printf (more reliable than sed)
+          cat > version.properties << EOF
+# App Version Configuration
+# Format: MAJOR.MINOR.PATCH
+#
+# MAJOR: Breaking changes / Major releases
+# MINOR: New features (backwards compatible)
+# PATCH: Bug fixes (backwards compatible)
+#
+# versionCode is auto-calculated: MAJOR * 10000 + MINOR * 100 + PATCH
+
+VERSION_MAJOR=$MAJOR
+VERSION_MINOR=$MINOR
+VERSION_PATCH=$NEW_PATCH
+EOF
 
           # Output new version
           NEW_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
