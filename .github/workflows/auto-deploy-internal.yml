@@ -1,6 +1,7 @@
 name: Auto Deploy to Internal Track
 
 on:
+  workflow_dispatch:  # Manueller Trigger via GitHub UI oder CLI
   push:
     branches:
       - main
