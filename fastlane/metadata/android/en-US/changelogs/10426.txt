@@ -1,0 +1,13 @@
+Version 1.4.26:
+
+✨ New Features:
+- Labels view completely redesigned
+- New single-column design for better readability
+- Sorting: Name A-Z/Z-A, Document count, Date
+- Filtering: All, With documents, Empty, More than 5 documents
+- Sort & Filter via Bottom Sheet
+
+🐛 Bug Fixes:
+- Labels now update automatically after changes
+- Document count displays correctly
+- Android back button works properly

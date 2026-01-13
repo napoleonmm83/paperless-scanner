@@ -1,0 +1,5 @@
+Paperless Scanner - Your mobile document scanner for Paperless-ngx
+
+New features and improvements in this version.
+
+For questions or feedback visit our GitHub repository.
