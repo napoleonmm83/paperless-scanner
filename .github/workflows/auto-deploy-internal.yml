@@ -44,25 +44,17 @@ jobs:
 
           echo "API Response: $RESPONSE"
 
-          # Check for Windows runner (Priority 1)
+          # Check for Windows runner only (Mac runner removed - too slow)
           WINDOWS_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperlesswin"])))) | length' 2>/dev/null || echo "0")
 
-          # Check for Mac runner (Priority 2)
-          MAC_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperless"])) and (.labels | map(.name) | contains(["macOS"])))) | length' 2>/dev/null || echo "0")
-
           echo "Windows runners online: $WINDOWS_ONLINE"
-          echo "Mac runners online: $MAC_ONLINE"
 
           if [ "$WINDOWS_ONLINE" -gt 0 ]; then
-            echo "✅ Windows runner available - using it (Priority 1)"
+            echo "✅ Windows runner available - using it"
             echo 'runner=["self-hosted", "paperlesswin"]' >> $GITHUB_OUTPUT
             echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
-          elif [ "$MAC_ONLINE" -gt 0 ]; then
-            echo "✅ Mac runner available - using it (Priority 2)"
-            echo 'runner=["self-hosted", "paperless"]' >> $GITHUB_OUTPUT
-            echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
           else
-            echo "⚠️ No self-hosted runner available - falling back to ubuntu-latest"
+            echo "⚠️ No Windows runner available - falling back to ubuntu-latest"
             echo 'runner=["ubuntu-latest"]' >> $GITHUB_OUTPUT
             echo 'is-self-hosted=false' >> $GITHUB_OUTPUT
           fi
