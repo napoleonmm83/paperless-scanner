@@ -93,19 +93,33 @@ class SyncManager @Inject constructor(
     private suspend fun syncTags() {
         try {
             Log.d(TAG, "Syncing tags...")
+
+            // Step 1: Get all cached tag IDs BEFORE sync
+            val cachedIdsBefore = cachedTagDao.getAllIds().toSet()
+
+            // Step 2: Fetch and insert tags from API
             var page = 1
             var hasMore = true
+            val syncedIds = mutableSetOf<Int>()
 
             while (hasMore) {
                 val response = api.getTags(page = page, pageSize = 100)
                 val cachedTags = response.results.map { it.toCachedEntity() }
                 cachedTagDao.insertAll(cachedTags)
+                syncedIds.addAll(cachedTags.map { it.id })
 
                 hasMore = response.next != null
                 page++
             }
 
-            Log.d(TAG, "Tags synced successfully")
+            // Step 3: Remove orphaned tags (deleted on server)
+            val orphanedIds = cachedIdsBefore - syncedIds
+            if (orphanedIds.isNotEmpty()) {
+                Log.d(TAG, "Removing ${orphanedIds.size} orphaned tags")
+                cachedTagDao.deleteByIds(orphanedIds.toList())
+            }
+
+            Log.d(TAG, "Tags synced successfully: ${syncedIds.size} synced, ${orphanedIds.size} removed")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync tags", e)
             throw e
@@ -115,19 +129,33 @@ class SyncManager @Inject constructor(
     private suspend fun syncCorrespondents() {
         try {
             Log.d(TAG, "Syncing correspondents...")
+
+            // Step 1: Get all cached correspondent IDs BEFORE sync
+            val cachedIdsBefore = cachedCorrespondentDao.getAllIds().toSet()
+
+            // Step 2: Fetch and insert correspondents from API
             var page = 1
             var hasMore = true
+            val syncedIds = mutableSetOf<Int>()
 
             while (hasMore) {
                 val response = api.getCorrespondents(page = page, pageSize = 100)
                 val cachedCorrespondents = response.results.map { it.toCachedEntity() }
                 cachedCorrespondentDao.insertAll(cachedCorrespondents)
+                syncedIds.addAll(cachedCorrespondents.map { it.id })
 
                 hasMore = response.next != null
                 page++
             }
 
-            Log.d(TAG, "Correspondents synced successfully")
+            // Step 3: Remove orphaned correspondents (deleted on server)
+            val orphanedIds = cachedIdsBefore - syncedIds
+            if (orphanedIds.isNotEmpty()) {
+                Log.d(TAG, "Removing ${orphanedIds.size} orphaned correspondents")
+                cachedCorrespondentDao.deleteByIds(orphanedIds.toList())
+            }
+
+            Log.d(TAG, "Correspondents synced successfully: ${syncedIds.size} synced, ${orphanedIds.size} removed")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync correspondents", e)
             throw e
@@ -137,19 +165,33 @@ class SyncManager @Inject constructor(
     private suspend fun syncDocumentTypes() {
         try {
             Log.d(TAG, "Syncing document types...")
+
+            // Step 1: Get all cached document type IDs BEFORE sync
+            val cachedIdsBefore = cachedDocumentTypeDao.getAllIds().toSet()
+
+            // Step 2: Fetch and insert document types from API
             var page = 1
             var hasMore = true
+            val syncedIds = mutableSetOf<Int>()
 
             while (hasMore) {
                 val response = api.getDocumentTypes(page = page, pageSize = 100)
                 val cachedTypes = response.results.map { it.toCachedEntity() }
                 cachedDocumentTypeDao.insertAll(cachedTypes)
+                syncedIds.addAll(cachedTypes.map { it.id })
 
                 hasMore = response.next != null
                 page++
             }
 
-            Log.d(TAG, "Document types synced successfully")
+            // Step 3: Remove orphaned document types (deleted on server)
+            val orphanedIds = cachedIdsBefore - syncedIds
+            if (orphanedIds.isNotEmpty()) {
+                Log.d(TAG, "Removing ${orphanedIds.size} orphaned document types")
+                cachedDocumentTypeDao.deleteByIds(orphanedIds.toList())
+            }
+
+            Log.d(TAG, "Document types synced successfully: ${syncedIds.size} synced, ${orphanedIds.size} removed")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync document types", e)
             throw e
@@ -159,14 +201,24 @@ class SyncManager @Inject constructor(
     private suspend fun syncDocuments() {
         try {
             Log.d(TAG, "Syncing documents...")
+
+            // Step 1: Get all cached document IDs BEFORE sync
+            val cachedIdsBefore = cachedDocumentDao.getAllIds().toSet()
+            Log.d(TAG, "Cached documents before sync: ${cachedIdsBefore.size}")
+
+            // Step 2: Fetch and insert documents from API
             var page = 1
             var hasMore = true
             var totalSynced = 0
+            val syncedIds = mutableSetOf<Int>()
 
             while (hasMore) {
                 val response = api.getDocuments(page = page, pageSize = 100)
                 val cachedDocuments = response.results.map { it.toCachedEntity() }
                 cachedDocumentDao.insertAll(cachedDocuments)
+
+                // Track which IDs we received from the server
+                syncedIds.addAll(cachedDocuments.map { it.id })
 
                 totalSynced += cachedDocuments.size
                 hasMore = response.next != null
@@ -177,6 +229,13 @@ class SyncManager @Inject constructor(
                 }
             }
 
+            // Step 3: Detect and remove orphaned documents (deleted on server)
+            val orphanedIds = cachedIdsBefore - syncedIds
+            if (orphanedIds.isNotEmpty()) {
+                Log.d(TAG, "Removing ${orphanedIds.size} orphaned documents (deleted on server): $orphanedIds")
+                cachedDocumentDao.deleteByIds(orphanedIds.toList())
+            }
+
             syncMetadataDao.insertOrUpdate(
                 SyncMetadata(
                     key = "documents_synced_count",
@@ -184,7 +243,14 @@ class SyncManager @Inject constructor(
                 )
             )
 
-            Log.d(TAG, "Documents synced successfully: $totalSynced total")
+            syncMetadataDao.insertOrUpdate(
+                SyncMetadata(
+                    key = "documents_removed_count",
+                    value = orphanedIds.size.toString()
+                )
+            )
+
+            Log.d(TAG, "Documents synced successfully: $totalSynced synced, ${orphanedIds.size} removed")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to sync documents", e)
             throw e

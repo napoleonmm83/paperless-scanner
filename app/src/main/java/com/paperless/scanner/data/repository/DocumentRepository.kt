@@ -502,8 +502,8 @@ class DocumentRepository @Inject constructor(
                 val response = api.deleteDocument(documentId)
 
                 if (response.isSuccessful) {
-                    // Soft delete from cache
-                    cachedDocumentDao.softDelete(documentId)
+                    // Hard delete from cache - document is confirmed deleted on server
+                    cachedDocumentDao.hardDelete(documentId)
                     Result.success(Unit)
                 } else {
                     Result.failure(
@@ -524,6 +524,7 @@ class DocumentRepository @Inject constructor(
                 pendingChangeDao.insert(pendingChange)
 
                 // Soft delete from local cache immediately for UX
+                // Will be hard-deleted during next sync when deletion is pushed
                 cachedDocumentDao.softDelete(documentId)
 
                 Result.success(Unit)

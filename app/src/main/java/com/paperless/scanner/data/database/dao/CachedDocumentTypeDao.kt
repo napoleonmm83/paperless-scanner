@@ -38,4 +38,11 @@ interface CachedDocumentTypeDao {
 
     @Query("SELECT COUNT(*) FROM cached_document_types WHERE isDeleted = 0")
     suspend fun getCount(): Int
+
+    // Methods for orphan detection during sync
+    @Query("SELECT id FROM cached_document_types")
+    suspend fun getAllIds(): List<Int>
+
+    @Query("DELETE FROM cached_document_types WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Int>)
 }
