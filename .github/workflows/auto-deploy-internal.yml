@@ -562,3 +562,78 @@ jobs:
           echo "**Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Successfully deployed to Google Play Console Internal Track" >> $GITHUB_STEP_SUMMARY
+
+      # GitHub Release erstellen mit Changelog
+      - name: Read changelog for GitHub Release (Windows)
+        if: runner.os == 'Windows'
+        id: changelog_win
+        shell: powershell
+        run: |
+          $VERSION_CODE = "${{ steps.bump_version_win.outputs.VERSION_CODE }}"
+          $CHANGELOG_FILE = "fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt"
+          $DEFAULT_FILE = "fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          if (Test-Path $CHANGELOG_FILE) {
+            $CHANGELOG = Get-Content $CHANGELOG_FILE -Raw
+            Write-Host "Using version-specific changelog: $CHANGELOG_FILE"
+          } elseif (Test-Path $DEFAULT_FILE) {
+            $CHANGELOG = Get-Content $DEFAULT_FILE -Raw
+            Write-Host "Using default changelog: $DEFAULT_FILE"
+          } else {
+            $CHANGELOG = "Release v${{ steps.bump_version_win.outputs.NEW_VERSION }}"
+            Write-Host "No changelog found, using default message"
+          }
+
+          # Escape for GitHub Actions output
+          $CHANGELOG = $CHANGELOG -replace '%', '%25' -replace "`n", '%0A' -replace "`r", '%0D'
+          "CHANGELOG=$CHANGELOG" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Read changelog for GitHub Release (Linux/macOS)
+        if: runner.os != 'Windows'
+        id: changelog
+        shell: bash
+        run: |
+          VERSION_CODE="${{ steps.bump_version.outputs.VERSION_CODE }}"
+          CHANGELOG_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
+          DEFAULT_FILE="fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          if [ -f "$CHANGELOG_FILE" ]; then
+            CHANGELOG=$(cat "$CHANGELOG_FILE")
+            echo "Using version-specific changelog: $CHANGELOG_FILE"
+          elif [ -f "$DEFAULT_FILE" ]; then
+            CHANGELOG=$(cat "$DEFAULT_FILE")
+            echo "Using default changelog: $DEFAULT_FILE"
+          else
+            CHANGELOG="Release v${{ steps.bump_version.outputs.NEW_VERSION }}"
+            echo "No changelog found, using default message"
+          fi
+
+          # Use EOF delimiter for multiline output
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
+          name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
+          body: |
+            ## 📱 Paperless Scanner v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
+
+            **Track:** Internal Testing
+            **Version Code:** ${{ runner.os == 'Windows' && steps.bump_version_win.outputs.VERSION_CODE || steps.bump_version.outputs.VERSION_CODE }}
+
+            ---
+
+            ${{ runner.os == 'Windows' && steps.changelog_win.outputs.CHANGELOG || steps.changelog.outputs.CHANGELOG }}
+
+            ---
+
+            📲 Available on Google Play Console (Internal Track)
+          draft: false
+          prerelease: true  # Internal releases are pre-releases
+          files: |
+            app/build/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

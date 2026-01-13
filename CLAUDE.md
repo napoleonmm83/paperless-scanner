@@ -311,6 +311,83 @@ val taskId = response.string().trim().removeSurrounding("\"")
 
 ---
 
+## Release & Deployment Workflow
+
+### Automatischer Deploy-Prozess
+
+Bei jedem Push auf `main` (wenn app-relevante Dateien geändert werden):
+
+1. **GitHub Actions** triggert `auto-deploy-internal.yml`
+2. **Version Bump** → Patch-Version wird automatisch erhöht
+3. **Build** → Release AAB wird erstellt
+4. **Fastlane Deploy** → Upload zu Google Play Internal Track mit Changelogs
+5. **GitHub Release** → Automatisches Release mit Changelog und AAB
+
+### Changelog-System
+
+Changelogs werden automatisch aus Fastlane Metadata gelesen:
+
+```
+fastlane/metadata/android/
+├── de-DE/changelogs/
+│   ├── {versionCode}.txt    # z.B. 10426.txt für Version 1.4.26
+│   └── default.txt          # Fallback wenn keine spezifische Datei
+└── en-US/changelogs/
+    ├── {versionCode}.txt
+    └── default.txt
+```
+
+**Version Code Berechnung:** `MAJOR * 10000 + MINOR * 100 + PATCH`
+- Version 1.4.26 → Version Code 10426
+
+### Neues Release erstellen
+
+1. **Code ändern und committen**
+2. **Changelog erstellen** (vor dem Push!):
+   ```bash
+   # Version Code ermitteln (nach Version Bump)
+   # Beispiel: 1.4.27 → 10427
+
+   # Changelog-Dateien erstellen:
+   # fastlane/metadata/android/de-DE/changelogs/10427.txt
+   # fastlane/metadata/android/en-US/changelogs/10427.txt
+   ```
+3. **Push auf main** → Automatischer Deploy
+
+### Changelog Format
+
+```
+Version 1.4.27:
+
+✨ Neue Features:
+- Feature 1 Beschreibung
+- Feature 2 Beschreibung
+
+🐛 Fehlerbehebungen:
+- Bug Fix 1
+- Bug Fix 2
+
+🔧 Verbesserungen:
+- Improvement 1
+```
+
+### Was passiert automatisch:
+
+| Aktion | Ziel | Details |
+|--------|------|---------|
+| Fastlane Deploy | Google Play Console | Internal Track + Changelogs |
+| GitHub Release | GitHub Releases | Tag + Changelog + AAB Artifact |
+| Version Bump | version.properties | Patch +1 mit `[skip ci]` |
+
+### Manuelles Promote zu Production
+
+```bash
+# Von Internal zu Production hochstufen:
+fastlane android promote
+```
+
+---
+
 ## Bekannte Probleme
 
 ### Kotlin Daemon GC Crash
