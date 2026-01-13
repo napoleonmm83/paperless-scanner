@@ -12,6 +12,7 @@ fun ApiTag.toCachedEntity(): CachedTag {
         match = match,
         matchingAlgorithm = matchingAlgorithm,
         isInboxTag = isInboxTag,
+        documentCount = documentCount ?: 0,
         lastSyncedAt = System.currentTimeMillis(),
         isDeleted = false
     )
@@ -25,6 +26,6 @@ fun CachedTag.toDomain(): DomainTag {
         match = match,
         matchingAlgorithm = matchingAlgorithm,
         isInboxTag = isInboxTag,
-        documentCount = 0 // Not stored in cache
+        documentCount = documentCount
     )
 }

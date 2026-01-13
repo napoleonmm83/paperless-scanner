@@ -180,6 +180,21 @@
     <string name="labels_detail_no_documents">Bu etiketle belge yok</string>
     <string name="labels_detail_page_count_singular">Sayfa</string>
     <string name="labels_detail_page_count_plural">Sayfa</string>
+    <string name="labels_sort_filter">Sırala ve Filtrele</string>
+    <string name="labels_sort_title">Sıralama</string>
+    <string name="labels_sort_name_asc">Ad (A-Z)</string>
+    <string name="labels_sort_name_desc">Ad (Z-A)</string>
+    <string name="labels_sort_count_desc">En çok belge</string>
+    <string name="labels_sort_count_asc">En az belge</string>
+    <string name="labels_sort_newest">En yeni</string>
+    <string name="labels_sort_oldest">En eski</string>
+    <string name="labels_filter_title">Filtre</string>
+    <string name="labels_filter_all">Tüm etiketler</string>
+    <string name="labels_filter_with_docs">Sadece belgeli</string>
+    <string name="labels_filter_empty">Sadece boş etiketler</string>
+    <string name="labels_filter_many_docs">5\'ten fazla belge</string>
+    <string name="labels_apply_button">Uygula</string>
+    <string name="labels_reset_button">Sıfırla</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_subtitle">Paperless-ngx kurulumunuz için\nmobil yardımcı</string>

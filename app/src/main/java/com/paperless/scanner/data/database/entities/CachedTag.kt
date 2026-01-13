@@ -11,6 +11,7 @@ data class CachedTag(
     val match: String?,
     val matchingAlgorithm: Int?,
     val isInboxTag: Boolean,
+    val documentCount: Int = 0,
 
     val lastSyncedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false

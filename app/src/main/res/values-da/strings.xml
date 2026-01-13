@@ -180,6 +180,21 @@
     <string name="labels_detail_no_documents">Ingen dokumenter med denne label</string>
     <string name="labels_detail_page_count_singular">Side</string>
     <string name="labels_detail_page_count_plural">Sider</string>
+    <string name="labels_sort_filter">Sorter og Filtrer</string>
+    <string name="labels_sort_title">Sorter</string>
+    <string name="labels_sort_name_asc">Navn (A-Z)</string>
+    <string name="labels_sort_name_desc">Navn (Z-A)</string>
+    <string name="labels_sort_count_desc">Flest dokumenter</string>
+    <string name="labels_sort_count_asc">Færrest dokumenter</string>
+    <string name="labels_sort_newest">Nyeste først</string>
+    <string name="labels_sort_oldest">Ældste først</string>
+    <string name="labels_filter_title">Filter</string>
+    <string name="labels_filter_all">Alle labels</string>
+    <string name="labels_filter_with_docs">Kun med dokumenter</string>
+    <string name="labels_filter_empty">Kun tomme labels</string>
+    <string name="labels_filter_many_docs">Mere end 5 dokumenter</string>
+    <string name="labels_apply_button">Anvend</string>
+    <string name="labels_reset_button">Nulstil</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_subtitle">Den mobile ledsager til din\nPaperless-ngx installation</string>

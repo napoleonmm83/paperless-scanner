@@ -74,12 +74,31 @@ class TagRepository @Inject constructor(
         }
     }
 
-    suspend fun updateTag(id: Int, name: String, color: String? = null): Result<Tag> = safeApiCall {
-        api.updateTag(id, UpdateTagRequest(name = name, color = color)).toDomain()
+    suspend fun updateTag(id: Int, name: String, color: String? = null): Result<Tag> {
+        return try {
+            val response = api.updateTag(id, UpdateTagRequest(name = name, color = color))
+            val domainTag = response.toDomain()
+
+            // Update cache to trigger reactive Flow update immediately
+            cachedTagDao.insert(response.toCachedEntity())
+
+            Result.success(domainTag)
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
     }
 
-    suspend fun deleteTag(id: Int): Result<Unit> = safeApiResponse {
-        api.deleteTag(id)
+    suspend fun deleteTag(id: Int): Result<Unit> {
+        return try {
+            api.deleteTag(id)
+
+            // Delete from cache to trigger reactive Flow update immediately
+            cachedTagDao.deleteByIds(listOf(id))
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
     }
 
     suspend fun getDocumentsForTag(tagId: Int): Result<List<Document>> = safeApiCall {

@@ -16,6 +16,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
+import com.paperless.scanner.data.database.migrations.MIGRATION_3_4
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
@@ -185,7 +186,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         // For debug builds, allow destructive migration if migration fails
         if (BuildConfig.DEBUG) {

@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.labels
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,31 +18,34 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -57,7 +61,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
@@ -90,97 +96,176 @@ fun LabelsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var showCreateSheet by remember { mutableStateOf(false) }
+    var showSortFilterSheet by remember { mutableStateOf(false) }
     var editingLabel by remember { mutableStateOf<LabelItem?>(null) }
     var selectedLabel by remember { mutableStateOf<LabelItem?>(null) }
 
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sortFilterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+
+    // Handle back press in detail view
+    BackHandler(enabled = selectedLabel != null) {
+        selectedLabel = null
+        viewModel.clearDocumentsForLabel()
+    }
 
     // Label detail view
     if (selectedLabel != null) {
         LabelDetailView(
             label = selectedLabel!!,
             documents = uiState.documentsForLabel,
-            onBack = { selectedLabel = null },
+            onBack = {
+                selectedLabel = null
+                viewModel.clearDocumentsForLabel()
+            },
             onDocumentClick = onDocumentClick
         )
         return
     }
 
-    // Main labels grid view
+    // Main labels list view
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Header
-        Column(
+        // Header with Add Button
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 24.dp, bottom = 8.dp)
+                .padding(top = 24.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                text = stringResource(R.string.labels_title),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-            Text(
-                text = stringResource(R.string.labels_subtitle),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.labels_title),
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
+                Text(
+                    text = stringResource(R.string.labels_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Add Label Button - always visible
+            Card(
+                onClick = {
+                    editingLabel = null
+                    showCreateSheet = true
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.cd_add),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.labels_add_new),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
 
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                viewModel.search(it)
-            },
+        // Search Bar with Sort/Filter Button
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 8.dp),
-            placeholder = {
-                Text(stringResource(R.string.labels_search_placeholder))
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = stringResource(R.string.cd_search),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = {
-                        searchQuery = ""
-                        viewModel.search("")
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.labels_search_clear),
-                            modifier = Modifier.size(20.dp)
-                        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    viewModel.search(it)
+                },
+                modifier = Modifier.weight(1f),
+                placeholder = {
+                    Text(stringResource(R.string.labels_search_placeholder))
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = stringResource(R.string.cd_search),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            viewModel.search("")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.labels_search_clear),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
-                }
-            },
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            ),
-            singleLine = true
-        )
+                },
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                ),
+                singleLine = true
+            )
 
-        // Labels Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            // Sort/Filter Button
+            Card(
+                onClick = { showSortFilterSheet = true },
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (uiState.sortOption != LabelSortOption.NAME_ASC || uiState.filterOption != LabelFilterOption.ALL) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.FilterList,
+                    contentDescription = stringResource(R.string.labels_sort_filter),
+                    modifier = Modifier.padding(12.dp),
+                    tint = if (uiState.sortOption != LabelSortOption.NAME_ASC || uiState.filterOption != LabelFilterOption.ALL) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+        }
+
+        // Labels List (Single Column)
+        LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                horizontal = 24.dp,
+                vertical = 8.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(uiState.labels, key = { it.id }) { label ->
@@ -196,14 +281,6 @@ fun LabelsScreen(
                     },
                     onDelete = { viewModel.deleteLabel(label.id) }
                 )
-            }
-
-            // Add new label button
-            item {
-                AddLabelCard(onClick = {
-                    editingLabel = null
-                    showCreateSheet = true
-                })
             }
         }
     }
@@ -242,6 +319,40 @@ fun LabelsScreen(
             )
         }
     }
+
+    // Sort/Filter Bottom Sheet
+    if (showSortFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showSortFilterSheet = false },
+            sheetState = sortFilterSheetState,
+            containerColor = MaterialTheme.colorScheme.background
+        ) {
+            SortFilterSheet(
+                currentSort = uiState.sortOption,
+                currentFilter = uiState.filterOption,
+                onApply = { sort, filter ->
+                    viewModel.setSortAndFilter(sort, filter)
+                    scope.launch {
+                        sortFilterSheetState.hide()
+                        showSortFilterSheet = false
+                    }
+                },
+                onReset = {
+                    viewModel.resetSortAndFilter()
+                    scope.launch {
+                        sortFilterSheetState.hide()
+                        showSortFilterSheet = false
+                    }
+                },
+                onDismiss = {
+                    scope.launch {
+                        sortFilterSheetState.hide()
+                        showSortFilterSheet = false
+                    }
+                }
+            )
+        }
+    }
 }
 
 @Composable
@@ -263,65 +374,64 @@ private fun LabelCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(label.color)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = label.name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
-                }
+            // Color indicator
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(label.color)
+            )
 
-                Row {
-                    IconButton(
-                        onClick = onEdit,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = stringResource(R.string.labels_edit),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = stringResource(R.string.labels_delete),
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Label info
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = stringResource(R.string.labels_document_count, label.documentCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = stringResource(R.string.labels_document_count, label.documentCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Action buttons
+            Row {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Edit,
+                        contentDescription = stringResource(R.string.labels_edit),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.labels_delete),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
     }
 
@@ -350,37 +460,197 @@ private fun LabelCard(
 }
 
 @Composable
-private fun AddLabelCard(onClick: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primary
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+private fun SortFilterSheet(
+    currentSort: LabelSortOption,
+    currentFilter: LabelFilterOption,
+    onApply: (LabelSortOption, LabelFilterOption) -> Unit,
+    onReset: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedSort by remember { mutableStateOf(currentSort) }
+    var selectedFilter by remember { mutableStateOf(currentFilter) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(24.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Add,
-                contentDescription = stringResource(R.string.cd_add),
-                modifier = Modifier.size(28.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+        Text(
+            text = stringResource(R.string.labels_sort_filter),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Sort Section
+        Text(
+            text = stringResource(R.string.labels_sort_title),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(modifier = Modifier.selectableGroup()) {
+            SortOption(
+                text = stringResource(R.string.labels_sort_name_asc),
+                selected = selectedSort == LabelSortOption.NAME_ASC,
+                onClick = { selectedSort = LabelSortOption.NAME_ASC }
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = stringResource(R.string.labels_add_new),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onPrimary
+            SortOption(
+                text = stringResource(R.string.labels_sort_name_desc),
+                selected = selectedSort == LabelSortOption.NAME_DESC,
+                onClick = { selectedSort = LabelSortOption.NAME_DESC }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_sort_count_desc),
+                selected = selectedSort == LabelSortOption.COUNT_DESC,
+                onClick = { selectedSort = LabelSortOption.COUNT_DESC }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_sort_count_asc),
+                selected = selectedSort == LabelSortOption.COUNT_ASC,
+                onClick = { selectedSort = LabelSortOption.COUNT_ASC }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_sort_newest),
+                selected = selectedSort == LabelSortOption.NEWEST,
+                onClick = { selectedSort = LabelSortOption.NEWEST }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_sort_oldest),
+                selected = selectedSort == LabelSortOption.OLDEST,
+                onClick = { selectedSort = LabelSortOption.OLDEST }
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Filter Section
+        Text(
+            text = stringResource(R.string.labels_filter_title),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Column(modifier = Modifier.selectableGroup()) {
+            SortOption(
+                text = stringResource(R.string.labels_filter_all),
+                selected = selectedFilter == LabelFilterOption.ALL,
+                onClick = { selectedFilter = LabelFilterOption.ALL }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_filter_with_docs),
+                selected = selectedFilter == LabelFilterOption.WITH_DOCUMENTS,
+                onClick = { selectedFilter = LabelFilterOption.WITH_DOCUMENTS }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_filter_empty),
+                selected = selectedFilter == LabelFilterOption.EMPTY,
+                onClick = { selectedFilter = LabelFilterOption.EMPTY }
+            )
+            SortOption(
+                text = stringResource(R.string.labels_filter_many_docs),
+                selected = selectedFilter == LabelFilterOption.MANY_DOCUMENTS,
+                onClick = { selectedFilter = LabelFilterOption.MANY_DOCUMENTS }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Action Buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Card(
+                onClick = onReset,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.labels_reset_button),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Card(
+                onClick = { onApply(selectedSort, selectedFilter) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.labels_apply_button),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@Composable
+private fun SortOption(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = MaterialTheme.colorScheme.primary
+            )
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 
@@ -573,6 +843,9 @@ private fun LabelDetailView(
     onBack: () -> Unit,
     onDocumentClick: (Int) -> Unit
 ) {
+    // Handle back press
+    BackHandler(onBack = onBack)
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -616,7 +889,9 @@ private fun LabelDetailView(
                 Text(
                     text = label.name,
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold
+                    fontWeight = FontWeight.ExtraBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
@@ -699,7 +974,8 @@ private fun LabelDetailView(
                                     text = doc.title,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)

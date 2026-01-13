@@ -147,3 +147,12 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         """)
     }
 }
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add documentCount column to cached_tags table
+        database.execSQL("""
+            ALTER TABLE cached_tags ADD COLUMN documentCount INTEGER NOT NULL DEFAULT 0
+        """)
+    }
+}

@@ -180,6 +180,21 @@
     <string name="labels_detail_no_documents">Aucun document avec cette étiquette</string>
     <string name="labels_detail_page_count_singular">page</string>
     <string name="labels_detail_page_count_plural">pages</string>
+    <string name="labels_sort_filter">Trier &amp; Filtrer</string>
+    <string name="labels_sort_title">Tri</string>
+    <string name="labels_sort_name_asc">Nom (A-Z)</string>
+    <string name="labels_sort_name_desc">Nom (Z-A)</string>
+    <string name="labels_sort_count_desc">Plus de documents</string>
+    <string name="labels_sort_count_asc">Moins de documents</string>
+    <string name="labels_sort_newest">Plus récents</string>
+    <string name="labels_sort_oldest">Plus anciens</string>
+    <string name="labels_filter_title">Filtre</string>
+    <string name="labels_filter_all">Tous les labels</string>
+    <string name="labels_filter_with_docs">Avec documents uniquement</string>
+    <string name="labels_filter_empty">Labels vides uniquement</string>
+    <string name="labels_filter_many_docs">Plus de 5 documents</string>
+    <string name="labels_apply_button">Appliquer</string>
+    <string name="labels_reset_button">Réinitialiser</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_subtitle">Le compagnon mobile pour votre\ninstallation Paperless-ngx</string>

@@ -180,6 +180,21 @@
     <string name="labels_detail_no_documents">Δεν υπάρχουν έγγραφα με αυτή την ετικέτα</string>
     <string name="labels_detail_page_count_singular">Σελίδα</string>
     <string name="labels_detail_page_count_plural">Σελίδες</string>
+    <string name="labels_sort_filter">Ταξινόμηση και Φίλτρο</string>
+    <string name="labels_sort_title">Ταξινόμηση</string>
+    <string name="labels_sort_name_asc">Όνομα (Α-Ω)</string>
+    <string name="labels_sort_name_desc">Όνομα (Ω-Α)</string>
+    <string name="labels_sort_count_desc">Περισσότερα έγγραφα</string>
+    <string name="labels_sort_count_asc">Λιγότερα έγγραφα</string>
+    <string name="labels_sort_newest">Νεότερα πρώτα</string>
+    <string name="labels_sort_oldest">Παλαιότερα πρώτα</string>
+    <string name="labels_filter_title">Φίλτρο</string>
+    <string name="labels_filter_all">Όλες οι ετικέτες</string>
+    <string name="labels_filter_with_docs">Μόνο με έγγραφα</string>
+    <string name="labels_filter_empty">Μόνο κενές ετικέτες</string>
+    <string name="labels_filter_many_docs">Πάνω από 5 έγγραφα</string>
+    <string name="labels_apply_button">Εφαρμογή</string>
+    <string name="labels_reset_button">Επαναφορά</string>
 
     <!-- Welcome Screen -->
     <string name="welcome_subtitle">Ο φορητός συνοδός για την\nεγκατάσταση Paperless-ngx</string>

@@ -16,13 +16,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class LabelSortOption {
+    NAME_ASC,
+    NAME_DESC,
+    COUNT_DESC,
+    COUNT_ASC,
+    NEWEST,
+    OLDEST
+}
+
+enum class LabelFilterOption {
+    ALL,
+    WITH_DOCUMENTS,
+    EMPTY,
+    MANY_DOCUMENTS
+}
+
 data class LabelsUiState(
     val labels: List<LabelItem> = emptyList(),
     val documentsForLabel: List<LabelDocument> = emptyList(),
     val isLoading: Boolean = true,
     val isLoadingDocuments: Boolean = false,
     val error: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val sortOption: LabelSortOption = LabelSortOption.NAME_ASC,
+    val filterOption: LabelFilterOption = LabelFilterOption.ALL
 )
 
 @HiltViewModel
@@ -58,23 +76,49 @@ class LabelsViewModel @Inject constructor(
                     )
                 }
 
-                // Apply current search filter
-                val filtered = if (_uiState.value.searchQuery.isBlank()) {
-                    allLabels
-                } else {
-                    allLabels.filter {
-                        it.name.contains(_uiState.value.searchQuery, ignoreCase = true)
-                    }
-                }
+                // Apply current search, filter, and sort
+                val processed = applySearchFilterSort(allLabels, _uiState.value)
 
                 _uiState.update {
                     it.copy(
-                        labels = filtered,
+                        labels = processed,
                         isLoading = false
                     )
                 }
             }
         }
+    }
+
+    private fun applySearchFilterSort(
+        labels: List<LabelItem>,
+        state: LabelsUiState
+    ): List<LabelItem> {
+        // 1. Apply search
+        var result = if (state.searchQuery.isBlank()) {
+            labels
+        } else {
+            labels.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
+        }
+
+        // 2. Apply filter
+        result = when (state.filterOption) {
+            LabelFilterOption.ALL -> result
+            LabelFilterOption.WITH_DOCUMENTS -> result.filter { it.documentCount > 0 }
+            LabelFilterOption.EMPTY -> result.filter { it.documentCount == 0 }
+            LabelFilterOption.MANY_DOCUMENTS -> result.filter { it.documentCount > 5 }
+        }
+
+        // 3. Apply sort
+        result = when (state.sortOption) {
+            LabelSortOption.NAME_ASC -> result.sortedBy { it.name.lowercase() }
+            LabelSortOption.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
+            LabelSortOption.COUNT_DESC -> result.sortedByDescending { it.documentCount }
+            LabelSortOption.COUNT_ASC -> result.sortedBy { it.documentCount }
+            LabelSortOption.NEWEST -> result.sortedByDescending { it.id } // ID as proxy for creation time
+            LabelSortOption.OLDEST -> result.sortedBy { it.id }
+        }
+
+        return result
     }
 
     fun loadLabels() {
@@ -109,13 +153,36 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun search(query: String) {
-        val filtered = if (query.isBlank()) {
-            allLabels
-        } else {
-            allLabels.filter { it.name.contains(query, ignoreCase = true) }
-        }
+        val newState = _uiState.value.copy(searchQuery = query)
+        val processed = applySearchFilterSort(allLabels, newState)
+        _uiState.update { newState.copy(labels = processed) }
+    }
 
-        _uiState.update { it.copy(searchQuery = query, labels = filtered) }
+    fun setSortOption(option: LabelSortOption) {
+        val newState = _uiState.value.copy(sortOption = option)
+        val processed = applySearchFilterSort(allLabels, newState)
+        _uiState.update { newState.copy(labels = processed) }
+    }
+
+    fun setFilterOption(option: LabelFilterOption) {
+        val newState = _uiState.value.copy(filterOption = option)
+        val processed = applySearchFilterSort(allLabels, newState)
+        _uiState.update { newState.copy(labels = processed) }
+    }
+
+    fun setSortAndFilter(sort: LabelSortOption, filter: LabelFilterOption) {
+        val newState = _uiState.value.copy(sortOption = sort, filterOption = filter)
+        val processed = applySearchFilterSort(allLabels, newState)
+        _uiState.update { newState.copy(labels = processed) }
+    }
+
+    fun resetSortAndFilter() {
+        val newState = _uiState.value.copy(
+            sortOption = LabelSortOption.NAME_ASC,
+            filterOption = LabelFilterOption.ALL
+        )
+        val processed = applySearchFilterSort(allLabels, newState)
+        _uiState.update { newState.copy(labels = processed) }
     }
 
     fun createLabel(name: String, color: Color) {
