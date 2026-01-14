@@ -40,7 +40,7 @@ class LabelsViewModelTest {
         tagRepository = mockk(relaxed = true)
 
         // Default mock responses
-        coEvery { tagRepository.getTags() } returns Result.success(emptyList())
+        coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
         every { tagRepository.observeTags() } returns flowOf(emptyList())
     }
 
@@ -75,7 +75,7 @@ class LabelsViewModelTest {
             Tag(id = 1, name = "Invoice", color = "#FF0000", documentCount = 5),
             Tag(id = 2, name = "Receipt", color = "#00FF00", documentCount = 3)
         )
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
@@ -131,7 +131,7 @@ class LabelsViewModelTest {
             Tag(id = 2, name = "Receipt", documentCount = 3),
             Tag(id = 3, name = "Important", documentCount = 2)
         )
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
@@ -152,7 +152,7 @@ class LabelsViewModelTest {
             Tag(id = 1, name = "Invoice", documentCount = 5),
             Tag(id = 2, name = "Receipt", documentCount = 3)
         )
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
@@ -173,7 +173,7 @@ class LabelsViewModelTest {
             Tag(id = 1, name = "Invoice", documentCount = 5),
             Tag(id = 2, name = "Receipt", documentCount = 3)
         )
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
@@ -336,7 +336,7 @@ class LabelsViewModelTest {
 
     @Test
     fun `clearError removes error from state`() = runTest {
-        coEvery { tagRepository.getTags() } returns Result.failure(Exception("Error"))
+        coEvery { tagRepository.getTags(any()) } returns Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -353,7 +353,7 @@ class LabelsViewModelTest {
     @Test
     fun `resetState clears all state and reloads`() = runTest {
         val mockTags = listOf(Tag(id = 1, name = "Test", documentCount = 1))
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
@@ -379,7 +379,7 @@ class LabelsViewModelTest {
             Tag(id = 2, name = "New Tag", documentCount = 0)
         )
 
-        coEvery { tagRepository.getTags() } returns Result.success(initialTags)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(initialTags)
         every { tagRepository.observeTags() } returns flowOf(updatedTags)
 
         val viewModel = createViewModel()
