@@ -1,0 +1,13 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Shell scripts should always use LF line endings (for Unix/Linux/macOS)
+*.sh text eol=lf
+
+# Windows scripts should use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Gradle wrapper should use LF (runs on all platforms)
+gradlew text eol=lf

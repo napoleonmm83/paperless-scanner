@@ -594,8 +594,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          chmod +x scripts/generate-release-notes.sh
-          scripts/generate-release-notes.sh \
+          bash scripts/generate-release-notes.sh \
             "${{ steps.bump_version_win.outputs.NEW_VERSION }}" \
             "${{ steps.bump_version_win.outputs.VERSION_CODE }}" \
             "${{ steps.prev_version_win.outputs.PREVIOUS_VERSION }}" \
@@ -605,8 +604,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          chmod +x scripts/generate-release-notes.sh
-          scripts/generate-release-notes.sh \
+          bash scripts/generate-release-notes.sh \
             "${{ steps.bump_version.outputs.NEW_VERSION }}" \
             "${{ steps.bump_version.outputs.VERSION_CODE }}" \
             "${{ steps.prev_version.outputs.PREVIOUS_VERSION }}" \
