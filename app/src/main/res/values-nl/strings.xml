@@ -562,7 +562,6 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Suggesties</string>
     <string name="suggestions_ai_title">AI Suggesties</string>
-    <string name="suggestions_analyzing">Document analyseren...</string>
     <string name="suggestions_apply">Toepassen</string>
     <string name="suggestions_apply_all">Alles toepassen</string>
     <string name="suggestions_source_ai">AI</string>
@@ -592,4 +591,21 @@
     <string name="settings_debug_mode_enabled">AI-ontwikkelaarsmodus geactiveerd</string>
     <string name="settings_debug_mode_disabled">AI-ontwikkelaarsmodus gedeactiveerd</string>
     <string name="settings_debug_mode_already_enabled">Ontwikkelaarsmodus is al geactiveerd</string>
+
+    <!-- Tag Suggestions Batch Tagging -->
+    <string name="tag_suggestions_title">Tag-suggesties</string>
+    <string name="tag_suggestions_progress">Voortgang: %1$d van %2$d</string>
+    <string name="tag_suggestions_complete">Voltooid!</string>
+    <string name="tag_suggestions_all_tagged">Alle documenten getagd</string>
+    <string name="tag_suggestions_all_tagged_desc">Alle geselecteerde documenten zijn succesvol getagd.</string>
+    <string name="tag_suggestions_analyze">Analyseren</string>
+    <string name="tag_suggestions_loading_thumbnail">Miniatuur laden...</string>
+    <string name="tag_suggestions_suggested_tags">Voorgestelde tags</string>
+    <string name="tag_suggestions_apply">Toepassen</string>
+    <string name="tag_suggestions_manual">Handmatig</string>
+    <string name="tag_suggestions_select_tags">Selecteer tags</string>
+
+    <string name="close">Sluiten</string>
+    <string name="back">Terug</string>
+    <string name="suggestions_analyzing">Analyseren...</string>
 </resources>

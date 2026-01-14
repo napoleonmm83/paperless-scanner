@@ -618,7 +618,6 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Öneriler</string>
     <string name="suggestions_ai_title">AI Önerileri</string>
-    <string name="suggestions_analyzing">Belge analiz ediliyor...</string>
     <string name="suggestions_apply">Uygula</string>
     <string name="suggestions_apply_all">Tümünü uygula</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,4 +647,21 @@
     <string name="settings_debug_mode_enabled">AI geliştirici modu etkinleştirildi</string>
     <string name="settings_debug_mode_disabled">AI geliştirici modu devre dışı bırakıldı</string>
     <string name="settings_debug_mode_already_enabled">Geliştirici modu zaten etkin</string>
+
+    <!-- Tag Suggestions Batch Tagging -->
+    <string name="tag_suggestions_title">Etiket önerileri</string>
+    <string name="tag_suggestions_progress">İlerleme: %1$d / %2$d</string>
+    <string name="tag_suggestions_complete">Tamamlandı!</string>
+    <string name="tag_suggestions_all_tagged">Tüm belgeler etiketlendi</string>
+    <string name="tag_suggestions_all_tagged_desc">Seçilen tüm belgeler başarıyla etiketlendi.</string>
+    <string name="tag_suggestions_analyze">Analiz et</string>
+    <string name="tag_suggestions_loading_thumbnail">Küçük resim yükleniyor...</string>
+    <string name="tag_suggestions_suggested_tags">Önerilen etiketler</string>
+    <string name="tag_suggestions_apply">Uygula</string>
+    <string name="tag_suggestions_manual">Manuel</string>
+    <string name="tag_suggestions_select_tags">Etiket seç</string>
+
+    <string name="close">Kapat</string>
+    <string name="back">Geri</string>
+    <string name="suggestions_analyzing">Analiz ediliyor...</string>
 </resources>

@@ -618,7 +618,6 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Προτάσεις</string>
     <string name="suggestions_ai_title">Προτάσεις AI</string>
-    <string name="suggestions_analyzing">Ανάλυση εγγράφου...</string>
     <string name="suggestions_apply">Εφαρμογή</string>
     <string name="suggestions_apply_all">Εφαρμογή όλων</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,4 +647,21 @@
     <string name="settings_debug_mode_enabled">Λειτουργία προγραμματιστή AI ενεργοποιημένη</string>
     <string name="settings_debug_mode_disabled">Λειτουργία προγραμματιστή AI απενεργοποιημένη</string>
     <string name="settings_debug_mode_already_enabled">Η λειτουργία προγραμματιστή είναι ήδη ενεργοποιημένη</string>
+
+    <!-- Tag Suggestions Batch Tagging -->
+    <string name="tag_suggestions_title">Προτάσεις ετικετών</string>
+    <string name="tag_suggestions_progress">Πρόοδος: %1$d από %2$d</string>
+    <string name="tag_suggestions_complete">Ολοκληρώθηκε!</string>
+    <string name="tag_suggestions_all_tagged">Όλα τα έγγραφα επισημάνθηκαν</string>
+    <string name="tag_suggestions_all_tagged_desc">Όλα τα επιλεγμένα έγγραφα επισημάνθηκαν με επιτυχία.</string>
+    <string name="tag_suggestions_analyze">Ανάλυση</string>
+    <string name="tag_suggestions_loading_thumbnail">Φόρτωση μικρογραφίας...</string>
+    <string name="tag_suggestions_suggested_tags">Προτεινόμενες ετικέτες</string>
+    <string name="tag_suggestions_apply">Εφαρμογή</string>
+    <string name="tag_suggestions_manual">Χειροκίνητα</string>
+    <string name="tag_suggestions_select_tags">Επιλογή ετικετών</string>
+
+    <string name="close">Κλείσιμο</string>
+    <string name="back">Πίσω</string>
+    <string name="suggestions_analyzing">Ανάλυση...</string>
 </resources>

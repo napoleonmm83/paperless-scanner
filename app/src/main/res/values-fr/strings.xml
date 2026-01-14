@@ -618,7 +618,6 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Suggestions</string>
     <string name="suggestions_ai_title">Suggestions IA</string>
-    <string name="suggestions_analyzing">Analyse du document...</string>
     <string name="suggestions_apply">Appliquer</string>
     <string name="suggestions_apply_all">Tout appliquer</string>
     <string name="suggestions_source_ai">IA</string>
@@ -648,4 +647,19 @@
     <string name="settings_debug_mode_enabled">Mode développeur IA activé</string>
     <string name="settings_debug_mode_disabled">Mode développeur IA désactivé</string>
     <string name="settings_debug_mode_already_enabled">Le mode développeur est déjà activé</string>
+    <!-- Tag Suggestions Batch Tagging -->
+    <string name="tag_suggestions_title">Suggestions de tags</string>
+    <string name="tag_suggestions_progress">Progrès : %1$d sur %2$d</string>
+    <string name="tag_suggestions_complete">Terminé !</string>
+    <string name="tag_suggestions_all_tagged">Tous les documents étiquetés</string>
+    <string name="tag_suggestions_all_tagged_desc">Tous les documents sélectionnés ont été étiquetés avec succès.</string>
+    <string name="tag_suggestions_analyze">Analyser</string>
+    <string name="tag_suggestions_loading_thumbnail">Chargement de l\'aperçu...</string>
+    <string name="tag_suggestions_suggested_tags">Tags suggérés</string>
+    <string name="tag_suggestions_apply">Appliquer</string>
+    <string name="tag_suggestions_manual">Manuel</string>
+    <string name="tag_suggestions_select_tags">Sélectionner les tags</string>
+    <string name="close">Fermer</string>
+    <string name="back">Retour</string>
+    <string name="suggestions_analyzing">Analyse en cours...</string>
 </resources>

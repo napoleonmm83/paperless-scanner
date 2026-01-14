@@ -621,7 +621,6 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Vorschläge</string>
     <string name="suggestions_ai_title">AI-Vorschläge</string>
-    <string name="suggestions_analyzing">Analysiere Dokument...</string>
     <string name="suggestions_apply">Übernehmen</string>
     <string name="suggestions_apply_all">Alle übernehmen</string>
     <string name="suggestions_source_ai">AI</string>
@@ -647,4 +646,21 @@
     <string name="premium_restore_success">%1$d Käufe wiederhergestellt</string>
     <string name="premium_restore_none">Keine Käufe gefunden</string>
     <string name="premium_restore_error">Fehler beim Wiederherstellen: %1$s</string>
+
+    <!-- Tag Suggestions Batch Tagging -->
+    <string name="tag_suggestions_title">Tag-Vorschläge</string>
+    <string name="tag_suggestions_progress">Fortschritt: %1$d von %2$d</string>
+    <string name="tag_suggestions_complete">Fertig!</string>
+    <string name="tag_suggestions_all_tagged">Alle Dokumente markiert</string>
+    <string name="tag_suggestions_all_tagged_desc">Alle ausgewählten Dokumente wurden erfolgreich mit Tags versehen.</string>
+    <string name="tag_suggestions_analyze">Analysieren</string>
+    <string name="tag_suggestions_loading_thumbnail">Vorschau wird geladen...</string>
+    <string name="tag_suggestions_suggested_tags">Vorgeschlagene Tags</string>
+    <string name="tag_suggestions_apply">Anwenden</string>
+    <string name="tag_suggestions_manual">Manuell</string>
+    <string name="tag_suggestions_select_tags">Tags auswählen</string>
+
+    <string name="close">Schließen</string>
+    <string name="back">Zurück</string>
+    <string name="suggestions_analyzing">Analyse läuft...</string>
 </resources>
