@@ -612,6 +612,7 @@ jobs:
           } else {
             Write-Host "Tag $PREVIOUS_TAG not found, using last 20 commits"
             $COMMITS = git log --oneline --no-merges | Select-Object -First 20
+            $LASTEXITCODE = 0  # Reset exit code after handling missing tag
           }
 
           # Read changelogs
