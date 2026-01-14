@@ -419,6 +419,34 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 
 ## Regeln für Claude
 
+### Context7 MCP Usage (MANDATORY)
+
+**Always use Context7 MCP for library/API documentation, code generation, and setup/configuration steps.**
+
+#### 2-Step Workflow (REQUIRED):
+
+1. **First**: `resolve-library-id` with library name + user's original question
+2. **Then**: `query-docs` with the returned library ID
+
+**When to use:**
+- Retrofit API client setup & configuration
+- Kotlin serialization (@SerializedName, JSON parsing, Gson/Moshi)
+- Hilt/Dagger dependency injection patterns
+- OkHttp interceptors & configuration
+- Jetpack Compose components & patterns
+- Android Architecture Components (ViewModel, Room, Navigation, etc.)
+- Third-party libraries (Coil, accompanist, etc.)
+
+**Example:**
+```kotlin
+// User asks: "Implement Retrofit interface for REST API"
+1. resolve-library-id(libraryName="Retrofit", query="REST API client implementation with Kotlin suspend functions")
+2. query-docs(libraryId="/square/retrofit", query="How to create API interface with suspend functions and @SerializedName annotations")
+```
+
+**Limits:** Max 3 calls per question to avoid excessive lookups.
+
+**DO NOT skip this workflow** - Context7 has the most up-to-date library documentation and best practices.
 ### 🏆 BEST PRACTICE MANDATE (ZWINGEND!)
 
 **IMMER die beste verfügbare Lösung implementieren - NIEMALS Quick Fixes!**
