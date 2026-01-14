@@ -660,45 +660,45 @@ jobs:
           $REPO_URL = "https://github.com/napoleonmm83/paperless-scanner"
           $COMPARISON_URL = "$REPO_URL/compare/v$PREVIOUS_VERSION...v$NEW_VERSION"
 
-          # Build release notes (using proper string concatenation, not here-strings with indentation)
+          # Build release notes (NO EMOJIS for PowerShell - encoding issues)
           $nl = "`n"
-          $releaseNotes = "## 📱 Paperless Scanner v$NEW_VERSION" + $nl + $nl
+          $releaseNotes = "## Paperless Scanner v$NEW_VERSION" + $nl + $nl
           $releaseNotes += "**Release Date:** $RELEASE_DATE" + $nl
           $releaseNotes += "**Version Code:** $VERSION_CODE" + $nl
           $releaseNotes += "**Track:** $TRACK" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 🎯 Highlights" + $nl + $nl
+          $releaseNotes += "## Highlights" + $nl + $nl
           $releaseNotes += "$HIGHLIGHTS" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
 
           if ($FEATURES.Count -gt 0) {
-            $releaseNotes += "## ✨ Neue Features" + $nl + $nl
+            $releaseNotes += "## Neue Features" + $nl + $nl
             $releaseNotes += ($FEATURES -join $nl) + $nl + $nl
           }
 
           if ($FIXES.Count -gt 0) {
-            $releaseNotes += "## 🐛 Fehlerbehebungen" + $nl + $nl
+            $releaseNotes += "## Fehlerbehebungen" + $nl + $nl
             $releaseNotes += ($FIXES -join $nl) + $nl + $nl
           }
 
           if ($IMPROVEMENTS.Count -gt 0) {
-            $releaseNotes += "## 🔧 Verbesserungen" + $nl + $nl
+            $releaseNotes += "## Verbesserungen" + $nl + $nl
             $releaseNotes += ($IMPROVEMENTS -join $nl) + $nl + $nl
           }
 
           if ($TECHNICAL.Count -gt 0) {
-            $releaseNotes += "## 📚 Technische Änderungen" + $nl + $nl
+            $releaseNotes += "## Technische Aenderungen" + $nl + $nl
             $releaseNotes += ($TECHNICAL -join $nl) + $nl + $nl
           }
 
-          $releaseNotes += "## ⚠️ Breaking Changes" + $nl + $nl
+          $releaseNotes += "## Breaking Changes" + $nl + $nl
           $releaseNotes += "*Keine Breaking Changes in dieser Version*" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 📲 Installation" + $nl + $nl
+          $releaseNotes += "## Installation" + $nl + $nl
           $releaseNotes += "### Google Play (Empfohlen)" + $nl + $nl
-          $releaseNotes += "- **Internal Track:** Nur für eingeladene Tester verfügbar" + $nl
-          $releaseNotes += "- **Beta Track:** Öffentliche Beta - Join via Google Play Console" + $nl
-          $releaseNotes += "- **Production:** Vollständiger Release für alle Nutzer" + $nl + $nl
+          $releaseNotes += "**Internal Track:** Nur fuer eingeladene Tester verfuegbar" + $nl
+          $releaseNotes += "**Beta Track:** Oeffentliche Beta - Join via Google Play Console" + $nl
+          $releaseNotes += "**Production:** Vollstaendiger Release fuer alle Nutzer" + $nl + $nl
           $releaseNotes += "### Direkter Download (APK/AAB)" + $nl + $nl
           $releaseNotes += "1. Lade ``app-release.aab`` aus den Release Assets herunter" + $nl
           $releaseNotes += "2. Installiere mit ``bundletool``:" + $nl
@@ -706,9 +706,9 @@ jobs:
           $releaseNotes += "   bundletool build-apks --bundle=app-release.aab --output=app.apks" + $nl
           $releaseNotes += "   bundletool install-apks --apks=app.apks" + $nl
           $releaseNotes += "   ``````" + $nl + $nl
-          $releaseNotes += "⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden." + $nl + $nl
+          $releaseNotes += "**Hinweis:** Direkt-Downloads sind nur fuer Entwicklung/Testing. Production Apps sollten ueber Google Play bezogen werden." + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 📝 Changelog (Vollständig)" + $nl + $nl
+          $releaseNotes += "## Changelog (Vollstaendig)" + $nl + $nl
           $releaseNotes += "### Deutsch (DE)" + $nl + $nl
           $releaseNotes += "``````" + $nl
           $releaseNotes += $CHANGELOG_DE + $nl
@@ -718,20 +718,20 @@ jobs:
           $releaseNotes += $CHANGELOG_EN + $nl
           $releaseNotes += "``````" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 🔗 Links" + $nl + $nl
-          $releaseNotes += "- [GitHub Repository]($REPO_URL)" + $nl
-          $releaseNotes += "- [Issue Tracker]($REPO_URL/issues)" + $nl
+          $releaseNotes += "## Links" + $nl + $nl
+          $releaseNotes += "- [GitHub Repository](" + $REPO_URL + ")" + $nl
+          $releaseNotes += "- [Issue Tracker](" + $REPO_URL + "/issues)" + $nl
           $releaseNotes += "- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)" + $nl
-          $releaseNotes += "- [Dokumentation]($REPO_URL/tree/main/docs)" + $nl
+          $releaseNotes += "- [Dokumentation](" + $REPO_URL + "/tree/main/docs)" + $nl
           $releaseNotes += "- [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 🙏 Contributors" + $nl + $nl
+          $releaseNotes += "## Contributors" + $nl + $nl
           $releaseNotes += "- @napoleonmm83 - Main development" + $nl
           $releaseNotes += "- Claude Sonnet 4.5 - AI-assisted development and code review" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "**Vollständige Änderungen:** [``v$PREVIOUS_VERSION...v$NEW_VERSION``]($COMPARISON_URL)" + $nl + $nl
+          $releaseNotes += "**Vollstaendige Aenderungen:** [``v$PREVIOUS_VERSION...v$NEW_VERSION``](" + $COMPARISON_URL + ")" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## 📊 Statistiken" + $nl + $nl
+          $releaseNotes += "## Statistiken" + $nl + $nl
           $releaseNotes += "- **Commits:** $($COMMITS.Count) commits seit v$PREVIOUS_VERSION" + $nl
           $releaseNotes += "- **Version Code:** $VERSION_CODE" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
