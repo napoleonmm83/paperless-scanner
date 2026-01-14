@@ -590,10 +590,198 @@ jobs:
           echo "PREVIOUS_VERSION=$CURRENT" >> $GITHUB_OUTPUT
           echo "Previous version: $CURRENT"
 
-      - name: Generate structured release notes
+      - name: Generate structured release notes (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          # PowerShell version for Windows (WSL Bash has path issues)
+          $NEW_VERSION = "${{ steps.bump_version_win.outputs.NEW_VERSION }}"
+          $VERSION_CODE = "${{ steps.bump_version_win.outputs.VERSION_CODE }}"
+          $PREVIOUS_VERSION = "${{ steps.prev_version_win.outputs.PREVIOUS_VERSION }}"
+          $RELEASE_DATE = Get-Date -Format "yyyy-MM-dd"
+          $TRACK = "Internal Testing"
+
+          # Get commits since last tag
+          $PREVIOUS_TAG = "v$PREVIOUS_VERSION"
+          if (git rev-parse $PREVIOUS_TAG 2>$null) {
+            $COMMITS = git log "$PREVIOUS_TAG..HEAD" --oneline --no-merges
+          } else {
+            $COMMITS = git log --oneline --no-merges | Select-Object -First 20
+          }
+
+          # Read changelogs
+          $CHANGELOG_DE_FILE = "fastlane/metadata/android/de-DE/changelogs/$VERSION_CODE.txt"
+          $CHANGELOG_EN_FILE = "fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt"
+          $DEFAULT_DE = "fastlane/metadata/android/de-DE/changelogs/default.txt"
+          $DEFAULT_EN = "fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          if (Test-Path $CHANGELOG_DE_FILE) {
+            $CHANGELOG_DE = Get-Content $CHANGELOG_DE_FILE -Raw
+          } elseif (Test-Path $DEFAULT_DE) {
+            $CHANGELOG_DE = Get-Content $DEFAULT_DE -Raw
+          } else {
+            $CHANGELOG_DE = "Version $NEW_VERSION"
+          }
+
+          if (Test-Path $CHANGELOG_EN_FILE) {
+            $CHANGELOG_EN = Get-Content $CHANGELOG_EN_FILE -Raw
+          } elseif (Test-Path $DEFAULT_EN) {
+            $CHANGELOG_EN = Get-Content $DEFAULT_EN -Raw
+          } else {
+            $CHANGELOG_EN = "Version $NEW_VERSION"
+          }
+
+          # Parse commits (simple version for PowerShell)
+          $FEATURES = @()
+          $FIXES = @()
+          $IMPROVEMENTS = @()
+          $TECHNICAL = @()
+
+          foreach ($commit in $COMMITS) {
+            if ($commit -match '^[a-f0-9]+ feat(\(.*\))?:\s*(.+)') {
+              $FEATURES += "- **$($matches[2])**"
+            } elseif ($commit -match '^[a-f0-9]+ fix(\(.*\))?:\s*(.+)') {
+              $FIXES += "- **Fix: $($matches[2])**"
+            } elseif ($commit -match '^[a-f0-9]+ (perf|refactor)(\(.*\))?:\s*(.+)') {
+              $IMPROVEMENTS += "- **$($matches[3])**"
+            } elseif ($commit -match '^[a-f0-9]+ (test|chore|docs)(\(.*\))?:\s*(.+)') {
+              $TECHNICAL += "- $($commit -replace '^[a-f0-9]+ ', '')"
+            }
+          }
+
+          # Generate highlights
+          if ($FEATURES.Count -gt 0) {
+            $HIGHLIGHTS = "Diese Version bringt neue Features und Verbesserungen."
+          } else {
+            $HIGHLIGHTS = "Diese Version enthält Verbesserungen und Fehlerbehebungen."
+          }
+
+          # Generate comparison URL
+          $REPO_URL = "https://github.com/napoleonmm83/paperless-scanner"
+          $COMPARISON_URL = "$REPO_URL/compare/v$PREVIOUS_VERSION...v$NEW_VERSION"
+
+          # Build release notes
+          $releaseNotes = @"
+          ## 📱 Paperless Scanner v$NEW_VERSION
+
+          **Release Date:** $RELEASE_DATE
+          **Version Code:** $VERSION_CODE
+          **Track:** $TRACK
+
+          ---
+
+          ## 🎯 Highlights
+
+          $HIGHLIGHTS
+
+          ---
+
+          "@
+
+          if ($FEATURES.Count -gt 0) {
+            $releaseNotes += "`n## ✨ Neue Features`n`n"
+            $releaseNotes += ($FEATURES -join "`n") + "`n`n"
+          }
+
+          if ($FIXES.Count -gt 0) {
+            $releaseNotes += "## 🐛 Fehlerbehebungen`n`n"
+            $releaseNotes += ($FIXES -join "`n") + "`n`n"
+          }
+
+          if ($IMPROVEMENTS.Count -gt 0) {
+            $releaseNotes += "## 🔧 Verbesserungen`n`n"
+            $releaseNotes += ($IMPROVEMENTS -join "`n") + "`n`n"
+          }
+
+          if ($TECHNICAL.Count -gt 0) {
+            $releaseNotes += "## 📚 Technische Änderungen`n`n"
+            $releaseNotes += ($TECHNICAL -join "`n") + "`n`n"
+          }
+
+          $releaseNotes += @"
+          ## ⚠️ Breaking Changes
+
+          *Keine Breaking Changes in dieser Version*
+
+          ---
+
+          ## 📲 Installation
+
+          ### Google Play (Empfohlen)
+
+          - **Internal Track:** Nur für eingeladene Tester verfügbar
+          - **Beta Track:** Öffentliche Beta - Join via Google Play Console
+          - **Production:** Vollständiger Release für alle Nutzer
+
+          ### Direkter Download (APK/AAB)
+
+          1. Lade ``app-release.aab`` aus den Release Assets herunter
+          2. Installiere mit ``bundletool``:
+             ``````bash
+             bundletool build-apks --bundle=app-release.aab --output=app.apks
+             bundletool install-apks --apks=app.apks
+             ``````
+
+          ⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden.
+
+          ---
+
+          ## 📝 Changelog (Vollständig)
+
+          ### Deutsch (DE)
+
+          ``````
+          $CHANGELOG_DE
+          ``````
+
+          ### English (EN)
+
+          ``````
+          $CHANGELOG_EN
+          ``````
+
+          ---
+
+          ## 🔗 Links
+
+          - [GitHub Repository]($REPO_URL)
+          - [Issue Tracker]($REPO_URL/issues)
+          - [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
+          - [Dokumentation]($REPO_URL/tree/main/docs)
+          - [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)
+
+          ---
+
+          ## 🙏 Contributors
+
+          - @napoleonmm83 - Main development
+          - Claude Sonnet 4.5 - AI-assisted development and code review
+
+          ---
+
+          **Vollständige Änderungen:** [``v$PREVIOUS_VERSION...v$NEW_VERSION``]($COMPARISON_URL)
+
+          ---
+
+          ## 📊 Statistiken
+
+          - **Commits:** $($COMMITS.Count) commits seit v$PREVIOUS_VERSION
+          - **Version Code:** $VERSION_CODE
+
+          ---
+
+          **Release erstellt am:** $RELEASE_DATE
+          **Deployed to:** Google Play Console $TRACK
+          "@
+
+          $releaseNotes | Out-File -FilePath release-notes.md -Encoding UTF8
+          Write-Host "✅ Release notes generated successfully"
+
+      - name: Generate structured release notes (Linux/macOS)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          # Inline release notes generator (avoids Windows path issues)
+          # Bash version for Linux/macOS
           NEW_VERSION="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}"
           VERSION_CODE="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.VERSION_CODE || steps.bump_version.outputs.VERSION_CODE }}"
           PREVIOUS_VERSION="${{ runner.os == 'Windows' && steps.prev_version_win.outputs.PREVIOUS_VERSION || steps.prev_version.outputs.PREVIOUS_VERSION }}"
