@@ -388,6 +388,203 @@ fastlane android promote
 
 ---
 
+## GitHub Release Dokumentation (BEST PRACTICE)
+
+**CRITICAL: GitHub Releases MÜSSEN strukturiert und vollständig dokumentiert sein!**
+
+### Release Notes Struktur (Template)
+
+Jedes GitHub Release MUSS folgende Struktur haben:
+
+```markdown
+## 📱 Paperless Scanner v{VERSION}
+
+**Release Date:** {YYYY-MM-DD}
+**Version Code:** {VERSION_CODE}
+**Track:** {Internal Testing | Beta | Production}
+
+---
+
+## 🎯 Highlights
+
+<!-- 1-3 Sätze mit den wichtigsten Änderungen dieser Version -->
+{Kurze Zusammenfassung der wichtigsten Features/Fixes}
+
+---
+
+## ✨ Neue Features
+
+- **{Feature Title}** - {Beschreibung was das Feature tut und warum es wichtig ist}
+  - {Optional: Sub-Item für technische Details}
+  - {Optional: Link zu Issue/PR: #123}
+- {Weitere Features...}
+
+## 🐛 Fehlerbehebungen
+
+- **Fix: {Problem Beschreibung}** - {Was wurde behoben und wie}
+  - {Optional: Fixes #123}
+- {Weitere Fixes...}
+
+## 🔧 Verbesserungen
+
+- **{Improvement Title}** - {Was wurde verbessert}
+- {Weitere Improvements...}
+
+## 📚 Technische Änderungen
+
+<!-- Optional: Nur wenn relevant für Developer -->
+- {Architektur-Änderungen}
+- {Dependency Updates}
+- {Refactorings}
+
+## ⚠️ Breaking Changes
+
+<!-- CRITICAL: Immer prominent anzeigen wenn vorhanden! -->
+- **{Breaking Change}** - {Was bricht und wie migriert man}
+
+## 🔐 Sicherheit
+
+<!-- Nur wenn relevant -->
+- {Security Fixes}
+
+---
+
+## 📲 Installation
+
+### Google Play (Empfohlen)
+- **Internal Track:** Nur für Tester verfügbar
+- **Beta Track:** Öffentliche Beta auf Google Play
+- **Production:** Vollständiger Release
+
+### Direkter Download (APK/AAB)
+1. Lade `app-release.aab` aus den Assets herunter
+2. Installiere mit `bundletool` oder direkt auf Gerät
+
+⚠️ **Hinweis:** APKs von GitHub sind nicht signiert und nur für Entwicklung geeignet.
+
+---
+
+## 📝 Changelog (Vollständig)
+
+{Kopie des Fastlane Changelogs in DE/EN}
+
+---
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/napoleonmm83/paperless-scanner)
+- [Issue Tracker](https://github.com/napoleonmm83/paperless-scanner/issues)
+- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
+- [Dokumentation](https://github.com/napoleonmm83/paperless-scanner/tree/main/docs)
+
+---
+
+## 🙏 Contributors
+
+{Optional: Liste der Contributor für dieses Release}
+
+---
+
+**Vollständige Änderungen:** [`{PREVIOUS_VERSION}...{NEW_VERSION}`](https://github.com/napoleonmm83/paperless-scanner/compare/{PREVIOUS_VERSION}...{NEW_VERSION})
+```
+
+### Release Notes Checkliste (ZWINGEND vor Release!)
+
+Vor JEDEM GitHub Release folgende Punkte prüfen:
+
+- [ ] **Version korrekt** - Semantic Versioning (MAJOR.MINOR.PATCH)
+- [ ] **Highlights vorhanden** - 1-3 Sätze Zusammenfassung
+- [ ] **Alle Features dokumentiert** - Mit Beschreibung warum wichtig
+- [ ] **Alle Fixes dokumentiert** - Mit klarer Problembeschreibung
+- [ ] **Breaking Changes prominent** - Falls vorhanden, FETT hervorheben
+- [ ] **Screenshots/GIFs** - Bei UI-Änderungen einbinden
+- [ ] **Issue/PR Links** - Alle relevanten Issues verlinken (#123)
+- [ ] **Installation-Anleitung** - Klar und verständlich
+- [ ] **Changelog in DE + EN** - Beide Sprachen vollständig
+- [ ] **Comparison Link** - Link zu GitHub Compare View
+- [ ] **Rechtschreibung geprüft** - Keine Tippfehler
+- [ ] **Markdown-Formatierung** - Korrekt gerendert in Preview
+
+### Best Practices für Release Notes
+
+**DO:**
+- ✅ Benutzerfreundliche Sprache (nicht zu technisch)
+- ✅ Klar strukturierte Kategorien (Features, Fixes, Breaking Changes)
+- ✅ Emoji für visuelle Hierarchie (📱 🎯 ✨ 🐛 🔧 ⚠️)
+- ✅ Screenshots bei UI-Änderungen einbinden
+- ✅ Breaking Changes IMMER prominent kennzeichnen
+- ✅ Issue-Nummern verlinken (#123)
+- ✅ Kurze, prägnante Beschreibungen
+- ✅ "Was" und "Warum" erklären, nicht "Wie"
+
+**DON'T:**
+- ❌ Unvollständige oder vage Beschreibungen ("Various fixes")
+- ❌ Technischer Jargon ohne Erklärung
+- ❌ Fehlende Breaking Changes Warnung
+- ❌ Copy-Paste von Commit Messages
+- ❌ Keine Links zu Issues/PRs
+- ❌ Unstrukturierter Text ohne Kategorien
+- ❌ Rechtschreibfehler oder schlechte Formatierung
+
+### Screenshots/GIFs in Release Notes
+
+Bei UI-Änderungen MÜSSEN visuelle Assets eingebunden werden:
+
+```markdown
+### ✨ Neue Features
+
+- **Dark Mode Support** - App unterstützt jetzt System Dark Mode
+
+  ![Dark Mode Screenshot](https://user-images.githubusercontent.com/.../dark-mode.png)
+
+- **OCR Confidence Indicator** - Visuelle Anzeige der Scan-Qualität
+
+  ![OCR Indicator](https://user-images.githubusercontent.com/.../ocr-indicator.gif)
+```
+
+**Anforderungen:**
+- Format: PNG oder GIF
+- Größe: Max 2MB pro Bild
+- Upload: GitHub Issues oder Releases
+- Alt-Text: Immer beschreibend
+
+### Automatische vs. Manuelle Release Notes
+
+**Automatische Generierung (Standard):**
+
+GitHub Actions generiert automatisch strukturierte Release Notes via `scripts/generate-release-notes.sh`:
+- Liest git commits seit letztem Tag
+- Kategorisiert nach Conventional Commits (feat:, fix:, refactor:, etc.)
+- Inkludiert Fastlane Changelogs (DE + EN)
+- Generiert Comparison Link
+- Folgt `RELEASE_NOTES_TEMPLATE.md` Struktur
+
+**Manuelle Override (für wichtige Releases):**
+
+Für Major Releases, Breaking Changes oder Marketing-Releases:
+
+```bash
+# 1. Erstelle manuelle Release Notes
+cp docs/RELEASE_NOTES_TEMPLATE.md docs/releases/v2.0.0.md
+
+# 2. Fülle alle Sektionen aus (siehe RELEASE_NOTES_QUICK_REFERENCE.md)
+
+# 3. Commit VOR dem Release
+git add docs/releases/v2.0.0.md
+git commit -m "docs: add manual release notes for v2.0.0"
+git push
+
+# 4. GitHub Actions erkennt die manuelle Datei und nutzt sie automatisch
+```
+
+**Workflow:**
+1. GitHub Actions ruft `scripts/generate-release-notes.sh` auf
+2. Script prüft ob `docs/releases/v{VERSION}.md` existiert
+3. **Falls ja:** Nutzt manuelle Notes (vollständige Kontrolle)
+4. **Falls nein:** Generiert automatisch aus Git + Fastlane Metadata
+
+---
+
 ## Bekannte Probleme
 
 ### Kotlin Daemon GC Crash
@@ -414,6 +611,11 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 | **Lokales CI Testing** | `docs/LOCAL_CI_TESTING.md` |
 | **Lokales Deployment** | `docs/LOCAL_DEPLOY.md` |
 | **Best Practices** | `docs/BEST_PRACTICES.md` |
+| **Release Notes Template** | `docs/RELEASE_NOTES_TEMPLATE.md` |
+| **Release Notes Beispiel** | `docs/RELEASE_NOTES_EXAMPLE.md` |
+| **Release Notes Quick Reference** | `docs/RELEASE_NOTES_QUICK_REFERENCE.md` |
+| **Manual Releases Directory** | `docs/releases/README.md` |
+| **Release Notes Generator** | `scripts/generate-release-notes.sh` |
 
 ---
 
@@ -501,6 +703,7 @@ Bei JEDER Implementierung:
 - **VOR JEDEM COMMIT: Lokale CI-Checks ausführen** (siehe "Lokale CI-Checks vor Commit")
 - **Kotlin Flow bevorzugen statt suspend functions für reaktive Daten**
 - **Room Flow für Datenbank-Beobachtung verwenden**
+- **GitHub Releases MÜSSEN strukturiert sein** (siehe "GitHub Release Dokumentation")
 
 ### 🌍 AUTOMATISCHE ÜBERSETZUNG (ZWINGEND!)
 

@@ -176,7 +176,9 @@ data class Document(
     @SerializedName("permissions")
     val permissions: Permissions? = null,
     @SerializedName("user_can_change")
-    val userCanChange: Boolean = true
+    val userCanChange: Boolean = true,
+    @SerializedName("ocr_confidence")
+    val ocrConfidence: Double? = null
 )
 
 data class DocumentsResponse(

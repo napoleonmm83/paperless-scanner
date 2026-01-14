@@ -83,7 +83,8 @@ fun ApiDocument.toDomain(): DomainDocument {
         notes = notes.map { it.toDomain() },
         owner = owner,
         permissions = permissions?.toDomain(),
-        userCanChange = userCanChange
+        userCanChange = userCanChange,
+        ocrConfidence = ocrConfidence
     )
 }
 

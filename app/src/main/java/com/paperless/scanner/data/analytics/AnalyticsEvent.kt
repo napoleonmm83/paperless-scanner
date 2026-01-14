@@ -295,4 +295,40 @@ sealed class AnalyticsEvent(
         "ai_usage_limit_reached",
         mapOf("monthly_call_count" to monthlyCallCount)
     )
+
+    // ==================== Paperless-GPT OCR Events ====================
+
+    /**
+     * Paperless-GPT OCR auto-trigger completed successfully
+     *
+     * @param documentId Document ID that was processed
+     * @param originalConfidence Original OCR confidence before improvement
+     */
+    data class PaperlessGptOcrAutoSuccess(
+        val documentId: Int,
+        val originalConfidence: Double
+    ) : AnalyticsEvent(
+        "paperless_gpt_ocr_auto_success",
+        mapOf(
+            "document_id" to documentId,
+            "original_confidence" to originalConfidence
+        )
+    )
+
+    /**
+     * Paperless-GPT OCR auto-trigger failed
+     *
+     * @param documentId Document ID that was processed
+     * @param error Error message
+     */
+    data class PaperlessGptOcrAutoFailed(
+        val documentId: Int,
+        val error: String
+    ) : AnalyticsEvent(
+        "paperless_gpt_ocr_auto_failed",
+        mapOf(
+            "document_id" to documentId,
+            "error" to error
+        )
+    )
 }

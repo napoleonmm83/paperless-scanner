@@ -12,8 +12,10 @@ import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -69,6 +71,8 @@ class UploadViewModelTest {
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var premiumFeatureManager: PremiumFeatureManager
+    private lateinit var paperlessGptRepository: PaperlessGptRepository
+    private lateinit var taskRepository: TaskRepository
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -103,6 +107,8 @@ class UploadViewModelTest {
         suggestionOrchestrator = mockk(relaxed = true)
         aiUsageRepository = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
+        paperlessGptRepository = mockk(relaxed = true)
+        taskRepository = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -127,6 +133,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
     }
@@ -161,6 +169,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -195,6 +205,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -535,6 +547,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -572,6 +586,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -607,6 +623,8 @@ class UploadViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
+            paperlessGptRepository = paperlessGptRepository,
+            taskRepository = taskRepository,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

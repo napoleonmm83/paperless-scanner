@@ -2,6 +2,9 @@ package com.paperless.scanner.di
 
 import android.content.Context
 import androidx.room.Room
+import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
+import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
+import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.RetryInterceptor
@@ -47,6 +50,10 @@ import javax.inject.Singleton
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class AuthClient
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class PaperlessGptClient
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -131,6 +138,65 @@ object AppModule {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(PaperlessApi::class.java)
+    }
+
+    // Paperless-GPT API
+
+    @Provides
+    @Singleton
+    fun providePaperlessGptBaseUrlInterceptor(
+        tokenManager: TokenManager
+    ): PaperlessGptBaseUrlInterceptor = PaperlessGptBaseUrlInterceptor(tokenManager)
+
+    @Provides
+    @Singleton
+    @PaperlessGptClient
+    fun providePaperlessGptOkHttpClient(
+        tokenManager: TokenManager,
+        paperlessGptBaseUrlInterceptor: PaperlessGptBaseUrlInterceptor
+    ): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.HEADERS
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor(paperlessGptBaseUrlInterceptor)
+            .addInterceptor { chain ->
+                // Token interceptor - uses same token as Paperless-ngx
+                val token = tokenManager.getTokenSync()
+                val request = if (token != null) {
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Token $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
+            .addInterceptor(RetryInterceptor(maxRetries = 3))
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun providePaperlessGptApi(
+        @PaperlessGptClient okHttpClient: OkHttpClient
+    ): PaperlessGptApi {
+        // Use placeholder URL - PaperlessGptBaseUrlInterceptor will set the actual URL
+        return Retrofit.Builder()
+            .baseUrl("http://placeholder.local/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(PaperlessGptApi::class.java)
     }
 
     @Provides
@@ -263,6 +329,13 @@ object AppModule {
     fun provideTaskRepository(
         api: PaperlessApi
     ): TaskRepository = TaskRepository(api)
+
+    @Provides
+    @Singleton
+    fun providePaperlessGptRepository(
+        api: PaperlessGptApi,
+        tokenManager: TokenManager
+    ): PaperlessGptRepository = PaperlessGptRepository(api, tokenManager)
 
     @Provides
     @Singleton

@@ -31,6 +31,11 @@ class TokenManager(private val context: Context) {
         private val AI_WIFI_ONLY_KEY = booleanPreferencesKey("ai_wifi_only")
         private val AI_DEBUG_MODE_KEY = booleanPreferencesKey("ai_debug_mode")
 
+        // Paperless-GPT Preferences
+        private val PAPERLESS_GPT_URL_KEY = stringPreferencesKey("paperless_gpt_url")
+        private val PAPERLESS_GPT_ENABLED_KEY = booleanPreferencesKey("paperless_gpt_enabled")
+        private val PAPERLESS_GPT_OCR_AUTO_KEY = booleanPreferencesKey("paperless_gpt_ocr_auto")
+
         // Theme Preferences
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
     }
@@ -95,6 +100,23 @@ class TokenManager(private val context: Context) {
     /** Theme mode preference (system, light, dark) */
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[THEME_MODE_KEY] ?: "system" // Default: follow system
+    }
+
+    // Paperless-GPT Settings
+
+    /** Paperless-GPT service URL (optional, null = use Paperless-ngx URL) */
+    val paperlessGptUrl: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[PAPERLESS_GPT_URL_KEY]
+    }
+
+    /** Whether Paperless-GPT features are enabled */
+    val paperlessGptEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PAPERLESS_GPT_ENABLED_KEY] ?: false // Default: disabled
+    }
+
+    /** Whether automatic OCR improvement is enabled for low-quality scans */
+    val paperlessGptOcrAutoEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PAPERLESS_GPT_OCR_AUTO_KEY] ?: true // Default: enabled (if Paperless-GPT enabled)
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
@@ -209,5 +231,44 @@ class TokenManager(private val context: Context) {
     /** Get theme mode synchronously (for app initialization) */
     fun getThemeModeSync(): String = runBlocking {
         context.dataStore.data.first()[THEME_MODE_KEY] ?: "system"
+    }
+
+    // Paperless-GPT Settings
+
+    suspend fun setPaperlessGptUrl(url: String?) {
+        context.dataStore.edit { preferences ->
+            if (url.isNullOrBlank()) {
+                preferences.remove(PAPERLESS_GPT_URL_KEY)
+            } else {
+                preferences[PAPERLESS_GPT_URL_KEY] = url.trimEnd('/')
+            }
+        }
+    }
+
+    suspend fun setPaperlessGptEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PAPERLESS_GPT_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setPaperlessGptOcrAutoEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PAPERLESS_GPT_OCR_AUTO_KEY] = enabled
+        }
+    }
+
+    /** Get Paperless-GPT URL synchronously (null = use Paperless-ngx URL) */
+    fun getPaperlessGptUrlSync(): String? = runBlocking {
+        context.dataStore.data.first()[PAPERLESS_GPT_URL_KEY]
+    }
+
+    /** Get Paperless-GPT enabled state synchronously */
+    fun isPaperlessGptEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[PAPERLESS_GPT_ENABLED_KEY] ?: false
+    }
+
+    /** Get Paperless-GPT OCR auto enabled state synchronously */
+    fun isPaperlessGptOcrAutoEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[PAPERLESS_GPT_OCR_AUTO_KEY] ?: true
     }
 }

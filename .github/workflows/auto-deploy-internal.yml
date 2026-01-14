@@ -571,74 +571,53 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ Successfully deployed to Google Play Console Internal Track" >> $GITHUB_STEP_SUMMARY
 
-      # GitHub Release erstellen mit Changelog
-      - name: Read changelog for GitHub Release (Windows)
+      # GitHub Release erstellen mit strukturierter Dokumentation
+      - name: Get previous version for comparison (Windows)
         if: runner.os == 'Windows'
-        id: changelog_win
+        id: prev_version_win
         shell: powershell
         run: |
-          $VERSION_CODE = "${{ steps.bump_version_win.outputs.VERSION_CODE }}"
-          $CHANGELOG_FILE = "fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt"
-          $DEFAULT_FILE = "fastlane/metadata/android/en-US/changelogs/default.txt"
+          $CURRENT = "${{ steps.current_version_win.outputs.CURRENT_VERSION }}"
+          "PREVIOUS_VERSION=$CURRENT" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Previous version: $CURRENT"
 
-          if (Test-Path $CHANGELOG_FILE) {
-            $CHANGELOG = Get-Content $CHANGELOG_FILE -Raw
-            Write-Host "Using version-specific changelog: $CHANGELOG_FILE"
-          } elseif (Test-Path $DEFAULT_FILE) {
-            $CHANGELOG = Get-Content $DEFAULT_FILE -Raw
-            Write-Host "Using default changelog: $DEFAULT_FILE"
-          } else {
-            $CHANGELOG = "Release v${{ steps.bump_version_win.outputs.NEW_VERSION }}"
-            Write-Host "No changelog found, using default message"
-          }
-
-          # Escape for GitHub Actions output
-          $CHANGELOG = $CHANGELOG -replace '%', '%25' -replace "`n", '%0A' -replace "`r", '%0D'
-          "CHANGELOG=$CHANGELOG" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-      - name: Read changelog for GitHub Release (Linux/macOS)
+      - name: Get previous version for comparison (Linux/macOS)
         if: runner.os != 'Windows'
-        id: changelog
+        id: prev_version
         shell: bash
         run: |
-          VERSION_CODE="${{ steps.bump_version.outputs.VERSION_CODE }}"
-          CHANGELOG_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
-          DEFAULT_FILE="fastlane/metadata/android/en-US/changelogs/default.txt"
+          CURRENT="${{ steps.current_version.outputs.CURRENT_VERSION }}"
+          echo "PREVIOUS_VERSION=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Previous version: $CURRENT"
 
-          if [ -f "$CHANGELOG_FILE" ]; then
-            CHANGELOG=$(cat "$CHANGELOG_FILE")
-            echo "Using version-specific changelog: $CHANGELOG_FILE"
-          elif [ -f "$DEFAULT_FILE" ]; then
-            CHANGELOG=$(cat "$DEFAULT_FILE")
-            echo "Using default changelog: $DEFAULT_FILE"
-          else
-            CHANGELOG="Release v${{ steps.bump_version.outputs.NEW_VERSION }}"
-            echo "No changelog found, using default message"
-          fi
+      - name: Generate structured release notes (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          chmod +x scripts/generate-release-notes.sh
+          scripts/generate-release-notes.sh \
+            "${{ steps.bump_version_win.outputs.NEW_VERSION }}" \
+            "${{ steps.bump_version_win.outputs.VERSION_CODE }}" \
+            "${{ steps.prev_version_win.outputs.PREVIOUS_VERSION }}" \
+            > release-notes.md
 
-          # Use EOF delimiter for multiline output
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Generate structured release notes (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          chmod +x scripts/generate-release-notes.sh
+          scripts/generate-release-notes.sh \
+            "${{ steps.bump_version.outputs.NEW_VERSION }}" \
+            "${{ steps.bump_version.outputs.VERSION_CODE }}" \
+            "${{ steps.prev_version.outputs.PREVIOUS_VERSION }}" \
+            > release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
           name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
-          body: |
-            ## 📱 Paperless Scanner v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
-
-            **Track:** Internal Testing
-            **Version Code:** ${{ runner.os == 'Windows' && steps.bump_version_win.outputs.VERSION_CODE || steps.bump_version.outputs.VERSION_CODE }}
-
-            ---
-
-            ${{ runner.os == 'Windows' && steps.changelog_win.outputs.CHANGELOG || steps.changelog.outputs.CHANGELOG }}
-
-            ---
-
-            📲 Available on Google Play Console (Internal Track)
+          body_path: release-notes.md
           draft: false
           prerelease: true  # Internal releases are pre-releases
           files: |

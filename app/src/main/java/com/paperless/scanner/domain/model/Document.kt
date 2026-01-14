@@ -19,5 +19,6 @@ data class Document(
     val notes: List<Note> = emptyList(),
     val owner: Int? = null,
     val permissions: Permissions? = null,
-    val userCanChange: Boolean = true
+    val userCanChange: Boolean = true,
+    val ocrConfidence: Double? = null
 )

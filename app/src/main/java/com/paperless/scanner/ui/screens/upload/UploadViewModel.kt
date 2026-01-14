@@ -30,6 +30,7 @@ import com.paperless.scanner.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,6 +53,8 @@ class UploadViewModel @Inject constructor(
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
+    private val paperlessGptRepository: com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository,
+    private val taskRepository: com.paperless.scanner.data.repository.TaskRepository,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -231,6 +234,9 @@ class UploadViewModel @Inject constructor(
                     analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = 1, durationMs = durationMs))
                     lastUploadParams = null
                     _uiState.update { UploadUiState.Success(taskId) }
+
+                    // Auto-trigger OCR improvement if needed (background, non-blocking)
+                    autoTriggerOcrIfNeeded(taskId)
                 }
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "upload_error"))
@@ -302,6 +308,9 @@ class UploadViewModel @Inject constructor(
                     analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = pageCount, durationMs = durationMs))
                     lastUploadParams = null
                     _uiState.update { UploadUiState.Success(taskId) }
+
+                    // Auto-trigger OCR improvement if needed (background, non-blocking)
+                    autoTriggerOcrIfNeeded(taskId)
                 }
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "multi_page_upload_error"))
@@ -510,6 +519,147 @@ class UploadViewModel @Inject constructor(
         _aiSuggestions.update { null }
         _analysisState.update { AnalysisState.Idle }
         _suggestionSource.update { null }
+    }
+
+    /**
+     * Automatically trigger Paperless-GPT OCR job if document has low OCR confidence.
+     *
+     * **Workflow** (runs in background, non-blocking):
+     * 1. Poll task until completion (max 2 minutes)
+     * 2. Extract document ID from task
+     * 3. Fetch document details to get OCR confidence
+     * 4. If confidence < 0.8 AND Paperless-GPT enabled → trigger OCR job
+     * 5. Poll OCR job status until completion
+     *
+     * **Note:** This runs in background coroutine - user can navigate away during processing.
+     *
+     * @param taskId Task ID from document upload
+     */
+    private fun autoTriggerOcrIfNeeded(taskId: String) {
+        viewModelScope.launch(ioDispatcher) {
+            try {
+                // Check if Paperless-GPT is enabled
+                if (!paperlessGptRepository.isEnabled()) {
+                    Log.d(TAG, "Paperless-GPT disabled, skipping OCR auto-trigger")
+                    return@launch
+                }
+
+                Log.d(TAG, "OCR Auto-Trigger: Polling task $taskId for completion")
+
+                // Step 1: Poll task until completion (max 2 minutes = 60 iterations @ 2s each)
+                var documentId: Int? = null
+                repeat(60) { iteration ->
+                    delay(2000) // 2 seconds
+
+                    taskRepository.getTask(taskId).fold(
+                        onSuccess = { task ->
+                            if (task == null) {
+                                Log.w(TAG, "Task $taskId not found")
+                                return@launch
+                            }
+
+                            when (task.status) {
+                                "SUCCESS" -> {
+                                    // Extract document ID from relatedDocument field
+                                    // Format can be: "123" (plain ID) or "/api/documents/123/" (URL)
+                                    documentId = task.relatedDocument?.let { relDoc ->
+                                        // Try to parse as Int first
+                                        relDoc.toIntOrNull()
+                                            // If that fails, extract from URL pattern
+                                            ?: Regex("""/api/documents/(\d+)""").find(relDoc)?.groupValues?.get(1)?.toIntOrNull()
+                                            // If that fails, try just extracting digits
+                                            ?: relDoc.filter { it.isDigit() }.toIntOrNull()
+                                    }
+
+                                    if (documentId != null) {
+                                        Log.d(TAG, "OCR Auto-Trigger: Task completed, document ID = $documentId")
+                                        return@repeat // Exit polling loop
+                                    } else {
+                                        Log.w(TAG, "OCR Auto-Trigger: Task completed but no document ID found: ${task.relatedDocument}")
+                                        return@launch
+                                    }
+                                }
+                                "FAILURE" -> {
+                                    Log.w(TAG, "OCR Auto-Trigger: Task failed, skipping OCR")
+                                    return@launch
+                                }
+                                "PENDING", "STARTED" -> {
+                                    Log.d(TAG, "OCR Auto-Trigger: Task still processing (${task.status})")
+                                    // Continue polling
+                                }
+                            }
+                        },
+                        onFailure = { error ->
+                            Log.e(TAG, "OCR Auto-Trigger: Failed to get task status", error)
+                            return@launch
+                        }
+                    )
+
+                    // Timeout check
+                    if (iteration == 59) {
+                        Log.w(TAG, "OCR Auto-Trigger: Task polling timeout (2 minutes)")
+                        return@launch
+                    }
+                }
+
+                // Step 2: Fetch document details to get OCR confidence
+                if (documentId == null) {
+                    Log.w(TAG, "OCR Auto-Trigger: Document ID is null after polling")
+                    return@launch
+                }
+
+                Log.d(TAG, "OCR Auto-Trigger: Fetching document $documentId details")
+                documentRepository.getDocument(documentId!!).fold(
+                    onSuccess = { document ->
+                        val confidence = document.ocrConfidence
+                        Log.d(TAG, "OCR Auto-Trigger: Document OCR confidence = $confidence")
+
+                        // Step 3: Check confidence threshold and trigger OCR if needed
+                        if (confidence == null) {
+                            Log.d(TAG, "OCR Auto-Trigger: No OCR confidence available, skipping")
+                            return@launch
+                        }
+
+                        if (confidence >= 0.8) {
+                            Log.d(TAG, "OCR Auto-Trigger: Confidence ${confidence} >= 0.8, skipping OCR")
+                            return@launch
+                        }
+
+                        // Trigger OCR improvement
+                        Log.d(TAG, "OCR Auto-Trigger: Triggering OCR job for document $documentId (confidence: $confidence)")
+                        paperlessGptRepository.autoTriggerOcrIfNeeded(
+                            documentId = documentId!!,
+                            ocrConfidence = confidence
+                        ).fold(
+                            onSuccess = {
+                                Log.d(TAG, "OCR Auto-Trigger: OCR job completed successfully for document $documentId")
+                                analyticsService.trackEvent(
+                                    AnalyticsEvent.PaperlessGptOcrAutoSuccess(
+                                        documentId = documentId!!,
+                                        originalConfidence = confidence
+                                    )
+                                )
+                            },
+                            onFailure = { error ->
+                                Log.e(TAG, "OCR Auto-Trigger: OCR job failed for document $documentId", error)
+                                analyticsService.trackEvent(
+                                    AnalyticsEvent.PaperlessGptOcrAutoFailed(
+                                        documentId = documentId!!,
+                                        error = error.message ?: "unknown"
+                                    )
+                                )
+                            }
+                        )
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "OCR Auto-Trigger: Failed to fetch document $documentId", error)
+                    }
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "OCR Auto-Trigger: Unexpected error", e)
+            }
+        }
     }
 }
 
