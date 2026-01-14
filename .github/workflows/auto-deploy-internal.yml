@@ -601,11 +601,16 @@ jobs:
           $RELEASE_DATE = Get-Date -Format "yyyy-MM-dd"
           $TRACK = "Internal Testing"
 
-          # Get commits since last tag
+          # Get commits since last tag (suppress git errors if tag doesn't exist)
           $PREVIOUS_TAG = "v$PREVIOUS_VERSION"
-          if (git rev-parse $PREVIOUS_TAG 2>$null) {
+          $ErrorActionPreference = 'SilentlyContinue'
+          $tagExists = git rev-parse --verify $PREVIOUS_TAG 2>&1 | Out-Null
+          $ErrorActionPreference = 'Continue'
+
+          if ($LASTEXITCODE -eq 0) {
             $COMMITS = git log "$PREVIOUS_TAG..HEAD" --oneline --no-merges
           } else {
+            Write-Host "Tag $PREVIOUS_TAG not found, using last 20 commits"
             $COMMITS = git log --oneline --no-merges | Select-Object -First 20
           }
 
