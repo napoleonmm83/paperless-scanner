@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -276,6 +277,165 @@ class LabelsViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.error != null)
+    }
+
+    // ==================== Two-Phase Delete Tests (Best Practice) ====================
+
+    @Test
+    fun `prepareDeleteLabel with no documents sets pending state correctly`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 1, name = "Empty Tag", color = "#FF0000", documentCount = 0)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.prepareDeleteLabel(1)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.pendingDeleteLabel)
+        assertEquals(1, state.pendingDeleteLabel?.id)
+        assertEquals("Empty Tag", state.pendingDeleteLabel?.name)
+        assertEquals(0, state.pendingDeleteLabel?.documentCount)
+        assertFalse(state.isLoadingDeleteInfo)
+    }
+
+    @Test
+    fun `prepareDeleteLabel with one document sets pending state correctly`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 2, name = "Single Doc Tag", color = "#00FF00", documentCount = 1)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.prepareDeleteLabel(2)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.pendingDeleteLabel)
+        assertEquals(2, state.pendingDeleteLabel?.id)
+        assertEquals("Single Doc Tag", state.pendingDeleteLabel?.name)
+        assertEquals(1, state.pendingDeleteLabel?.documentCount)
+    }
+
+    @Test
+    fun `prepareDeleteLabel with many documents sets pending state correctly`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 3, name = "Popular Tag", color = "#0000FF", documentCount = 15)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.prepareDeleteLabel(3)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.pendingDeleteLabel)
+        assertEquals(3, state.pendingDeleteLabel?.id)
+        assertEquals("Popular Tag", state.pendingDeleteLabel?.name)
+        assertEquals(15, state.pendingDeleteLabel?.documentCount)
+    }
+
+    @Test
+    fun `confirmDeleteLabel calls repository and clears pending state on success`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 1, name = "Test Tag", color = "#AABBCC", documentCount = 5)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+        coEvery { tagRepository.deleteTag(1) } returns Result.success(Unit)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // First prepare deletion
+        viewModel.prepareDeleteLabel(1)
+        advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.pendingDeleteLabel)
+
+        // Then confirm
+        viewModel.confirmDeleteLabel()
+        advanceUntilIdle()
+
+        // Verify deletion was called
+        coVerify { tagRepository.deleteTag(1) }
+
+        // Verify state was cleared
+        val state = viewModel.uiState.value
+        assertNull(state.pendingDeleteLabel)
+        assertFalse(state.isDeleting)
+    }
+
+    @Test
+    fun `confirmDeleteLabel sets error and keeps dialog open on failure`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 1, name = "Test Tag", documentCount = 5)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+        coEvery { tagRepository.deleteTag(1) } returns Result.failure(Exception("Delete failed"))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.prepareDeleteLabel(1)
+        advanceUntilIdle()
+
+        viewModel.confirmDeleteLabel()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        // Dialog should still be open (pendingDeleteLabel not cleared)
+        assertNotNull(state.pendingDeleteLabel)
+        // Error should be set
+        assertNotNull(state.error)
+        assertTrue(state.error!!.contains("failed") || state.error!!.isNotEmpty())
+        assertFalse(state.isDeleting)
+    }
+
+    @Test
+    fun `clearPendingDelete removes pendingDeleteLabel state`() = runTest {
+        val mockTags = listOf(
+            Tag(id = 1, name = "Test Tag", documentCount = 3)
+        )
+        coEvery { tagRepository.getTags(any()) } returns Result.success(mockTags)
+        every { tagRepository.observeTags() } returns flowOf(mockTags)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Prepare deletion
+        viewModel.prepareDeleteLabel(1)
+        advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.pendingDeleteLabel)
+
+        // Cancel/clear
+        viewModel.clearPendingDelete()
+
+        val state = viewModel.uiState.value
+        assertNull(state.pendingDeleteLabel)
+    }
+
+    @Test
+    fun `confirmDeleteLabel does nothing when no pending delete`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Try to confirm without preparing first
+        viewModel.confirmDeleteLabel()
+        advanceUntilIdle()
+
+        // Should not have called deleteTag
+        coVerify(exactly = 0) { tagRepository.deleteTag(any()) }
     }
 
     // ==================== Load Documents for Label Tests ====================
