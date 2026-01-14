@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d έγγραφα</string>
     <string name="labels_delete_dialog_title">Διαγραφή ετικέτας</string>
     <string name="labels_delete_dialog_message">Θέλετε σίγουρα να διαγράψετε την ετικέτα \"%1$s\";</string>
+    <string name="labels_delete_dialog_message_with_docs">Η ετικέτα \"%1$s\" έχει εκχωρηθεί σε %2$d έγγραφα. Αν τη διαγράψετε, θα αφαιρεθεί από όλα τα έγγραφα.</string>
+    <string name="labels_delete_dialog_message_one_doc">Η ετικέτα \"%1$s\" έχει εκχωρηθεί σε 1 έγγραφο. Αν τη διαγράψετε, θα αφαιρεθεί από αυτό το έγγραφο.</string>
+    <string name="labels_delete_dialog_message_no_docs">Η ετικέτα \"%1$s\" δεν έχει εκχωρηθεί σε κανένα έγγραφο.</string>
+    <string name="labels_delete_dialog_warning">Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.</string>
     <string name="labels_delete_button">Διαγραφή</string>
     <string name="labels_cancel_button">Ακύρωση</string>
     <string name="labels_add_new">Νέα ετικέτα</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Όλα τα έγγραφα επισημάνθηκαν</string>
     <string name="tag_suggestions_all_tagged_desc">Τέλεια! Όλα τα τρέχοντα έγγραφα έχουν ετικέτες.</string>
     <string name="tag_suggestions_analyze">Ανάλυση με AI</string>
+    <string name="tag_suggestions_analyze_short">Ανάλυση AI</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Φόρτωση προεπισκόπησης…</string>
     <string name="tag_suggestions_suggested_tags">Προτεινόμενες ετικέτες</string>
     <string name="tag_suggestions_apply">Εφαρμογή</string>
     <string name="tag_suggestions_manual">Χειροκίνητα</string>
+    <string name="tag_suggestions_manual_tagging">Χειροκίνητη επισήμανση</string>
     <string name="tag_suggestions_select_tags">Επιλογή ετικετών</string>
     <string name="tag_suggestions_error_thumbnail">Αδυναμία φόρτωσης προεπισκόπησης</string>
     <string name="tag_suggestions_error_ai_disabled">Το AI είναι απενεργοποιημένο</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Άγνωστο σφάλμα</string>
     <string name="back">Πίσω</string>
     <string name="close">Κλείσιμο</string>
+    <string name="tag_suggestions_loading">Φόρτωση εγγράφων…</string>
+    <string name="done">Τέλος</string>
+    <string name="smart_tagging_skip">Παράλειψη</string>
+    <string name="smart_tagging_apply">Εφαρμογή</string>
+    <string name="smart_tagging_ai_suggest">Πρόταση με AI</string>
+    <string name="smart_tagging_completed_desc">Επισημάνατε %1$d έγγραφα. Εξαιρετικά!</string>
+    <string name="smart_tagging_suggested_new_tags">Προτεινόμενες Νέες Ετικέτες</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Αυτές οι ετικέτες δεν υπάρχουν ακόμα. Πατήστε για να τις δημιουργήσετε.</string>
 </resources>

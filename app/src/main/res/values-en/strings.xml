@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d documents</string>
     <string name="labels_delete_dialog_title">Delete label</string>
     <string name="labels_delete_dialog_message">Do you really want to delete the label \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">The label \"%1$s\" is assigned to %2$d documents. If you delete it, it will be removed from all documents.</string>
+    <string name="labels_delete_dialog_message_one_doc">The label \"%1$s\" is assigned to 1 document. If you delete it, it will be removed from that document.</string>
+    <string name="labels_delete_dialog_message_no_docs">The label \"%1$s\" is not assigned to any documents.</string>
+    <string name="labels_delete_dialog_warning">This action cannot be undone.</string>
     <string name="labels_delete_button">Delete</string>
     <string name="labels_cancel_button">Cancel</string>
     <string name="labels_add_new">New Label</string>
@@ -655,10 +659,13 @@
     <string name="tag_suggestions_all_tagged">All documents tagged</string>
     <string name="tag_suggestions_all_tagged_desc">Great! All current documents have tags.</string>
     <string name="tag_suggestions_analyze">Analyze with AI</string>
+    <string name="tag_suggestions_analyze_short">AI Analysis</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Loading preview…</string>
     <string name="tag_suggestions_suggested_tags">Suggested tags</string>
     <string name="tag_suggestions_apply">Apply</string>
     <string name="tag_suggestions_manual">Manual</string>
+    <string name="tag_suggestions_manual_tagging">Tag manually</string>
     <string name="tag_suggestions_select_tags">Select tags</string>
     <string name="tag_suggestions_error_thumbnail">Could not load preview</string>
     <string name="tag_suggestions_error_ai_disabled">AI is disabled</string>
@@ -666,4 +673,12 @@
     <string name="error_unknown">Unknown error</string>
     <string name="back">Back</string>
     <string name="close">Close</string>
+    <string name="tag_suggestions_loading">Loading documents…</string>
+    <string name="done">Done</string>
+    <string name="smart_tagging_skip">Skip</string>
+    <string name="smart_tagging_apply">Apply</string>
+    <string name="smart_tagging_ai_suggest">Suggest with AI</string>
+    <string name="smart_tagging_completed_desc">You tagged %1$d documents. Well done!</string>
+    <string name="smart_tagging_suggested_new_tags">Suggested New Tags</string>
+    <string name="smart_tagging_suggested_new_tags_hint">These tags don\'t exist yet. Tap to create them.</string>
 </resources>

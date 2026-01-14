@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d documente</string>
     <string name="labels_delete_dialog_title">Șterge eticheta</string>
     <string name="labels_delete_dialog_message">Ești sigur că vrei să ștergi eticheta \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Eticheta \"%1$s\" este atribuită la %2$d documente. Dacă o ștergi, va fi eliminată de la toate documentele.</string>
+    <string name="labels_delete_dialog_message_one_doc">Eticheta \"%1$s\" este atribuită unui document. Dacă o ștergi, va fi eliminată de la acest document.</string>
+    <string name="labels_delete_dialog_message_no_docs">Eticheta \"%1$s\" nu este atribuită niciunui document.</string>
+    <string name="labels_delete_dialog_warning">Această acțiune nu poate fi anulată.</string>
     <string name="labels_delete_button">Șterge</string>
     <string name="labels_cancel_button">Anulează</string>
     <string name="labels_add_new">Etichetă nouă</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Toate documentele etichetate</string>
     <string name="tag_suggestions_all_tagged_desc">Excelent! Toate documentele curente au etichete.</string>
     <string name="tag_suggestions_analyze">Analizează cu AI</string>
+    <string name="tag_suggestions_analyze_short">Analiză AI</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Se încarcă previzualizarea…</string>
     <string name="tag_suggestions_suggested_tags">Etichete sugerate</string>
     <string name="tag_suggestions_apply">Aplică</string>
     <string name="tag_suggestions_manual">Manual</string>
+    <string name="tag_suggestions_manual_tagging">Etichetare manuală</string>
     <string name="tag_suggestions_select_tags">Selectează etichete</string>
     <string name="tag_suggestions_error_thumbnail">Nu s-a putut încărca previzualizarea</string>
     <string name="tag_suggestions_error_ai_disabled">AI este dezactivat</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Eroare necunoscută</string>
     <string name="back">Înapoi</string>
     <string name="close">Închide</string>
+    <string name="tag_suggestions_loading">Se încarcă documentele…</string>
+    <string name="done">Gata</string>
+    <string name="smart_tagging_skip">Omite</string>
+    <string name="smart_tagging_apply">Aplică</string>
+    <string name="smart_tagging_ai_suggest">Sugerează cu AI</string>
+    <string name="smart_tagging_completed_desc">Ai etichetat %1$d documente. Bravo!</string>
+    <string name="smart_tagging_suggested_new_tags">Etichete Noi Sugerate</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Aceste etichete nu există încă. Atinge pentru a le crea.</string>
 </resources>

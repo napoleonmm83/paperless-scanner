@@ -144,6 +144,10 @@
     <string name="labels_document_count">%1$d dokumentów</string>
     <string name="labels_delete_dialog_title">Usuń etykietę</string>
     <string name="labels_delete_dialog_message">Czy na pewno chcesz usunąć etykietę \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Etykieta \"%1$s\" jest przypisana do %2$d dokumentów. Jeśli ją usuniesz, zostanie usunięta ze wszystkich dokumentów.</string>
+    <string name="labels_delete_dialog_message_one_doc">Etykieta \"%1$s\" jest przypisana do 1 dokumentu. Jeśli ją usuniesz, zostanie usunięta z tego dokumentu.</string>
+    <string name="labels_delete_dialog_message_no_docs">Etykieta \"%1$s\" nie jest przypisana do żadnego dokumentu.</string>
+    <string name="labels_delete_dialog_warning">Tej akcji nie można cofnąć.</string>
     <string name="labels_delete_button">Usuń</string>
     <string name="labels_cancel_button">Anuluj</string>
     <string name="labels_add_new">Nowa etykieta</string>
@@ -601,10 +605,13 @@
     <string name="tag_suggestions_all_tagged">Wszystkie dokumenty otagowane</string>
     <string name="tag_suggestions_all_tagged_desc">Świetnie! Wszystkie dokumenty mają tagi.</string>
     <string name="tag_suggestions_analyze">Analizuj z AI</string>
+    <string name="tag_suggestions_analyze_short">Analiza AI</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Ładowanie podglądu…</string>
     <string name="tag_suggestions_suggested_tags">Sugerowane tagi</string>
     <string name="tag_suggestions_apply">Zastosuj</string>
     <string name="tag_suggestions_manual">Ręcznie</string>
+    <string name="tag_suggestions_manual_tagging">Oznacz ręcznie</string>
     <string name="tag_suggestions_select_tags">Wybierz tagi</string>
     <string name="tag_suggestions_error_thumbnail">Nie można załadować podglądu</string>
     <string name="tag_suggestions_error_ai_disabled">AI wyłączone</string>
@@ -612,4 +619,12 @@
     <string name="error_unknown">Nieznany błąd</string>
     <string name="back">Wstecz</string>
     <string name="close">Zamknij</string>
+    <string name="tag_suggestions_loading">Ładowanie dokumentów…</string>
+    <string name="done">Gotowe</string>
+    <string name="smart_tagging_skip">Pomiń</string>
+    <string name="smart_tagging_apply">Zastosuj</string>
+    <string name="smart_tagging_ai_suggest">Sugeruj z AI</string>
+    <string name="smart_tagging_completed_desc">Oznaczyłeś %1$d dokumentów. Świetna robota!</string>
+    <string name="smart_tagging_suggested_new_tags">Sugerowane Nowe Tagi</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Te tagi jeszcze nie istnieją. Dotknij, aby je utworzyć.</string>
 </resources>

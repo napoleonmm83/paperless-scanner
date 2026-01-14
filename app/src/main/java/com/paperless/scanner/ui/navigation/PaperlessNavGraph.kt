@@ -22,6 +22,7 @@ import com.paperless.scanner.ui.screens.onboarding.WelcomeScreen
 import com.paperless.scanner.ui.screens.pdfviewer.PdfViewerScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
+import com.paperless.scanner.ui.screens.home.SmartTaggingScreen
 
 // Main screens that use the bottom navigation
 private val mainScreenRoutes = listOf(
@@ -194,6 +195,24 @@ fun PaperlessNavGraph(
             com.paperless.scanner.ui.screens.pendingsync.PendingSyncScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // Smart Tagging Screen (Tinder-style swipe to tag)
+        composable(
+            route = Screen.SmartTagging.route,
+            enterTransition = { PaperlessAnimations.screenEnterTransition },
+            exitTransition = { PaperlessAnimations.screenExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.screenPopExitTransition }
+        ) {
+            SmartTaggingScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }

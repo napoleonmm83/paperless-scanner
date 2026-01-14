@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d dokumentů</string>
     <string name="labels_delete_dialog_title">Smazat štítek</string>
     <string name="labels_delete_dialog_message">Opravdu chcete smazat štítek \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Štítek \"%1$s\" je přiřazen k %2$d dokumentům. Pokud jej smažete, bude odstraněn ze všech dokumentů.</string>
+    <string name="labels_delete_dialog_message_one_doc">Štítek \"%1$s\" je přiřazen k 1 dokumentu. Pokud jej smažete, bude odstraněn z tohoto dokumentu.</string>
+    <string name="labels_delete_dialog_message_no_docs">Štítek \"%1$s\" není přiřazen k žádnému dokumentu.</string>
+    <string name="labels_delete_dialog_warning">Tuto akci nelze vrátit zpět.</string>
     <string name="labels_delete_button">Smazat</string>
     <string name="labels_cancel_button">Zrušit</string>
     <string name="labels_add_new">Nový štítek</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Všechny dokumenty označeny</string>
     <string name="tag_suggestions_all_tagged_desc">Skvělé! Všechny aktuální dokumenty mají štítky.</string>
     <string name="tag_suggestions_analyze">Analyzovat pomocí AI</string>
+    <string name="tag_suggestions_analyze_short">AI analýza</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Načítání náhledu…</string>
     <string name="tag_suggestions_suggested_tags">Navrhované štítky</string>
     <string name="tag_suggestions_apply">Použít</string>
     <string name="tag_suggestions_manual">Ručně</string>
+    <string name="tag_suggestions_manual_tagging">Označit ručně</string>
     <string name="tag_suggestions_select_tags">Vybrat štítky</string>
     <string name="tag_suggestions_error_thumbnail">Nelze načíst náhled</string>
     <string name="tag_suggestions_error_ai_disabled">AI je vypnutá</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Neznámá chyba</string>
     <string name="back">Zpět</string>
     <string name="close">Zavřít</string>
+    <string name="tag_suggestions_loading">Načítání dokumentů…</string>
+    <string name="done">Hotovo</string>
+    <string name="smart_tagging_skip">Přeskočit</string>
+    <string name="smart_tagging_apply">Použít</string>
+    <string name="smart_tagging_ai_suggest">Navrhnout pomocí AI</string>
+    <string name="smart_tagging_completed_desc">Označili jste %1$d dokumentů. Skvělá práce!</string>
+    <string name="smart_tagging_suggested_new_tags">Navrhované Nové Štítky</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Tyto štítky ještě neexistují. Klepnutím je vytvoříte.</string>
 </resources>

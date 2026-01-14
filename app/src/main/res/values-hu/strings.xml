@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d dokumentum</string>
     <string name="labels_delete_dialog_title">Címke törlése</string>
     <string name="labels_delete_dialog_message">Biztosan törölni szeretnéd a „%1$s" címkét?</string>
+    <string name="labels_delete_dialog_message_with_docs">A „%1$s" címke %2$d dokumentumhoz van hozzárendelve. Ha törlöd, minden dokumentumról eltávolításra kerül.</string>
+    <string name="labels_delete_dialog_message_one_doc">A „%1$s" címke 1 dokumentumhoz van hozzárendelve. Ha törlöd, erről a dokumentumról eltávolításra kerül.</string>
+    <string name="labels_delete_dialog_message_no_docs">A „%1$s" címke nincs dokumentumhoz rendelve.</string>
+    <string name="labels_delete_dialog_warning">Ez a művelet nem vonható vissza.</string>
     <string name="labels_delete_button">Törlés</string>
     <string name="labels_cancel_button">Mégse</string>
     <string name="labels_add_new">Új címke</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Minden dokumentum címkézve</string>
     <string name="tag_suggestions_all_tagged_desc">Remek! Minden aktuális dokumentumnak van címkéje.</string>
     <string name="tag_suggestions_analyze">Elemzés AI-val</string>
+    <string name="tag_suggestions_analyze_short">AI elemzés</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Előnézet betöltése…</string>
     <string name="tag_suggestions_suggested_tags">Javasolt címkék</string>
     <string name="tag_suggestions_apply">Alkalmaz</string>
     <string name="tag_suggestions_manual">Kézi</string>
+    <string name="tag_suggestions_manual_tagging">Kézi címkézés</string>
     <string name="tag_suggestions_select_tags">Címkék kiválasztása</string>
     <string name="tag_suggestions_error_thumbnail">Nem sikerült betölteni az előnézetet</string>
     <string name="tag_suggestions_error_ai_disabled">AI ki van kapcsolva</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Ismeretlen hiba</string>
     <string name="back">Vissza</string>
     <string name="close">Bezárás</string>
+    <string name="tag_suggestions_loading">Dokumentumok betöltése…</string>
+    <string name="done">Kész</string>
+    <string name="smart_tagging_skip">Kihagyás</string>
+    <string name="smart_tagging_apply">Alkalmaz</string>
+    <string name="smart_tagging_ai_suggest">Javaslat AI-val</string>
+    <string name="smart_tagging_completed_desc">%1$d dokumentumot címkéztél meg. Szép munka!</string>
+    <string name="smart_tagging_suggested_new_tags">Javasolt Új Címkék</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Ezek a címkék még nem léteznek. Koppints a létrehozásukhoz.</string>
 </resources>

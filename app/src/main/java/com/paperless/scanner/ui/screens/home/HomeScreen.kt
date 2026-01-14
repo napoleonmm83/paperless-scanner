@@ -46,7 +46,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.delay
@@ -61,6 +63,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
+import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.theme.DarkTechPrimary
 import com.paperless.scanner.ui.theme.DarkTechSurfaceVariant
 import com.paperless.scanner.ui.theme.DarkTechOutline
@@ -72,6 +76,8 @@ fun HomeScreen(
     onNavigateToDocuments: () -> Unit,
     onDocumentClick: (Int) -> Unit = {},
     onNavigateToPendingSync: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
+    onNavigateToSmartTagging: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -83,7 +89,15 @@ fun HomeScreen(
     val showTagSuggestionsSheet by viewModel.showTagSuggestionsSheet.collectAsState()
     val tagSuggestionsState by viewModel.tagSuggestionsState.collectAsState()
     val availableTags by viewModel.availableTags.collectAsState()
+    val isAiAvailable by viewModel.isAiAvailable.collectAsState()
     val tagSuggestionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Tag creation state
+    val createTagState by viewModel.createTagState.collectAsState()
+    var showCreateTagDialog by remember { mutableStateOf(false) }
+
+    // Premium Upgrade Sheet state
+    var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     // Counter to trigger delayed refresh after resume
     val resumeCount = remember { mutableIntStateOf(0) }
@@ -108,6 +122,20 @@ fun HomeScreen(
         if (resumeCount.intValue > 0) {
             delay(1500) // Wait 1.5 seconds for task to be created on server
             viewModel.refreshTasks()
+        }
+    }
+
+    // Handle tag creation success/error
+    LaunchedEffect(createTagState) {
+        when (createTagState) {
+            is CreateTagState.Success -> {
+                showCreateTagDialog = false
+                viewModel.resetCreateTagState()
+            }
+            is CreateTagState.Error -> {
+                // Keep dialog open to show error, user can dismiss manually
+            }
+            else -> {}
         }
     }
 
@@ -393,7 +421,7 @@ fun HomeScreen(
         // Activity Hint (if there are untagged documents) - Smart Tag Suggestions Card
         if (uiState.untaggedCount > 0) {
             Card(
-                onClick = { viewModel.openTagSuggestionsSheet() },
+                onClick = onNavigateToSmartTagging,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
@@ -446,6 +474,7 @@ fun HomeScreen(
             sheetState = tagSuggestionsSheetState,
             state = tagSuggestionsState,
             availableTags = availableTags,
+            isAiAvailable = isAiAvailable,
             onDismiss = { viewModel.closeTagSuggestionsSheet() },
             onAnalyzeDocument = { documentId -> viewModel.analyzeDocument(documentId) },
             onApplyTags = { documentId, tagIds -> viewModel.applyTagsToDocument(documentId, tagIds) },
@@ -453,7 +482,40 @@ fun HomeScreen(
             onOpenTagPicker = { documentId -> viewModel.openTagPicker(documentId) },
             onCloseTagPicker = { viewModel.closeTagPicker() },
             onToggleTagInPicker = { documentId, tagId -> viewModel.toggleTagInPicker(documentId, tagId) },
-            onApplyPickerTags = { documentId -> viewModel.applyPickerTags(documentId) }
+            onApplyPickerTags = { documentId -> viewModel.applyPickerTags(documentId) },
+            onUpgradeToPremium = { showPremiumUpgradeSheet = true },
+            onCreateNewTag = { showCreateTagDialog = true }
+        )
+    }
+
+    // Premium Upgrade Sheet (shown when non-premium user clicks AI button)
+    if (showPremiumUpgradeSheet) {
+        PremiumUpgradeSheet(
+            onDismiss = { showPremiumUpgradeSheet = false },
+            onSubscribe = { _ ->
+                // Navigate to Settings where purchase flow continues
+                showPremiumUpgradeSheet = false
+                onNavigateToSettings()
+            },
+            onRestore = {
+                // Navigate to Settings where restore continues
+                showPremiumUpgradeSheet = false
+                onNavigateToSettings()
+            }
+        )
+    }
+
+    // Create Tag Dialog (consistent with other screens)
+    if (showCreateTagDialog) {
+        CreateTagDialog(
+            isCreating = createTagState is CreateTagState.Creating,
+            onDismiss = {
+                showCreateTagDialog = false
+                viewModel.resetCreateTagState()
+            },
+            onCreate = { name, color ->
+                viewModel.createTag(name, color)
+            }
         )
     }
 }

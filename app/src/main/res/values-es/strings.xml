@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d documentos</string>
     <string name="labels_delete_dialog_title">Eliminar etiqueta</string>
     <string name="labels_delete_dialog_message">¿Realmente deseas eliminar la etiqueta « %1$s »?</string>
+    <string name="labels_delete_dialog_message_with_docs">La etiqueta « %1$s » está asignada a %2$d documentos. Si la eliminas, se eliminará de todos los documentos.</string>
+    <string name="labels_delete_dialog_message_one_doc">La etiqueta « %1$s » está asignada a 1 documento. Si la eliminas, se eliminará de ese documento.</string>
+    <string name="labels_delete_dialog_message_no_docs">La etiqueta « %1$s » no está asignada a ningún documento.</string>
+    <string name="labels_delete_dialog_warning">Esta acción no se puede deshacer.</string>
     <string name="labels_delete_button">Eliminar</string>
     <string name="labels_cancel_button">Cancelar</string>
     <string name="labels_add_new">Nueva etiqueta</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Todos los documentos etiquetados</string>
     <string name="tag_suggestions_all_tagged_desc">¡Genial! Todos los documentos actuales tienen etiquetas.</string>
     <string name="tag_suggestions_analyze">Analizar con IA</string>
+    <string name="tag_suggestions_analyze_short">Análisis IA</string>
+    <string name="ai_short">IA</string>
     <string name="tag_suggestions_loading_thumbnail">Cargando vista previa…</string>
     <string name="tag_suggestions_suggested_tags">Etiquetas sugeridas</string>
     <string name="tag_suggestions_apply">Aplicar</string>
     <string name="tag_suggestions_manual">Manual</string>
+    <string name="tag_suggestions_manual_tagging">Etiquetar manualmente</string>
     <string name="tag_suggestions_select_tags">Seleccionar etiquetas</string>
     <string name="tag_suggestions_error_thumbnail">No se pudo cargar la vista previa</string>
     <string name="tag_suggestions_error_ai_disabled">IA desactivada</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Error desconocido</string>
     <string name="back">Atrás</string>
     <string name="close">Cerrar</string>
+    <string name="tag_suggestions_loading">Cargando documentos…</string>
+    <string name="done">Listo</string>
+    <string name="smart_tagging_skip">Omitir</string>
+    <string name="smart_tagging_apply">Aplicar</string>
+    <string name="smart_tagging_ai_suggest">Sugerir con IA</string>
+    <string name="smart_tagging_completed_desc">Has etiquetado %1$d documentos. ¡Buen trabajo!</string>
+    <string name="smart_tagging_suggested_new_tags">Nuevas Etiquetas Sugeridas</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Estas etiquetas aún no existen. Toca para crearlas.</string>
 </resources>

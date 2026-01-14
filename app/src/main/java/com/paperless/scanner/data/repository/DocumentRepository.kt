@@ -10,6 +10,8 @@ import com.itextpdf.kernel.pdf.PdfDocument
 import com.itextpdf.kernel.pdf.PdfWriter
 import com.itextpdf.layout.Document as ITextDocument
 import com.itextpdf.layout.element.Image
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
@@ -19,6 +21,7 @@ import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
+import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.mappers.toCachedEntity
@@ -44,9 +47,11 @@ class DocumentRepository @Inject constructor(
     private val context: Context,
     private val api: PaperlessApi,
     private val cachedDocumentDao: CachedDocumentDao,
+    private val cachedTagDao: CachedTagDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor
 ) {
+    private val gson = Gson()
     suspend fun uploadDocument(
         uri: Uri,
         title: String? = null,
@@ -547,6 +552,11 @@ class DocumentRepository @Inject constructor(
     ): Result<Document> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
+                // Get old tags before update (for document count adjustment)
+                val oldTagIds = if (tags != null) {
+                    getOldTagIds(documentId)
+                } else null
+
                 // Online: Update via API
                 val request = UpdateDocumentRequest(
                     title = title,
@@ -561,6 +571,12 @@ class DocumentRepository @Inject constructor(
 
                 // Update cache
                 cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+
+                // BEST PRACTICE: Update tag document counts when tags change
+                // This ensures LabelsScreen shows correct counts immediately
+                if (tags != null && oldTagIds != null) {
+                    updateTagDocumentCounts(oldTagIds, tags)
+                }
 
                 Result.success(updatedDocument.toDomain())
             } else {
@@ -597,6 +613,50 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    /**
+     * Gets the current tag IDs from a cached document.
+     */
+    private suspend fun getOldTagIds(documentId: Int): List<Int> {
+        return try {
+            val cached = cachedDocumentDao.getDocument(documentId)
+            if (cached != null) {
+                val listType = object : TypeToken<List<Int>>() {}.type
+                gson.fromJson(cached.tags, listType) ?: emptyList()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * Updates tag document counts when tags are added/removed from a document.
+     * Decrements count for removed tags, increments count for added tags.
+     * This ensures LabelsScreen shows correct counts immediately.
+     */
+    private suspend fun updateTagDocumentCounts(oldTagIds: List<Int>, newTagIds: List<Int>) {
+        try {
+            val oldSet = oldTagIds.toSet()
+            val newSet = newTagIds.toSet()
+
+            // Tags that were removed: decrement count
+            val removedTags = oldSet - newSet
+            removedTags.forEach { tagId ->
+                cachedTagDao.updateDocumentCount(tagId, -1)
+            }
+
+            // Tags that were added: increment count
+            val addedTags = newSet - oldSet
+            addedTags.forEach { tagId ->
+                cachedTagDao.updateDocumentCount(tagId, 1)
+            }
+        } catch (e: Exception) {
+            // Log but don't fail - cache update is best effort
+            // Server is already in sync, cache will update on next full sync
         }
     }
 

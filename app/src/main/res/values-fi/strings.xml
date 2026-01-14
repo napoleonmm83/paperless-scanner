@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d asiakirjaa</string>
     <string name="labels_delete_dialog_title">Poista tunniste</string>
     <string name="labels_delete_dialog_message">Haluatko varmasti poistaa tunnisteen \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Tunniste \"%1$s\" on liitetty %2$d asiakirjaan. Jos poistat sen, se poistetaan kaikista asiakirjoista.</string>
+    <string name="labels_delete_dialog_message_one_doc">Tunniste \"%1$s\" on liitetty 1 asiakirjaan. Jos poistat sen, se poistetaan kyseisestä asiakirjasta.</string>
+    <string name="labels_delete_dialog_message_no_docs">Tunniste \"%1$s\" ei ole liitetty mihinkään asiakirjaan.</string>
+    <string name="labels_delete_dialog_warning">Tätä toimintoa ei voi kumota.</string>
     <string name="labels_delete_button">Poista</string>
     <string name="labels_cancel_button">Peruuta</string>
     <string name="labels_add_new">Uusi tunniste</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Kaikki asiakirjat merkitty</string>
     <string name="tag_suggestions_all_tagged_desc">Hienoa! Kaikilla nykyisillä asiakirjoilla on tunnisteet.</string>
     <string name="tag_suggestions_analyze">Analysoi tekoälyllä</string>
+    <string name="tag_suggestions_analyze_short">AI-analyysi</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Ladataan esikatselua…</string>
     <string name="tag_suggestions_suggested_tags">Ehdotetut tunnisteet</string>
     <string name="tag_suggestions_apply">Käytä</string>
     <string name="tag_suggestions_manual">Manuaalinen</string>
+    <string name="tag_suggestions_manual_tagging">Merkitse manuaalisesti</string>
     <string name="tag_suggestions_select_tags">Valitse tunnisteet</string>
     <string name="tag_suggestions_error_thumbnail">Esikatselua ei voitu ladata</string>
     <string name="tag_suggestions_error_ai_disabled">Tekoäly on poistettu käytöstä</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Tuntematon virhe</string>
     <string name="back">Takaisin</string>
     <string name="close">Sulje</string>
+    <string name="tag_suggestions_loading">Ladataan asiakirjoja…</string>
+    <string name="done">Valmis</string>
+    <string name="smart_tagging_skip">Ohita</string>
+    <string name="smart_tagging_apply">Käytä</string>
+    <string name="smart_tagging_ai_suggest">Ehdota tekoälyllä</string>
+    <string name="smart_tagging_completed_desc">Merkitsit %1$d asiakirjaa. Hienosti tehty!</string>
+    <string name="smart_tagging_suggested_new_tags">Ehdotetut Uudet Tunnisteet</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Näitä tunnisteita ei ole vielä olemassa. Napauta luodaksesi ne.</string>
 </resources>

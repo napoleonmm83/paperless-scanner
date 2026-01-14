@@ -4,6 +4,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -23,6 +24,7 @@ class TagRepositoryTest {
 
     private lateinit var api: PaperlessApi
     private lateinit var cachedTagDao: CachedTagDao
+    private lateinit var cachedDocumentDao: CachedDocumentDao
     private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var tagRepository: TagRepository
@@ -31,11 +33,13 @@ class TagRepositoryTest {
     fun setup() {
         api = mockk()
         cachedTagDao = mockk(relaxed = true)
+        cachedDocumentDao = mockk(relaxed = true)
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         tagRepository = TagRepository(
             api,
             cachedTagDao,
+            cachedDocumentDao,
             pendingChangeDao,
             networkMonitor
         )

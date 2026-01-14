@@ -3,7 +3,6 @@ package com.paperless.scanner.ui.screens.home
 import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,8 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -49,7 +46,6 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,7 +54,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +64,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 
 /**
  * Data class representing an untagged document in the suggestions sheet.
@@ -81,6 +77,7 @@ data class UntaggedDocument(
     val analysisState: UntaggedDocAnalysisState = UntaggedDocAnalysisState.Idle,
     val suggestions: DocumentAnalysis? = null,
     val selectedTagIds: Set<Int> = emptySet(),
+    val suggestedNewTags: List<TagSuggestion> = emptyList(),
     val isTagged: Boolean = false,
     val isSkipped: Boolean = false
 )
@@ -118,6 +115,7 @@ fun TagSuggestionsSheet(
     sheetState: SheetState,
     state: TagSuggestionsState,
     availableTags: List<Tag>,
+    isAiAvailable: Boolean,
     onDismiss: () -> Unit,
     onAnalyzeDocument: (Int) -> Unit,
     onApplyTags: (documentId: Int, tagIds: List<Int>) -> Unit,
@@ -125,7 +123,9 @@ fun TagSuggestionsSheet(
     onOpenTagPicker: (Int) -> Unit,
     onCloseTagPicker: () -> Unit,
     onToggleTagInPicker: (documentId: Int, tagId: Int) -> Unit,
-    onApplyPickerTags: (documentId: Int) -> Unit
+    onApplyPickerTags: (documentId: Int) -> Unit,
+    onUpgradeToPremium: () -> Unit = {},
+    onCreateNewTag: () -> Unit = {}
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -242,7 +242,8 @@ fun TagSuggestionsSheet(
                             availableTags = availableTags,
                             onBack = onCloseTagPicker,
                             onToggleTag = { tagId -> onToggleTagInPicker(document.id, tagId) },
-                            onApply = { onApplyPickerTags(document.id) }
+                            onApply = { onApplyPickerTags(document.id) },
+                            onCreateNewTag = onCreateNewTag
                         )
                     }
                 }
@@ -250,10 +251,12 @@ fun TagSuggestionsSheet(
                     DocumentsList(
                         documents = state.documents.filter { !it.isTagged && !it.isSkipped },
                         availableTags = availableTags,
+                        isAiAvailable = isAiAvailable,
                         onAnalyze = onAnalyzeDocument,
                         onApplyTags = onApplyTags,
                         onSkip = onSkipDocument,
-                        onOpenTagPicker = onOpenTagPicker
+                        onOpenTagPicker = onOpenTagPicker,
+                        onUpgradeToPremium = onUpgradeToPremium
                     )
                 }
             }
@@ -312,10 +315,12 @@ private fun EmptyState() {
 private fun DocumentsList(
     documents: List<UntaggedDocument>,
     availableTags: List<Tag>,
+    isAiAvailable: Boolean,
     onAnalyze: (Int) -> Unit,
     onApplyTags: (documentId: Int, tagIds: List<Int>) -> Unit,
     onSkip: (Int) -> Unit,
-    onOpenTagPicker: (Int) -> Unit
+    onOpenTagPicker: (Int) -> Unit,
+    onUpgradeToPremium: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -325,10 +330,12 @@ private fun DocumentsList(
             DocumentCard(
                 document = document,
                 availableTags = availableTags,
+                isAiAvailable = isAiAvailable,
                 onAnalyze = { onAnalyze(document.id) },
                 onApplyTags = { tagIds -> onApplyTags(document.id, tagIds) },
                 onSkip = { onSkip(document.id) },
-                onOpenTagPicker = { onOpenTagPicker(document.id) }
+                onOpenTagPicker = { onOpenTagPicker(document.id) },
+                onUpgradeToPremium = onUpgradeToPremium
             )
         }
 
@@ -342,10 +349,12 @@ private fun DocumentsList(
 private fun DocumentCard(
     document: UntaggedDocument,
     availableTags: List<Tag>,
+    isAiAvailable: Boolean,
     onAnalyze: () -> Unit,
     onApplyTags: (List<Int>) -> Unit,
     onSkip: () -> Unit,
-    onOpenTagPicker: () -> Unit
+    onOpenTagPicker: () -> Unit,
+    onUpgradeToPremium: () -> Unit
 ) {
     var selectedTagIds by remember(document.id, document.suggestions) {
         mutableStateOf(document.selectedTagIds)
@@ -420,18 +429,93 @@ private fun DocumentCard(
             // Analysis state content
             when (val state = document.analysisState) {
                 is UntaggedDocAnalysisState.Idle -> {
-                    // Show "Analyze" button
-                    OutlinedButton(
-                        onClick = onAnalyze,
-                        modifier = Modifier.fillMaxWidth()
+                    // All buttons in one row: [AI] [Manual] [Skip]
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.tag_suggestions_analyze))
+                        // AI Button (functional for premium, opens upgrade for non-premium)
+                        if (isAiAvailable) {
+                            OutlinedButton(
+                                onClick = onAnalyze,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.tag_suggestions_analyze_short),
+                                    maxLines = 1
+                                )
+                            }
+                        } else {
+                            // Non-premium: AI button with PRO badge -> opens Premium upgrade
+                            OutlinedButton(
+                                onClick = onUpgradeToPremium,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = stringResource(R.string.ai_short),
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary,
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.premium_badge),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // Manual tagging button
+                        OutlinedButton(
+                            onClick = onOpenTagPicker,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.tag_suggestions_manual),
+                                maxLines = 1
+                            )
+                        }
+
+                        // Skip button
+                        OutlinedButton(
+                            onClick = onSkip
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
 
@@ -634,14 +718,14 @@ private fun DocumentCard(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TagPickerContent(
     document: UntaggedDocument,
     availableTags: List<Tag>,
     onBack: () -> Unit,
     onToggleTag: (Int) -> Unit,
-    onApply: () -> Unit
+    onApply: () -> Unit,
+    onCreateNewTag: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Header
@@ -650,10 +734,8 @@ private fun TagPickerContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) {
-                    Text(stringResource(R.string.back))
-                }
+            TextButton(onClick = onBack) {
+                Text(stringResource(R.string.back))
             }
             Text(
                 text = stringResource(R.string.tag_suggestions_select_tags),
@@ -676,46 +758,20 @@ private fun TagPickerContent(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Tag list
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(availableTags, key = { it.id }) { tag ->
-                val isSelected = document.selectedTagIds.contains(tag.id)
-                val tagColor = tag.color?.let {
-                    try { Color(android.graphics.Color.parseColor(it)) } catch (e: Exception) { null }
-                }
+        // Use consistent TagSelectionSection component (same as UploadScreen, EditDocumentSheet)
+        TagSelectionSection(
+            tags = availableTags,
+            selectedTagIds = document.selectedTagIds,
+            onToggleTag = onToggleTag,
+            onCreateNew = onCreateNewTag
+        )
 
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onToggleTag(tag.id) },
-                    label = { Text(tag.name) },
-                    leadingIcon = if (isSelected) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(FilterChipDefaults.IconSize)
-                            )
-                        }
-                    } else null,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = tagColor?.copy(alpha = 0.3f)
-                            ?: MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = tagColor ?: MaterialTheme.colorScheme.primary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // Bottom spacing
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-        }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }

@@ -145,9 +145,10 @@ object AppModule {
     fun provideTagRepository(
         api: PaperlessApi,
         cachedTagDao: CachedTagDao,
+        cachedDocumentDao: CachedDocumentDao,
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor
-    ): TagRepository = TagRepository(api, cachedTagDao, pendingChangeDao, networkMonitor)
+    ): TagRepository = TagRepository(api, cachedTagDao, cachedDocumentDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton
@@ -155,9 +156,10 @@ object AppModule {
         @ApplicationContext context: Context,
         api: PaperlessApi,
         cachedDocumentDao: CachedDocumentDao,
+        cachedTagDao: CachedTagDao,
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, pendingChangeDao, networkMonitor)
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao, networkMonitor)
 
     @Provides
     @Singleton

@@ -144,6 +144,10 @@
     <string name="labels_document_count">%1$d documenten</string>
     <string name="labels_delete_dialog_title">Label verwijderen</string>
     <string name="labels_delete_dialog_message">Weet je zeker dat je het label \"%1$s\" wilt verwijderen?</string>
+    <string name="labels_delete_dialog_message_with_docs">Het label \"%1$s\" is toegewezen aan %2$d documenten. Als je het verwijdert, wordt het van alle documenten verwijderd.</string>
+    <string name="labels_delete_dialog_message_one_doc">Het label \"%1$s\" is toegewezen aan 1 document. Als je het verwijdert, wordt het van dat document verwijderd.</string>
+    <string name="labels_delete_dialog_message_no_docs">Het label \"%1$s\" is niet toegewezen aan documenten.</string>
+    <string name="labels_delete_dialog_warning">Deze actie kan niet ongedaan worden gemaakt.</string>
     <string name="labels_delete_button">Verwijderen</string>
     <string name="labels_cancel_button">Annuleren</string>
     <string name="labels_add_new">Nieuw label</string>
@@ -601,10 +605,13 @@
     <string name="tag_suggestions_all_tagged">Alle documenten getagd</string>
     <string name="tag_suggestions_all_tagged_desc">Super! Alle huidige documenten hebben tags.</string>
     <string name="tag_suggestions_analyze">Analyseren met AI</string>
+    <string name="tag_suggestions_analyze_short">AI Analyse</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Voorbeeld laden…</string>
     <string name="tag_suggestions_suggested_tags">Voorgestelde tags</string>
     <string name="tag_suggestions_apply">Toepassen</string>
     <string name="tag_suggestions_manual">Handmatig</string>
+    <string name="tag_suggestions_manual_tagging">Handmatig taggen</string>
     <string name="tag_suggestions_select_tags">Tags selecteren</string>
     <string name="tag_suggestions_error_thumbnail">Kon voorbeeld niet laden</string>
     <string name="tag_suggestions_error_ai_disabled">AI uitgeschakeld</string>
@@ -612,4 +619,12 @@
     <string name="error_unknown">Onbekende fout</string>
     <string name="back">Terug</string>
     <string name="close">Sluiten</string>
+    <string name="tag_suggestions_loading">Documenten laden…</string>
+    <string name="done">Klaar</string>
+    <string name="smart_tagging_skip">Overslaan</string>
+    <string name="smart_tagging_apply">Toepassen</string>
+    <string name="smart_tagging_ai_suggest">Suggereren met AI</string>
+    <string name="smart_tagging_completed_desc">Je hebt %1$d documenten getagd. Goed gedaan!</string>
+    <string name="smart_tagging_suggested_new_tags">Voorgestelde Nieuwe Tags</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Deze tags bestaan nog niet. Tik om ze te maken.</string>
 </resources>

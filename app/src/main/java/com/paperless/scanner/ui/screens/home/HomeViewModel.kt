@@ -74,6 +74,14 @@ enum class TaskStatus {
     FAILURE
 }
 
+// Tag creation state
+sealed class CreateTagState {
+    data object Idle : CreateTagState()
+    data object Creating : CreateTagState()
+    data class Success(val tag: Tag) : CreateTagState()
+    data class Error(val message: String) : CreateTagState()
+}
+
 data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
     val recentDocuments: List<RecentDocument> = emptyList(),
@@ -139,6 +147,10 @@ class HomeViewModel @Inject constructor(
     // Check if AI is available (premium feature)
     val isAiAvailable: StateFlow<Boolean> = premiumFeatureManager.isAiEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    // Tag creation state
+    private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
+    val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
 
     init {
         analyticsService.trackEvent(AnalyticsEvent.AppOpened)
@@ -482,6 +494,14 @@ class HomeViewModel @Inject constructor(
         loadUntaggedDocuments()
     }
 
+    /**
+     * Load untagged documents for the SmartTaggingScreen.
+     * This is called when navigating to the full-screen tagging experience.
+     */
+    fun loadUntaggedDocumentsForScreen() {
+        loadUntaggedDocuments()
+    }
+
     fun closeTagSuggestionsSheet() {
         _showTagSuggestionsSheet.value = false
         _tagSuggestionsState.value = TagSuggestionsState()
@@ -521,10 +541,49 @@ class HomeViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+
+                // Pre-load thumbnails for all documents in background
+                if (serverUrl.isNotEmpty() && authToken.isNotEmpty()) {
+                    untaggedDocs.forEach { doc ->
+                        loadThumbnailForDocument(doc.id, serverUrl, authToken)
+                    }
+                }
             }.onFailure { error ->
                 logger.log(Level.WARNING, "Failed to load untagged documents: ${error.message}")
                 _tagSuggestionsState.update {
                     it.copy(isLoading = false)
+                }
+            }
+        }
+    }
+
+    private fun loadThumbnailForDocument(documentId: Int, serverUrl: String, authToken: String) {
+        viewModelScope.launch {
+            val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
+            val bitmap = withContext(Dispatchers.IO) {
+                try {
+                    val connection = URL(thumbnailUrl).openConnection()
+                    connection.setRequestProperty("Authorization", "Token $authToken")
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 10000
+                    connection.getInputStream().use { inputStream ->
+                        BitmapFactory.decodeStream(inputStream)
+                    }
+                } catch (e: Exception) {
+                    logger.log(Level.WARNING, "Failed to load thumbnail for doc $documentId: ${e.message}")
+                    null
+                }
+            }
+
+            if (bitmap != null) {
+                _tagSuggestionsState.update { state ->
+                    state.copy(
+                        documents = state.documents.map { doc ->
+                            if (doc.id == documentId) {
+                                doc.copy(thumbnailBitmap = bitmap)
+                            } else doc
+                        }
+                    )
                 }
             }
         }
@@ -592,8 +651,10 @@ class HomeViewModel @Inject constructor(
 
                 when (result) {
                     is SuggestionResult.Success -> {
-                        // Pre-select suggested tags that exist in the system
+                        // Separate suggested tags into existing and new
                         val existingTags = tagMap.values.toList()
+
+                        // Find tags that exist in the system and pre-select them
                         val preSelectedIds = result.analysis.suggestedTags
                             .mapNotNull { suggestion ->
                                 suggestion.tagId ?: existingTags.find {
@@ -602,6 +663,16 @@ class HomeViewModel @Inject constructor(
                             }
                             .toSet()
 
+                        // Find tags that DON'T exist in the system (new tag suggestions)
+                        val newTagSuggestions = result.analysis.suggestedTags
+                            .filter { suggestion ->
+                                val hasTagId = suggestion.tagId != null
+                                val existsInSystem = existingTags.any {
+                                    it.name.equals(suggestion.tagName, ignoreCase = true)
+                                }
+                                !hasTagId && !existsInSystem
+                            }
+
                         _tagSuggestionsState.update { state ->
                             state.copy(
                                 documents = state.documents.map { doc ->
@@ -609,7 +680,8 @@ class HomeViewModel @Inject constructor(
                                         doc.copy(
                                             analysisState = UntaggedDocAnalysisState.Success(result.analysis),
                                             suggestions = result.analysis,
-                                            selectedTagIds = preSelectedIds
+                                            selectedTagIds = preSelectedIds,
+                                            suggestedNewTags = newTagSuggestions
                                         )
                                     } else doc
                                 }
@@ -737,6 +809,117 @@ class HomeViewModel @Inject constructor(
         if (document != null && document.selectedTagIds.isNotEmpty()) {
             applyTagsToDocument(documentId, document.selectedTagIds.toList())
             closeTagPicker()
+        }
+    }
+
+    // ==================== TAG CREATION ====================
+
+    fun createTag(name: String, color: String? = null) {
+        viewModelScope.launch {
+            _createTagState.update { CreateTagState.Creating }
+
+            tagRepository.createTag(name = name, color = color)
+                .onSuccess { newTag ->
+                    logger.log(Level.INFO, "Tag created: ${newTag.name}")
+                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
+                    // BEST PRACTICE: Tag list updates automatically via observeTagsReactively()
+                    _createTagState.update { CreateTagState.Success(newTag) }
+                }
+                .onFailure { e ->
+                    logger.log(Level.WARNING, "Failed to create tag: ${e.message}")
+                    // Handle duplicate tag error
+                    if (e.message?.contains("unique constraint") == true ||
+                        e.message?.contains("already exists") == true) {
+                        // Try to find existing tag
+                        val existingTag = tagRepository.observeTags().first()
+                            .find { it.name.equals(name, ignoreCase = true) }
+                        if (existingTag != null) {
+                            _createTagState.update { CreateTagState.Success(existingTag) }
+                        } else {
+                            _createTagState.update { CreateTagState.Error(
+                                context.getString(R.string.error_create_tag)
+                            ) }
+                        }
+                    } else {
+                        _createTagState.update { CreateTagState.Error(
+                            e.message ?: context.getString(R.string.error_create_tag)
+                        ) }
+                    }
+                }
+        }
+    }
+
+    fun resetCreateTagState() {
+        _createTagState.update { CreateTagState.Idle }
+    }
+
+    /**
+     * Creates a suggested new tag and automatically selects it for the specified document.
+     * Also removes it from the suggestedNewTags list.
+     */
+    fun createSuggestedTag(documentId: Int, tagName: String) {
+        viewModelScope.launch {
+            _createTagState.update { CreateTagState.Creating }
+
+            tagRepository.createTag(name = tagName, color = null)
+                .onSuccess { newTag ->
+                    logger.log(Level.INFO, "Suggested tag created: ${newTag.name}")
+                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
+
+                    // Auto-select the newly created tag for this document
+                    // and remove it from suggestedNewTags
+                    _tagSuggestionsState.update { state ->
+                        state.copy(
+                            documents = state.documents.map { doc ->
+                                if (doc.id == documentId) {
+                                    doc.copy(
+                                        selectedTagIds = doc.selectedTagIds + newTag.id,
+                                        suggestedNewTags = doc.suggestedNewTags.filter {
+                                            !it.tagName.equals(tagName, ignoreCase = true)
+                                        }
+                                    )
+                                } else doc
+                            }
+                        )
+                    }
+
+                    _createTagState.update { CreateTagState.Success(newTag) }
+                }
+                .onFailure { e ->
+                    logger.log(Level.WARNING, "Failed to create suggested tag: ${e.message}")
+                    // Handle duplicate tag error - tag might have been created meanwhile
+                    if (e.message?.contains("unique constraint") == true ||
+                        e.message?.contains("already exists") == true) {
+                        val existingTag = tagRepository.observeTags().first()
+                            .find { it.name.equals(tagName, ignoreCase = true) }
+                        if (existingTag != null) {
+                            // Auto-select the existing tag
+                            _tagSuggestionsState.update { state ->
+                                state.copy(
+                                    documents = state.documents.map { doc ->
+                                        if (doc.id == documentId) {
+                                            doc.copy(
+                                                selectedTagIds = doc.selectedTagIds + existingTag.id,
+                                                suggestedNewTags = doc.suggestedNewTags.filter {
+                                                    !it.tagName.equals(tagName, ignoreCase = true)
+                                                }
+                                            )
+                                        } else doc
+                                    }
+                                )
+                            }
+                            _createTagState.update { CreateTagState.Success(existingTag) }
+                        } else {
+                            _createTagState.update { CreateTagState.Error(
+                                context.getString(R.string.error_create_tag)
+                            ) }
+                        }
+                    } else {
+                        _createTagState.update { CreateTagState.Error(
+                            e.message ?: context.getString(R.string.error_create_tag)
+                        ) }
+                    }
+                }
         }
     }
 }

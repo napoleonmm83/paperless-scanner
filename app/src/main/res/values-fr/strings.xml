@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d documents</string>
     <string name="labels_delete_dialog_title">Supprimer l\'étiquette</string>
     <string name="labels_delete_dialog_message">Voulez-vous vraiment supprimer l\'étiquette « %1$s » ?</string>
+    <string name="labels_delete_dialog_message_with_docs">L\'étiquette « %1$s » est attribuée à %2$d documents. Si vous la supprimez, elle sera retirée de tous les documents.</string>
+    <string name="labels_delete_dialog_message_one_doc">L\'étiquette « %1$s » est attribuée à 1 document. Si vous la supprimez, elle sera retirée de ce document.</string>
+    <string name="labels_delete_dialog_message_no_docs">L\'étiquette « %1$s » n\'est attribuée à aucun document.</string>
+    <string name="labels_delete_dialog_warning">Cette action ne peut pas être annulée.</string>
     <string name="labels_delete_button">Supprimer</string>
     <string name="labels_cancel_button">Annuler</string>
     <string name="labels_add_new">Nouvelle étiquette</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Tous les documents tagués</string>
     <string name="tag_suggestions_all_tagged_desc">Super ! Tous les documents actuels ont des tags.</string>
     <string name="tag_suggestions_analyze">Analyser avec IA</string>
+    <string name="tag_suggestions_analyze_short">Analyse IA</string>
+    <string name="ai_short">IA</string>
     <string name="tag_suggestions_loading_thumbnail">Chargement de l\'aperçu…</string>
     <string name="tag_suggestions_suggested_tags">Tags suggérés</string>
     <string name="tag_suggestions_apply">Appliquer</string>
     <string name="tag_suggestions_manual">Manuel</string>
+    <string name="tag_suggestions_manual_tagging">Taguer manuellement</string>
     <string name="tag_suggestions_select_tags">Sélectionner les tags</string>
     <string name="tag_suggestions_error_thumbnail">Impossible de charger l\'aperçu</string>
     <string name="tag_suggestions_error_ai_disabled">IA désactivée</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Erreur inconnue</string>
     <string name="back">Retour</string>
     <string name="close">Fermer</string>
+    <string name="tag_suggestions_loading">Chargement des documents…</string>
+    <string name="done">Terminé</string>
+    <string name="smart_tagging_skip">Ignorer</string>
+    <string name="smart_tagging_apply">Appliquer</string>
+    <string name="smart_tagging_ai_suggest">Suggérer avec l\'IA</string>
+    <string name="smart_tagging_completed_desc">Vous avez étiqueté %1$d documents. Bien joué !</string>
+    <string name="smart_tagging_suggested_new_tags">Nouveaux Tags Suggérés</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Ces tags n\'existent pas encore. Appuyez pour les créer.</string>
 </resources>

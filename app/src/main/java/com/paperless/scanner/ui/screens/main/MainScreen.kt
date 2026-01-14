@@ -47,6 +47,12 @@ fun MainScreen(
                 onDocumentClick = onDocumentClick,
                 onNavigateToPendingSync = {
                     navController.navigate(Screen.PendingSync.route)
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
+                onNavigateToSmartTagging = {
+                    navController.navigate(Screen.SmartTagging.route)
                 }
             )
             Screen.Documents.route -> DocumentsScreen(

@@ -45,4 +45,8 @@ interface CachedTagDao {
 
     @Query("DELETE FROM cached_tags WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<Int>)
+
+    // Update document count for a specific tag
+    @Query("UPDATE cached_tags SET documentCount = documentCount + :delta WHERE id = :tagId")
+    suspend fun updateDocumentCount(tagId: Int, delta: Int)
 }

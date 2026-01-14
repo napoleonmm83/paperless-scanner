@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d belge</string>
     <string name="labels_delete_dialog_title">Etiketi sil</string>
     <string name="labels_delete_dialog_message">\"%1$s\" etiketini silmek istediğinizden emin misiniz?</string>
+    <string name="labels_delete_dialog_message_with_docs">\"%1$s\" etiketi %2$d belgeye atanmış. Silerseniz, tüm belgelerden kaldırılacaktır.</string>
+    <string name="labels_delete_dialog_message_one_doc">\"%1$s\" etiketi 1 belgeye atanmış. Silerseniz, bu belgeden kaldırılacaktır.</string>
+    <string name="labels_delete_dialog_message_no_docs">\"%1$s\" etiketi hiçbir belgeye atanmamış.</string>
+    <string name="labels_delete_dialog_warning">Bu işlem geri alınamaz.</string>
     <string name="labels_delete_button">Sil</string>
     <string name="labels_cancel_button">İptal</string>
     <string name="labels_add_new">Yeni etiket</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Tüm belgeler etiketlendi</string>
     <string name="tag_suggestions_all_tagged_desc">Harika! Tüm mevcut belgelerin etiketleri var.</string>
     <string name="tag_suggestions_analyze">AI ile analiz et</string>
+    <string name="tag_suggestions_analyze_short">AI Analizi</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Önizleme yükleniyor…</string>
     <string name="tag_suggestions_suggested_tags">Önerilen etiketler</string>
     <string name="tag_suggestions_apply">Uygula</string>
     <string name="tag_suggestions_manual">Manuel</string>
+    <string name="tag_suggestions_manual_tagging">Manuel olarak etiketle</string>
     <string name="tag_suggestions_select_tags">Etiketleri seç</string>
     <string name="tag_suggestions_error_thumbnail">Önizleme yüklenemedi</string>
     <string name="tag_suggestions_error_ai_disabled">AI devre dışı</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Bilinmeyen hata</string>
     <string name="back">Geri</string>
     <string name="close">Kapat</string>
+    <string name="tag_suggestions_loading">Belgeler yükleniyor…</string>
+    <string name="done">Tamam</string>
+    <string name="smart_tagging_skip">Atla</string>
+    <string name="smart_tagging_apply">Uygula</string>
+    <string name="smart_tagging_ai_suggest">AI ile öner</string>
+    <string name="smart_tagging_completed_desc">%1$d belgeyi etiketlediniz. Aferin!</string>
+    <string name="smart_tagging_suggested_new_tags">Önerilen Yeni Etiketler</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Bu etiketler henüz mevcut değil. Oluşturmak için dokunun.</string>
 </resources>

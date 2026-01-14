@@ -88,20 +88,20 @@ class LabelsViewModelTest {
         assertEquals("Receipt", state.labels[1].name)
     }
 
-    // ==================== Load Labels Tests ====================
+    // ==================== Refresh Labels Tests ====================
 
     @Test
-    fun `loadLabels success updates state with labels`() = runTest {
+    fun `refresh success updates state with labels`() = runTest {
         val mockTags = listOf(
             Tag(id = 1, name = "Tag1", color = "#AABBCC", documentCount = 10)
         )
-        coEvery { tagRepository.getTags() } returns Result.success(mockTags)
+        coEvery { tagRepository.getTags(forceRefresh = true) } returns Result.success(mockTags)
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.loadLabels()
+        viewModel.refresh()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -111,8 +111,8 @@ class LabelsViewModelTest {
     }
 
     @Test
-    fun `loadLabels failure updates state with error`() = runTest {
-        coEvery { tagRepository.getTags() } returns Result.failure(Exception("Network error"))
+    fun `refresh failure updates state with error`() = runTest {
+        coEvery { tagRepository.getTags(forceRefresh = true) } returns Result.failure(Exception("Network error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()

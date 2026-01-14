@@ -46,6 +46,9 @@ sealed class Screen(val route: String) {
     // Pending Sync Debug
     data object PendingSync : Screen("pending-sync")
 
+    // Smart Tagging (Tinder-style swipe to tag)
+    data object SmartTagging : Screen("smart-tagging")
+
     // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {
         fun createRoute(documentUri: Uri): String {

@@ -32,11 +32,24 @@ enum class LabelFilterOption {
     MANY_DOCUMENTS
 }
 
+/**
+ * State for pending label deletion with document count info.
+ */
+data class PendingDeleteLabel(
+    val id: Int,
+    val name: String,
+    val documentCount: Int
+)
+
 data class LabelsUiState(
     val labels: List<LabelItem> = emptyList(),
     val documentsForLabel: List<LabelDocument> = emptyList(),
+    val selectedLabel: LabelItem? = null,  // BEST PRACTICE: Navigation state in ViewModel survives navigation
     val isLoading: Boolean = true,
     val isLoadingDocuments: Boolean = false,
+    val isDeleting: Boolean = false,
+    val pendingDeleteLabel: PendingDeleteLabel? = null,
+    val isLoadingDeleteInfo: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
     val sortOption: LabelSortOption = LabelSortOption.NAME_ASC,
@@ -55,14 +68,16 @@ class LabelsViewModel @Inject constructor(
     private var allLabels: List<LabelItem> = emptyList()
 
     init {
-        loadLabels()
+        // BEST PRACTICE: Start Flow observer FIRST, then trigger API refresh
         observeTagsReactively()
+        refresh()
     }
 
     /**
-     * BEST PRACTICE: Reactive Flow for tags.
-     * Automatically updates labels when tags are added/modified/deleted.
-     * No manual refresh needed after create/update/delete operations!
+     * BEST PRACTICE (Google Architecture Sample):
+     * Reactive Flow for tags - SINGLE SOURCE OF TRUTH for UI state.
+     * This is the ONLY place that updates _uiState.labels.
+     * Automatically updates when Room database changes.
      */
     private fun observeTagsReactively() {
         viewModelScope.launch {
@@ -82,7 +97,8 @@ class LabelsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         labels = processed,
-                        isLoading = false
+                        isLoading = false,
+                        error = null
                     )
                 }
             }
@@ -121,34 +137,31 @@ class LabelsViewModel @Inject constructor(
         return result
     }
 
-    fun loadLabels() {
+    /**
+     * BEST PRACTICE (Google Architecture Sample):
+     * refresh() only triggers API fetch and updates Room cache.
+     * It does NOT update _uiState.labels - that's done by observeTagsReactively().
+     * This ensures single source of truth: Room → Flow → UI.
+     */
+    fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            tagRepository.getTags().onSuccess { tags ->
-                allLabels = tags.map { tag ->
-                    LabelItem(
-                        id = tag.id,
-                        name = tag.name,
-                        color = parseColor(tag.color),
-                        documentCount = tag.documentCount ?: 0
-                    )
+            tagRepository.getTags(forceRefresh = true)
+                .onSuccess {
+                    // BEST PRACTICE: Do NOT update labels here!
+                    // Room cache was updated by repository.
+                    // observeTagsReactively() will pick up changes automatically.
+                    _uiState.update { it.copy(isLoading = false) }
                 }
-
-                _uiState.update {
-                    it.copy(
-                        labels = allLabels,
-                        isLoading = false
-                    )
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.message ?: context.getString(R.string.error_loading)
+                        )
+                    }
                 }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = error.message ?: context.getString(R.string.error_loading)
-                    )
-                }
-            }
         }
     }
 
@@ -213,6 +226,68 @@ class LabelsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Prepares label deletion by loading the document count first.
+     * Shows confirmation dialog with info about affected documents.
+     */
+    fun prepareDeleteLabel(labelId: Int) {
+        val label = allLabels.find { it.id == labelId } ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingDeleteInfo = true) }
+
+            // Use the documentCount from the label directly (already available)
+            // This avoids an extra API call since we have the count cached
+            _uiState.update {
+                it.copy(
+                    pendingDeleteLabel = PendingDeleteLabel(
+                        id = label.id,
+                        name = label.name,
+                        documentCount = label.documentCount
+                    ),
+                    isLoadingDeleteInfo = false
+                )
+            }
+        }
+    }
+
+    /**
+     * Confirms and executes the pending label deletion.
+     */
+    fun confirmDeleteLabel() {
+        val pending = _uiState.value.pendingDeleteLabel ?: return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDeleting = true) }
+
+            tagRepository.deleteTag(pending.id).onSuccess {
+                // BEST PRACTICE: No manual refresh needed!
+                // observeTagsReactively() automatically updates UI.
+                _uiState.update {
+                    it.copy(
+                        pendingDeleteLabel = null,
+                        isDeleting = false
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        error = error.message ?: context.getString(R.string.error_deleting),
+                        isDeleting = false
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears the pending delete state (cancel deletion).
+     */
+    fun clearPendingDelete() {
+        _uiState.update { it.copy(pendingDeleteLabel = null) }
+    }
+
+    @Deprecated("Use prepareDeleteLabel + confirmDeleteLabel instead")
     fun deleteLabel(id: Int) {
         viewModelScope.launch {
             tagRepository.deleteTag(id).onSuccess {
@@ -278,6 +353,20 @@ class LabelsViewModel @Inject constructor(
         return String.format("#%02X%02X%02X", red, green, blue)
     }
 
+    /**
+     * BEST PRACTICE: Navigation state in ViewModel survives navigation.
+     * When user selects a label and navigates to DocumentDetail and back,
+     * the selected label is preserved.
+     */
+    fun selectLabel(label: LabelItem) {
+        _uiState.update { it.copy(selectedLabel = label) }
+        loadDocumentsForLabel(label.id)
+    }
+
+    fun clearSelectedLabel() {
+        _uiState.update { it.copy(selectedLabel = null, documentsForLabel = emptyList()) }
+    }
+
     fun clearDocumentsForLabel() {
         _uiState.update { it.copy(documentsForLabel = emptyList()) }
     }
@@ -293,6 +382,6 @@ class LabelsViewModel @Inject constructor(
     fun resetState() {
         _uiState.update { LabelsUiState() }
         allLabels = emptyList()
-        loadLabels()
+        refresh()
     }
 }

@@ -1,11 +1,14 @@
 package com.paperless.scanner.data.repository
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.api.safeApiResponse
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
@@ -21,9 +24,11 @@ import javax.inject.Inject
 class TagRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedTagDao: CachedTagDao,
+    private val cachedDocumentDao: CachedDocumentDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor
 ) {
+    private val gson = Gson()
     /**
      * BEST PRACTICE: Reactive Flow for automatic UI updates.
      * Observes cached tags and automatically notifies when tags are added/modified/deleted.
@@ -95,9 +100,47 @@ class TagRepository @Inject constructor(
             // Delete from cache to trigger reactive Flow update immediately
             cachedTagDao.deleteByIds(listOf(id))
 
+            // BEST PRACTICE: Remove deleted tag ID from all cached documents
+            // This ensures HomeScreen shows correct tag status immediately
+            removeTagFromCachedDocuments(id)
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    /**
+     * Removes a deleted tag ID from all cached documents.
+     * This ensures reactive Flows update correctly without requiring
+     * a full server sync.
+     */
+    private suspend fun removeTagFromCachedDocuments(tagId: Int) {
+        try {
+            val listType = object : TypeToken<List<Int>>() {}.type
+
+            // Get all cached documents
+            val documents = cachedDocumentDao.getDocuments(limit = 1000, offset = 0)
+
+            documents.forEach { doc ->
+                val tagIds: List<Int> = try {
+                    gson.fromJson(doc.tags, listType) ?: emptyList()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+
+                if (tagIds.contains(tagId)) {
+                    // Remove the deleted tag ID
+                    val updatedTagIds = tagIds.filter { it != tagId }
+                    val updatedTagsJson = gson.toJson(updatedTagIds)
+
+                    // Update the document in cache
+                    cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
+                }
+            }
+        } catch (e: Exception) {
+            // Log but don't fail - cache update is best effort
+            // Server is already in sync, cache will update on next full sync
         }
     }
 

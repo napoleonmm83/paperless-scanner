@@ -144,6 +144,10 @@
     <string name="labels_document_count">%1$d dokument</string>
     <string name="labels_delete_dialog_title">Ta bort etikett</string>
     <string name="labels_delete_dialog_message">Vill du verkligen ta bort etiketten \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Etiketten \"%1$s\" är tilldelad till %2$d dokument. Om du tar bort den kommer den att tas bort från alla dokument.</string>
+    <string name="labels_delete_dialog_message_one_doc">Etiketten \"%1$s\" är tilldelad till 1 dokument. Om du tar bort den kommer den att tas bort från det dokumentet.</string>
+    <string name="labels_delete_dialog_message_no_docs">Etiketten \"%1$s\" är inte tilldelad till något dokument.</string>
+    <string name="labels_delete_dialog_warning">Denna åtgärd kan inte ångras.</string>
     <string name="labels_delete_button">Ta bort</string>
     <string name="labels_cancel_button">Avbryt</string>
     <string name="labels_add_new">Ny etikett</string>
@@ -601,10 +605,13 @@
     <string name="tag_suggestions_all_tagged">Alla dokument taggade</string>
     <string name="tag_suggestions_all_tagged_desc">Bra! Alla nuvarande dokument har taggar.</string>
     <string name="tag_suggestions_analyze">Analysera med AI</string>
+    <string name="tag_suggestions_analyze_short">AI-analys</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Laddar förhandsgranskning…</string>
     <string name="tag_suggestions_suggested_tags">Föreslagna taggar</string>
     <string name="tag_suggestions_apply">Tillämpa</string>
     <string name="tag_suggestions_manual">Manuell</string>
+    <string name="tag_suggestions_manual_tagging">Tagga manuellt</string>
     <string name="tag_suggestions_select_tags">Välj taggar</string>
     <string name="tag_suggestions_error_thumbnail">Kunde inte ladda förhandsgranskning</string>
     <string name="tag_suggestions_error_ai_disabled">AI är inaktiverat</string>
@@ -612,4 +619,12 @@
     <string name="error_unknown">Okänt fel</string>
     <string name="back">Tillbaka</string>
     <string name="close">Stäng</string>
+    <string name="tag_suggestions_loading">Laddar dokument…</string>
+    <string name="done">Klar</string>
+    <string name="smart_tagging_skip">Hoppa över</string>
+    <string name="smart_tagging_apply">Tillämpa</string>
+    <string name="smart_tagging_ai_suggest">Föreslå med AI</string>
+    <string name="smart_tagging_completed_desc">Du har taggat %1$d dokument. Bra jobbat!</string>
+    <string name="smart_tagging_suggested_new_tags">Föreslagna Nya Taggar</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Dessa taggar finns inte ännu. Tryck för att skapa dem.</string>
 </resources>

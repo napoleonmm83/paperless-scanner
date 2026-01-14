@@ -98,26 +98,25 @@ fun LabelsScreen(
     var showCreateSheet by remember { mutableStateOf(false) }
     var showSortFilterSheet by remember { mutableStateOf(false) }
     var editingLabel by remember { mutableStateOf<LabelItem?>(null) }
-    var selectedLabel by remember { mutableStateOf<LabelItem?>(null) }
+    // BEST PRACTICE: selectedLabel moved to ViewModel to survive navigation
+    // See LabelsUiState.selectedLabel
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val sortFilterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
     // Handle back press in detail view
-    BackHandler(enabled = selectedLabel != null) {
-        selectedLabel = null
-        viewModel.clearDocumentsForLabel()
+    BackHandler(enabled = uiState.selectedLabel != null) {
+        viewModel.clearSelectedLabel()
     }
 
     // Label detail view
-    if (selectedLabel != null) {
+    if (uiState.selectedLabel != null) {
         LabelDetailView(
-            label = selectedLabel!!,
+            label = uiState.selectedLabel!!,
             documents = uiState.documentsForLabel,
             onBack = {
-                selectedLabel = null
-                viewModel.clearDocumentsForLabel()
+                viewModel.clearSelectedLabel()
             },
             onDocumentClick = onDocumentClick
         )
@@ -272,14 +271,14 @@ fun LabelsScreen(
                 LabelCard(
                     label = label,
                     onClick = {
-                        selectedLabel = label
-                        viewModel.loadDocumentsForLabel(label.id)
+                        // BEST PRACTICE: Use ViewModel state to survive navigation
+                        viewModel.selectLabel(label)
                     },
                     onEdit = {
                         editingLabel = label
                         showCreateSheet = true
                     },
-                    onDelete = { viewModel.deleteLabel(label.id) }
+                    onDelete = { viewModel.prepareDeleteLabel(label.id) }
                 )
             }
         }
@@ -353,6 +352,16 @@ fun LabelsScreen(
             )
         }
     }
+
+    // Delete Confirmation Dialog
+    uiState.pendingDeleteLabel?.let { pendingDelete ->
+        DeleteConfirmationDialog(
+            pendingDelete = pendingDelete,
+            isDeleting = uiState.isDeleting,
+            onConfirm = { viewModel.confirmDeleteLabel() },
+            onDismiss = { viewModel.clearPendingDelete() }
+        )
+    }
 }
 
 @Composable
@@ -362,8 +371,6 @@ private fun LabelCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -421,7 +428,7 @@ private fun LabelCard(
                     )
                 }
                 IconButton(
-                    onClick = { showDeleteDialog = true },
+                    onClick = onDelete,
                     modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
@@ -434,29 +441,70 @@ private fun LabelCard(
             }
         }
     }
+}
 
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text(stringResource(R.string.labels_delete_dialog_title)) },
-            text = { Text(stringResource(R.string.labels_delete_dialog_message, label.name)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text(stringResource(R.string.labels_delete_button), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text(stringResource(R.string.labels_cancel_button))
-                }
-            }
+/**
+ * Delete confirmation dialog that shows document count information.
+ * Uses the new best practice strings with dynamic messages.
+ */
+@Composable
+private fun DeleteConfirmationDialog(
+    pendingDelete: PendingDeleteLabel,
+    isDeleting: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val message = when {
+        pendingDelete.documentCount == 0 -> stringResource(
+            R.string.labels_delete_dialog_message_no_docs,
+            pendingDelete.name
+        )
+        pendingDelete.documentCount == 1 -> stringResource(
+            R.string.labels_delete_dialog_message_one_doc,
+            pendingDelete.name
+        )
+        else -> stringResource(
+            R.string.labels_delete_dialog_message_with_docs,
+            pendingDelete.name,
+            pendingDelete.documentCount
         )
     }
+
+    AlertDialog(
+        onDismissRequest = { if (!isDeleting) onDismiss() },
+        title = { Text(stringResource(R.string.labels_delete_dialog_title)) },
+        text = {
+            Column {
+                Text(message)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.labels_delete_dialog_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isDeleting
+            ) {
+                Text(
+                    stringResource(R.string.labels_delete_button),
+                    color = if (isDeleting) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                           else MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isDeleting
+            ) {
+                Text(stringResource(R.string.labels_cancel_button))
+            }
+        }
+    )
 }
 
 @Composable

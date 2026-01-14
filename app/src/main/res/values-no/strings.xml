@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d dokumenter</string>
     <string name="labels_delete_dialog_title">Slett etikett</string>
     <string name="labels_delete_dialog_message">Vil du virkelig slette etiketten \"%1$s\"?</string>
+    <string name="labels_delete_dialog_message_with_docs">Etiketten \"%1$s\" er tildelt %2$d dokumenter. Hvis du sletter den, vil den bli fjernet fra alle dokumenter.</string>
+    <string name="labels_delete_dialog_message_one_doc">Etiketten \"%1$s\" er tildelt 1 dokument. Hvis du sletter den, vil den bli fjernet fra det dokumentet.</string>
+    <string name="labels_delete_dialog_message_no_docs">Etiketten \"%1$s\" er ikke tildelt noen dokumenter.</string>
+    <string name="labels_delete_dialog_warning">Denne handlingen kan ikke angres.</string>
     <string name="labels_delete_button">Slett</string>
     <string name="labels_cancel_button">Avbryt</string>
     <string name="labels_add_new">Ny etikett</string>
@@ -657,10 +661,13 @@
     <string name="tag_suggestions_all_tagged">Alle dokumenter tagget</string>
     <string name="tag_suggestions_all_tagged_desc">Flott! Alle nåværende dokumenter har tagger.</string>
     <string name="tag_suggestions_analyze">Analyser med AI</string>
+    <string name="tag_suggestions_analyze_short">AI-analyse</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Laster forhåndsvisning…</string>
     <string name="tag_suggestions_suggested_tags">Foreslåtte tagger</string>
     <string name="tag_suggestions_apply">Bruk</string>
     <string name="tag_suggestions_manual">Manuell</string>
+    <string name="tag_suggestions_manual_tagging">Tagg manuelt</string>
     <string name="tag_suggestions_select_tags">Velg tagger</string>
     <string name="tag_suggestions_error_thumbnail">Kunne ikke laste forhåndsvisning</string>
     <string name="tag_suggestions_error_ai_disabled">AI er deaktivert</string>
@@ -668,4 +675,12 @@
     <string name="error_unknown">Ukjent feil</string>
     <string name="back">Tilbake</string>
     <string name="close">Lukk</string>
+    <string name="tag_suggestions_loading">Laster dokumenter…</string>
+    <string name="done">Ferdig</string>
+    <string name="smart_tagging_skip">Hopp over</string>
+    <string name="smart_tagging_apply">Bruk</string>
+    <string name="smart_tagging_ai_suggest">Foreslå med AI</string>
+    <string name="smart_tagging_completed_desc">Du har tagget %1$d dokumenter. Bra jobbet!</string>
+    <string name="smart_tagging_suggested_new_tags">Foreslåtte Nye Tagger</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Disse taggene finnes ikke ennå. Trykk for å opprette dem.</string>
 </resources>

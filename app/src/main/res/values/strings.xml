@@ -164,6 +164,10 @@
     <string name="labels_document_count">%1$d Dokumente</string>
     <string name="labels_delete_dialog_title">Label löschen</string>
     <string name="labels_delete_dialog_message">Möchtest du das Label \"%1$s\" wirklich löschen?</string>
+    <string name="labels_delete_dialog_message_with_docs">Das Label \"%1$s\" ist %2$d Dokumenten zugewiesen. Wenn du es löschst, wird es von allen Dokumenten entfernt.</string>
+    <string name="labels_delete_dialog_message_one_doc">Das Label \"%1$s\" ist 1 Dokument zugewiesen. Wenn du es löschst, wird es von diesem Dokument entfernt.</string>
+    <string name="labels_delete_dialog_message_no_docs">Das Label \"%1$s\" ist keinem Dokument zugewiesen.</string>
+    <string name="labels_delete_dialog_warning">Diese Aktion kann nicht rückgängig gemacht werden.</string>
     <string name="labels_delete_button">Löschen</string>
     <string name="labels_cancel_button">Abbrechen</string>
     <string name="labels_add_new">Neues Label</string>
@@ -655,15 +659,28 @@
     <string name="tag_suggestions_all_tagged">Alle Dokumente getaggt</string>
     <string name="tag_suggestions_all_tagged_desc">Toll! Alle aktuellen Dokumente haben Tags.</string>
     <string name="tag_suggestions_analyze">Mit AI analysieren</string>
+    <string name="tag_suggestions_analyze_short">AI Analyse</string>
+    <string name="ai_short">AI</string>
     <string name="tag_suggestions_loading_thumbnail">Lade Vorschau…</string>
     <string name="tag_suggestions_suggested_tags">Vorgeschlagene Tags</string>
     <string name="tag_suggestions_apply">Übernehmen</string>
     <string name="tag_suggestions_manual">Manuell</string>
+    <string name="tag_suggestions_manual_tagging">Manuell taggen</string>
     <string name="tag_suggestions_select_tags">Tags auswählen</string>
     <string name="tag_suggestions_error_thumbnail">Vorschau konnte nicht geladen werden</string>
     <string name="tag_suggestions_error_ai_disabled">AI ist deaktiviert</string>
+    <string name="tag_suggestions_loading">Dokumente werden geladen…</string>
     <string name="error_not_authenticated">Nicht angemeldet</string>
     <string name="error_unknown">Unbekannter Fehler</string>
     <string name="back">Zurück</string>
     <string name="close">Schließen</string>
+    <string name="done">Fertig</string>
+
+    <!-- Smart Tagging Screen (Tinder-style) -->
+    <string name="smart_tagging_skip">Überspringen</string>
+    <string name="smart_tagging_apply">Anwenden</string>
+    <string name="smart_tagging_ai_suggest">Mit AI vorschlagen</string>
+    <string name="smart_tagging_completed_desc">Du hast %1$d Dokumente getaggt. Gut gemacht!</string>
+    <string name="smart_tagging_suggested_new_tags">Vorgeschlagene neue Tags</string>
+    <string name="smart_tagging_suggested_new_tags_hint">Diese Tags existieren noch nicht. Tippe um sie zu erstellen.</string>
 </resources>
