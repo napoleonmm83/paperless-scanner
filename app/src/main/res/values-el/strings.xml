@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Προτάσεις</string>
     <string name="suggestions_ai_title">Προτάσεις AI</string>
+    <string name="suggestions_analyzing">Ανάλυση εγγράφου...</string>
     <string name="suggestions_apply">Εφαρμογή</string>
     <string name="suggestions_apply_all">Εφαρμογή όλων</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">Λειτουργία προγραμματιστή AI απενεργοποιημένη</string>
     <string name="settings_debug_mode_already_enabled">Η λειτουργία προγραμματιστή είναι ήδη ενεργοποιημένη</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Προτάσεις ετικετών</string>
-    <string name="tag_suggestions_progress">Πρόοδος: %1$d από %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Έξυπνη επισήμανση</string>
+    <string name="tag_suggestions_progress">%1$d από %2$d επισημάνθηκαν</string>
     <string name="tag_suggestions_complete">Ολοκληρώθηκε!</string>
     <string name="tag_suggestions_all_tagged">Όλα τα έγγραφα επισημάνθηκαν</string>
-    <string name="tag_suggestions_all_tagged_desc">Όλα τα επιλεγμένα έγγραφα επισημάνθηκαν με επιτυχία.</string>
-    <string name="tag_suggestions_analyze">Ανάλυση</string>
-    <string name="tag_suggestions_loading_thumbnail">Φόρτωση μικρογραφίας...</string>
+    <string name="tag_suggestions_all_tagged_desc">Τέλεια! Όλα τα τρέχοντα έγγραφα έχουν ετικέτες.</string>
+    <string name="tag_suggestions_analyze">Ανάλυση με AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Φόρτωση προεπισκόπησης…</string>
     <string name="tag_suggestions_suggested_tags">Προτεινόμενες ετικέτες</string>
     <string name="tag_suggestions_apply">Εφαρμογή</string>
     <string name="tag_suggestions_manual">Χειροκίνητα</string>
     <string name="tag_suggestions_select_tags">Επιλογή ετικετών</string>
-
-    <string name="close">Κλείσιμο</string>
+    <string name="tag_suggestions_error_thumbnail">Αδυναμία φόρτωσης προεπισκόπησης</string>
+    <string name="tag_suggestions_error_ai_disabled">Το AI είναι απενεργοποιημένο</string>
+    <string name="error_not_authenticated">Δεν έχετε συνδεθεί</string>
+    <string name="error_unknown">Άγνωστο σφάλμα</string>
     <string name="back">Πίσω</string>
-    <string name="suggestions_analyzing">Ανάλυση...</string>
+    <string name="close">Κλείσιμο</string>
 </resources>

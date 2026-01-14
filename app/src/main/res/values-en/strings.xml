@@ -617,6 +617,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Suggestions</string>
     <string name="suggestions_ai_title">AI Suggestions</string>
+    <string name="suggestions_analyzing">Analyzing document...</string>
     <string name="suggestions_apply">Apply</string>
     <string name="suggestions_apply_all">Apply all</string>
     <string name="suggestions_source_ai">AI</string>
@@ -647,20 +648,22 @@
     <string name="settings_debug_mode_disabled">AI developer mode disabled</string>
     <string name="settings_debug_mode_already_enabled">Developer mode is already enabled</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Tag Suggestions</string>
-    <string name="tag_suggestions_progress">Progress: %1$d of %2$d</string>
-    <string name="tag_suggestions_complete">Complete!</string>
-    <string name="tag_suggestions_all_tagged">All Documents Tagged</string>
-    <string name="tag_suggestions_all_tagged_desc">All selected documents have been successfully tagged.</string>
-    <string name="tag_suggestions_analyze">Analyze</string>
-    <string name="tag_suggestions_loading_thumbnail">Loading thumbnail...</string>
-    <string name="tag_suggestions_suggested_tags">Suggested Tags</string>
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Smart Tagging</string>
+    <string name="tag_suggestions_progress">%1$d of %2$d tagged</string>
+    <string name="tag_suggestions_complete">Done!</string>
+    <string name="tag_suggestions_all_tagged">All documents tagged</string>
+    <string name="tag_suggestions_all_tagged_desc">Great! All current documents have tags.</string>
+    <string name="tag_suggestions_analyze">Analyze with AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Loading preview…</string>
+    <string name="tag_suggestions_suggested_tags">Suggested tags</string>
     <string name="tag_suggestions_apply">Apply</string>
     <string name="tag_suggestions_manual">Manual</string>
-    <string name="tag_suggestions_select_tags">Select Tags</string>
-
-    <string name="close">Close</string>
+    <string name="tag_suggestions_select_tags">Select tags</string>
+    <string name="tag_suggestions_error_thumbnail">Could not load preview</string>
+    <string name="tag_suggestions_error_ai_disabled">AI is disabled</string>
+    <string name="error_not_authenticated">Not authenticated</string>
+    <string name="error_unknown">Unknown error</string>
     <string name="back">Back</string>
-    <string name="suggestions_analyzing">Analyzing...</string>
+    <string name="close">Close</string>
 </resources>

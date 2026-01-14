@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Ehdotukset</string>
     <string name="suggestions_ai_title">AI-ehdotukset</string>
+    <string name="suggestions_analyzing">Analysoidaan dokumenttia...</string>
     <string name="suggestions_apply">Käytä</string>
     <string name="suggestions_apply_all">Käytä kaikki</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">AI-kehittäjätila pois käytöstä</string>
     <string name="settings_debug_mode_already_enabled">Kehittäjätila on jo käytössä</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Tunniste-ehdotukset</string>
-    <string name="tag_suggestions_progress">Edistyminen: %1$d / %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Älykäs merkintä</string>
+    <string name="tag_suggestions_progress">%1$d / %2$d merkitty</string>
     <string name="tag_suggestions_complete">Valmis!</string>
     <string name="tag_suggestions_all_tagged">Kaikki asiakirjat merkitty</string>
-    <string name="tag_suggestions_all_tagged_desc">Kaikki valitut asiakirjat on merkitty onnistuneesti.</string>
-    <string name="tag_suggestions_analyze">Analysoi</string>
-    <string name="tag_suggestions_loading_thumbnail">Ladataan esikatselukuvaa...</string>
+    <string name="tag_suggestions_all_tagged_desc">Hienoa! Kaikilla nykyisillä asiakirjoilla on tunnisteet.</string>
+    <string name="tag_suggestions_analyze">Analysoi tekoälyllä</string>
+    <string name="tag_suggestions_loading_thumbnail">Ladataan esikatselua…</string>
     <string name="tag_suggestions_suggested_tags">Ehdotetut tunnisteet</string>
     <string name="tag_suggestions_apply">Käytä</string>
     <string name="tag_suggestions_manual">Manuaalinen</string>
     <string name="tag_suggestions_select_tags">Valitse tunnisteet</string>
-
-    <string name="close">Sulje</string>
+    <string name="tag_suggestions_error_thumbnail">Esikatselua ei voitu ladata</string>
+    <string name="tag_suggestions_error_ai_disabled">Tekoäly on poistettu käytöstä</string>
+    <string name="error_not_authenticated">Ei todennettu</string>
+    <string name="error_unknown">Tuntematon virhe</string>
     <string name="back">Takaisin</string>
-    <string name="suggestions_analyzing">Analysoidaan...</string>
+    <string name="close">Sulje</string>
 </resources>

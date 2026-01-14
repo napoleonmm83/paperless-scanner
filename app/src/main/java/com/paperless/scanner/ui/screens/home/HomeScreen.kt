@@ -34,10 +34,12 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +65,7 @@ import com.paperless.scanner.ui.theme.DarkTechPrimary
 import com.paperless.scanner.ui.theme.DarkTechSurfaceVariant
 import com.paperless.scanner.ui.theme.DarkTechOutline
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToScan: () -> Unit,
@@ -75,6 +78,12 @@ fun HomeScreen(
     val isOnline by viewModel.isOnline.collectAsState()
     val pendingChanges by viewModel.pendingChangesCount.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Tag Suggestions Sheet state
+    val showTagSuggestionsSheet by viewModel.showTagSuggestionsSheet.collectAsState()
+    val tagSuggestionsState by viewModel.tagSuggestionsState.collectAsState()
+    val availableTags by viewModel.availableTags.collectAsState()
+    val tagSuggestionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Counter to trigger delayed refresh after resume
     val resumeCount = remember { mutableIntStateOf(0) }
@@ -381,9 +390,10 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Activity Hint (if there are untagged documents)
+        // Activity Hint (if there are untagged documents) - Smart Tag Suggestions Card
         if (uiState.untaggedCount > 0) {
             Card(
+                onClick = { viewModel.openTagSuggestionsSheet() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 24.dp),
@@ -405,7 +415,7 @@ fun HomeScreen(
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.home_untagged_documents, uiState.untaggedCount),
                             style = MaterialTheme.typography.bodyMedium,
@@ -417,11 +427,34 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                     }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Tag Suggestions Bottom Sheet
+    if (showTagSuggestionsSheet) {
+        TagSuggestionsSheet(
+            sheetState = tagSuggestionsSheetState,
+            state = tagSuggestionsState,
+            availableTags = availableTags,
+            onDismiss = { viewModel.closeTagSuggestionsSheet() },
+            onAnalyzeDocument = { documentId -> viewModel.analyzeDocument(documentId) },
+            onApplyTags = { documentId, tagIds -> viewModel.applyTagsToDocument(documentId, tagIds) },
+            onSkipDocument = { documentId -> viewModel.skipDocument(documentId) },
+            onOpenTagPicker = { documentId -> viewModel.openTagPicker(documentId) },
+            onCloseTagPicker = { viewModel.closeTagPicker() },
+            onToggleTagInPicker = { documentId, tagId -> viewModel.toggleTagInPicker(documentId, tagId) },
+            onApplyPickerTags = { documentId -> viewModel.applyPickerTags(documentId) }
+        )
     }
 }
 

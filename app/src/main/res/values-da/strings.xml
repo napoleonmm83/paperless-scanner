@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Forslag</string>
     <string name="suggestions_ai_title">AI-forslag</string>
+    <string name="suggestions_analyzing">Analyserer dokument...</string>
     <string name="suggestions_apply">Anvend</string>
     <string name="suggestions_apply_all">Anvend alle</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">AI-udviklertilstand deaktiveret</string>
     <string name="settings_debug_mode_already_enabled">Udviklertilstand er allerede aktiveret</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Tag-forslag</string>
-    <string name="tag_suggestions_progress">Fremskridt: %1$d af %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Smart tagging</string>
+    <string name="tag_suggestions_progress">%1$d af %2$d tagget</string>
     <string name="tag_suggestions_complete">Færdig!</string>
     <string name="tag_suggestions_all_tagged">Alle dokumenter tagget</string>
-    <string name="tag_suggestions_all_tagged_desc">Alle valgte dokumenter er blevet tagget.</string>
-    <string name="tag_suggestions_analyze">Analyser</string>
-    <string name="tag_suggestions_loading_thumbnail">Indlæser miniature...</string>
+    <string name="tag_suggestions_all_tagged_desc">Godt! Alle nuværende dokumenter har tags.</string>
+    <string name="tag_suggestions_analyze">Analyser med AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Indlæser forhåndsvisning…</string>
     <string name="tag_suggestions_suggested_tags">Foreslåede tags</string>
     <string name="tag_suggestions_apply">Anvend</string>
     <string name="tag_suggestions_manual">Manuel</string>
     <string name="tag_suggestions_select_tags">Vælg tags</string>
-
-    <string name="close">Luk</string>
+    <string name="tag_suggestions_error_thumbnail">Kunne ikke indlæse forhåndsvisning</string>
+    <string name="tag_suggestions_error_ai_disabled">AI er deaktiveret</string>
+    <string name="error_not_authenticated">Ikke godkendt</string>
+    <string name="error_unknown">Ukendt fejl</string>
     <string name="back">Tilbage</string>
-    <string name="suggestions_analyzing">Analyserer...</string>
+    <string name="close">Luk</string>
 </resources>

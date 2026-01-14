@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Suggerimenti</string>
     <string name="suggestions_ai_title">Suggerimenti IA</string>
+    <string name="suggestions_analyzing">Analisi documento...</string>
     <string name="suggestions_apply">Applica</string>
     <string name="suggestions_apply_all">Applica tutti</string>
     <string name="suggestions_source_ai">IA</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">Modalità sviluppatore IA disattivata</string>
     <string name="settings_debug_mode_already_enabled">La modalità sviluppatore è già attiva</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Suggerimenti tag</string>
-    <string name="tag_suggestions_progress">Progresso: %1$d di %2$d</string>
-    <string name="tag_suggestions_complete">Completato!</string>
-    <string name="tag_suggestions_all_tagged">Tutti i documenti etichettati</string>
-    <string name="tag_suggestions_all_tagged_desc">Tutti i documenti selezionati sono stati etichettati correttamente.</string>
-    <string name="tag_suggestions_analyze">Analizza</string>
-    <string name="tag_suggestions_loading_thumbnail">Caricamento anteprima...</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Smart Tagging</string>
+    <string name="tag_suggestions_progress">%1$d di %2$d taggati</string>
+    <string name="tag_suggestions_complete">Fatto!</string>
+    <string name="tag_suggestions_all_tagged">Tutti i documenti taggati</string>
+    <string name="tag_suggestions_all_tagged_desc">Ottimo! Tutti i documenti attuali hanno tag.</string>
+    <string name="tag_suggestions_analyze">Analizza con AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Caricamento anteprima…</string>
     <string name="tag_suggestions_suggested_tags">Tag suggeriti</string>
     <string name="tag_suggestions_apply">Applica</string>
     <string name="tag_suggestions_manual">Manuale</string>
     <string name="tag_suggestions_select_tags">Seleziona tag</string>
-
-    <string name="close">Chiudi</string>
+    <string name="tag_suggestions_error_thumbnail">Impossibile caricare l\'anteprima</string>
+    <string name="tag_suggestions_error_ai_disabled">AI disattivata</string>
+    <string name="error_not_authenticated">Non autenticato</string>
+    <string name="error_unknown">Errore sconosciuto</string>
     <string name="back">Indietro</string>
-    <string name="suggestions_analyzing">Analisi in corso...</string>
+    <string name="close">Chiudi</string>
 </resources>

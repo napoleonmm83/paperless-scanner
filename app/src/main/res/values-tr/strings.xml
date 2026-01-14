@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Öneriler</string>
     <string name="suggestions_ai_title">AI Önerileri</string>
+    <string name="suggestions_analyzing">Belge analiz ediliyor...</string>
     <string name="suggestions_apply">Uygula</string>
     <string name="suggestions_apply_all">Tümünü uygula</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">AI geliştirici modu devre dışı bırakıldı</string>
     <string name="settings_debug_mode_already_enabled">Geliştirici modu zaten etkin</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Etiket önerileri</string>
-    <string name="tag_suggestions_progress">İlerleme: %1$d / %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Akıllı Etiketleme</string>
+    <string name="tag_suggestions_progress">%1$d / %2$d etiketlendi</string>
     <string name="tag_suggestions_complete">Tamamlandı!</string>
     <string name="tag_suggestions_all_tagged">Tüm belgeler etiketlendi</string>
-    <string name="tag_suggestions_all_tagged_desc">Seçilen tüm belgeler başarıyla etiketlendi.</string>
-    <string name="tag_suggestions_analyze">Analiz et</string>
-    <string name="tag_suggestions_loading_thumbnail">Küçük resim yükleniyor...</string>
+    <string name="tag_suggestions_all_tagged_desc">Harika! Tüm mevcut belgelerin etiketleri var.</string>
+    <string name="tag_suggestions_analyze">AI ile analiz et</string>
+    <string name="tag_suggestions_loading_thumbnail">Önizleme yükleniyor…</string>
     <string name="tag_suggestions_suggested_tags">Önerilen etiketler</string>
     <string name="tag_suggestions_apply">Uygula</string>
     <string name="tag_suggestions_manual">Manuel</string>
-    <string name="tag_suggestions_select_tags">Etiket seç</string>
-
-    <string name="close">Kapat</string>
+    <string name="tag_suggestions_select_tags">Etiketleri seç</string>
+    <string name="tag_suggestions_error_thumbnail">Önizleme yüklenemedi</string>
+    <string name="tag_suggestions_error_ai_disabled">AI devre dışı</string>
+    <string name="error_not_authenticated">Doğrulanmadı</string>
+    <string name="error_unknown">Bilinmeyen hata</string>
     <string name="back">Geri</string>
-    <string name="suggestions_analyzing">Analiz ediliyor...</string>
+    <string name="close">Kapat</string>
 </resources>

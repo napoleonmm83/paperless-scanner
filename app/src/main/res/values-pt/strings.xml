@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Sugestões</string>
     <string name="suggestions_ai_title">Sugestões IA</string>
+    <string name="suggestions_analyzing">Analisando documento...</string>
     <string name="suggestions_apply">Aplicar</string>
     <string name="suggestions_apply_all">Aplicar todas</string>
     <string name="suggestions_source_ai">IA</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">Modo desenvolvedor IA desativado</string>
     <string name="settings_debug_mode_already_enabled">O modo desenvolvedor já está ativo</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Sugestões de tags</string>
-    <string name="tag_suggestions_progress">Progresso: %1$d de %2$d</string>
-    <string name="tag_suggestions_complete">Concluído!</string>
-    <string name="tag_suggestions_all_tagged">Todos os documentos marcados</string>
-    <string name="tag_suggestions_all_tagged_desc">Todos os documentos selecionados foram marcados com sucesso.</string>
-    <string name="tag_suggestions_analyze">Analisar</string>
-    <string name="tag_suggestions_loading_thumbnail">Carregando miniatura...</string>
-    <string name="tag_suggestions_suggested_tags">Tags sugeridas</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Etiquetagem Inteligente</string>
+    <string name="tag_suggestions_progress">%1$d de %2$d etiquetados</string>
+    <string name="tag_suggestions_complete">Pronto!</string>
+    <string name="tag_suggestions_all_tagged">Todos os documentos etiquetados</string>
+    <string name="tag_suggestions_all_tagged_desc">Ótimo! Todos os documentos atuais têm etiquetas.</string>
+    <string name="tag_suggestions_analyze">Analisar com IA</string>
+    <string name="tag_suggestions_loading_thumbnail">A carregar pré-visualização…</string>
+    <string name="tag_suggestions_suggested_tags">Etiquetas sugeridas</string>
     <string name="tag_suggestions_apply">Aplicar</string>
     <string name="tag_suggestions_manual">Manual</string>
-    <string name="tag_suggestions_select_tags">Selecionar tags</string>
-
-    <string name="close">Fechar</string>
+    <string name="tag_suggestions_select_tags">Selecionar etiquetas</string>
+    <string name="tag_suggestions_error_thumbnail">Não foi possível carregar a pré-visualização</string>
+    <string name="tag_suggestions_error_ai_disabled">IA desativada</string>
+    <string name="error_not_authenticated">Não autenticado</string>
+    <string name="error_unknown">Erro desconhecido</string>
     <string name="back">Voltar</string>
-    <string name="suggestions_analyzing">Analisando...</string>
+    <string name="close">Fechar</string>
 </resources>

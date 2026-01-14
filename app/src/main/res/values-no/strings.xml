@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Forslag</string>
     <string name="suggestions_ai_title">AI-forslag</string>
+    <string name="suggestions_analyzing">Analyserer dokument...</string>
     <string name="suggestions_apply">Bruk</string>
     <string name="suggestions_apply_all">Bruk alle</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">AI-utviklermodus deaktivert</string>
     <string name="settings_debug_mode_already_enabled">Utviklermodus er allerede aktivert</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Taggforslag</string>
-    <string name="tag_suggestions_progress">Fremgang: %1$d av %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Smart tagging</string>
+    <string name="tag_suggestions_progress">%1$d av %2$d tagget</string>
     <string name="tag_suggestions_complete">Ferdig!</string>
-    <string name="tag_suggestions_all_tagged">Alle dokumenter merket</string>
-    <string name="tag_suggestions_all_tagged_desc">Alle valgte dokumenter har blitt merket.</string>
-    <string name="tag_suggestions_analyze">Analyser</string>
-    <string name="tag_suggestions_loading_thumbnail">Laster miniatyrbilde...</string>
+    <string name="tag_suggestions_all_tagged">Alle dokumenter tagget</string>
+    <string name="tag_suggestions_all_tagged_desc">Flott! Alle nåværende dokumenter har tagger.</string>
+    <string name="tag_suggestions_analyze">Analyser med AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Laster forhåndsvisning…</string>
     <string name="tag_suggestions_suggested_tags">Foreslåtte tagger</string>
     <string name="tag_suggestions_apply">Bruk</string>
     <string name="tag_suggestions_manual">Manuell</string>
     <string name="tag_suggestions_select_tags">Velg tagger</string>
-
-    <string name="close">Lukk</string>
+    <string name="tag_suggestions_error_thumbnail">Kunne ikke laste forhåndsvisning</string>
+    <string name="tag_suggestions_error_ai_disabled">AI er deaktivert</string>
+    <string name="error_not_authenticated">Ikke autentisert</string>
+    <string name="error_unknown">Ukjent feil</string>
     <string name="back">Tilbake</string>
-    <string name="suggestions_analyzing">Analyserer...</string>
+    <string name="close">Lukk</string>
 </resources>

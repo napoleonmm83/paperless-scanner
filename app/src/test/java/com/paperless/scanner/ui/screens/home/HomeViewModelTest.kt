@@ -13,6 +13,9 @@ import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.billing.PremiumFeatureManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -47,6 +50,9 @@ class HomeViewModelTest {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var syncManager: SyncManager
     private lateinit var analyticsService: AnalyticsService
+    private lateinit var suggestionOrchestrator: SuggestionOrchestrator
+    private lateinit var tokenManager: TokenManager
+    private lateinit var premiumFeatureManager: PremiumFeatureManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -61,11 +67,16 @@ class HomeViewModelTest {
         networkMonitor = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
+        suggestionOrchestrator = mockk(relaxed = true)
+        tokenManager = mockk(relaxed = true)
+        premiumFeatureManager = mockk(relaxed = true)
 
         // Default mock responses
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
+        every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
+        every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
@@ -89,7 +100,10 @@ class HomeViewModelTest {
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
             syncManager = syncManager,
-            analyticsService = analyticsService
+            analyticsService = analyticsService,
+            suggestionOrchestrator = suggestionOrchestrator,
+            tokenManager = tokenManager,
+            premiumFeatureManager = premiumFeatureManager
         )
     }
 

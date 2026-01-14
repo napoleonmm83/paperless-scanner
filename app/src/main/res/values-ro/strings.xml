@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Sugestii</string>
     <string name="suggestions_ai_title">Sugestii AI</string>
+    <string name="suggestions_analyzing">Se analizează documentul...</string>
     <string name="suggestions_apply">Aplică</string>
     <string name="suggestions_apply_all">Aplică toate</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">Modul dezvoltator AI dezactivat</string>
     <string name="settings_debug_mode_already_enabled">Modul dezvoltator este deja activat</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Sugestii de etichete</string>
-    <string name="tag_suggestions_progress">Progres: %1$d din %2$d</string>
-    <string name="tag_suggestions_complete">Finalizat!</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Etichetare inteligentă</string>
+    <string name="tag_suggestions_progress">%1$d din %2$d etichetate</string>
+    <string name="tag_suggestions_complete">Gata!</string>
     <string name="tag_suggestions_all_tagged">Toate documentele etichetate</string>
-    <string name="tag_suggestions_all_tagged_desc">Toate documentele selectate au fost etichetate cu succes.</string>
-    <string name="tag_suggestions_analyze">Analizează</string>
-    <string name="tag_suggestions_loading_thumbnail">Se încarcă miniatura...</string>
+    <string name="tag_suggestions_all_tagged_desc">Excelent! Toate documentele curente au etichete.</string>
+    <string name="tag_suggestions_analyze">Analizează cu AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Se încarcă previzualizarea…</string>
     <string name="tag_suggestions_suggested_tags">Etichete sugerate</string>
     <string name="tag_suggestions_apply">Aplică</string>
     <string name="tag_suggestions_manual">Manual</string>
     <string name="tag_suggestions_select_tags">Selectează etichete</string>
-
-    <string name="close">Închide</string>
+    <string name="tag_suggestions_error_thumbnail">Nu s-a putut încărca previzualizarea</string>
+    <string name="tag_suggestions_error_ai_disabled">AI este dezactivat</string>
+    <string name="error_not_authenticated">Neautentificat</string>
+    <string name="error_unknown">Eroare necunoscută</string>
     <string name="back">Înapoi</string>
-    <string name="suggestions_analyzing">Analizare...</string>
+    <string name="close">Închide</string>
 </resources>

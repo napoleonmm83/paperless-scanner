@@ -562,6 +562,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Sugestie</string>
     <string name="suggestions_ai_title">Sugestie AI</string>
+    <string name="suggestions_analyzing">Analizowanie dokumentu...</string>
     <string name="suggestions_apply">Zastosuj</string>
     <string name="suggestions_apply_all">Zastosuj wszystkie</string>
     <string name="suggestions_source_ai">AI</string>
@@ -592,20 +593,23 @@
     <string name="settings_debug_mode_disabled">Tryb deweloperski AI wyłączony</string>
     <string name="settings_debug_mode_already_enabled">Tryb deweloperski jest już włączony</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Sugestie tagów</string>
-    <string name="tag_suggestions_progress">Postęp: %1$d z %2$d</string>
-    <string name="tag_suggestions_complete">Ukończono!</string>
-    <string name="tag_suggestions_all_tagged">Wszystkie dokumenty oznaczone</string>
-    <string name="tag_suggestions_all_tagged_desc">Wszystkie wybrane dokumenty zostały pomyślnie oznaczone.</string>
-    <string name="tag_suggestions_analyze">Analizuj</string>
-    <string name="tag_suggestions_loading_thumbnail">Ładowanie miniatury...</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Inteligentne tagowanie</string>
+    <string name="tag_suggestions_progress">%1$d z %2$d otagowanych</string>
+    <string name="tag_suggestions_complete">Gotowe!</string>
+    <string name="tag_suggestions_all_tagged">Wszystkie dokumenty otagowane</string>
+    <string name="tag_suggestions_all_tagged_desc">Świetnie! Wszystkie dokumenty mają tagi.</string>
+    <string name="tag_suggestions_analyze">Analizuj z AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Ładowanie podglądu…</string>
     <string name="tag_suggestions_suggested_tags">Sugerowane tagi</string>
     <string name="tag_suggestions_apply">Zastosuj</string>
     <string name="tag_suggestions_manual">Ręcznie</string>
     <string name="tag_suggestions_select_tags">Wybierz tagi</string>
-
-    <string name="close">Zamknij</string>
+    <string name="tag_suggestions_error_thumbnail">Nie można załadować podglądu</string>
+    <string name="tag_suggestions_error_ai_disabled">AI wyłączone</string>
+    <string name="error_not_authenticated">Nie uwierzytelniono</string>
+    <string name="error_unknown">Nieznany błąd</string>
     <string name="back">Wstecz</string>
-    <string name="suggestions_analyzing">Analizowanie...</string>
+    <string name="close">Zamknij</string>
 </resources>

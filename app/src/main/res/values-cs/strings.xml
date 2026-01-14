@@ -618,6 +618,7 @@
     <!-- Suggestions Section -->
     <string name="suggestions_title">Návrhy</string>
     <string name="suggestions_ai_title">AI návrhy</string>
+    <string name="suggestions_analyzing">Analyzuji dokument...</string>
     <string name="suggestions_apply">Použít</string>
     <string name="suggestions_apply_all">Použít vše</string>
     <string name="suggestions_source_ai">AI</string>
@@ -648,20 +649,23 @@
     <string name="settings_debug_mode_disabled">AI vývojářský režim deaktivován</string>
     <string name="settings_debug_mode_already_enabled">Vývojářský režim je již aktivován</string>
 
-    <!-- Tag Suggestions Batch Tagging -->
-    <string name="tag_suggestions_title">Návrhy štítků</string>
-    <string name="tag_suggestions_progress">Pokrok: %1$d z %2$d</string>
+
+    <!-- Tag Suggestions Sheet -->
+    <string name="tag_suggestions_title">Chytré štítkování</string>
+    <string name="tag_suggestions_progress">%1$d z %2$d označeno</string>
     <string name="tag_suggestions_complete">Hotovo!</string>
     <string name="tag_suggestions_all_tagged">Všechny dokumenty označeny</string>
-    <string name="tag_suggestions_all_tagged_desc">Všechny vybrané dokumenty byly úspěšně označeny.</string>
-    <string name="tag_suggestions_analyze">Analyzovat</string>
-    <string name="tag_suggestions_loading_thumbnail">Načítání náhledu...</string>
+    <string name="tag_suggestions_all_tagged_desc">Skvělé! Všechny aktuální dokumenty mají štítky.</string>
+    <string name="tag_suggestions_analyze">Analyzovat pomocí AI</string>
+    <string name="tag_suggestions_loading_thumbnail">Načítání náhledu…</string>
     <string name="tag_suggestions_suggested_tags">Navrhované štítky</string>
     <string name="tag_suggestions_apply">Použít</string>
     <string name="tag_suggestions_manual">Ručně</string>
     <string name="tag_suggestions_select_tags">Vybrat štítky</string>
-
-    <string name="close">Zavřít</string>
+    <string name="tag_suggestions_error_thumbnail">Nelze načíst náhled</string>
+    <string name="tag_suggestions_error_ai_disabled">AI je vypnutá</string>
+    <string name="error_not_authenticated">Nepřihlášen</string>
+    <string name="error_unknown">Neznámá chyba</string>
     <string name="back">Zpět</string>
-    <string name="suggestions_analyzing">Analyzování...</string>
+    <string name="close">Zavřít</string>
 </resources>
