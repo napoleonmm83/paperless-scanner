@@ -660,119 +660,83 @@ jobs:
           $REPO_URL = "https://github.com/napoleonmm83/paperless-scanner"
           $COMPARISON_URL = "$REPO_URL/compare/v$PREVIOUS_VERSION...v$NEW_VERSION"
 
-          # Build release notes
-          $releaseNotes = @"
-          ## 📱 Paperless Scanner v$NEW_VERSION
-
-          **Release Date:** $RELEASE_DATE
-          **Version Code:** $VERSION_CODE
-          **Track:** $TRACK
-
-          ---
-
-          ## 🎯 Highlights
-
-          $HIGHLIGHTS
-
-          ---
-
-          "@
+          # Build release notes (using proper string concatenation, not here-strings with indentation)
+          $nl = "`n"
+          $releaseNotes = "## 📱 Paperless Scanner v$NEW_VERSION" + $nl + $nl
+          $releaseNotes += "**Release Date:** $RELEASE_DATE" + $nl
+          $releaseNotes += "**Version Code:** $VERSION_CODE" + $nl
+          $releaseNotes += "**Track:** $TRACK" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 🎯 Highlights" + $nl + $nl
+          $releaseNotes += "$HIGHLIGHTS" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
 
           if ($FEATURES.Count -gt 0) {
-            $releaseNotes += "`n## ✨ Neue Features`n`n"
-            $releaseNotes += ($FEATURES -join "`n") + "`n`n"
+            $releaseNotes += "## ✨ Neue Features" + $nl + $nl
+            $releaseNotes += ($FEATURES -join $nl) + $nl + $nl
           }
 
           if ($FIXES.Count -gt 0) {
-            $releaseNotes += "## 🐛 Fehlerbehebungen`n`n"
-            $releaseNotes += ($FIXES -join "`n") + "`n`n"
+            $releaseNotes += "## 🐛 Fehlerbehebungen" + $nl + $nl
+            $releaseNotes += ($FIXES -join $nl) + $nl + $nl
           }
 
           if ($IMPROVEMENTS.Count -gt 0) {
-            $releaseNotes += "## 🔧 Verbesserungen`n`n"
-            $releaseNotes += ($IMPROVEMENTS -join "`n") + "`n`n"
+            $releaseNotes += "## 🔧 Verbesserungen" + $nl + $nl
+            $releaseNotes += ($IMPROVEMENTS -join $nl) + $nl + $nl
           }
 
           if ($TECHNICAL.Count -gt 0) {
-            $releaseNotes += "## 📚 Technische Änderungen`n`n"
-            $releaseNotes += ($TECHNICAL -join "`n") + "`n`n"
+            $releaseNotes += "## 📚 Technische Änderungen" + $nl + $nl
+            $releaseNotes += ($TECHNICAL -join $nl) + $nl + $nl
           }
 
-          $releaseNotes += @"
-          ## ⚠️ Breaking Changes
-
-          *Keine Breaking Changes in dieser Version*
-
-          ---
-
-          ## 📲 Installation
-
-          ### Google Play (Empfohlen)
-
-          - **Internal Track:** Nur für eingeladene Tester verfügbar
-          - **Beta Track:** Öffentliche Beta - Join via Google Play Console
-          - **Production:** Vollständiger Release für alle Nutzer
-
-          ### Direkter Download (APK/AAB)
-
-          1. Lade ``app-release.aab`` aus den Release Assets herunter
-          2. Installiere mit ``bundletool``:
-             ``````bash
-             bundletool build-apks --bundle=app-release.aab --output=app.apks
-             bundletool install-apks --apks=app.apks
-             ``````
-
-          ⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden.
-
-          ---
-
-          ## 📝 Changelog (Vollständig)
-
-          ### Deutsch (DE)
-
-          ``````
-          $CHANGELOG_DE
-          ``````
-
-          ### English (EN)
-
-          ``````
-          $CHANGELOG_EN
-          ``````
-
-          ---
-
-          ## 🔗 Links
-
-          - [GitHub Repository]($REPO_URL)
-          - [Issue Tracker]($REPO_URL/issues)
-          - [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
-          - [Dokumentation]($REPO_URL/tree/main/docs)
-          - [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)
-
-          ---
-
-          ## 🙏 Contributors
-
-          - @napoleonmm83 - Main development
-          - Claude Sonnet 4.5 - AI-assisted development and code review
-
-          ---
-
-          **Vollständige Änderungen:** [``v$PREVIOUS_VERSION...v$NEW_VERSION``]($COMPARISON_URL)
-
-          ---
-
-          ## 📊 Statistiken
-
-          - **Commits:** $($COMMITS.Count) commits seit v$PREVIOUS_VERSION
-          - **Version Code:** $VERSION_CODE
-
-          ---
-
-          **Release erstellt am:** $RELEASE_DATE
-          **Deployed to:** Google Play Console $TRACK
-          "@
+          $releaseNotes += "## ⚠️ Breaking Changes" + $nl + $nl
+          $releaseNotes += "*Keine Breaking Changes in dieser Version*" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 📲 Installation" + $nl + $nl
+          $releaseNotes += "### Google Play (Empfohlen)" + $nl + $nl
+          $releaseNotes += "- **Internal Track:** Nur für eingeladene Tester verfügbar" + $nl
+          $releaseNotes += "- **Beta Track:** Öffentliche Beta - Join via Google Play Console" + $nl
+          $releaseNotes += "- **Production:** Vollständiger Release für alle Nutzer" + $nl + $nl
+          $releaseNotes += "### Direkter Download (APK/AAB)" + $nl + $nl
+          $releaseNotes += "1. Lade ``app-release.aab`` aus den Release Assets herunter" + $nl
+          $releaseNotes += "2. Installiere mit ``bundletool``:" + $nl
+          $releaseNotes += "   ``````bash" + $nl
+          $releaseNotes += "   bundletool build-apks --bundle=app-release.aab --output=app.apks" + $nl
+          $releaseNotes += "   bundletool install-apks --apks=app.apks" + $nl
+          $releaseNotes += "   ``````" + $nl + $nl
+          $releaseNotes += "⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden." + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 📝 Changelog (Vollständig)" + $nl + $nl
+          $releaseNotes += "### Deutsch (DE)" + $nl + $nl
+          $releaseNotes += "``````" + $nl
+          $releaseNotes += $CHANGELOG_DE + $nl
+          $releaseNotes += "``````" + $nl + $nl
+          $releaseNotes += "### English (EN)" + $nl + $nl
+          $releaseNotes += "``````" + $nl
+          $releaseNotes += $CHANGELOG_EN + $nl
+          $releaseNotes += "``````" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 🔗 Links" + $nl + $nl
+          $releaseNotes += "- [GitHub Repository]($REPO_URL)" + $nl
+          $releaseNotes += "- [Issue Tracker]($REPO_URL/issues)" + $nl
+          $releaseNotes += "- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)" + $nl
+          $releaseNotes += "- [Dokumentation]($REPO_URL/tree/main/docs)" + $nl
+          $releaseNotes += "- [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 🙏 Contributors" + $nl + $nl
+          $releaseNotes += "- @napoleonmm83 - Main development" + $nl
+          $releaseNotes += "- Claude Sonnet 4.5 - AI-assisted development and code review" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "**Vollständige Änderungen:** [``v$PREVIOUS_VERSION...v$NEW_VERSION``]($COMPARISON_URL)" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "## 📊 Statistiken" + $nl + $nl
+          $releaseNotes += "- **Commits:** $($COMMITS.Count) commits seit v$PREVIOUS_VERSION" + $nl
+          $releaseNotes += "- **Version Code:** $VERSION_CODE" + $nl + $nl
+          $releaseNotes += "---" + $nl + $nl
+          $releaseNotes += "**Release erstellt am:** $RELEASE_DATE" + $nl
+          $releaseNotes += "**Deployed to:** Google Play Console $TRACK"
 
           $releaseNotes | Out-File -FilePath release-notes.md -Encoding UTF8
           Write-Host "✅ Release notes generated successfully"
