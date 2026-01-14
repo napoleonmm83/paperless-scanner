@@ -590,25 +590,183 @@ jobs:
           echo "PREVIOUS_VERSION=$CURRENT" >> $GITHUB_OUTPUT
           echo "Previous version: $CURRENT"
 
-      - name: Generate structured release notes (Windows)
-        if: runner.os == 'Windows'
+      - name: Generate structured release notes
         shell: bash
         run: |
-          bash scripts/generate-release-notes.sh \
-            "${{ steps.bump_version_win.outputs.NEW_VERSION }}" \
-            "${{ steps.bump_version_win.outputs.VERSION_CODE }}" \
-            "${{ steps.prev_version_win.outputs.PREVIOUS_VERSION }}" \
-            > release-notes.md
+          # Inline release notes generator (avoids Windows path issues)
+          NEW_VERSION="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}"
+          VERSION_CODE="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.VERSION_CODE || steps.bump_version.outputs.VERSION_CODE }}"
+          PREVIOUS_VERSION="${{ runner.os == 'Windows' && steps.prev_version_win.outputs.PREVIOUS_VERSION || steps.prev_version.outputs.PREVIOUS_VERSION }}"
+          RELEASE_DATE=$(date +%Y-%m-%d)
+          TRACK="Internal Testing"
 
-      - name: Generate structured release notes (Linux/macOS)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          bash scripts/generate-release-notes.sh \
-            "${{ steps.bump_version.outputs.NEW_VERSION }}" \
-            "${{ steps.bump_version.outputs.VERSION_CODE }}" \
-            "${{ steps.prev_version.outputs.PREVIOUS_VERSION }}" \
-            > release-notes.md
+          # Get commits since last tag
+          PREVIOUS_TAG="v${PREVIOUS_VERSION}"
+          if git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
+            COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --oneline --no-merges)
+          else
+            COMMITS=$(git log --oneline --no-merges | head -20)
+          fi
+
+          # Read changelogs
+          CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${VERSION_CODE}.txt"
+          CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
+          DEFAULT_DE="fastlane/metadata/android/de-DE/changelogs/default.txt"
+          DEFAULT_EN="fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          if [ -f "$CHANGELOG_DE_FILE" ]; then
+            CHANGELOG_DE=$(cat "$CHANGELOG_DE_FILE")
+          else
+            CHANGELOG_DE=$(cat "$DEFAULT_DE" 2>/dev/null || echo "Version ${NEW_VERSION}")
+          fi
+
+          if [ -f "$CHANGELOG_EN_FILE" ]; then
+            CHANGELOG_EN=$(cat "$CHANGELOG_EN_FILE")
+          else
+            CHANGELOG_EN=$(cat "$DEFAULT_EN" 2>/dev/null || echo "Version ${NEW_VERSION}")
+          fi
+
+          # Parse commits into categories
+          FEATURES=""
+          FIXES=""
+          IMPROVEMENTS=""
+          TECHNICAL=""
+
+          while IFS= read -r commit; do
+            msg=$(echo "$commit" | sed 's/^[a-f0-9]* //')
+
+            if [[ "$msg" =~ ^feat(\(.*\))?:\ (.+) ]]; then
+              FEATURES="${FEATURES}- **${BASH_REMATCH[2]}**\n"
+            elif [[ "$msg" =~ ^fix(\(.*\))?:\ (.+) ]]; then
+              FIXES="${FIXES}- **Fix: ${BASH_REMATCH[2]}**\n"
+            elif [[ "$msg" =~ ^perf(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^refactor(\(.*\))?:\ (.+) ]]; then
+              IMPROVEMENTS="${IMPROVEMENTS}- **${BASH_REMATCH[2]}**\n"
+            elif [[ "$msg" =~ ^test(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^chore(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^docs(\(.*\))?:\ (.+) ]]; then
+              TECHNICAL="${TECHNICAL}- ${msg}\n"
+            fi
+          done <<< "$COMMITS"
+
+          # Generate highlights
+          HIGHLIGHTS="Diese Version enthält Verbesserungen und Fehlerbehebungen."
+          if [ -n "$FEATURES" ]; then
+            HIGHLIGHTS="Diese Version bringt neue Features und Verbesserungen."
+          fi
+
+          # Generate comparison URL
+          REPO_URL="https://github.com/napoleonmm83/paperless-scanner"
+          COMPARISON_URL="${REPO_URL}/compare/v${PREVIOUS_VERSION}...v${NEW_VERSION}"
+
+          # Generate release notes
+          cat > release-notes.md <<EOF
+          ## 📱 Paperless Scanner v${NEW_VERSION}
+
+          **Release Date:** ${RELEASE_DATE}
+          **Version Code:** ${VERSION_CODE}
+          **Track:** ${TRACK}
+
+          ---
+
+          ## 🎯 Highlights
+
+          ${HIGHLIGHTS}
+
+          ---
+
+          EOF
+
+          if [ -n "$FEATURES" ]; then
+            echo -e "## ✨ Neue Features\n\n${FEATURES}\n" >> release-notes.md
+          fi
+
+          if [ -n "$FIXES" ]; then
+            echo -e "## 🐛 Fehlerbehebungen\n\n${FIXES}\n" >> release-notes.md
+          fi
+
+          if [ -n "$IMPROVEMENTS" ]; then
+            echo -e "## 🔧 Verbesserungen\n\n${IMPROVEMENTS}\n" >> release-notes.md
+          fi
+
+          if [ -n "$TECHNICAL" ]; then
+            echo -e "## 📚 Technische Änderungen\n\n${TECHNICAL}\n" >> release-notes.md
+          fi
+
+          cat >> release-notes.md <<EOF
+          ## ⚠️ Breaking Changes
+
+          *Keine Breaking Changes in dieser Version*
+
+          ---
+
+          ## 📲 Installation
+
+          ### Google Play (Empfohlen)
+
+          - **Internal Track:** Nur für eingeladene Tester verfügbar
+          - **Beta Track:** Öffentliche Beta - Join via Google Play Console
+          - **Production:** Vollständiger Release für alle Nutzer
+
+          ### Direkter Download (APK/AAB)
+
+          1. Lade \`app-release.aab\` aus den Release Assets herunter
+          2. Installiere mit \`bundletool\`:
+             \`\`\`bash
+             bundletool build-apks --bundle=app-release.aab --output=app.apks
+             bundletool install-apks --apks=app.apks
+             \`\`\`
+
+          ⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden.
+
+          ---
+
+          ## 📝 Changelog (Vollständig)
+
+          ### Deutsch (DE)
+
+          \`\`\`
+          ${CHANGELOG_DE}
+          \`\`\`
+
+          ### English (EN)
+
+          \`\`\`
+          ${CHANGELOG_EN}
+          \`\`\`
+
+          ---
+
+          ## 🔗 Links
+
+          - [GitHub Repository](${REPO_URL})
+          - [Issue Tracker](${REPO_URL}/issues)
+          - [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
+          - [Dokumentation](${REPO_URL}/tree/main/docs)
+          - [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)
+
+          ---
+
+          ## 🙏 Contributors
+
+          - @napoleonmm83 - Main development
+          - Claude Sonnet 4.5 - AI-assisted development and code review
+
+          ---
+
+          **Vollständige Änderungen:** [\`v${PREVIOUS_VERSION}...v${NEW_VERSION}\`](${COMPARISON_URL})
+
+          ---
+
+          ## 📊 Statistiken
+
+          - **Commits:** $(echo "$COMMITS" | wc -l) commits seit v${PREVIOUS_VERSION}
+          - **Version Code:** ${VERSION_CODE}
+
+          ---
+
+          **Release erstellt am:** ${RELEASE_DATE}
+          **Deployed to:** Google Play Console ${TRACK}
+          EOF
+
+          echo "✅ Release notes generated successfully"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
