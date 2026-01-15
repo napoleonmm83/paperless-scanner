@@ -514,6 +514,173 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Prepare Changelogs for Fastlane (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          # Read current version from version.properties
+          $versionProps = Get-Content "version.properties" -Raw
+          if ($versionProps -match "VERSION_MAJOR=(\d+)") { $MAJOR = [int]$Matches[1] }
+          if ($versionProps -match "VERSION_MINOR=(\d+)") { $MINOR = [int]$Matches[1] }
+          if ($versionProps -match "VERSION_PATCH=(\d+)") { $PATCH = [int]$Matches[1] }
+
+          $VERSION = "$MAJOR.$MINOR.$PATCH"
+          $VERSION_CODE = $MAJOR * 10000 + $MINOR * 100 + $PATCH
+
+          Write-Host "Current version: $VERSION (Version Code: $VERSION_CODE)"
+
+          # Changelog paths
+          $CHANGELOG_DE = "fastlane/metadata/android/de-DE/changelogs/$VERSION_CODE.txt"
+          $CHANGELOG_EN = "fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt"
+          $DEFAULT_DE = "fastlane/metadata/android/de-DE/changelogs/default.txt"
+          $DEFAULT_EN = "fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          # Function to find latest numbered changelog
+          function Get-LatestChangelog {
+            param($dir)
+            Get-ChildItem "$dir/*.txt" |
+              Where-Object { $_.BaseName -match '^\d+$' } |
+              Sort-Object { [int]$_.BaseName } -Descending |
+              Select-Object -First 1
+          }
+
+          # Process German changelog
+          if (-not (Test-Path $CHANGELOG_DE)) {
+            Write-Host "German changelog for $VERSION_CODE not found. Searching for fallback..."
+
+            $latestDE = Get-LatestChangelog "fastlane/metadata/android/de-DE/changelogs"
+            if ($latestDE) {
+              Write-Host "Found latest German changelog: $($latestDE.Name)"
+              $content = Get-Content $latestDE.FullName -Raw
+
+              # Update version string in content
+              $pattern = 'Version \d+\.\d+\.\d+' + ':'
+              $replacement = "Version $VERSION" + ':'
+              $content = $content -replace $pattern, $replacement
+
+              # Save to current version code
+              [System.IO.File]::WriteAllText($CHANGELOG_DE, $content)
+              Write-Host "Created German changelog for $VERSION_CODE from $($latestDE.BaseName)"
+            } elseif (Test-Path $DEFAULT_DE) {
+              Write-Host "Using default German changelog"
+              Copy-Item $DEFAULT_DE $CHANGELOG_DE
+            } else {
+              Write-Host "::warning::No German changelog found! Creating placeholder."
+              "Version $VERSION`:`n`nBug fixes and improvements." | Out-File -FilePath $CHANGELOG_DE -Encoding utf8
+            }
+          } else {
+            Write-Host "German changelog already exists for $VERSION_CODE"
+          }
+
+          # Process English changelog
+          if (-not (Test-Path $CHANGELOG_EN)) {
+            Write-Host "English changelog for $VERSION_CODE not found. Searching for fallback..."
+
+            $latestEN = Get-LatestChangelog "fastlane/metadata/android/en-US/changelogs"
+            if ($latestEN) {
+              Write-Host "Found latest English changelog: $($latestEN.Name)"
+              $content = Get-Content $latestEN.FullName -Raw
+
+              # Update version string in content
+              $pattern = 'Version \d+\.\d+\.\d+' + ':'
+              $replacement = "Version $VERSION" + ':'
+              $content = $content -replace $pattern, $replacement
+
+              # Save to current version code
+              [System.IO.File]::WriteAllText($CHANGELOG_EN, $content)
+              Write-Host "Created English changelog for $VERSION_CODE from $($latestEN.BaseName)"
+            } elseif (Test-Path $DEFAULT_EN) {
+              Write-Host "Using default English changelog"
+              Copy-Item $DEFAULT_EN $CHANGELOG_EN
+            } else {
+              Write-Host "::warning::No English changelog found! Creating placeholder."
+              "Version $VERSION`:`n`nBug fixes and improvements." | Out-File -FilePath $CHANGELOG_EN -Encoding utf8
+            }
+          } else {
+            Write-Host "English changelog already exists for $VERSION_CODE"
+          }
+
+          Write-Host "Changelogs prepared successfully for Fastlane upload"
+
+      - name: Prepare Changelogs for Fastlane (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          # Read current version from version.properties
+          MAJOR=$(grep "VERSION_MAJOR=" version.properties | cut -d'=' -f2)
+          MINOR=$(grep "VERSION_MINOR=" version.properties | cut -d'=' -f2)
+          PATCH=$(grep "VERSION_PATCH=" version.properties | cut -d'=' -f2)
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+
+          echo "Current version: $VERSION (Version Code: $VERSION_CODE)"
+
+          # Changelog paths
+          CHANGELOG_DE="fastlane/metadata/android/de-DE/changelogs/${VERSION_CODE}.txt"
+          CHANGELOG_EN="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
+          DEFAULT_DE="fastlane/metadata/android/de-DE/changelogs/default.txt"
+          DEFAULT_EN="fastlane/metadata/android/en-US/changelogs/default.txt"
+
+          # Function to find latest numbered changelog
+          find_latest_changelog() {
+            local dir=$1
+            find "$dir" -name "*.txt" -type f | \
+              grep -E '/[0-9]+\.txt$' | \
+              sed 's/.*\/\([0-9]*\)\.txt/\1 &/' | \
+              sort -rn | \
+              head -1 | \
+              cut -d' ' -f2
+          }
+
+          # Process German changelog
+          if [ ! -f "$CHANGELOG_DE" ]; then
+            echo "German changelog for $VERSION_CODE not found. Searching for fallback..."
+
+            LATEST_DE=$(find_latest_changelog "fastlane/metadata/android/de-DE/changelogs")
+            if [ -n "$LATEST_DE" ]; then
+              echo "Found latest German changelog: $(basename $LATEST_DE)"
+
+              # Copy and update version string
+              sed "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+:/Version $VERSION:/" "$LATEST_DE" > "$CHANGELOG_DE"
+
+              echo "Created German changelog for $VERSION_CODE from $(basename $LATEST_DE)"
+            elif [ -f "$DEFAULT_DE" ]; then
+              echo "Using default German changelog"
+              cp "$DEFAULT_DE" "$CHANGELOG_DE"
+            else
+              echo "::warning::No German changelog found! Creating placeholder."
+              echo -e "Version $VERSION:\n\nBug fixes and improvements." > "$CHANGELOG_DE"
+            fi
+          else
+            echo "German changelog already exists for $VERSION_CODE"
+          fi
+
+          # Process English changelog
+          if [ ! -f "$CHANGELOG_EN" ]; then
+            echo "English changelog for $VERSION_CODE not found. Searching for fallback..."
+
+            LATEST_EN=$(find_latest_changelog "fastlane/metadata/android/en-US/changelogs")
+            if [ -n "$LATEST_EN" ]; then
+              echo "Found latest English changelog: $(basename $LATEST_EN)"
+
+              # Copy and update version string
+              sed "s/Version [0-9]\+\.[0-9]\+\.[0-9]\+:/Version $VERSION:/" "$LATEST_EN" > "$CHANGELOG_EN"
+
+              echo "Created English changelog for $VERSION_CODE from $(basename $LATEST_EN)"
+            elif [ -f "$DEFAULT_EN" ]; then
+              echo "Using default English changelog"
+              cp "$DEFAULT_EN" "$CHANGELOG_EN"
+            else
+              echo "::warning::No English changelog found! Creating placeholder."
+              echo -e "Version $VERSION:\n\nBug fixes and improvements." > "$CHANGELOG_EN"
+            fi
+          else
+            echo "English changelog already exists for $VERSION_CODE"
+          fi
+
+          echo "Changelogs prepared successfully for Fastlane upload"
+
       - name: Deploy to Internal Track (Windows)
         if: runner.os == 'Windows'
         shell: powershell
