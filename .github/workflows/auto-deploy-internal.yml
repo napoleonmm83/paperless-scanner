@@ -729,30 +729,6 @@ jobs:
           $releaseNotes += "## Breaking Changes" + $nl + $nl
           $releaseNotes += "*Keine Breaking Changes in dieser Version*" + $nl + $nl
           $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## Installation" + $nl + $nl
-          $releaseNotes += "### Google Play (Empfohlen)" + $nl + $nl
-          $releaseNotes += "**Internal Track:** Nur fuer eingeladene Tester verfuegbar" + $nl
-          $releaseNotes += "**Beta Track:** Oeffentliche Beta - Join via Google Play Console" + $nl
-          $releaseNotes += "**Production:** Vollstaendiger Release fuer alle Nutzer" + $nl + $nl
-          $releaseNotes += "### Direkter Download (APK/AAB)" + $nl + $nl
-          $releaseNotes += "1. Lade ``app-release.aab`` aus den Release Assets herunter" + $nl
-          $releaseNotes += "2. Installiere mit ``bundletool``:" + $nl
-          $releaseNotes += "   ``````bash" + $nl
-          $releaseNotes += "   bundletool build-apks --bundle=app-release.aab --output=app.apks" + $nl
-          $releaseNotes += "   bundletool install-apks --apks=app.apks" + $nl
-          $releaseNotes += "   ``````" + $nl + $nl
-          $releaseNotes += "**Hinweis:** Direkt-Downloads sind nur fuer Entwicklung/Testing. Production Apps sollten ueber Google Play bezogen werden." + $nl + $nl
-          $releaseNotes += "---" + $nl + $nl
-          $releaseNotes += "## Changelog (Vollstaendig)" + $nl + $nl
-          $releaseNotes += "### Deutsch (DE)" + $nl + $nl
-          $releaseNotes += "``````" + $nl
-          $releaseNotes += $CHANGELOG_DE + $nl
-          $releaseNotes += "``````" + $nl + $nl
-          $releaseNotes += "### English (EN)" + $nl + $nl
-          $releaseNotes += "``````" + $nl
-          $releaseNotes += $CHANGELOG_EN + $nl
-          $releaseNotes += "``````" + $nl + $nl
-          $releaseNotes += "---" + $nl + $nl
           $releaseNotes += "## Links" + $nl + $nl
           $releaseNotes += "- [GitHub Repository](" + $REPO_URL + ")" + $nl
           $releaseNotes += "- [Issue Tracker](" + $REPO_URL + "/issues)" + $nl
@@ -910,43 +886,6 @@ jobs:
           ## ⚠️ Breaking Changes
 
           *Keine Breaking Changes in dieser Version*
-
-          ---
-
-          ## 📲 Installation
-
-          ### Google Play (Empfohlen)
-
-          - **Internal Track:** Nur für eingeladene Tester verfügbar
-          - **Beta Track:** Öffentliche Beta - Join via Google Play Console
-          - **Production:** Vollständiger Release für alle Nutzer
-
-          ### Direkter Download (APK/AAB)
-
-          1. Lade \`app-release.aab\` aus den Release Assets herunter
-          2. Installiere mit \`bundletool\`:
-             \`\`\`bash
-             bundletool build-apks --bundle=app-release.aab --output=app.apks
-             bundletool install-apks --apks=app.apks
-             \`\`\`
-
-          ⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden.
-
-          ---
-
-          ## 📝 Changelog (Vollständig)
-
-          ### Deutsch (DE)
-
-          \`\`\`
-          ${CHANGELOG_DE}
-          \`\`\`
-
-          ### English (EN)
-
-          \`\`\`
-          ${CHANGELOG_EN}
-          \`\`\`
 
           ---
 
