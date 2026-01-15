@@ -1,0 +1,13 @@
+Version 1.4.41:
+
+✨ Verbesserungen:
+- Suche komplett überarbeitet und schneller gemacht
+- Dokumente finden funktioniert jetzt auch ohne Internetverbindung
+- Suchergebnisse werden automatisch aktualisiert
+- Suche reagiert verzögerungsfrei beim Tippen
+
+🔧 Vereinfachungen:
+- Übersichtlicheres Design ohne Tag-Filter
+- Einfachere und intuitivere Bedienung
+- Spürbar schneller, besonders bei vielen Dokumenten
+- Weniger Wartezeit beim Durchsuchen

@@ -1,0 +1,13 @@
+Version 1.4.41:
+
+✨ Improvements:
+- Search completely redesigned and faster
+- Finding documents now works without internet connection
+- Search results update automatically
+- Search responds instantly while typing
+
+🔧 Simplifications:
+- Cleaner design without tag filters
+- Simpler and more intuitive to use
+- Noticeably faster, especially with many documents
+- Less waiting time when searching
