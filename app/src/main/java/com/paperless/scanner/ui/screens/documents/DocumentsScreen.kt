@@ -2,8 +2,6 @@ package com.paperless.scanner.ui.screens.documents
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,8 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -29,8 +25,6 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +63,6 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var selectedTagId by remember { mutableStateOf<Int?>(null) }
 
     // BEST PRACTICE: No manual refresh needed!
     // Room Flow automatically updates UI when documents change in DB.
@@ -141,56 +134,6 @@ fun DocumentsScreen(
             ),
             singleLine = true
         )
-
-        // Filter Chips - dynamically loaded from available tags
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // "All" chip
-            FilterChip(
-                selected = selectedTagId == null,
-                onClick = {
-                    selectedTagId = null
-                    viewModel.filterByTag(null)
-                },
-                label = {
-                    Text(
-                        text = stringResource(R.string.documents_filter_all),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                )
-            )
-
-            // Dynamic tag chips
-            uiState.availableTags.take(10).forEach { tag ->
-                val isSelected = selectedTagId == tag.id
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        selectedTagId = if (isSelected) null else tag.id
-                        viewModel.filterByTag(selectedTagId)
-                    },
-                    label = {
-                        Text(
-                            text = tag.name,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                )
-            }
-        }
 
         // Document List
         if (uiState.documents.isEmpty()) {

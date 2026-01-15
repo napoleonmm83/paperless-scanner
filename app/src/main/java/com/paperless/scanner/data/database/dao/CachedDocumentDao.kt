@@ -14,6 +14,41 @@ interface CachedDocumentDao {
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     fun observeDocuments(limit: Int, offset: Int): Flow<List<CachedDocument>>
 
+    /**
+     * BEST PRACTICE: Reactive Flow with optional filters for search and tags.
+     * Supports offline-first filtering - automatically updates UI on DB changes.
+     *
+     * @param searchQuery Text search in title/content (nullable for no search)
+     * @param tagId Single tag ID filter (nullable for no tag filter)
+     * @param limit Max results
+     * @param offset Pagination offset
+     */
+    @Query("""
+        SELECT * FROM cached_documents
+        WHERE isDeleted = 0
+        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%')
+        AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
+        ORDER BY added DESC
+        LIMIT :limit OFFSET :offset
+    """)
+    fun observeDocumentsFiltered(
+        searchQuery: String?,
+        tagId: Int?,
+        limit: Int,
+        offset: Int
+    ): Flow<List<CachedDocument>>
+
+    /**
+     * Get total count of filtered documents (for pagination).
+     */
+    @Query("""
+        SELECT COUNT(*) FROM cached_documents
+        WHERE isDeleted = 0
+        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%')
+        AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
+    """)
+    fun getFilteredCount(searchQuery: String?, tagId: Int?): Flow<Int>
+
     // Legacy suspend method - kept for backward compatibility
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     suspend fun getDocuments(limit: Int, offset: Int): List<CachedDocument>

@@ -306,6 +306,46 @@ class DocumentRepository @Inject constructor(
         }
     }
 
+    /**
+     * BEST PRACTICE: Reactive Flow with filters for offline-first search and tag filtering.
+     * Supports combining text search and tag filter simultaneously.
+     * Automatically triggers background API sync when online.
+     *
+     * @param searchQuery Text search in title/content (null = no search)
+     * @param tagId Single tag ID filter (null = no tag filter)
+     * @param page Page number for pagination
+     * @param pageSize Results per page
+     * @return Flow that emits filtered documents and updates automatically
+     */
+    fun observeDocumentsFiltered(
+        searchQuery: String? = null,
+        tagId: Int? = null,
+        page: Int = 1,
+        pageSize: Int = 25
+    ): Flow<List<Document>> {
+        val query = searchQuery?.takeIf { it.isNotBlank() }
+
+        return cachedDocumentDao.observeDocumentsFiltered(
+            searchQuery = query,
+            tagId = tagId,
+            limit = pageSize,
+            offset = (page - 1) * pageSize
+        ).map { cachedList ->
+            cachedList.map { it.toCachedDomain() }
+        }
+    }
+
+    /**
+     * Get total count of filtered documents as reactive Flow.
+     */
+    fun observeFilteredCount(
+        searchQuery: String? = null,
+        tagId: Int? = null
+    ): Flow<Int> {
+        val query = searchQuery?.takeIf { it.isNotBlank() }
+        return cachedDocumentDao.getFilteredCount(searchQuery = query, tagId = tagId)
+    }
+
     suspend fun getDocuments(
         page: Int = 1,
         pageSize: Int = 25,

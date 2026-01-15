@@ -12,12 +12,15 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,58 +48,104 @@ class DocumentsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DocumentsUiState())
     val uiState: StateFlow<DocumentsUiState> = _uiState.asStateFlow()
 
-    // Separate flow for search input to enable debouncing
+    // BEST PRACTICE: Separate flows for filter inputs to enable debouncing
     private val _searchQueryFlow = MutableStateFlow("")
+    private val _tagFilterFlow = MutableStateFlow<Int?>(null)
 
-    private var allDocuments: List<DocumentItem> = emptyList()
     private var tagMap: Map<Int, Tag> = emptyMap()
     private var correspondentMap: Map<Int, Correspondent> = emptyMap()
 
     init {
         loadInitialData()
         observeDocumentsReactively()
-        observeDebouncedSearch()
     }
 
     /**
-     * BEST PRACTICE: Debounced search to avoid triggering API calls on every keystroke.
-     * Waits 300ms after user stops typing before executing search.
+     * BEST PRACTICE: Single reactive Flow combining search + tag filter with debouncing.
+     * Automatically updates UI when:
+     * - Documents are added/modified/deleted in DB
+     * - Search query changes (with 300ms debounce)
+     * - Tag filter changes (no debounce)
+     *
+     * Uses flatMapLatest to automatically cancel old flows when filters change.
+     * This eliminates race conditions and memory leaks!
      */
-    @OptIn(FlowPreview::class)
-    private fun observeDebouncedSearch() {
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    private fun observeDocumentsReactively() {
         viewModelScope.launch {
+            // Combine search (debounced) and tag filter (instant)
             _searchQueryFlow
                 .debounce(300) // Wait 300ms after last keystroke
-                .distinctUntilChanged() // Only trigger if value actually changed
-                .collect { query ->
-                    _uiState.update { it.copy(searchQuery = query) }
-                    loadDocuments()
+                .distinctUntilChanged()
+                .combine(_tagFilterFlow) { searchQuery, tagId ->
+                    Pair(searchQuery.takeIf { it.isNotBlank() }, tagId)
+                }
+                .flatMapLatest { (searchQuery, tagId) ->
+                    // Update UI state with current filters
+                    _uiState.update {
+                        it.copy(
+                            searchQuery = searchQuery ?: "",
+                            activeTagFilter = tagId,
+                            isLoading = true
+                        )
+                    }
+
+                    // Trigger background API sync (fire and forget)
+                    triggerBackgroundSync(searchQuery, tagId)
+
+                    // Return the filtered documents flow
+                    documentRepository.observeDocumentsFiltered(
+                        searchQuery = searchQuery,
+                        tagId = tagId,
+                        page = 1,
+                        pageSize = 100
+                    )
+                }
+                .collect { documents ->
+                    val documentItems = documents.map { it.toDocumentItem() }
+                    _uiState.update {
+                        it.copy(
+                            documents = documentItems,
+                            isLoading = false
+                        )
+                    }
+                }
+        }
+
+        // Separate flow for total count
+        viewModelScope.launch {
+            _searchQueryFlow
+                .debounce(300)
+                .distinctUntilChanged()
+                .combine(_tagFilterFlow) { searchQuery, tagId ->
+                    Pair(searchQuery.takeIf { it.isNotBlank() }, tagId)
+                }
+                .flatMapLatest { (searchQuery, tagId) ->
+                    documentRepository.observeFilteredCount(
+                        searchQuery = searchQuery,
+                        tagId = tagId
+                    )
+                }
+                .collect { count ->
+                    _uiState.update { it.copy(totalCount = count) }
                 }
         }
     }
 
     /**
-     * BEST PRACTICE: Reactive Flow-based observation.
-     * Automatically updates UI when documents are added/modified/deleted in DB.
-     * No manual refresh logic needed!
+     * Triggers background API sync to refresh cache with latest data.
+     * Room Flow will automatically update UI when cache changes.
      */
-    private fun observeDocumentsReactively() {
+    private fun triggerBackgroundSync(searchQuery: String?, tagId: Int?) {
         viewModelScope.launch {
-            documentRepository.observeDocuments(
+            documentRepository.getDocuments(
                 page = 1,
-                pageSize = 25
-            ).collect { documents ->
-                // Transform to UI models
-                allDocuments = documents.map { it.toDocumentItem() }
-
-                _uiState.update {
-                    it.copy(
-                        documents = allDocuments,
-                        isLoading = false,
-                        totalCount = allDocuments.size
-                    )
-                }
-            }
+                pageSize = 100,
+                query = searchQuery,
+                tagIds = tagId?.let { listOf(it) },
+                forceRefresh = true
+            )
+            // Result is ignored - Room Flow handles UI update
         }
     }
 
@@ -121,85 +170,21 @@ class DocumentsViewModel @Inject constructor(
         }
     }
 
-    fun loadDocuments() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+    // Deprecated: No longer needed with reactive Flow architecture
+    // Background sync is handled automatically by observeDocumentsReactively()
 
-            val currentState = _uiState.value
-            val query = currentState.searchQuery.takeIf { it.isNotBlank() }
-            val tagIds = currentState.activeTagFilter?.let { listOf(it) }
-
-            documentRepository.getDocuments(
-                page = 1,
-                pageSize = 25,
-                query = query,
-                tagIds = tagIds
-            ).onSuccess { response ->
-                allDocuments = response.results.map { doc ->
-                    DocumentItem(
-                        id = doc.id,
-                        title = doc.title,
-                        date = DateFormatter.formatDateShort(doc.created),
-                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
-                        tags = doc.tags.mapNotNull { tagMap[it]?.name }
-                    )
-                }
-                _uiState.update {
-                    it.copy(
-                        documents = allDocuments,
-                        isLoading = false,
-                        totalCount = response.count,
-                        currentPage = 1,
-                        hasMorePages = response.next != null
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = error.message ?: context.getString(R.string.error_loading)
-                    )
-                }
-            }
-        }
-    }
-
-    fun loadNextPage() {
-        val currentState = _uiState.value
-        if (currentState.isLoading || !currentState.hasMorePages) return
-
-        viewModelScope.launch {
-            val nextPage = currentState.currentPage + 1
-            val query = currentState.searchQuery.takeIf { it.isNotBlank() }
-            val tagIds = currentState.activeTagFilter?.let { listOf(it) }
-
-            documentRepository.getDocuments(
-                page = nextPage,
-                pageSize = 25,
-                query = query,
-                tagIds = tagIds
-            ).onSuccess { response ->
-                val newDocuments = response.results.map { it.toDocumentItem() }
-                allDocuments = allDocuments + newDocuments
-                _uiState.update {
-                    it.copy(
-                        documents = allDocuments,
-                        currentPage = nextPage,
-                        hasMorePages = response.next != null
-                    )
-                }
-            }
-        }
-    }
-
+    /**
+     * Updates search query. Debouncing and reactive update happen automatically.
+     */
     fun search(query: String) {
-        // Update search flow - debouncing happens in observeDebouncedSearch()
         _searchQueryFlow.update { query }
     }
 
+    /**
+     * Updates tag filter. Reactive update happens instantly (no debounce).
+     */
     fun filterByTag(tagId: Int?) {
-        _uiState.update { it.copy(activeTagFilter = tagId) }
-        loadDocuments()
+        _tagFilterFlow.update { tagId }
     }
 
     fun refresh() {
@@ -207,8 +192,8 @@ class DocumentsViewModel @Inject constructor(
     }
 
     fun clearFilters() {
-        _uiState.update { it.copy(searchQuery = "", activeTagFilter = null) }
-        loadDocuments()
+        _searchQueryFlow.update { "" }
+        _tagFilterFlow.update { null }
     }
 
     fun clearError() {
@@ -217,7 +202,8 @@ class DocumentsViewModel @Inject constructor(
 
     fun resetState() {
         _uiState.update { DocumentsUiState() }
-        allDocuments = emptyList()
+        _searchQueryFlow.update { "" }
+        _tagFilterFlow.update { null }
         loadInitialData()
     }
 
