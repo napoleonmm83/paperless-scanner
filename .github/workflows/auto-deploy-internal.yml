@@ -615,23 +615,48 @@ jobs:
             $LASTEXITCODE = 0  # Reset exit code after handling missing tag
           }
 
-          # Read changelogs
+          # Read changelogs with robust 3-tier fallback strategy
+          # Tier 1: NEW version changelog (e.g., 10441.txt)
+          # Tier 2: PREVIOUS version changelog (e.g., 10440.txt) - BEST PRACTICE!
+          # Tier 3: default.txt generic changelog
           $CHANGELOG_DE_FILE = "fastlane/metadata/android/de-DE/changelogs/$VERSION_CODE.txt"
           $CHANGELOG_EN_FILE = "fastlane/metadata/android/en-US/changelogs/$VERSION_CODE.txt"
+
+          # Calculate previous version code (subtract 1 from patch)
+          $PREV_VERSION_CODE = $VERSION_CODE - 1
+          $PREV_CHANGELOG_DE_FILE = "fastlane/metadata/android/de-DE/changelogs/$PREV_VERSION_CODE.txt"
+          $PREV_CHANGELOG_EN_FILE = "fastlane/metadata/android/en-US/changelogs/$PREV_VERSION_CODE.txt"
+
           $DEFAULT_DE = "fastlane/metadata/android/de-DE/changelogs/default.txt"
           $DEFAULT_EN = "fastlane/metadata/android/en-US/changelogs/default.txt"
 
+          # German changelog with 3-tier fallback
           if (Test-Path $CHANGELOG_DE_FILE) {
+            Write-Host "Using NEW version changelog: $CHANGELOG_DE_FILE"
             $CHANGELOG_DE = Get-Content $CHANGELOG_DE_FILE -Raw
+          } elseif (Test-Path $PREV_CHANGELOG_DE_FILE) {
+            Write-Host "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_DE_FILE"
+            $CHANGELOG_DE = Get-Content $PREV_CHANGELOG_DE_FILE -Raw
+            # Update version number in text
+            $CHANGELOG_DE = $CHANGELOG_DE -replace "Version \d+\.\d+\.\d+:", "Version $NEW_VERSION:"
           } elseif (Test-Path $DEFAULT_DE) {
+            Write-Host "Using DEFAULT changelog (fallback): $DEFAULT_DE"
             $CHANGELOG_DE = Get-Content $DEFAULT_DE -Raw
           } else {
             $CHANGELOG_DE = "Version $NEW_VERSION"
           }
 
+          # English changelog with 3-tier fallback
           if (Test-Path $CHANGELOG_EN_FILE) {
+            Write-Host "Using NEW version changelog: $CHANGELOG_EN_FILE"
             $CHANGELOG_EN = Get-Content $CHANGELOG_EN_FILE -Raw
+          } elseif (Test-Path $PREV_CHANGELOG_EN_FILE) {
+            Write-Host "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_EN_FILE"
+            $CHANGELOG_EN = Get-Content $PREV_CHANGELOG_EN_FILE -Raw
+            # Update version number in text
+            $CHANGELOG_EN = $CHANGELOG_EN -replace "Version \d+\.\d+\.\d+:", "Version $NEW_VERSION:"
           } elseif (Test-Path $DEFAULT_EN) {
+            Write-Host "Using DEFAULT changelog (fallback): $DEFAULT_EN"
             $CHANGELOG_EN = Get-Content $DEFAULT_EN -Raw
           } else {
             $CHANGELOG_EN = "Version $NEW_VERSION"
@@ -766,22 +791,51 @@ jobs:
             COMMITS=$(git log --oneline --no-merges | head -20)
           fi
 
-          # Read changelogs
+          # Read changelogs with robust 3-tier fallback strategy
+          # Tier 1: NEW version changelog (e.g., 10441.txt)
+          # Tier 2: PREVIOUS version changelog (e.g., 10440.txt) - BEST PRACTICE!
+          # Tier 3: default.txt generic changelog
           CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${VERSION_CODE}.txt"
           CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
+
+          # Calculate previous version code (subtract 1 from patch)
+          PREV_VERSION_CODE=$((VERSION_CODE - 1))
+          PREV_CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${PREV_VERSION_CODE}.txt"
+          PREV_CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${PREV_VERSION_CODE}.txt"
+
           DEFAULT_DE="fastlane/metadata/android/de-DE/changelogs/default.txt"
           DEFAULT_EN="fastlane/metadata/android/en-US/changelogs/default.txt"
 
+          # German changelog with 3-tier fallback
           if [ -f "$CHANGELOG_DE_FILE" ]; then
+            echo "Using NEW version changelog: $CHANGELOG_DE_FILE"
             CHANGELOG_DE=$(cat "$CHANGELOG_DE_FILE")
+          elif [ -f "$PREV_CHANGELOG_DE_FILE" ]; then
+            echo "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_DE_FILE"
+            CHANGELOG_DE=$(cat "$PREV_CHANGELOG_DE_FILE")
+            # Update version number in text
+            CHANGELOG_DE=$(echo "$CHANGELOG_DE" | sed -E "s/Version [0-9]+\.[0-9]+\.[0-9]+:/Version ${NEW_VERSION}:/")
+          elif [ -f "$DEFAULT_DE" ]; then
+            echo "Using DEFAULT changelog (fallback): $DEFAULT_DE"
+            CHANGELOG_DE=$(cat "$DEFAULT_DE")
           else
-            CHANGELOG_DE=$(cat "$DEFAULT_DE" 2>/dev/null || echo "Version ${NEW_VERSION}")
+            CHANGELOG_DE="Version ${NEW_VERSION}"
           fi
 
+          # English changelog with 3-tier fallback
           if [ -f "$CHANGELOG_EN_FILE" ]; then
+            echo "Using NEW version changelog: $CHANGELOG_EN_FILE"
             CHANGELOG_EN=$(cat "$CHANGELOG_EN_FILE")
+          elif [ -f "$PREV_CHANGELOG_EN_FILE" ]; then
+            echo "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_EN_FILE"
+            CHANGELOG_EN=$(cat "$PREV_CHANGELOG_EN_FILE")
+            # Update version number in text
+            CHANGELOG_EN=$(echo "$CHANGELOG_EN" | sed -E "s/Version [0-9]+\.[0-9]+\.[0-9]+:/Version ${NEW_VERSION}:/")
+          elif [ -f "$DEFAULT_EN" ]; then
+            echo "Using DEFAULT changelog (fallback): $DEFAULT_EN"
+            CHANGELOG_EN=$(cat "$DEFAULT_EN")
           else
-            CHANGELOG_EN=$(cat "$DEFAULT_EN" 2>/dev/null || echo "Version ${NEW_VERSION}")
+            CHANGELOG_EN="Version ${NEW_VERSION}"
           fi
 
           # Parse commits into categories
