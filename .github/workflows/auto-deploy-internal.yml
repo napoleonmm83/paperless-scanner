@@ -544,6 +544,9 @@ jobs:
               Select-Object -First 1
           }
 
+          # UTF-8 encoding without BOM for changelog files
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+
           # Process German changelog
           if (-not (Test-Path $CHANGELOG_DE)) {
             Write-Host "German changelog for $VERSION_CODE not found. Searching for fallback..."
@@ -551,22 +554,24 @@ jobs:
             $latestDE = Get-LatestChangelog "fastlane/metadata/android/de-DE/changelogs"
             if ($latestDE) {
               Write-Host "Found latest German changelog: $($latestDE.Name)"
-              $content = Get-Content $latestDE.FullName -Raw
+              $content = Get-Content $latestDE.FullName -Raw -Encoding UTF8
 
               # Update version string in content
               $pattern = 'Version \d+\.\d+\.\d+' + ':'
               $replacement = "Version $VERSION" + ':'
               $content = $content -replace $pattern, $replacement
 
-              # Save to current version code
-              [System.IO.File]::WriteAllText($CHANGELOG_DE, $content)
+              # Save to current version code with UTF-8 no BOM
+              [System.IO.File]::WriteAllText($CHANGELOG_DE, $content, $utf8NoBom)
               Write-Host "Created German changelog for $VERSION_CODE from $($latestDE.BaseName)"
             } elseif (Test-Path $DEFAULT_DE) {
               Write-Host "Using default German changelog"
-              Copy-Item $DEFAULT_DE $CHANGELOG_DE
+              $content = Get-Content $DEFAULT_DE -Raw -Encoding UTF8
+              [System.IO.File]::WriteAllText($CHANGELOG_DE, $content, $utf8NoBom)
             } else {
               Write-Host "::warning::No German changelog found! Creating placeholder."
-              "Version $VERSION`:`n`nBug fixes and improvements." | Out-File -FilePath $CHANGELOG_DE -Encoding utf8
+              $placeholder = "Version $VERSION`:`n`nBug fixes and improvements."
+              [System.IO.File]::WriteAllText($CHANGELOG_DE, $placeholder, $utf8NoBom)
             }
           } else {
             Write-Host "German changelog already exists for $VERSION_CODE"
@@ -579,22 +584,24 @@ jobs:
             $latestEN = Get-LatestChangelog "fastlane/metadata/android/en-US/changelogs"
             if ($latestEN) {
               Write-Host "Found latest English changelog: $($latestEN.Name)"
-              $content = Get-Content $latestEN.FullName -Raw
+              $content = Get-Content $latestEN.FullName -Raw -Encoding UTF8
 
               # Update version string in content
               $pattern = 'Version \d+\.\d+\.\d+' + ':'
               $replacement = "Version $VERSION" + ':'
               $content = $content -replace $pattern, $replacement
 
-              # Save to current version code
-              [System.IO.File]::WriteAllText($CHANGELOG_EN, $content)
+              # Save to current version code with UTF-8 no BOM
+              [System.IO.File]::WriteAllText($CHANGELOG_EN, $content, $utf8NoBom)
               Write-Host "Created English changelog for $VERSION_CODE from $($latestEN.BaseName)"
             } elseif (Test-Path $DEFAULT_EN) {
               Write-Host "Using default English changelog"
-              Copy-Item $DEFAULT_EN $CHANGELOG_EN
+              $content = Get-Content $DEFAULT_EN -Raw -Encoding UTF8
+              [System.IO.File]::WriteAllText($CHANGELOG_EN, $content, $utf8NoBom)
             } else {
               Write-Host "::warning::No English changelog found! Creating placeholder."
-              "Version $VERSION`:`n`nBug fixes and improvements." | Out-File -FilePath $CHANGELOG_EN -Encoding utf8
+              $placeholder = "Version $VERSION`:`n`nBug fixes and improvements."
+              [System.IO.File]::WriteAllText($CHANGELOG_EN, $placeholder, $utf8NoBom)
             }
           } else {
             Write-Host "English changelog already exists for $VERSION_CODE"
