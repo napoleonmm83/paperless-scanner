@@ -627,4 +627,5 @@
     <string name="smart_tagging_completed_desc">Du har taggat %1$d dokument. Bra jobbat!</string>
     <string name="smart_tagging_suggested_new_tags">Föreslagna Nya Taggar</string>
     <string name="smart_tagging_suggested_new_tags_hint">Dessa taggar finns inte ännu. Tryck för att skapa dem.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

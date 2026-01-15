@@ -627,4 +627,5 @@
     <string name="smart_tagging_completed_desc">Je hebt %1$d documenten getagd. Goed gedaan!</string>
     <string name="smart_tagging_suggested_new_tags">Voorgestelde Nieuwe Tags</string>
     <string name="smart_tagging_suggested_new_tags_hint">Deze tags bestaan nog niet. Tik om ze te maken.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

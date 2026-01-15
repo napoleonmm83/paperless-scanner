@@ -432,6 +432,7 @@
     <string name="error_login_fields">Please fill in all fields</string>
     <string name="error_login_failed">Login failed</string>
     <string name="error_token_invalid">Token invalid</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
     <string name="error_server_unreachable">Server unreachable</string>
 
     <!-- Token Scanner -->

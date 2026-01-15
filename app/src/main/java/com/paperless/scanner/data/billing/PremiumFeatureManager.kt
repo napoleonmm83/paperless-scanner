@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -111,7 +112,7 @@ class PremiumFeatureManager @Inject constructor(
      * Check if a specific Premium feature is available.
      * Synchronous version for immediate decision-making.
      *
-     * PHASE 1: Uses BuildConfig.DEBUG check
+     * PHASE 1: Uses BuildConfig.DEBUG check + user preferences
      * PHASE 2: Will use billingManager.isSubscriptionActiveSync()
      *
      * @param feature The feature to check
@@ -120,19 +121,41 @@ class PremiumFeatureManager @Inject constructor(
     fun isFeatureAvailable(feature: PremiumFeature): Boolean {
         return when (feature) {
             PremiumFeature.AI_ANALYSIS -> {
-                // PHASE 1: Debug build check
+                // PHASE 1: Debug build check + user preference
                 // PHASE 2: Replace with billingManager.isSubscriptionActiveSync()
-                isPremiumAccessEnabledSync()
+                isPremiumAccessEnabledSync() && isAiSuggestionsEnabledSync()
             }
             PremiumFeature.AI_NEW_TAGS -> {
                 // Requires AI analysis + new tags enabled
-                isPremiumAccessEnabledSync()
-                // TODO: Check tokenManager.aiNewTagsEnabled sync
+                isPremiumAccessEnabledSync() && isAiSuggestionsEnabledSync() && isAiNewTagsEnabledSync()
             }
             PremiumFeature.AI_SUMMARY -> {
                 // Future feature - not implemented yet
                 false
             }
+        }
+    }
+
+    /**
+     * Sync check for AI suggestions enabled (user preference).
+     */
+    private fun isAiSuggestionsEnabledSync(): Boolean {
+        return tokenManager.getAiSuggestionsEnabledSync()
+    }
+
+    /**
+     * Sync check for AI new tags enabled (user preference).
+     */
+    private fun isAiNewTagsEnabledSync(): Boolean {
+        return tokenManager.getAiNewTagsEnabledSync()
+    }
+
+    /**
+     * Sync check for AI WiFi-only preference.
+     */
+    private fun isAiWifiOnlySync(): Boolean {
+        return runBlocking {
+            tokenManager.aiWifiOnly.first()
         }
     }
 

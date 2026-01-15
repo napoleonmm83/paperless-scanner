@@ -44,6 +44,10 @@ class PremiumFeatureManagerTest {
         every { tokenManager.aiNewTagsEnabled } returns mockAiNewTagsEnabled
         every { tokenManager.aiWifiOnly } returns mockAiWifiOnly
 
+        // Mock TokenManager sync methods (for isFeatureAvailable)
+        every { tokenManager.getAiSuggestionsEnabledSync() } answers { mockAiSuggestionsEnabled.value }
+        every { tokenManager.getAiNewTagsEnabledSync() } answers { mockAiNewTagsEnabled.value }
+
         premiumFeatureManager = PremiumFeatureManager(billingManager, tokenManager)
     }
 

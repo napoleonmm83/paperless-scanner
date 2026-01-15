@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">Merkitsit %1$d asiakirjaa. Hienosti tehty!</string>
     <string name="smart_tagging_suggested_new_tags">Ehdotetut Uudet Tunnisteet</string>
     <string name="smart_tagging_suggested_new_tags_hint">Näitä tunnisteita ei ole vielä olemassa. Napauta luodaksesi ne.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

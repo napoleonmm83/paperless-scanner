@@ -58,6 +58,12 @@
             </intent-filter>
         </activity>
 
+        <!-- Override MLKit Document Scanner orientation for Android 16+ large display support -->
+        <activity
+            android:name="com.google.mlkit.vision.documentscanner.internal.GmsDocumentScanningDelegateActivity"
+            android:screenOrientation="unspecified"
+            tools:replace="android:screenOrientation" />
+
         <!-- Disable default WorkManager initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"

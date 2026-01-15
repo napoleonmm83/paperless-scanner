@@ -21,6 +21,8 @@ import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
 import com.paperless.scanner.data.database.migrations.MIGRATION_3_4
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.network.AcceptedHostTrustManager
+import com.paperless.scanner.data.network.AcceptedHostnameVerifier
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
@@ -43,9 +45,15 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
 import javax.inject.Singleton
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
 
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
@@ -68,7 +76,7 @@ object AppModule {
     @Provides
     @Singleton
     @AuthClient
-    fun provideAuthOkHttpClient(): OkHttpClient {
+    fun provideAuthOkHttpClient(tokenManager: TokenManager): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.HEADERS
@@ -77,8 +85,23 @@ object AppModule {
             }
         }
 
+        // Get default TrustManager
+        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(null as java.security.KeyStore?)
+        val trustManagers = trustManagerFactory.trustManagers
+        val defaultTrustManager = trustManagers.first { it is X509TrustManager } as X509TrustManager
+
+        // Create custom TrustManager that checks accepted hosts
+        val acceptedHostTrustManager = AcceptedHostTrustManager(tokenManager, defaultTrustManager)
+
+        // Create SSL context with custom TrustManager
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
+
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
+            .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()

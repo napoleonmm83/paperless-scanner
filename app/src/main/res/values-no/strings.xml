@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">Du har tagget %1$d dokumenter. Bra jobbet!</string>
     <string name="smart_tagging_suggested_new_tags">Foreslåtte Nye Tagger</string>
     <string name="smart_tagging_suggested_new_tags_hint">Disse taggene finnes ikke ennå. Trykk for å opprette dem.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

@@ -38,6 +38,12 @@ class TokenManager(private val context: Context) {
 
         // Theme Preferences
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
+
+        // Onboarding Preferences
+        private val ONBOARDING_COMPLETED_KEY = booleanPreferencesKey("onboarding_completed")
+
+        // SSL Certificate Preferences
+        private val ACCEPTED_SSL_HOSTS_KEY = stringPreferencesKey("accepted_ssl_hosts")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -100,6 +106,11 @@ class TokenManager(private val context: Context) {
     /** Theme mode preference (system, light, dark) */
     val themeMode: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[THEME_MODE_KEY] ?: "system" // Default: follow system
+    }
+
+    /** Whether onboarding flow has been completed */
+    val onboardingCompleted: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[ONBOARDING_COMPLETED_KEY] ?: false // Default: not completed
     }
 
     // Paperless-GPT Settings
@@ -220,6 +231,20 @@ class TokenManager(private val context: Context) {
         context.dataStore.data.first()[AI_DEBUG_MODE_KEY] ?: false
     }
 
+    /**
+     * Check if AI suggestions are enabled (sync version).
+     */
+    fun getAiSuggestionsEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[AI_SUGGESTIONS_ENABLED_KEY] ?: true
+    }
+
+    /**
+     * Check if AI new tags are enabled (sync version).
+     */
+    fun getAiNewTagsEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[AI_NEW_TAGS_ENABLED_KEY] ?: true
+    }
+
     // Theme Settings
 
     suspend fun setThemeMode(mode: String) {
@@ -231,6 +256,14 @@ class TokenManager(private val context: Context) {
     /** Get theme mode synchronously (for app initialization) */
     fun getThemeModeSync(): String = runBlocking {
         context.dataStore.data.first()[THEME_MODE_KEY] ?: "system"
+    }
+
+    // Onboarding Settings
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[ONBOARDING_COMPLETED_KEY] = completed
+        }
     }
 
     // Paperless-GPT Settings
@@ -270,5 +303,40 @@ class TokenManager(private val context: Context) {
     /** Get Paperless-GPT OCR auto enabled state synchronously */
     fun isPaperlessGptOcrAutoEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[PAPERLESS_GPT_OCR_AUTO_KEY] ?: true
+    }
+
+    // SSL Certificate Settings
+
+    /** Check if a host has been accepted for self-signed SSL certificates */
+    fun isHostAcceptedForSsl(host: String): Boolean = runBlocking {
+        val acceptedHosts = context.dataStore.data.first()[ACCEPTED_SSL_HOSTS_KEY] ?: ""
+        acceptedHosts.split(",").map { it.trim() }.contains(host)
+    }
+
+    /** Accept a host for self-signed SSL certificates */
+    suspend fun acceptSslForHost(host: String) {
+        context.dataStore.edit { preferences ->
+            val currentHosts = preferences[ACCEPTED_SSL_HOSTS_KEY] ?: ""
+            val hostList = currentHosts.split(",").map { it.trim() }.filter { it.isNotBlank() }.toMutableList()
+            if (!hostList.contains(host)) {
+                hostList.add(host)
+            }
+            preferences[ACCEPTED_SSL_HOSTS_KEY] = hostList.joinToString(",")
+        }
+    }
+
+    /** Remove a host from accepted SSL hosts */
+    suspend fun removeAcceptedSslHost(host: String) {
+        context.dataStore.edit { preferences ->
+            val currentHosts = preferences[ACCEPTED_SSL_HOSTS_KEY] ?: ""
+            val hostList = currentHosts.split(",").map { it.trim() }.filter { it.isNotBlank() && it != host }
+            preferences[ACCEPTED_SSL_HOSTS_KEY] = hostList.joinToString(",")
+        }
+    }
+
+    /** Get all accepted SSL hosts */
+    fun getAcceptedSslHosts(): List<String> = runBlocking {
+        val hosts = context.dataStore.data.first()[ACCEPTED_SSL_HOSTS_KEY] ?: ""
+        hosts.split(",").map { it.trim() }.filter { it.isNotBlank() }
     }
 }

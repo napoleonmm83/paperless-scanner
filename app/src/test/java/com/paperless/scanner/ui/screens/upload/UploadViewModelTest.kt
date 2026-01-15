@@ -21,6 +21,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.util.NetworkUtils
+import com.paperless.scanner.utils.StorageUtil
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -95,6 +96,17 @@ class UploadViewModelTest {
         every { FileUtils.copyToLocalStorage(any(), any()) } answers { secondArg() }
         every { FileUtils.deleteLocalCopy(any()) } returns true
 
+        // Mock StorageUtil to prevent Android framework calls in unit tests
+        mockkObject(StorageUtil)
+        every { StorageUtil.checkStorageForUpload(any(), any()) } returns StorageUtil.StorageCheckResult(
+            hasEnoughSpace = true,
+            availableBytes = 1000000000L,  // 1GB
+            requiredBytes = 0L,
+            message = "Speicherplatz OK"
+        )
+        every { StorageUtil.hasSufficientSpace(any()) } returns true
+        every { StorageUtil.validateFileSize(any(), any()) } returns Result.success(1000000L)  // 1MB
+
         context = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
@@ -144,6 +156,7 @@ class UploadViewModelTest {
         Dispatchers.resetMain()
         unmockkStatic(Log::class)
         unmockkObject(FileUtils)
+        unmockkObject(StorageUtil)
     }
 
     // ==================== Reactive Flow Tests ====================
@@ -292,7 +305,7 @@ class UploadViewModelTest {
         viewModel.uiState.test {
             val state = awaitItem()
             assertTrue(state is UploadUiState.Error)
-            assertEquals("Server error", (state as UploadUiState.Error).message)
+            assertEquals("Server error", (state as UploadUiState.Error).userMessage)
         }
     }
 
@@ -406,7 +419,7 @@ class UploadViewModelTest {
         viewModel.uiState.test {
             val state = awaitItem()
             assertTrue(state is UploadUiState.Error)
-            assertEquals("PDF conversion failed", (state as UploadUiState.Error).message)
+            assertEquals("PDF conversion failed", (state as UploadUiState.Error).userMessage)
         }
     }
 

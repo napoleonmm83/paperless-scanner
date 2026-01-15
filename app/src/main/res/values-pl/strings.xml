@@ -627,4 +627,5 @@
     <string name="smart_tagging_completed_desc">Oznaczyłeś %1$d dokumentów. Świetna robota!</string>
     <string name="smart_tagging_suggested_new_tags">Sugerowane Nowe Tagi</string>
     <string name="smart_tagging_suggested_new_tags_hint">Te tagi jeszcze nie istnieją. Dotknij, aby je utworzyć.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

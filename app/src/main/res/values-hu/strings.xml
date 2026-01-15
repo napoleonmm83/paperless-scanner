@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">%1$d dokumentumot címkéztél meg. Szép munka!</string>
     <string name="smart_tagging_suggested_new_tags">Javasolt Új Címkék</string>
     <string name="smart_tagging_suggested_new_tags_hint">Ezek a címkék még nem léteznek. Koppints a létrehozásukhoz.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

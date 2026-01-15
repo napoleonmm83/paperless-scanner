@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">Ai etichetat %1$d documente. Bravo!</string>
     <string name="smart_tagging_suggested_new_tags">Etichete Noi Sugerate</string>
     <string name="smart_tagging_suggested_new_tags_hint">Aceste etichete nu există încă. Atinge pentru a le crea.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

@@ -10,13 +10,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
 import com.paperless.scanner.ui.screens.batchimport.BatchMetadataScreen
 import com.paperless.scanner.ui.theme.PaperlessAnimations
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
 import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
+import com.paperless.scanner.ui.screens.onboarding.OnboardingWelcomeScreen
 import com.paperless.scanner.ui.screens.onboarding.ServerSetupScreen
+import com.paperless.scanner.ui.screens.onboarding.SimplifiedSetupScreen
 import com.paperless.scanner.ui.screens.onboarding.SuccessScreen
 import com.paperless.scanner.ui.screens.onboarding.WelcomeScreen
 import com.paperless.scanner.ui.screens.pdfviewer.PdfViewerScreen
@@ -37,7 +43,8 @@ private val mainScreenRoutes = listOf(
 fun PaperlessNavGraph(
     navController: NavHostController,
     startDestination: String,
-    sharedUris: List<Uri> = emptyList()
+    sharedUris: List<Uri> = emptyList(),
+    tokenManager: TokenManager
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -56,7 +63,40 @@ fun PaperlessNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Onboarding flow
+        // New Onboarding flow (Version 1.5.0)
+        composable(route = Screen.OnboardingWelcome.route) {
+            OnboardingWelcomeScreen(
+                onComplete = {
+                    navController.navigate(Screen.SimplifiedSetup.route)
+                },
+                onSkip = {
+                    navController.navigate(Screen.SimplifiedSetup.route)
+                }
+            )
+        }
+
+        composable(route = Screen.SimplifiedSetup.route) {
+            SimplifiedSetupScreen(
+                onSuccess = {
+                    // Mark onboarding as completed
+                    CoroutineScope(Dispatchers.IO).launch {
+                        tokenManager.setOnboardingCompleted(true)
+                    }
+
+                    if (sharedUris.isNotEmpty()) {
+                        navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
+                            popUpTo(Screen.OnboardingWelcome.route) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.OnboardingWelcome.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
+
+        // Old Onboarding flow (legacy)
         composable(route = Screen.Welcome.route) {
             WelcomeScreen(
                 onContinue = {

@@ -27,6 +27,8 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.util.NetworkUtils
+import com.paperless.scanner.utils.RetryUtil
+import com.paperless.scanner.utils.StorageUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -177,6 +179,101 @@ class UploadViewModel @Inject constructor(
         private const val TAG = "UploadViewModel"
     }
 
+    /**
+     * Checks storage space before upload and returns error if insufficient.
+     *
+     * @return null if storage check passed, Error state otherwise
+     */
+    private suspend fun checkStorage(uris: List<Uri>): UploadUiState.Error? {
+        val storageCheck = StorageUtil.checkStorageForUpload(context, uris)
+
+        if (!storageCheck.hasEnoughSpace) {
+            Log.w(TAG, "Storage check failed: ${storageCheck.message}")
+            analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "storage_insufficient"))
+
+            return UploadUiState.Error(
+                userMessage = "Nicht genug Speicherplatz verfügbar",
+                technicalDetails = storageCheck.message,
+                isRetryable = false
+            )
+        }
+
+        // Check individual file sizes
+        uris.forEach { uri ->
+            StorageUtil.validateFileSize(context, uri).onFailure { e ->
+                Log.w(TAG, "File size validation failed: ${e.message}")
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "file_too_large"))
+
+                return UploadUiState.Error(
+                    userMessage = "Datei zu groß",
+                    technicalDetails = e.message,
+                    isRetryable = false
+                )
+            }
+        }
+
+        return null  // Storage check passed
+    }
+
+    /**
+     * Converts exception to user-friendly error message with technical details.
+     *
+     * @param exception The exception that occurred
+     * @return UploadUiState.Error with user message and details
+     */
+    private fun createErrorState(exception: Throwable): UploadUiState.Error {
+        val errorInfo: Pair<String, Boolean> = when {
+            // Network errors - retryable
+            exception is java.net.SocketTimeoutException -> {
+                "Zeitüberschreitung. Server antwortet nicht." to true
+            }
+            exception is java.net.UnknownHostException -> {
+                "Server nicht erreichbar. Prüfe deine Internetverbindung." to true
+            }
+            exception is java.net.ConnectException -> {
+                "Verbindung zum Server fehlgeschlagen. Ist der Server online?" to true
+            }
+            exception is java.io.IOException -> {
+                "Netzwerkfehler. Prüfe deine Verbindung." to true
+            }
+
+            // HTTP errors
+            exception is retrofit2.HttpException -> {
+                when (exception.code()) {
+                    401 -> "Nicht autorisiert. Prüfe deinen Zugangsschlüssel." to false
+                    403 -> "Zugriff verweigert. Keine Berechtigung zum Hochladen." to false
+                    413 -> "Datei zu groß für Server." to false
+                    500, 502, 503, 504 -> "Server-Fehler. Versuche es später erneut." to true
+                    else -> "Upload fehlgeschlagen (HTTP ${exception.code()})." to false
+                }
+            }
+
+            // Storage errors
+            exception.message?.contains("Speicher", ignoreCase = true) == true ||
+            exception.message?.contains("storage", ignoreCase = true) == true -> {
+                "Nicht genug Speicherplatz verfügbar." to false
+            }
+
+            // File errors
+            exception is IllegalArgumentException -> {
+                "Datei konnte nicht gelesen werden." to false
+            }
+
+            // Generic fallback
+            else -> {
+                (exception.message ?: "Upload fehlgeschlagen.") to false
+            }
+        }
+
+        val (userMessage, isRetryable) = errorInfo
+
+        return UploadUiState.Error(
+            userMessage = userMessage,
+            technicalDetails = "${exception::class.simpleName}: ${exception.message}",
+            isRetryable = isRetryable
+        )
+    }
+
     fun uploadDocument(
         uri: Uri,
         title: String? = null,
@@ -191,6 +288,12 @@ class UploadViewModel @Inject constructor(
             val startTime = System.currentTimeMillis()
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = 1, isMultiPage = false))
 
+            // Check storage BEFORE attempting upload
+            checkStorage(listOf(uri))?.let { error ->
+                _uiState.update { error }
+                return@launch
+            }
+
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing upload for later sync")
@@ -200,7 +303,11 @@ class UploadViewModel @Inject constructor(
                 } else {
                     FileUtils.copyToLocalStorage(context, uri) ?: run {
                         Log.e(TAG, "Failed to copy file for offline queue: $uri")
-                        _uiState.update { UploadUiState.Error(context.getString(R.string.error_queue_add)) }
+                        _uiState.update { UploadUiState.Error(
+                            userMessage = "Fehler beim Speichern für Offline-Warteschlange",
+                            technicalDetails = context.getString(R.string.error_queue_add),
+                            isRetryable = false
+                        ) }
                         return@launch
                     }
                 }
@@ -219,16 +326,30 @@ class UploadViewModel @Inject constructor(
 
             _uiState.update { UploadUiState.Uploading(0f) }
 
-            documentRepository.uploadDocument(
-                uri = uri,
-                title = title,
-                tagIds = tagIds,
-                documentTypeId = documentTypeId,
-                correspondentId = correspondentId,
-                onProgress = { progress ->
-                    _uiState.update { UploadUiState.Uploading(progress) }
+            // Use RetryUtil for automatic retry with exponential backoff
+            val result = RetryUtil.retryWithExponentialBackoff(
+                maxAttempts = 3,
+                initialDelay = 2000L,
+                onRetry = { attempt, delay, error ->
+                    Log.d(TAG, "Retrying upload (attempt $attempt/${3}, delay=${delay}ms): ${error.message}")
+                    _uiState.update { UploadUiState.Retrying(attempt, 3, delay) }
+                    delay(delay)  // Wait before retry
+                    _uiState.update { UploadUiState.Uploading(0f) }  // Reset to uploading
                 }
-            )
+            ) {
+                documentRepository.uploadDocument(
+                    uri = uri,
+                    title = title,
+                    tagIds = tagIds,
+                    documentTypeId = documentTypeId,
+                    correspondentId = correspondentId,
+                    onProgress = { progress ->
+                        _uiState.update { UploadUiState.Uploading(progress) }
+                    }
+                ).getOrThrow()  // Convert Result to exception for retry logic
+            }
+
+            result
                 .onSuccess { taskId ->
                     val durationMs = System.currentTimeMillis() - startTime
                     analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = 1, durationMs = durationMs))
@@ -240,9 +361,7 @@ class UploadViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "upload_error"))
-                    _uiState.update {
-                        UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
-                    }
+                    _uiState.update { createErrorState(exception) }
                 }
         }
     }
@@ -262,6 +381,12 @@ class UploadViewModel @Inject constructor(
             val pageCount = uris.size
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
 
+            // Check storage BEFORE attempting upload
+            checkStorage(uris)?.let { error ->
+                _uiState.update { error }
+                return@launch
+            }
+
             // Check network availability - if offline, queue the upload
             if (!networkMonitor.checkOnlineStatus()) {
                 Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
@@ -275,7 +400,11 @@ class UploadViewModel @Inject constructor(
                 }
                 if (localUris.isEmpty()) {
                     Log.e(TAG, "Failed to copy any files for offline queue")
-                    _uiState.update { UploadUiState.Error(context.getString(R.string.error_queue_add)) }
+                    _uiState.update { UploadUiState.Error(
+                        userMessage = "Fehler beim Speichern für Offline-Warteschlange",
+                        technicalDetails = context.getString(R.string.error_queue_add),
+                        isRetryable = false
+                    ) }
                     return@launch
                 }
                 uploadQueueRepository.queueMultiPageUpload(
@@ -293,16 +422,30 @@ class UploadViewModel @Inject constructor(
 
             _uiState.update { UploadUiState.Uploading(0f) }
 
-            documentRepository.uploadMultiPageDocument(
-                uris = uris,
-                title = title,
-                tagIds = tagIds,
-                documentTypeId = documentTypeId,
-                correspondentId = correspondentId,
-                onProgress = { progress ->
-                    _uiState.update { UploadUiState.Uploading(progress) }
+            // Use RetryUtil for automatic retry with exponential backoff
+            val result = RetryUtil.retryWithExponentialBackoff(
+                maxAttempts = 3,
+                initialDelay = 2000L,
+                onRetry = { attempt, delay, error ->
+                    Log.d(TAG, "Retrying multi-page upload (attempt $attempt/${3}, delay=${delay}ms): ${error.message}")
+                    _uiState.update { UploadUiState.Retrying(attempt, 3, delay) }
+                    delay(delay)  // Wait before retry
+                    _uiState.update { UploadUiState.Uploading(0f) }  // Reset to uploading
                 }
-            )
+            ) {
+                documentRepository.uploadMultiPageDocument(
+                    uris = uris,
+                    title = title,
+                    tagIds = tagIds,
+                    documentTypeId = documentTypeId,
+                    correspondentId = correspondentId,
+                    onProgress = { progress ->
+                        _uiState.update { UploadUiState.Uploading(progress) }
+                    }
+                ).getOrThrow()  // Convert Result to exception for retry logic
+            }
+
+            result
                 .onSuccess { taskId ->
                     val durationMs = System.currentTimeMillis() - startTime
                     analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = pageCount, durationMs = durationMs))
@@ -314,9 +457,7 @@ class UploadViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "multi_page_upload_error"))
-                    _uiState.update {
-                        UploadUiState.Error(exception.message ?: context.getString(R.string.upload_error_generic))
-                    }
+                    _uiState.update { createErrorState(exception) }
                 }
         }
     }
@@ -684,8 +825,13 @@ sealed class UploadParams {
 sealed class UploadUiState {
     data object Idle : UploadUiState()
     data class Uploading(val progress: Float = 0f) : UploadUiState()
+    data class Retrying(val attempt: Int, val maxAttempts: Int, val nextDelay: Long) : UploadUiState()
     data class Success(val taskId: String) : UploadUiState()
-    data class Error(val message: String) : UploadUiState()
+    data class Error(
+        val userMessage: String,           // Benutzerfreundliche Nachricht
+        val technicalDetails: String? = null,  // Technische Details (ausklappbar)
+        val isRetryable: Boolean = false   // Kann automatisch retried werden
+    ) : UploadUiState()
     data object Queued : UploadUiState() // Upload in Queue, wird später synchronisiert
 }
 

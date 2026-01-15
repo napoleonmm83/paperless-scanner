@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">Hai taggato %1$d documenti. Ben fatto!</string>
     <string name="smart_tagging_suggested_new_tags">Nuovi Tag Suggeriti</string>
     <string name="smart_tagging_suggested_new_tags_hint">Questi tag non esistono ancora. Tocca per crearli.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

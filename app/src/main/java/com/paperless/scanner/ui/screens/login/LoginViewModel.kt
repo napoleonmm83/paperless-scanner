@@ -154,10 +154,21 @@ class LoginViewModel @Inject constructor(
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("auth_error"))
                     withContext(Dispatchers.Main) {
-                        _uiState.update {
-                            LoginUiState.Error(
-                                exception.message ?: context.getString(R.string.error_login_failed)
-                            )
+                        // Check if it's an SSL error
+                        if (isSslError(exception)) {
+                            val host = extractHostFromUrl(urlToUse)
+                            _uiState.update {
+                                LoginUiState.SslError(
+                                    host = host,
+                                    message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                LoginUiState.Error(
+                                    exception.message ?: context.getString(R.string.error_login_failed)
+                                )
+                            }
                         }
                     }
                 }
@@ -195,10 +206,21 @@ class LoginViewModel @Inject constructor(
                 .onFailure { exception ->
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("invalid_token"))
                     withContext(Dispatchers.Main) {
-                        _uiState.update {
-                            LoginUiState.Error(
-                                exception.message ?: context.getString(R.string.error_token_invalid)
-                            )
+                        // Check if it's an SSL error
+                        if (isSslError(exception)) {
+                            val host = extractHostFromUrl(urlToUse)
+                            _uiState.update {
+                                LoginUiState.SslError(
+                                    host = host,
+                                    message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                LoginUiState.Error(
+                                    exception.message ?: context.getString(R.string.error_token_invalid)
+                                )
+                            }
                         }
                     }
                 }
@@ -228,6 +250,32 @@ class LoginViewModel @Inject constructor(
     fun resetState() {
         _uiState.update { LoginUiState.Idle }
     }
+
+    fun acceptSslCertificate(host: String) {
+        viewModelScope.launch {
+            tokenManager.acceptSslForHost(host)
+            Log.d(TAG, "SSL certificate accepted for host: $host")
+            // Reset state to allow retry
+            _uiState.update { LoginUiState.Idle }
+        }
+    }
+
+    private fun isSslError(exception: Throwable): Boolean {
+        val message = exception.message?.lowercase() ?: ""
+        return message.contains("ssl") ||
+                message.contains("certificate") ||
+                message.contains("zertifikat") ||
+                exception is javax.net.ssl.SSLException ||
+                exception is javax.net.ssl.SSLHandshakeException
+    }
+
+    private fun extractHostFromUrl(url: String): String {
+        return url
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .split("/").first()
+            .split(":").first()
+    }
 }
 
 sealed class LoginUiState {
@@ -235,6 +283,7 @@ sealed class LoginUiState {
     data object Loading : LoginUiState()
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()
+    data class SslError(val host: String, val message: String) : LoginUiState()
 }
 
 sealed class ServerStatus {

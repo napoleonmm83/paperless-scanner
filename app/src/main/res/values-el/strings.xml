@@ -683,4 +683,5 @@
     <string name="smart_tagging_completed_desc">Επισημάνατε %1$d έγγραφα. Εξαιρετικά!</string>
     <string name="smart_tagging_suggested_new_tags">Προτεινόμενες Νέες Ετικέτες</string>
     <string name="smart_tagging_suggested_new_tags_hint">Αυτές οι ετικέτες δεν υπάρχουν ακόμα. Πατήστε για να τις δημιουργήσετε.</string>
+    <string name="error_ssl_certificate">SSL certificate invalid</string>
 </resources>

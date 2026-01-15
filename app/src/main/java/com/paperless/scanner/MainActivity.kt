@@ -3,7 +3,6 @@ package com.paperless.scanner
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -22,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -53,12 +51,9 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
 
-        // Set dark navigation bar with light icons globally
-        @Suppress("DEPRECATION")
-        window.navigationBarColor = Color.BLACK
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = false
+        // Enable Edge-to-Edge (Android 15+ compatible)
+        enableEdgeToEdge()
 
         requestNotificationPermission()
 
@@ -80,20 +75,25 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val token by tokenManager.token.collectAsState(initial = null)
+                    val onboardingCompleted by tokenManager.onboardingCompleted.collectAsState(initial = false)
                     val analyticsConsentAsked by tokenManager.analyticsConsentAsked.collectAsState(initial = true)
                     val navController = rememberNavController()
                     val coroutineScope = rememberCoroutineScope()
 
-                    val startDestination = if (token.isNullOrBlank()) {
-                        Screen.Welcome.route
-                    } else {
-                        Screen.Home.route
+                    val startDestination = when {
+                        // New user - show new onboarding
+                        !onboardingCompleted -> Screen.OnboardingWelcome.route
+                        // Onboarding completed but no token (logged out) - show old onboarding
+                        token.isNullOrBlank() -> Screen.Welcome.route
+                        // Logged in - go to home
+                        else -> Screen.Home.route
                     }
 
                     PaperlessNavGraph(
                         navController = navController,
                         startDestination = startDestination,
-                        sharedUris = sharedUris
+                        sharedUris = sharedUris,
+                        tokenManager = tokenManager
                     )
 
                     // Show consent dialog on first launch
