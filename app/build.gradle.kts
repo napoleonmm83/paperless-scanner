@@ -165,6 +165,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.activity.compose)
 
     // Compose
@@ -209,6 +210,9 @@ dependencies {
 
     // Biometric
     implementation(libs.biometric)
+
+    // Password Hashing (BCrypt for App-Lock)
+    implementation("org.mindrot:jbcrypt:0.4")
 
     // Image Loading
     implementation(libs.coil.compose)
