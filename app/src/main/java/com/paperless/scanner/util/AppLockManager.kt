@@ -56,9 +56,20 @@ class AppLockManager @Inject constructor(
 
         // Initialize lock state based on settings
         scope.launch {
-            tokenManager.isAppLockEnabled().collect { enabled ->
-                if (enabled && tokenManager.hasStoredCredentials()) {
-                    // Lock immediately if app-lock is enabled and user is logged in
+            // Check immediately on init
+            val enabled = tokenManager.isAppLockEnabledSync()
+            val hasCredentials = tokenManager.hasStoredCredentials()
+
+            if (enabled && hasCredentials) {
+                // Lock immediately if app-lock is enabled and user is logged in
+                _lockState.update { AppLockState.Locked }
+            } else {
+                _lockState.update { AppLockState.Unlocked }
+            }
+
+            // Then observe changes
+            tokenManager.isAppLockEnabled().collect { isEnabled ->
+                if (isEnabled && tokenManager.hasStoredCredentials()) {
                     _lockState.update { AppLockState.Locked }
                 } else {
                     _lockState.update { AppLockState.Unlocked }
@@ -76,6 +87,8 @@ class AppLockManager @Inject constructor(
         tokenManager.setAppLockPassword(passwordHash)
         tokenManager.setAppLockEnabled(true)
         failedAttempts = 0
+        // Initialize timestamp so timeout checks work correctly after setup
+        backgroundTimestamp = System.currentTimeMillis()
         _lockState.update { AppLockState.Unlocked }
     }
 
@@ -90,6 +103,8 @@ class AppLockManager @Inject constructor(
             val isValid = BCrypt.checkpw(password, storedHash)
             if (isValid) {
                 failedAttempts = 0
+                // Reset timestamp to current time so next lock check works correctly
+                backgroundTimestamp = System.currentTimeMillis()
                 _lockState.update { AppLockState.Unlocked }
                 true
             } else {
@@ -111,6 +126,8 @@ class AppLockManager @Inject constructor(
         scope.launch {
             if (tokenManager.isAppLockBiometricEnabled()) {
                 failedAttempts = 0
+                // Reset timestamp to current time so next lock check works correctly
+                backgroundTimestamp = System.currentTimeMillis()
                 _lockState.update { AppLockState.Unlocked }
             }
         }
@@ -197,11 +214,18 @@ class AppLockManager @Inject constructor(
         // App moved to foreground
         scope.launch {
             if (shouldLock()) {
-                val timeoutMillis = getTimeoutMillis()
-                val elapsed = System.currentTimeMillis() - backgroundTimestamp
-
-                if (elapsed >= timeoutMillis) {
+                // If backgroundTimestamp is 0, this is the first start (or after cold boot)
+                // In this case, lock immediately regardless of timeout
+                if (backgroundTimestamp == 0L) {
                     _lockState.update { AppLockState.Locked }
+                } else {
+                    // Check if timeout has elapsed
+                    val timeoutMillis = getTimeoutMillis()
+                    val elapsed = System.currentTimeMillis() - backgroundTimestamp
+
+                    if (elapsed >= timeoutMillis) {
+                        _lockState.update { AppLockState.Locked }
+                    }
                 }
             }
         }
