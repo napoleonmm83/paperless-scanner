@@ -69,7 +69,10 @@ fun MainScreen(
             Screen.Settings.route -> SettingsScreen(
                 onLogout = onLogout,
                 onNavigateToSetupAppLock = { isChangingPassword ->
-                    navController.navigate(Screen.SetupAppLock.createRoute(isChangingPassword))
+                    navController.navigate(Screen.SetupAppLock.createRoute(isChangingPassword)) {
+                        // Ensure Settings is on the back stack for proper back navigation
+                        launchSingleTop = true
+                    }
                 }
             )
         }

@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import android.content.Context
+import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -39,6 +40,7 @@ class BiometricHelper @Inject constructor(
         onError: (String) -> Unit,
         onFallback: () -> Unit
     ) {
+        Log.d("BiometricHelper", "authenticate() called with activity: ${activity::class.java.simpleName}")
         val executor = ContextCompat.getMainExecutor(context)
 
         val callback = object : BiometricPrompt.AuthenticationCallback() {

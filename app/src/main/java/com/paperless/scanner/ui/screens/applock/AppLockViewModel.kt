@@ -39,8 +39,18 @@ class AppLockViewModel @Inject constructor(
         viewModelScope.launch {
             appLockManager.lockState.collect { lockState ->
                 when (lockState) {
-                    is AppLockState.Unlocked -> _uiState.update { AppLockUiState.Unlocked }
-                    is AppLockState.LockedOut -> _uiState.update { AppLockUiState.LockedOut }
+                    is AppLockState.Unlocked -> {
+                        _uiState.update { AppLockUiState.Unlocked }
+                    }
+                    is AppLockState.LockedOut -> {
+                        val lockedOut = lockState as AppLockState.LockedOut
+                        _uiState.update {
+                            AppLockUiState.LockedOut(
+                                isPermanent = lockedOut.isPermanent,
+                                lockoutUntil = lockedOut.lockoutUntil
+                            )
+                        }
+                    }
                     is AppLockState.Locked -> {
                         // Keep current UI state (Idle, Error, etc.)
                         if (_uiState.value is AppLockUiState.Unlocked ||
@@ -83,15 +93,22 @@ class AppLockViewModel @Inject constructor(
                         )
                     }
                 } else {
-                    _uiState.update { AppLockUiState.LockedOut }
+                    // No remaining attempts - get lockout state from manager
+                    val lockState = appLockManager.lockState.value
+                    if (lockState is AppLockState.LockedOut) {
+                        _uiState.update {
+                            AppLockUiState.LockedOut(
+                                isPermanent = lockState.isPermanent,
+                                lockoutUntil = lockState.lockoutUntil
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    fun showBiometricPrompt() {
-        val activity = context as? FragmentActivity ?: return
-
+    fun showBiometricPrompt(activity: FragmentActivity) {
         biometricHelper.authenticate(
             activity = activity,
             title = "App entsperren",
@@ -120,7 +137,10 @@ sealed class AppLockUiState {
     data object Idle : AppLockUiState()
     data object Unlocking : AppLockUiState()
     data object Unlocked : AppLockUiState()
-    data object LockedOut : AppLockUiState()
+    data class LockedOut(
+        val isPermanent: Boolean,
+        val lockoutUntil: Long
+    ) : AppLockUiState()
     data class Error(
         val message: String,
         val remainingAttempts: Int

@@ -67,6 +67,10 @@ import com.paperless.scanner.ui.screens.login.TokenScannerSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class AuthMethod {
+    CREDENTIALS, TOKEN
+}
+
 sealed class SetupState {
     data object Idle : SetupState()
     data object Testing : SetupState()
@@ -179,6 +183,7 @@ fun SimplifiedSetupScreen(
                 },
                 label = { Text("Server URL") },
                 placeholder = { Text("https://paperless.example.com") },
+                modifier = Modifier.fillMaxWidth(),
                 supportingText = {
                     Text(
                         text = when (serverStatus) {
@@ -227,10 +232,10 @@ fun SimplifiedSetupScreen(
                     }
                 },
                 isError = serverStatus is ServerStatus.Error,
-                modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Next
+                    imeAction = ImeAction.Next,
+                    autoCorrect = false
                 ),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }

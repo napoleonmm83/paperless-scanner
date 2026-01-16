@@ -6,10 +6,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -18,6 +18,7 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -32,11 +33,13 @@ import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var tokenManager: TokenManager
@@ -77,19 +80,23 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val token by tokenManager.token.collectAsState(initial = null)
-                    val onboardingCompleted by tokenManager.onboardingCompleted.collectAsState(initial = false)
                     val analyticsConsentAsked by tokenManager.analyticsConsentAsked.collectAsState(initial = true)
                     val navController = rememberNavController()
                     val coroutineScope = rememberCoroutineScope()
 
-                    val startDestination = when {
-                        // New user - show new onboarding
-                        !onboardingCompleted -> Screen.OnboardingWelcome.route
-                        // Onboarding completed but no token (logged out) - show old onboarding
-                        token.isNullOrBlank() -> Screen.Welcome.route
-                        // Logged in - go to home
-                        else -> Screen.Home.route
+                    // CRITICAL: Load startDestination synchronously to avoid race conditions
+                    // Using collectAsState with wrong initials causes wrong startDestination on Activity recreation
+                    val startDestination = remember {
+                        runBlocking {
+                            val token = tokenManager.token.first()
+
+                            when {
+                                // Not logged in - show unified onboarding (SimplifiedSetup on Welcome route)
+                                token.isNullOrBlank() -> Screen.Welcome.route
+                                // Logged in - go to home (AppLockNavigationInterceptor handles locking)
+                                else -> Screen.Home.route
+                            }
+                        }
                     }
 
                     PaperlessNavGraph(

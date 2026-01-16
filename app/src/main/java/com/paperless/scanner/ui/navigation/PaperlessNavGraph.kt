@@ -19,12 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.documents.DocumentDetailScreen
 import com.paperless.scanner.ui.screens.main.MainScreen
-import com.paperless.scanner.ui.screens.onboarding.OnboardingLoginScreen
-import com.paperless.scanner.ui.screens.onboarding.OnboardingWelcomeScreen
-import com.paperless.scanner.ui.screens.onboarding.ServerSetupScreen
 import com.paperless.scanner.ui.screens.onboarding.SimplifiedSetupScreen
-import com.paperless.scanner.ui.screens.onboarding.SuccessScreen
-import com.paperless.scanner.ui.screens.onboarding.WelcomeScreen
 import com.paperless.scanner.ui.screens.pdfviewer.PdfViewerScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
@@ -70,19 +65,8 @@ fun PaperlessNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // New Onboarding flow (Version 1.5.0)
-        composable(route = Screen.OnboardingWelcome.route) {
-            OnboardingWelcomeScreen(
-                onComplete = {
-                    navController.navigate(Screen.SimplifiedSetup.route)
-                },
-                onSkip = {
-                    navController.navigate(Screen.SimplifiedSetup.route)
-                }
-            )
-        }
-
-        composable(route = Screen.SimplifiedSetup.route) {
+        // Unified Onboarding flow - SimplifiedSetup on Welcome route
+        composable(route = Screen.Welcome.route) {
             SimplifiedSetupScreen(
                 onSuccess = {
                     // Mark onboarding as completed
@@ -92,72 +76,11 @@ fun PaperlessNavGraph(
 
                     if (sharedUris.isNotEmpty()) {
                         navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
-                            popUpTo(Screen.OnboardingWelcome.route) { inclusive = true }
+                            popUpTo(Screen.Welcome.route) { inclusive = true }
                         }
                     } else {
                         navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.OnboardingWelcome.route) { inclusive = true }
-                        }
-                    }
-                }
-            )
-        }
-
-        // Old Onboarding flow (legacy)
-        composable(route = Screen.Welcome.route) {
-            WelcomeScreen(
-                onContinue = {
-                    navController.navigate(Screen.ServerSetup.route)
-                }
-            )
-        }
-
-        composable(route = Screen.ServerSetup.route) {
-            ServerSetupScreen(
-                onBack = {
-                    navController.popBackStack()
-                },
-                onContinue = { serverUrl ->
-                    navController.navigate(Screen.Login.createRoute(serverUrl))
-                }
-            )
-        }
-
-        composable(
-            route = Screen.Login.route,
-            arguments = listOf(
-                navArgument("serverUrl") {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val serverUrl = backStackEntry.arguments?.getString("serverUrl")?.let {
-                Uri.decode(it)
-            } ?: ""
-
-            OnboardingLoginScreen(
-                serverUrl = serverUrl,
-                onBack = {
-                    navController.popBackStack()
-                },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Success.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable(route = Screen.Success.route) {
-            SuccessScreen(
-                onComplete = {
-                    if (sharedUris.isNotEmpty()) {
-                        navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
-                            popUpTo(Screen.Success.route) { inclusive = true }
-                        }
-                    } else {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Success.route) { inclusive = true }
+                            popUpTo(Screen.Welcome.route) { inclusive = true }
                         }
                     }
                 }
@@ -419,12 +342,14 @@ fun PaperlessNavGraph(
         composable(route = Screen.AppLock.route) {
             com.paperless.scanner.ui.screens.applock.AppLockScreen(
                 onUnlocked = {
-                    navController.popBackStack()
+                    // CRITICAL: Do NOT navigate here!
+                    // Navigation is handled by AppLockNavigationInterceptor to avoid race conditions
+                    // The interceptor listens to lockState and navigates back to the saved route
                 },
                 onLockedOut = {
                     // User was locked out after too many attempts
                     // Navigate back to login
-                    navController.navigate(Screen.OnboardingWelcome.route) {
+                    navController.navigate(Screen.Welcome.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -447,7 +372,8 @@ fun PaperlessNavGraph(
                     navController.popBackStack()
                 },
                 onSetupComplete = {
-                    // Navigate back to settings
+                    // IMPORTANT: Just pop back to Settings (previous screen)
+                    // Don't use navigate() with popUpTo because route templates don't match instantiated routes
                     navController.popBackStack()
                 },
                 isChangingPassword = isChangingPassword

@@ -48,6 +48,7 @@ fun SetupAppLockScreen(
     // Handle setup success
     LaunchedEffect(uiState) {
         if (uiState is SetupAppLockUiState.Success) {
+            android.util.Log.d("SetupAppLockScreen", "Setup successful, calling onSetupComplete()")
             onSetupComplete()
         }
     }

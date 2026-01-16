@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.applock
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,12 +36,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import android.util.Log
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -62,25 +66,66 @@ fun AppLockScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val activity = remember(context) {
+        val act = context as? FragmentActivity
+        Log.d("AppLockScreen", "Context type: ${context::class.java.simpleName}, Activity: $act")
+        act
+    }
+
+    // Countdown timer for temporary lockout
+    var remainingSeconds by remember { mutableStateOf(0) }
+
+    // Update countdown every second during temporary lockout
+    LaunchedEffect(uiState) {
+        val currentState = uiState
+        if (currentState is AppLockUiState.LockedOut && !currentState.isPermanent) {
+            while (true) {
+                val now = System.currentTimeMillis()
+                val remaining = (currentState.lockoutUntil - now) / 1000
+                remainingSeconds = maxOf(0, remaining.toInt())
+                if (remainingSeconds <= 0) break
+                kotlinx.coroutines.delay(1000)
+            }
+        }
+    }
+
+    // SECURITY: Prevent back button bypass - user MUST unlock
+    // Back button should NOT allow bypassing the lock screen
+    BackHandler(enabled = true) {
+        // Do nothing - completely block back navigation
+        // Alternative: Move app to background instead of allowing bypass
+        // (context as? Activity)?.moveTaskToBack(true)
+    }
 
     // Auto-focus password field on screen load
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
 
-    // Handle unlock success
+    // Handle unlock success and permanent lockout
     LaunchedEffect(uiState) {
-        when (uiState) {
+        when (val state = uiState) {
             is AppLockUiState.Unlocked -> onUnlocked()
-            is AppLockUiState.LockedOut -> onLockedOut()
+            is AppLockUiState.LockedOut -> {
+                if (state.isPermanent) {
+                    onLockedOut()
+                }
+                // Temporary lockout is handled in the UI (countdown timer)
+            }
             else -> {}
         }
     }
 
-    // Show biometric prompt if available and enabled
-    LaunchedEffect(canUseBiometric) {
-        if (canUseBiometric) {
-            viewModel.showBiometricPrompt()
+    // PRIORITY: Show biometric prompt IMMEDIATELY when available
+    // This ensures biometric is the primary unlock method (before PIN)
+    LaunchedEffect(canUseBiometric, activity) {
+        Log.d("AppLockScreen", "LaunchedEffect: canUseBiometric=$canUseBiometric, activity=$activity")
+        if (canUseBiometric && activity != null) {
+            Log.d("AppLockScreen", "Calling viewModel.showBiometricPrompt()")
+            viewModel.showBiometricPrompt(activity)
+        } else if (canUseBiometric && activity == null) {
+            Log.e("AppLockScreen", "Biometric available but activity is NULL!")
         }
     }
 
@@ -125,35 +170,89 @@ fun AppLockScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Subtitle with remaining attempts
-                if (uiState is AppLockUiState.Error) {
-                    val errorState = uiState as AppLockUiState.Error
-                    Text(
-                        text = errorState.message,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center
-                    )
-                    if (errorState.remainingAttempts > 0) {
+                // Subtitle with remaining attempts or lockout timer
+                when (val state = uiState) {
+                    is AppLockUiState.Error -> {
                         Text(
-                            text = "Verbleibende Versuche: ${errorState.remainingAttempts}",
-                            style = MaterialTheme.typography.bodySmall,
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        if (state.remainingAttempts > 0) {
+                            Text(
+                                text = "Verbleibende Versuche: ${state.remainingAttempts}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    is AppLockUiState.LockedOut -> {
+                        if (!state.isPermanent) {
+                            // Temporary lockout - show countdown
+                            val minutes = remainingSeconds / 60
+                            val seconds = remainingSeconds % 60
+                            Text(
+                                text = "Zu viele Fehlversuche",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Passwort-Eingabe gesperrt für",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                            Text(
+                                text = String.format("%d:%02d", minutes, seconds),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Du kannst weiterhin biometrisch entsperren",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            // Permanent lockout
+                            Text(
+                                text = "Maximale Fehlversuche erreicht",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Du wirst ausgeloggt...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    else -> {
+                        Text(
+                            text = "Gib dein Passwort ein, um fortzufahren",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
                     }
-                } else {
-                    Text(
-                        text = "Gib dein Passwort ein, um fortzufahren",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Password Field
+                // Check if in temporary lockout
+                val currentUiState = uiState
+                val isLockedOut = currentUiState is AppLockUiState.LockedOut && !currentUiState.isPermanent
+
+                // Password Field (disabled during temporary lockout)
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
@@ -161,7 +260,7 @@ fun AppLockScreen(
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
                     label = { Text("Passwort") },
-                    placeholder = { Text("Passwort eingeben") },
+                    placeholder = { Text(if (isLockedOut) "Gesperrt" else "Passwort eingeben") },
                     visualTransformation = if (passwordVisible) {
                         VisualTransformation.None
                     } else {
@@ -189,21 +288,22 @@ fun AppLockScreen(
                     ),
                     keyboardActions = KeyboardActions(
                         onDone = {
-                            if (password.isNotBlank()) {
+                            if (password.isNotBlank() && !isLockedOut) {
                                 viewModel.unlockWithPassword(password)
                                 keyboardController?.hide()
                             }
                         }
                     ),
                     singleLine = true,
-                    enabled = uiState !is AppLockUiState.Unlocking,
+                    enabled = uiState !is AppLockUiState.Unlocking && !isLockedOut,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledBorderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                     )
                 )
 
-                // Unlock Button
+                // Unlock Button (disabled during temporary lockout)
                 Button(
                     onClick = {
                         if (password.isNotBlank()) {
@@ -212,7 +312,7 @@ fun AppLockScreen(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = password.isNotBlank() && uiState !is AppLockUiState.Unlocking,
+                    enabled = password.isNotBlank() && uiState !is AppLockUiState.Unlocking && !isLockedOut,
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -220,10 +320,10 @@ fun AppLockScreen(
                     )
                 ) {
                     Text(
-                        text = if (uiState is AppLockUiState.Unlocking) {
-                            "Entsperren..."
-                        } else {
-                            "Entsperren"
+                        text = when {
+                            uiState is AppLockUiState.Unlocking -> "Entsperren..."
+                            isLockedOut -> "Gesperrt"
+                            else -> "Entsperren"
                         },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
@@ -232,9 +332,9 @@ fun AppLockScreen(
                 }
 
                 // Biometric Button (if available)
-                if (canUseBiometric) {
+                if (canUseBiometric && activity != null) {
                     OutlinedButton(
-                        onClick = { viewModel.showBiometricPrompt() },
+                        onClick = { viewModel.showBiometricPrompt(activity) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
