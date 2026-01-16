@@ -1097,15 +1097,90 @@ jobs:
 
           echo "✅ Release notes generated successfully"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
-          name: v${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}
-          body_path: release-notes.md
-          draft: false
-          prerelease: true  # Internal releases are pre-releases
-          files: |
-            app/build/outputs/bundle/release/app-release.aab
+      - name: Create GitHub Release (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $TAG = "v${{ steps.bump_version_win.outputs.NEW_VERSION }}"
+          $TITLE = "v${{ steps.bump_version_win.outputs.NEW_VERSION }}"
+
+          Write-Host "Creating GitHub Release: $TAG"
+
+          # Retry logic with exponential backoff
+          $maxRetries = 3
+          $retryCount = 0
+          $success = $false
+
+          while (-not $success -and $retryCount -lt $maxRetries) {
+            try {
+              $retryCount++
+              Write-Host "Attempt $retryCount of $maxRetries..."
+
+              # Create release with gh CLI (more robust than API action)
+              gh release create $TAG `
+                --title $TITLE `
+                --notes-file release-notes.md `
+                --prerelease `
+                app/build/outputs/bundle/release/app-release.aab
+
+              $success = $true
+              Write-Host "✅ GitHub Release created successfully"
+            }
+            catch {
+              Write-Host "⚠️ Attempt $retryCount failed: $_"
+
+              if ($retryCount -lt $maxRetries) {
+                $waitTime = [math]::Pow(2, $retryCount)
+                Write-Host "Retrying in $waitTime seconds..."
+                Start-Sleep -Seconds $waitTime
+              } else {
+                Write-Host "::error::Failed to create GitHub Release after $maxRetries attempts"
+                throw
+              }
+            }
+          }
+
+      - name: Create GitHub Release (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ steps.bump_version.outputs.NEW_VERSION }}"
+          TITLE="v${{ steps.bump_version.outputs.NEW_VERSION }}"
+
+          echo "Creating GitHub Release: $TAG"
+
+          # Retry logic with exponential backoff
+          max_retries=3
+          retry_count=0
+          success=false
+
+          while [ "$success" = false ] && [ $retry_count -lt $max_retries ]; do
+            retry_count=$((retry_count + 1))
+            echo "Attempt $retry_count of $max_retries..."
+
+            # Create release with gh CLI (more robust than API action)
+            if gh release create "$TAG" \
+              --title "$TITLE" \
+              --notes-file release-notes.md \
+              --prerelease \
+              app/build/outputs/bundle/release/app-release.aab; then
+
+              success=true
+              echo "✅ GitHub Release created successfully"
+            else
+              echo "⚠️ Attempt $retry_count failed"
+
+              if [ $retry_count -lt $max_retries ]; then
+                wait_time=$((2 ** retry_count))
+                echo "Retrying in $wait_time seconds..."
+                sleep $wait_time
+              else
+                echo "::error::Failed to create GitHub Release after $max_retries attempts"
+                exit 1
+              fi
+            fi
+          done
