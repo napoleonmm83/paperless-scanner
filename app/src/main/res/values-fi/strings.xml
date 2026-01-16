@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
-
-    <!-- Login -->
     <string name="login_title">Paperless Scanner</string>
     <string name="login_server_url">Palvelimen URL</string>
     <string name="login_server_url_hint">https://paperless.example.com</string>
@@ -10,8 +8,6 @@
     <string name="login_password">Salasana</string>
     <string name="login_button">Kirjaudu</string>
     <string name="login_error">Kirjautuminen epäonnistui: %1$s</string>
-
-    <!-- Onboarding Login Screen -->
     <string name="onboarding_back">Takaisin</string>
     <string name="onboarding_login_title">Kirjaudu</string>
     <string name="onboarding_login_subtitle">Kirjaudu Paperless-ngx tililläsi</string>
@@ -26,21 +22,15 @@
     <string name="onboarding_token_help">Löydät sen Paperlessista: Asetukset → Oma profiili</string>
     <string name="onboarding_scan_token">Skannaa token kameralla</string>
     <string name="onboarding_login_button">Kirjaudu</string>
-
-    <!-- Scan -->
     <string name="scan_title">Skannaa asiakirja</string>
     <string name="scan_button">Avaa kamera</string>
     <string name="scan_from_gallery">Galleriasta</string>
-
-    <!-- Upload -->
     <string name="upload_title">Lataa asiakirja</string>
     <string name="upload_document_title">Otsikko (valinnainen)</string>
     <string name="upload_select_tags">Valitse tunnisteet</string>
     <string name="upload_button">Lataa</string>
     <string name="upload_success">Asiakirja ladattu</string>
     <string name="upload_error">Lataus epäonnistui: %1$s</string>
-
-    <!-- Upload Screen -->
     <string name="upload_back">Takaisin</string>
     <string name="upload_queued">Lataus synkronoidaan kun yhteys on saatavilla</string>
     <string name="upload_tag_created">Tunniste \"%1$s\" luotu</string>
@@ -54,8 +44,6 @@
     <string name="upload_tags_section_title">Valitse tunnisteet</string>
     <string name="upload_tag_new">Uusi</string>
     <string name="upload_tags_show_less">Vähemmän</string>
-
-    <!-- Batch Import Screen -->
     <string name="batch_import_title">Massatuonti</string>
     <string name="batch_import_back">Takaisin</string>
     <string name="batch_import_success_single">Asiakirja lisätty jonoon!</string>
@@ -66,8 +54,8 @@
     <string name="batch_import_button_individual">Erillisinä</string>
     <string name="batch_import_button_single">Yhtenä asiakirjana</string>
     <string name="batch_import_preview">Esikatselu</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Kuva %1$d</string>
     <string name="batch_import_pdf_file">PDF-tiedosto</string>
     <string name="batch_import_file">Tiedosto</string>
@@ -88,13 +76,9 @@
     <string name="batch_import_add_more">Lisää lisää</string>
     <string name="batch_import_rotate">Kierrä</string>
     <string name="batch_import_drag_hint">Vedä lajitellaksesi</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Metatiedot</string>
     <string name="batch_metadata_mode_single_info">%1$d tiedostoa yhdistetään yhdeksi PDF:ksi</string>
     <string name="batch_metadata_mode_individual_info">%1$d tiedostoa ladataan erikseen</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Lataa PDF</string>
     <string name="multipage_upload_back">Takaisin</string>
     <string name="multipage_upload_success">PDF %1$d sivulla ladattu!</string>
@@ -110,8 +94,6 @@
     <string name="multipage_upload_progress">Ladataan: %1$d%%</string>
     <string name="multipage_upload_uploading">Ladataan PDF:ää...</string>
     <string name="multipage_upload_button">Lataa PDF:nä</string>
-
-    <!-- Document Detail Screen -->
     <string name="document_detail_back">Takaisin</string>
     <string name="document_detail_title">ASIAKIRJA</string>
     <string name="document_detail_open_browser">Avaa selaimessa</string>
@@ -133,16 +115,12 @@
     <string name="document_detail_delete_button">POISTA</string>
     <string name="document_detail_cancel_button">PERUUTA</string>
     <string name="document_detail_edit">Muokkaa</string>
-
-    <!-- Document Detail Tabs -->
     <string name="document_tab_details">Tiedot</string>
     <string name="document_tab_content">Sisältö</string>
     <string name="document_tab_metadata">Metatiedot</string>
     <string name="document_tab_notes">Muistiinpanot</string>
     <string name="document_tab_history">Historia</string>
     <string name="document_tab_permissions">Käyttöoikeudet</string>
-
-    <!-- Edit Document Dialog -->
     <string name="document_edit_title">MUOKKAA ASIAKIRJAA</string>
     <string name="document_edit_title_label">Otsikko</string>
     <string name="document_edit_tags_label">Tunnisteet</string>
@@ -153,8 +131,6 @@
     <string name="document_edit_asn_label">ASN (Arkistonumero)</string>
     <string name="document_edit_save">TALLENNA</string>
     <string name="document_edit_cancel">PERUUTA</string>
-
-    <!-- Labels Screen -->
     <string name="labels_title">TUNNISTEET</string>
     <string name="labels_subtitle">Hallinnoi tunnisteitasi</string>
     <string name="labels_search_placeholder">Hae tunnisteita...</string>
@@ -199,16 +175,12 @@
     <string name="labels_filter_many_docs">Yli 5 asiakirjaa</string>
     <string name="labels_apply_button">Käytä</string>
     <string name="labels_reset_button">Palauta</string>
-
-    <!-- Welcome Screen -->
     <string name="welcome_subtitle">Mobiilituki\nPaperless-ngx asennuksellesi</string>
     <string name="welcome_feature_1">Älykäs skannaus reunantunnistuksella</string>
     <string name="welcome_feature_2">Luo monisivuisia asiakirjoja</string>
     <string name="welcome_feature_3">Lataa suoraan Paperless-ngx:ään</string>
     <string name="welcome_button">Aloitetaan</string>
     <string name="welcome_footer">Tarvitset oman Paperless-ngx asennuksen</string>
-
-    <!-- Server Setup Screen -->
     <string name="server_setup_back">Takaisin</string>
     <string name="server_setup_title">Yhdistä palvelimeen</string>
     <string name="server_setup_subtitle">Syötä Paperless-ngx asennuksesi URL</string>
@@ -221,8 +193,6 @@
     <string name="server_setup_hint_title">Suojattu yhteys suositeltava</string>
     <string name="server_setup_hint_text">Käytä HTTPS:ää salattuun yhteyteen palvelimellesi.</string>
     <string name="server_setup_button">Jatka</string>
-
-    <!-- Success Screen -->
     <string name="success_title">Kaikki valmiina!</string>
     <string name="success_subtitle">Olet yhdistetty ja voit nyt\nskannata ja ladata asiakirjoja.</string>
     <string name="success_stat_scanned">Skannattu tänään</string>
@@ -232,8 +202,6 @@
     <string name="success_tip_2">Sovellus tunnistaa reunat automaattisesti</string>
     <string name="success_tip_3">Voit valita tunnisteet ennen latausta</string>
     <string name="success_button">Käynnistä sovellus</string>
-
-    <!-- Documents Screen -->
     <string name="documents_title">ASIAKIRJAT</string>
     <string name="documents_count">%1$d asiakirjaa</string>
     <string name="documents_search_placeholder">Hae asiakirjoja...</string>
@@ -243,8 +211,6 @@
     <string name="documents_empty_no_documents">Ei asiakirjoja</string>
     <string name="documents_empty_hint_search">Kokeile toista hakusanaa</string>
     <string name="documents_empty_hint_scan">Skannaa asiakirjoja nähdäksesi ne täällä</string>
-
-    <!-- Scan Screen -->
     <string name="scan_page_removed">Sivu %1$d poistettu</string>
     <string name="scan_undo">Kumoa</string>
     <string name="scan_scanner_error">Skanneria ei voitu käynnistää: %1$s</string>
@@ -270,8 +236,6 @@
     <string name="scan_add_page">Lisää sivu</string>
     <string name="scan_close">Sulje</string>
     <string name="scan_delete">Poista</string>
-
-    <!-- Home Screen -->
     <string name="home_welcome_back">TERVETULOA TAKAISIN</string>
     <string name="home_your_archive">ARKISTOSI</string>
     <string name="home_stat_documents">Asiakirjat</string>
@@ -292,8 +256,6 @@
     <string name="home_task_success">Onnistui</string>
     <string name="home_task_failure">Epäonnistui</string>
     <string name="home_dismiss">Piilota</string>
-
-    <!-- Pending Sync Screen -->
     <string name="pending_sync_back">Takaisin</string>
     <string name="pending_sync_title">ODOTTAVAT SYNKRONOINNIT</string>
     <string name="pending_sync_upload_queue">Latausjono</string>
@@ -314,8 +276,6 @@
     <string name="pending_sync_status_uploading">Ladataan</string>
     <string name="pending_sync_status_completed">Valmis</string>
     <string name="pending_sync_status_failed">Epäonnistui</string>
-
-    <!-- Settings Screen -->
     <string name="settings_title">ASETUKSET</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Ei yhdistetty</string>
@@ -335,20 +295,14 @@
     <string name="settings_selected">Valittu</string>
     <string name="settings_close">Sulje</string>
     <string name="settings_theme">Teema</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Järjestelmä</string>
     <string name="theme_mode_light">Vaalea</string>
     <string name="theme_mode_dark">Tumma</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Luo uusi tunniste</string>
     <string name="create_tag_name_label">Tunnisteen nimi</string>
     <string name="create_tag_color_label">Väri (valinnainen)</string>
     <string name="create_tag_create">Luo</string>
     <string name="create_tag_cancel">Peruuta</string>
-
-    <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Takaisin</string>
     <string name="pdf_viewer_page_info">Sivu %1$d / %2$d</string>
     <string name="pdf_viewer_share">Jaa</string>
@@ -358,38 +312,26 @@
     <string name="pdf_viewer_pdf_page">PDF-sivu %1$d</string>
     <string name="pdf_viewer_document_image">Asiakirjakuva</string>
     <string name="pdf_viewer_retry">Yritä uudelleen</string>
-
-    <!-- Upload Errors -->
     <string name="upload_error_generic">Lataus epäonnistui</string>
     <string name="error_queue_add">Virhe lisättäessä jonoon</string>
     <string name="error_create_tag">Tunnistetta ei voitu luoda</string>
     <string name="pdf_viewer_default_title">Asiakirja</string>
-
-    <!-- General -->
     <string name="loading">Ladataan...</string>
     <string name="retry">Yritä uudelleen</string>
     <string name="cancel">Peruuta</string>
     <string name="ok">OK</string>
-
-    <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Pikakäyttö asiakirjojen skannaukseen</string>
-
-    <!-- Upload Quality Settings -->
     <string name="upload_quality_auto">Automaattinen</string>
     <string name="upload_quality_low">Matala (nopeampi lataus)</string>
     <string name="upload_quality_medium">Keskitaso</string>
     <string name="upload_quality_high">Korkea (paras laatu)</string>
-
-    <!-- Time Formatting -->
     <string name="time_just_now">Juuri nyt</string>
     <string name="time_minutes_ago">%1$d min sitten</string>
     <string name="time_hours_ago">%1$d t sitten</string>
     <string name="time_days_ago">%1$d päivää sitten</string>
     <string name="time_unknown">Tuntematon</string>
     <string name="document_unknown">Tuntematon asiakirja</string>
-
-    <!-- Document Tabs -->
     <string name="tab_no_text_content">Ei tekstisisältöä saatavilla</string>
     <string name="tab_metadata">Metatiedot</string>
     <string name="tab_metadata_created">Luotu</string>
@@ -417,8 +359,6 @@
     <string name="tab_permissions_users">Käyttäjät: %1$s</string>
     <string name="tab_permissions_groups">Ryhmät: %1$s</string>
     <string name="tab_permissions_unavailable">Oikeustietoja ei saatavilla</string>
-
-    <!-- Error Messages -->
     <string name="error_loading">Virhe ladattaessa</string>
     <string name="error_creating">Virhe luotaessa</string>
     <string name="error_updating">Virhe päivitettäessä</string>
@@ -433,8 +373,6 @@
     <string name="error_token_invalid">Virheellinen token</string>
     <string name="error_server_unreachable">Palvelimeen ei saada yhteyttä</string>
     <string name="error_analyze_document">Asiakirjaa ei voitu analysoida</string>
-
-    <!-- Token Scanner -->
     <string name="token_scanner_title">Skannaa avain</string>
     <string name="token_scanner_capturing">Otetaan korkearesoluutioista kuvaa...</string>
     <string name="token_scanner_found">Avain löytyi!</string>
@@ -451,12 +389,7 @@
     <string name="token_scanner_auto_active">Automaattinen tunnistus aktiivinen • Napauta manuaalisesti varavaihtoehtona</string>
     <string name="token_scanner_hold_camera">Pidä kamera vakaana - Automaattinen tunnistus käynnissä</string>
     <string name="token_scanner_close">Sulje</string>
-
-    <!-- Share -->
     <string name="share_via">Jaa kautta</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -468,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -548,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">Muokkaa käyttöoikeuksia</string>
     <string name="tab_permissions_save">Tallenna</string>
     <string name="tab_permissions_cancel">Peruuta</string>
@@ -561,8 +490,6 @@
     <string name="tab_permissions_save_success">Käyttöoikeudet tallennettu</string>
     <string name="tab_permissions_no_edit_permission">Ei muokkausoikeutta</string>
     <string name="tab_permissions_selected">%1$d valittu</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">AI-käyttötiedot</string>
     <string name="ai_limit_info_message">Käytät AI-ominaisuuksia intensiivisesti (%1$d / 300 kutsua tässä kuussa). Seuraa käyttöäsi!</string>
     <string name="ai_limit_warning_title">AI-raja Lähes Saavutettu</string>
@@ -576,15 +503,11 @@
     <string name="ai_analyzing">Analysoidaan asiakirjaa AI:lla...</string>
     <string name="ai_suggestions_ready">AI-ehdotukset valmiit</string>
     <string name="ai_no_suggestions">Ei ehdotuksia saatavilla</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">AI-ASSISTENTTI</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium aktiivinen %1$s asti</string>
     <string name="premium_status_inactive">Avaa Premium</string>
     <string name="premium_unlock">Avaa Premium</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">AI-ehdotukset</string>
     <string name="premium_settings_ai_suggestions_desc">Automaattiset tagi-ehdotukset AI:lla</string>
     <string name="premium_settings_wifi_only">Vain WiFi</string>
@@ -594,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Hallitse tilausta</string>
     <string name="premium_settings_restore_purchases">Palauta ostokset</string>
     <string name="premium_required">Premium vaaditaan</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">Avaa AI-assistentti</string>
     <string name="premium_upgrade_subtitle">Älykäs dokumenttianalyysi AI:lla</string>
     <string name="premium_feature_ai_analysis">Automaattiset tagi-ehdotukset</string>
@@ -608,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Tunnistaa laskun, sopimuksen, kirjeen jne.</string>
     <string name="premium_feature_unlimited">Rajattomat AI-analyysit</string>
     <string name="premium_feature_unlimited_desc">Ei kuukausittaisia rajoja</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Kuukausittain</string>
     <string name="premium_option_yearly">Vuosittain</string>
     <string name="premium_price_monthly">%1$s / kuukausi</string>
@@ -618,8 +537,6 @@
     <string name="premium_button_upgrade">Päivitä nyt</string>
     <string name="premium_button_later">Myöhemmin</string>
     <string name="premium_button_restore">Palauta ostokset</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Ehdotukset</string>
     <string name="suggestions_ai_title">AI-ehdotukset</string>
     <string name="suggestions_analyzing">Analysoidaan dokumenttia...</string>
@@ -639,8 +556,6 @@
     <string name="cd_suggestions">Ehdotukset</string>
     <string name="cd_ai_sparkle">AI-toiminto</string>
     <string name="cd_apply_suggestion">Käytä ehdotus</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium aktivoitu onnistuneesti!</string>
     <string name="premium_purchase_cancelled">Osto peruutettu</string>
@@ -652,9 +567,6 @@
     <string name="settings_debug_mode_enabled">AI-kehittäjätila käytössä</string>
     <string name="settings_debug_mode_disabled">AI-kehittäjätila pois käytöstä</string>
     <string name="settings_debug_mode_already_enabled">Kehittäjätila on jo käytössä</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Älykäs merkintä</string>
     <string name="tag_suggestions_progress">%1$d / %2$d merkitty</string>
     <string name="tag_suggestions_complete">Valmis!</string>
@@ -684,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Ehdotetut Uudet Tunnisteet</string>
     <string name="smart_tagging_suggested_new_tags_hint">Näitä tunnisteita ei ole vielä olemassa. Napauta luodaksesi ne.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">Sovelluksen lukitus</string>
+    <string name="app_lock_subtitle">Suojaa sovellus salasanalla tai biometrialla</string>
+    <string name="app_lock_enabled">Lukitus käytössä</string>
+    <string name="app_lock_disabled">Lukitus pois käytöstä</string>
+    <string name="app_lock_setup_password">Aseta salasana</string>
+    <string name="app_lock_change_password">Vaihda salasana</string>
+    <string name="app_lock_enable_biometric">Ota biometrinen avaus käyttöön</string>
+    <string name="app_lock_disable_biometric">Poista biometrinen avaus käytöstä</string>
+    <string name="app_lock_timeout">Automaattinen lukitus</string>
+    <string name="app_lock_timeout_immediate">Heti</string>
+    <string name="app_lock_timeout_1min">1 Minuutti</string>
+    <string name="app_lock_timeout_5min">5 Minuuttia</string>
+    <string name="app_lock_timeout_15min">15 Minuuttia</string>
+    <string name="app_lock_timeout_30min">30 Minuuttia</string>
+    <string name="app_lock_screen_title">Sovellus lukittu</string>
+    <string name="app_lock_screen_subtitle">Anna salasanasi jatkaaksesi</string>
+    <string name="app_lock_unlock">Avaa lukitus</string>
+    <string name="app_lock_unlock_biometric">Avaa biometrisesti</string>
+    <string name="app_lock_unlocking">Avataan lukitusta...</string>
+    <string name="app_lock_password">Salasana</string>
+    <string name="app_lock_password_enter">Syötä salasana</string>
+    <string name="app_lock_password_current">Nykyinen salasana</string>
+    <string name="app_lock_password_new">Uusi salasana</string>
+    <string name="app_lock_password_confirm">Vahvista salasana</string>
+    <string name="app_lock_password_show">Näytä salasana</string>
+    <string name="app_lock_password_hide">Piilota salasana</string>
+    <string name="app_lock_error_wrong_password">Väärä salasana</string>
+    <string name="app_lock_error_passwords_mismatch">Salasanat eivät täsmää</string>
+    <string name="app_lock_error_password_too_short">Salasanan on oltava vähintään 4 merkkiä</string>
+    <string name="app_lock_remaining_attempts">Jäljellä olevia yrityksiä: %1$d</string>
+    <string name="app_lock_locked_out">Liian monta epäonnistunutta yritystä. Sinut on kirjattu ulos.</string>
+    <string name="app_lock_biometric_title">Avaa sovelluksen lukitus</string>
+    <string name="app_lock_biometric_subtitle">Käytä biometriaa</string>
+    <string name="app_lock_biometric_failed">Biometrinen todennus epäonnistui</string>
+    <string name="app_lock_disable_confirm_title">Poista lukitus käytöstä?</string>
+    <string name="app_lock_disable_confirm_message">Sovellus ei ole enää suojattu.</string>
+    <string name="settings_section_security">Turvallisuus</string>
+    <string name="app_lock_change_password_subtitle">Nykyinen salasana vaaditaan</string>
+    <string name="app_lock_biometric_unlock">Biometrinen avaus</string>
+    <string name="app_lock_biometric_unlock_subtitle">Käytä sormenjälkeä tai kasvojentunnistusta</string>
 </resources>

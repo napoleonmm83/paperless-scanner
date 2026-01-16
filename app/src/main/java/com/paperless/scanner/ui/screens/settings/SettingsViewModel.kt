@@ -43,7 +43,11 @@ data class SettingsUiState(
     val aiNewTagsEnabled: Boolean = true,
     val aiWifiOnly: Boolean = false,
     // Debug mode (unlocked by 7x tap on version)
-    val aiDebugModeEnabled: Boolean = false
+    val aiDebugModeEnabled: Boolean = false,
+    // App-Lock
+    val appLockEnabled: Boolean = false,
+    val appLockBiometricEnabled: Boolean = false,
+    val appLockTimeout: com.paperless.scanner.util.AppLockTimeout = com.paperless.scanner.util.AppLockTimeout.IMMEDIATE
 )
 
 @HiltViewModel
@@ -77,6 +81,9 @@ class SettingsViewModel @Inject constructor(
             val aiNewTagsEnabled = tokenManager.aiNewTagsEnabled.first()
             val aiWifiOnly = tokenManager.aiWifiOnly.first()
             val aiDebugModeEnabled = tokenManager.aiDebugModeEnabled.first()
+            val appLockEnabled = tokenManager.isAppLockEnabledSync()
+            val appLockBiometricEnabled = tokenManager.isAppLockBiometricEnabled()
+            val appLockTimeout = tokenManager.getAppLockTimeout()
 
             _uiState.value = SettingsUiState(
                 serverUrl = serverUrl,
@@ -90,7 +97,10 @@ class SettingsViewModel @Inject constructor(
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
                 aiNewTagsEnabled = aiNewTagsEnabled,
                 aiWifiOnly = aiWifiOnly,
-                aiDebugModeEnabled = aiDebugModeEnabled
+                aiDebugModeEnabled = aiDebugModeEnabled,
+                appLockEnabled = appLockEnabled,
+                appLockBiometricEnabled = appLockBiometricEnabled,
+                appLockTimeout = appLockTimeout
             )
 
             // Observe Premium status changes
@@ -131,6 +141,25 @@ class SettingsViewModel @Inject constructor(
             launch {
                 tokenManager.aiDebugModeEnabled.collect { enabled ->
                     _uiState.value = _uiState.value.copy(aiDebugModeEnabled = enabled)
+                }
+            }
+
+            // Observe App-Lock changes
+            launch {
+                tokenManager.isAppLockEnabled().collect { enabled ->
+                    _uiState.value = _uiState.value.copy(appLockEnabled = enabled)
+                }
+            }
+
+            launch {
+                tokenManager.isAppLockBiometricEnabledFlow().collect { enabled ->
+                    _uiState.value = _uiState.value.copy(appLockBiometricEnabled = enabled)
+                }
+            }
+
+            launch {
+                tokenManager.getAppLockTimeoutFlow().collect { timeout ->
+                    _uiState.value = _uiState.value.copy(appLockTimeout = timeout)
                 }
             }
         }
@@ -215,5 +244,25 @@ class SettingsViewModel @Inject constructor(
     fun openSubscriptionManagement() {
         // TODO: Open Google Play subscription management
         // This would typically launch an Intent to the Play Store
+    }
+
+    // App-Lock Methods
+
+    fun setAppLockEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            tokenManager.setAppLockEnabled(enabled)
+        }
+    }
+
+    fun setAppLockBiometricEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            tokenManager.setAppLockBiometricEnabled(enabled)
+        }
+    }
+
+    fun setAppLockTimeout(timeout: com.paperless.scanner.util.AppLockTimeout) {
+        viewModelScope.launch {
+            tokenManager.setAppLockTimeout(timeout)
+        }
     }
 }

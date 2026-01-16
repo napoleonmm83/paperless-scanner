@@ -44,6 +44,12 @@ class TokenManager(private val context: Context) {
 
         // SSL Certificate Preferences
         private val ACCEPTED_SSL_HOSTS_KEY = stringPreferencesKey("accepted_ssl_hosts")
+
+        // App-Lock Preferences
+        private val APP_LOCK_ENABLED_KEY = booleanPreferencesKey("app_lock_enabled")
+        private val APP_LOCK_PASSWORD_HASH_KEY = stringPreferencesKey("app_lock_password_hash")
+        private val APP_LOCK_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("app_lock_biometric_enabled")
+        private val APP_LOCK_TIMEOUT_KEY = stringPreferencesKey("app_lock_timeout")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -128,6 +134,18 @@ class TokenManager(private val context: Context) {
     /** Whether automatic OCR improvement is enabled for low-quality scans */
     val paperlessGptOcrAutoEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PAPERLESS_GPT_OCR_AUTO_KEY] ?: true // Default: enabled (if Paperless-GPT enabled)
+    }
+
+    // App-Lock Settings
+
+    /** Whether app-lock is enabled */
+    val appLockEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[APP_LOCK_ENABLED_KEY] ?: false // Default: disabled
+    }
+
+    /** Whether biometric unlock is enabled for app-lock */
+    val appLockBiometricEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[APP_LOCK_BIOMETRIC_ENABLED_KEY] ?: false // Default: disabled
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
@@ -338,5 +356,86 @@ class TokenManager(private val context: Context) {
     fun getAcceptedSslHosts(): List<String> = runBlocking {
         val hosts = context.dataStore.data.first()[ACCEPTED_SSL_HOSTS_KEY] ?: ""
         hosts.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    // App-Lock Settings
+
+    /** Check if app-lock is enabled (returns Flow for reactive access) */
+    fun isAppLockEnabled(): Flow<Boolean> = appLockEnabled
+
+    /** Check if app-lock is enabled (sync version) */
+    fun isAppLockEnabledSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[APP_LOCK_ENABLED_KEY] ?: false
+    }
+
+    /** Set app-lock enabled state */
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_LOCK_ENABLED_KEY] = enabled
+        }
+    }
+
+    /** Get app-lock password hash (null if not set) */
+    suspend fun getAppLockPasswordHash(): String? {
+        return context.dataStore.data.first()[APP_LOCK_PASSWORD_HASH_KEY]
+    }
+
+    /** Set app-lock password hash (null to clear) */
+    suspend fun setAppLockPassword(passwordHash: String?) {
+        context.dataStore.edit { preferences ->
+            if (passwordHash == null) {
+                preferences.remove(APP_LOCK_PASSWORD_HASH_KEY)
+            } else {
+                preferences[APP_LOCK_PASSWORD_HASH_KEY] = passwordHash
+            }
+        }
+    }
+
+    /** Check if biometric unlock is enabled for app-lock */
+    fun isAppLockBiometricEnabled(): Boolean = runBlocking {
+        context.dataStore.data.first()[APP_LOCK_BIOMETRIC_ENABLED_KEY] ?: false
+    }
+
+    /** Check if biometric unlock is enabled for app-lock (Flow for reactive access) */
+    fun isAppLockBiometricEnabledFlow(): Flow<Boolean> {
+        return context.dataStore.data.map { preferences ->
+            preferences[APP_LOCK_BIOMETRIC_ENABLED_KEY] ?: false
+        }
+    }
+
+    /** Set biometric unlock enabled state for app-lock */
+    suspend fun setAppLockBiometricEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_LOCK_BIOMETRIC_ENABLED_KEY] = enabled
+        }
+    }
+
+    /** Get app-lock timeout */
+    suspend fun getAppLockTimeout(): com.paperless.scanner.util.AppLockTimeout {
+        val timeoutString = context.dataStore.data.first()[APP_LOCK_TIMEOUT_KEY]
+        return try {
+            com.paperless.scanner.util.AppLockTimeout.valueOf(timeoutString ?: "IMMEDIATE")
+        } catch (e: IllegalArgumentException) {
+            com.paperless.scanner.util.AppLockTimeout.IMMEDIATE // Default fallback
+        }
+    }
+
+    /** Get app-lock timeout (Flow for reactive access) */
+    fun getAppLockTimeoutFlow(): Flow<com.paperless.scanner.util.AppLockTimeout> {
+        return context.dataStore.data.map { preferences ->
+            val timeoutString = preferences[APP_LOCK_TIMEOUT_KEY]
+            try {
+                com.paperless.scanner.util.AppLockTimeout.valueOf(timeoutString ?: "IMMEDIATE")
+            } catch (e: IllegalArgumentException) {
+                com.paperless.scanner.util.AppLockTimeout.IMMEDIATE // Default fallback
+            }
+        }
+    }
+
+    /** Set app-lock timeout */
+    suspend fun setAppLockTimeout(timeout: com.paperless.scanner.util.AppLockTimeout) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_LOCK_TIMEOUT_KEY] = timeout.name
+        }
     }
 }

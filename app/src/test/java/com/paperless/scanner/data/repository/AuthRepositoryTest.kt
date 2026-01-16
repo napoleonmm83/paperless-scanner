@@ -51,7 +51,8 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "testuser", "testpass")
 
         assertTrue(result.isSuccess)
-        assertEquals(expectedToken, result.getOrNull())
+        val loginResult = result.getOrNull() as? AuthRepository.LoginResult.Success
+        assertEquals(expectedToken, loginResult?.token)
         coVerify { tokenManager.saveCredentials(serverUrl, expectedToken) }
 
         val request = mockWebServer.takeRequest()

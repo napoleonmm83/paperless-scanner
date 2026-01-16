@@ -321,7 +321,7 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun login(serverUrl: String, username: String, password: String): Result<String> {
+    suspend fun login(serverUrl: String, username: String, password: String): Result<LoginResult> {
         return try {
             val normalizedUrl = serverUrl.trimEnd('/')
             val formBody = FormBody.Builder()
@@ -339,16 +339,32 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful) {
                 val responseBody = response.body?.string()
                 val json = JSONObject(responseBody ?: "{}")
-                val token = json.optString("token", "")
 
+                // Extract token from successful response
+                val token = json.optString("token", "")
                 if (token.isNotBlank()) {
                     tokenManager.saveCredentials(normalizedUrl, token)
-                    Result.success(token)
+                    Result.success(LoginResult.Success(token))
                 } else {
                     Result.failure(PaperlessException.ParseError("Token nicht in Antwort gefunden"))
                 }
             } else {
                 val errorBody = response.body?.string() ?: ""
+                Log.d(TAG, "Login error - Code: ${response.code}, Body: $errorBody")
+
+                // Check if error indicates 2FA requirement - if so, return specific message
+                val mfaErrorMessage = check2FARequirement(
+                    errorBody = errorBody,
+                    responseCode = response.code
+                )
+                if (mfaErrorMessage != null) {
+                    val exception = PaperlessException.AuthError(
+                        code = response.code,
+                        message = mfaErrorMessage
+                    )
+                    return Result.failure(exception)
+                }
+
                 val errorMessage = parseLoginError(errorBody, response.code)
                 val exception = PaperlessException.AuthError(
                     code = response.code,
@@ -363,29 +379,65 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    sealed class LoginResult {
+        data class Success(val token: String) : LoginResult()
+    }
+
+    /**
+     * Checks if error response indicates 2FA requirement.
+     * Returns a special error message directing users to use API token authentication instead.
+     */
+    private fun check2FARequirement(
+        errorBody: String,
+        responseCode: Int
+    ): String? {
+        try {
+            // Try to parse as JSON first
+            val json = JSONObject(errorBody)
+
+            // Method 1: Check for requires_2fa flag (some versions)
+            val requires2FA = json.optBoolean("requires_2fa", false)
+            if (requires2FA) {
+                Log.d(TAG, "2FA required - requires_2fa flag found")
+                return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+            }
+
+            // Method 2: Check for MFA-related errors in non_field_errors
+            if (responseCode == 400) {
+                val nonFieldErrors = json.optJSONArray("non_field_errors")
+                if (nonFieldErrors != null) {
+                    for (i in 0 until nonFieldErrors.length()) {
+                        val error = nonFieldErrors.optString(i, "").lowercase()
+
+                        // Check for explicit MFA messages
+                        if (error.contains("mfa") || error.contains("totp") || error.contains("code is required")) {
+                            Log.d(TAG, "2FA required - MFA error message found: $error")
+                            return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+                        }
+
+                        // Some Paperless-ngx versions return generic "Unable to log in" when MFA is active
+                        if (error.contains("unable to log in")) {
+                            Log.d(TAG, "2FA potentially required - generic login error with MFA possible: $error")
+                            return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Not JSON or doesn't contain 2FA info - continue with normal error handling
+            Log.d(TAG, "Error body is not JSON or doesn't contain 2FA info: ${e.message}")
+        }
+
+        return null // No 2FA requirement detected
+    }
+
     /**
      * Parses login error response and returns a user-friendly message
      */
     private fun parseLoginError(errorBody: String, responseCode: Int): String {
-        val lowerBody = errorBody.lowercase()
-
-        // Check for MFA/2FA related errors
-        return when {
-            lowerBody.contains("otp") ||
-            lowerBody.contains("mfa") ||
-            lowerBody.contains("totp") ||
-            lowerBody.contains("two-factor") ||
-            lowerBody.contains("2fa") ||
-            lowerBody.contains("authenticator") -> {
-                "Du hast eine zusätzliche Anmeldeschutz aktiviert. " +
-                "Bitte wechsle oben auf \"Schlüssel\" und melde dich mit deinem Zugangsschlüssel an."
-            }
-            responseCode == 401 || responseCode == 403 -> {
-                "Benutzername oder Passwort ist falsch"
-            }
-            else -> {
-                "Anmeldung fehlgeschlagen"
-            }
+        return when (responseCode) {
+            401, 403 -> "Benutzername oder Passwort ist falsch"
+            else -> "Anmeldung fehlgeschlagen"
         }
     }
 

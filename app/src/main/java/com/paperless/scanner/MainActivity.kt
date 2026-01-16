@@ -44,6 +44,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var analyticsService: AnalyticsService
 
+    @Inject
+    lateinit var appLockManager: com.paperless.scanner.util.AppLockManager
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled silently */ }
@@ -93,7 +96,8 @@ class MainActivity : ComponentActivity() {
                         navController = navController,
                         startDestination = startDestination,
                         sharedUris = sharedUris,
-                        tokenManager = tokenManager
+                        tokenManager = tokenManager,
+                        appLockManager = appLockManager
                     )
 
                     // Show consent dialog on first launch

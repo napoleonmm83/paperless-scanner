@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
-
-    <!-- Login -->
     <string name="login_title">Paperless Scanner</string>
     <string name="login_server_url">URL serveru</string>
     <string name="login_server_url_hint">https://paperless.example.com</string>
@@ -10,8 +8,6 @@
     <string name="login_password">Heslo</string>
     <string name="login_button">Přihlásit</string>
     <string name="login_error">Přihlášení selhalo: %1$s</string>
-
-    <!-- Onboarding Login Screen -->
     <string name="onboarding_back">Zpět</string>
     <string name="onboarding_login_title">Přihlášení</string>
     <string name="onboarding_login_subtitle">Přihlaste se svým účtem Paperless-ngx</string>
@@ -26,21 +22,15 @@
     <string name="onboarding_token_help">Najdete ho v Paperless: Nastavení → Můj profil</string>
     <string name="onboarding_scan_token">Naskenovat token kamerou</string>
     <string name="onboarding_login_button">Přihlásit</string>
-
-    <!-- Scan -->
     <string name="scan_title">Naskenovat dokument</string>
     <string name="scan_button">Otevřít kameru</string>
     <string name="scan_from_gallery">Z galerie</string>
-
-    <!-- Upload -->
     <string name="upload_title">Nahrát dokument</string>
     <string name="upload_document_title">Název (volitelné)</string>
     <string name="upload_select_tags">Vybrat štítky</string>
     <string name="upload_button">Nahrát</string>
     <string name="upload_success">Dokument nahrán</string>
     <string name="upload_error">Nahrávání selhalo: %1$s</string>
-
-    <!-- Upload Screen -->
     <string name="upload_back">Zpět</string>
     <string name="upload_queued">Nahrávání se synchronizuje, jakmile bude dostupné připojení</string>
     <string name="upload_tag_created">Štítek \"%1$s\" vytvořen</string>
@@ -54,8 +44,6 @@
     <string name="upload_tags_section_title">Vybrat štítky</string>
     <string name="upload_tag_new">Nový</string>
     <string name="upload_tags_show_less">Méně</string>
-
-    <!-- Batch Import Screen -->
     <string name="batch_import_title">Hromadný import</string>
     <string name="batch_import_back">Zpět</string>
     <string name="batch_import_success_single">Dokument přidán do fronty!</string>
@@ -66,8 +54,8 @@
     <string name="batch_import_button_individual">Jednotlivě</string>
     <string name="batch_import_button_single">Jako jeden dokument</string>
     <string name="batch_import_preview">Náhled</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Obrázek %1$d</string>
     <string name="batch_import_pdf_file">PDF soubor</string>
     <string name="batch_import_file">Soubor</string>
@@ -88,13 +76,9 @@
     <string name="batch_import_add_more">Přidat další</string>
     <string name="batch_import_rotate">Otočit</string>
     <string name="batch_import_drag_hint">Přetáhněte pro seřazení</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Metadata</string>
     <string name="batch_metadata_mode_single_info">%1$d souborů bude sloučeno do jednoho PDF</string>
     <string name="batch_metadata_mode_individual_info">%1$d souborů bude nahráno jednotlivě</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Nahrát PDF</string>
     <string name="multipage_upload_back">Zpět</string>
     <string name="multipage_upload_success">PDF s %1$d stránkami nahráno!</string>
@@ -110,8 +94,6 @@
     <string name="multipage_upload_progress">Nahrávání: %1$d%%</string>
     <string name="multipage_upload_uploading">Nahrávání PDF...</string>
     <string name="multipage_upload_button">Nahrát jako PDF</string>
-
-    <!-- Document Detail Screen -->
     <string name="document_detail_back">Zpět</string>
     <string name="document_detail_title">DOKUMENT</string>
     <string name="document_detail_open_browser">Otevřít v prohlížeči</string>
@@ -133,16 +115,12 @@
     <string name="document_detail_delete_button">SMAZAT</string>
     <string name="document_detail_cancel_button">ZRUŠIT</string>
     <string name="document_detail_edit">Upravit</string>
-
-    <!-- Document Detail Tabs -->
     <string name="document_tab_details">Podrobnosti</string>
     <string name="document_tab_content">Obsah</string>
     <string name="document_tab_metadata">Metadata</string>
     <string name="document_tab_notes">Poznámky</string>
     <string name="document_tab_history">Historie</string>
     <string name="document_tab_permissions">Oprávnění</string>
-
-    <!-- Edit Document Dialog -->
     <string name="document_edit_title">UPRAVIT DOKUMENT</string>
     <string name="document_edit_title_label">Název</string>
     <string name="document_edit_tags_label">Štítky</string>
@@ -153,8 +131,6 @@
     <string name="document_edit_asn_label">ASN (Archivní číslo)</string>
     <string name="document_edit_save">ULOŽIT</string>
     <string name="document_edit_cancel">ZRUŠIT</string>
-
-    <!-- Labels Screen -->
     <string name="labels_title">ŠTÍTKY</string>
     <string name="labels_subtitle">Spravujte své štítky</string>
     <string name="labels_search_placeholder">Hledat štítky...</string>
@@ -199,16 +175,12 @@
     <string name="labels_filter_many_docs">Více než 5 dokumentů</string>
     <string name="labels_apply_button">Použít</string>
     <string name="labels_reset_button">Obnovit</string>
-
-    <!-- Welcome Screen -->
     <string name="welcome_subtitle">Mobilní společník pro vaši\ninstalaci Paperless-ngx</string>
     <string name="welcome_feature_1">Inteligentní skenování s detekcí okrajů</string>
     <string name="welcome_feature_2">Vytváření vícestránkových dokumentů</string>
     <string name="welcome_feature_3">Nahrávání přímo do Paperless-ngx</string>
     <string name="welcome_button">Začínáme</string>
     <string name="welcome_footer">Potřebujete vlastní instalaci Paperless-ngx</string>
-
-    <!-- Server Setup Screen -->
     <string name="server_setup_back">Zpět</string>
     <string name="server_setup_title">Připojit k serveru</string>
     <string name="server_setup_subtitle">Zadejte URL vaší instalace Paperless-ngx</string>
@@ -221,8 +193,6 @@
     <string name="server_setup_hint_title">Doporučeno zabezpečené připojení</string>
     <string name="server_setup_hint_text">Použijte HTTPS pro šifrované připojení k serveru.</string>
     <string name="server_setup_button">Pokračovat</string>
-
-    <!-- Success Screen -->
     <string name="success_title">Vše připraveno!</string>
     <string name="success_subtitle">Jste připojeni a můžete\nskenovat a nahrávat dokumenty.</string>
     <string name="success_stat_scanned">Naskenováno dnes</string>
@@ -232,8 +202,6 @@
     <string name="success_tip_2">Aplikace automaticky rozpozná okraje</string>
     <string name="success_tip_3">Štítky můžete vybrat před nahráním</string>
     <string name="success_button">Spustit aplikaci</string>
-
-    <!-- Documents Screen -->
     <string name="documents_title">DOKUMENTY</string>
     <string name="documents_count">%1$d dokumentů</string>
     <string name="documents_search_placeholder">Hledat dokumenty...</string>
@@ -243,8 +211,6 @@
     <string name="documents_empty_no_documents">Žádné dokumenty</string>
     <string name="documents_empty_hint_search">Zkuste jiný vyhledávací výraz</string>
     <string name="documents_empty_hint_scan">Naskenujte dokumenty, abyste je viděli zde</string>
-
-    <!-- Scan Screen -->
     <string name="scan_page_removed">Stránka %1$d odstraněna</string>
     <string name="scan_undo">Zpět</string>
     <string name="scan_scanner_error">Scanner nelze spustit: %1$s</string>
@@ -270,8 +236,6 @@
     <string name="scan_add_page">Přidat stránku</string>
     <string name="scan_close">Zavřít</string>
     <string name="scan_delete">Smazat</string>
-
-    <!-- Home Screen -->
     <string name="home_welcome_back">VÍTEJTE ZPĚT</string>
     <string name="home_your_archive">VÁŠ ARCHIV</string>
     <string name="home_stat_documents">Dokumenty</string>
@@ -292,8 +256,6 @@
     <string name="home_task_success">Úspěšně</string>
     <string name="home_task_failure">Selhalo</string>
     <string name="home_dismiss">Skrýt</string>
-
-    <!-- Pending Sync Screen -->
     <string name="pending_sync_back">Zpět</string>
     <string name="pending_sync_title">ČEKAJÍCÍ SYNCHRONIZACE</string>
     <string name="pending_sync_upload_queue">Fronta nahrávání</string>
@@ -314,8 +276,6 @@
     <string name="pending_sync_status_uploading">Nahrávání</string>
     <string name="pending_sync_status_completed">Dokončeno</string>
     <string name="pending_sync_status_failed">Selhalo</string>
-
-    <!-- Settings Screen -->
     <string name="settings_title">NASTAVENÍ</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Nepřipojeno</string>
@@ -335,20 +295,14 @@
     <string name="settings_selected">Vybráno</string>
     <string name="settings_close">Zavřít</string>
     <string name="settings_theme">Motiv</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Systém</string>
     <string name="theme_mode_light">Světlý</string>
     <string name="theme_mode_dark">Tmavý</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Vytvořit nový štítek</string>
     <string name="create_tag_name_label">Název štítku</string>
     <string name="create_tag_color_label">Barva (volitelné)</string>
     <string name="create_tag_create">Vytvořit</string>
     <string name="create_tag_cancel">Zrušit</string>
-
-    <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Zpět</string>
     <string name="pdf_viewer_page_info">Stránka %1$d z %2$d</string>
     <string name="pdf_viewer_share">Sdílet</string>
@@ -358,38 +312,26 @@
     <string name="pdf_viewer_pdf_page">PDF stránka %1$d</string>
     <string name="pdf_viewer_document_image">Obrázek dokumentu</string>
     <string name="pdf_viewer_retry">Zkusit znovu</string>
-
-    <!-- Upload Errors -->
     <string name="upload_error_generic">Nahrávání selhalo</string>
     <string name="error_queue_add">Chyba při přidávání do fronty</string>
     <string name="error_create_tag">Štítek nelze vytvořit</string>
     <string name="pdf_viewer_default_title">Dokument</string>
-
-    <!-- General -->
     <string name="loading">Načítání...</string>
     <string name="retry">Zkusit znovu</string>
     <string name="cancel">Zrušit</string>
     <string name="ok">OK</string>
-
-    <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Rychlý přístup ke skenování dokumentů</string>
-
-    <!-- Upload Quality Settings -->
     <string name="upload_quality_auto">Automaticky</string>
     <string name="upload_quality_low">Nízká (rychlejší nahrávání)</string>
     <string name="upload_quality_medium">Střední</string>
     <string name="upload_quality_high">Vysoká (nejlepší kvalita)</string>
-
-    <!-- Time Formatting -->
     <string name="time_just_now">Právě teď</string>
     <string name="time_minutes_ago">před %1$d min</string>
     <string name="time_hours_ago">před %1$d hod</string>
     <string name="time_days_ago">před %1$d dny</string>
     <string name="time_unknown">Neznámé</string>
     <string name="document_unknown">Neznámý dokument</string>
-
-    <!-- Document Tabs -->
     <string name="tab_no_text_content">Žádný textový obsah není k dispozici</string>
     <string name="tab_metadata">Metadata</string>
     <string name="tab_metadata_created">Vytvořeno</string>
@@ -417,8 +359,6 @@
     <string name="tab_permissions_users">Uživatelé: %1$s</string>
     <string name="tab_permissions_groups">Skupiny: %1$s</string>
     <string name="tab_permissions_unavailable">Informace o oprávněních nejsou k dispozici</string>
-
-    <!-- Error Messages -->
     <string name="error_loading">Chyba při načítání</string>
     <string name="error_creating">Chyba při vytváření</string>
     <string name="error_updating">Chyba při aktualizaci</string>
@@ -433,8 +373,6 @@
     <string name="error_token_invalid">Neplatný token</string>
     <string name="error_server_unreachable">Server nedostupný</string>
     <string name="error_analyze_document">Dokument nelze analyzovat</string>
-
-    <!-- Token Scanner -->
     <string name="token_scanner_title">Naskenovat klíč</string>
     <string name="token_scanner_capturing">Pořizování fotografie ve vysokém rozlišení...</string>
     <string name="token_scanner_found">Klíč nalezen!</string>
@@ -451,12 +389,7 @@
     <string name="token_scanner_auto_active">Automatické rozpoznávání aktivní • Klepnutí jako záloha</string>
     <string name="token_scanner_hold_camera">Držte kameru nehybně - Automatické rozpoznávání běží</string>
     <string name="token_scanner_close">Zavřít</string>
-
-    <!-- Share -->
     <string name="share_via">Sdílet přes</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -468,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -548,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">Upravit oprávnění</string>
     <string name="tab_permissions_save">Uložit</string>
     <string name="tab_permissions_cancel">Zrušit</string>
@@ -561,8 +490,6 @@
     <string name="tab_permissions_save_success">Oprávnění úspěšně uložena</string>
     <string name="tab_permissions_no_edit_permission">Žádné oprávnění k úpravě</string>
     <string name="tab_permissions_selected">%1$d vybráno</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">Informace o používání AI</string>
     <string name="ai_limit_info_message">Intenzivně používáte funkce AI (%1$d z 300 volání tento měsíc). Sledujte své používání!</string>
     <string name="ai_limit_warning_title">Limit AI Téměř Dosažen</string>
@@ -576,15 +503,11 @@
     <string name="ai_analyzing">Analýza dokumentu pomocí AI...</string>
     <string name="ai_suggestions_ready">Návrhy AI připraveny</string>
     <string name="ai_no_suggestions">Žádné návrhy k dispozici</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">AI ASISTENT</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium aktivní do %1$s</string>
     <string name="premium_status_inactive">Odemknout Premium</string>
     <string name="premium_unlock">Odemknout Premium</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">AI návrhy</string>
     <string name="premium_settings_ai_suggestions_desc">Automatické návrhy tagů s AI</string>
     <string name="premium_settings_wifi_only">Pouze WiFi</string>
@@ -594,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Spravovat předplatné</string>
     <string name="premium_settings_restore_purchases">Obnovit nákupy</string>
     <string name="premium_required">Vyžadováno Premium</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">Odemknout AI asistenta</string>
     <string name="premium_upgrade_subtitle">Inteligentní analýza dokumentů s AI</string>
     <string name="premium_feature_ai_analysis">Automatické návrhy tagů</string>
@@ -608,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Rozpozná fakturu, smlouvu, dopis atd.</string>
     <string name="premium_feature_unlimited">Neomezené AI analýzy</string>
     <string name="premium_feature_unlimited_desc">Bez měsíčních limitů</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Měsíčně</string>
     <string name="premium_option_yearly">Ročně</string>
     <string name="premium_price_monthly">%1$s / měsíc</string>
@@ -618,8 +537,6 @@
     <string name="premium_button_upgrade">Upgradovat nyní</string>
     <string name="premium_button_later">Později</string>
     <string name="premium_button_restore">Obnovit nákupy</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Návrhy</string>
     <string name="suggestions_ai_title">AI návrhy</string>
     <string name="suggestions_analyzing">Analyzuji dokument...</string>
@@ -639,8 +556,6 @@
     <string name="cd_suggestions">Návrhy</string>
     <string name="cd_ai_sparkle">AI funkce</string>
     <string name="cd_apply_suggestion">Použít návrh</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium úspěšně aktivováno!</string>
     <string name="premium_purchase_cancelled">Nákup zrušen</string>
@@ -652,9 +567,6 @@
     <string name="settings_debug_mode_enabled">AI vývojářský režim aktivován</string>
     <string name="settings_debug_mode_disabled">AI vývojářský režim deaktivován</string>
     <string name="settings_debug_mode_already_enabled">Vývojářský režim je již aktivován</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Chytré štítkování</string>
     <string name="tag_suggestions_progress">%1$d z %2$d označeno</string>
     <string name="tag_suggestions_complete">Hotovo!</string>
@@ -684,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Navrhované Nové Štítky</string>
     <string name="smart_tagging_suggested_new_tags_hint">Tyto štítky ještě neexistují. Klepnutím je vytvoříte.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">Zámek aplikace</string>
+    <string name="app_lock_subtitle">Chraňte aplikaci heslem nebo biometrií</string>
+    <string name="app_lock_enabled">Zámek povolen</string>
+    <string name="app_lock_disabled">Zámek zakázán</string>
+    <string name="app_lock_setup_password">Nastavit heslo</string>
+    <string name="app_lock_change_password">Změnit heslo</string>
+    <string name="app_lock_enable_biometric">Povolit biometrické odemknutí</string>
+    <string name="app_lock_disable_biometric">Zakázat biometrické odemknutí</string>
+    <string name="app_lock_timeout">Automatické zamknutí</string>
+    <string name="app_lock_timeout_immediate">Okamžitě</string>
+    <string name="app_lock_timeout_1min">1 Minuta</string>
+    <string name="app_lock_timeout_5min">5 Minut</string>
+    <string name="app_lock_timeout_15min">15 Minut</string>
+    <string name="app_lock_timeout_30min">30 Minut</string>
+    <string name="app_lock_screen_title">Aplikace zamčena</string>
+    <string name="app_lock_screen_subtitle">Zadejte heslo pro pokračování</string>
+    <string name="app_lock_unlock">Odemknout</string>
+    <string name="app_lock_unlock_biometric">Odemknout biometricky</string>
+    <string name="app_lock_unlocking">Odemykání...</string>
+    <string name="app_lock_password">Heslo</string>
+    <string name="app_lock_password_enter">Zadejte heslo</string>
+    <string name="app_lock_password_current">Aktuální heslo</string>
+    <string name="app_lock_password_new">Nové heslo</string>
+    <string name="app_lock_password_confirm">Potvrďte heslo</string>
+    <string name="app_lock_password_show">Zobrazit heslo</string>
+    <string name="app_lock_password_hide">Skrýt heslo</string>
+    <string name="app_lock_error_wrong_password">Nesprávné heslo</string>
+    <string name="app_lock_error_passwords_mismatch">Hesla se neshodují</string>
+    <string name="app_lock_error_password_too_short">Heslo musí mít alespoň 4 znaky</string>
+    <string name="app_lock_remaining_attempts">Zbývající pokusy: %1$d</string>
+    <string name="app_lock_locked_out">Příliš mnoho neúspěšných pokusů. Byli jste odhlášeni.</string>
+    <string name="app_lock_biometric_title">Odemknout aplikaci</string>
+    <string name="app_lock_biometric_subtitle">Použijte biometrii</string>
+    <string name="app_lock_biometric_failed">Biometrické ověření selhalo</string>
+    <string name="app_lock_disable_confirm_title">Zakázat zámek?</string>
+    <string name="app_lock_disable_confirm_message">Aplikace již nebude chráněna.</string>
+    <string name="settings_section_security">Zabezpečení</string>
+    <string name="app_lock_change_password_subtitle">Vyžaduje se aktuální heslo</string>
+    <string name="app_lock_biometric_unlock">Biometrické odemknutí</string>
+    <string name="app_lock_biometric_unlock_subtitle">Použít otisk prstu nebo rozpoznávání obličeje</string>
 </resources>

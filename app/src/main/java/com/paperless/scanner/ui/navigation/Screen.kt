@@ -51,6 +51,15 @@ sealed class Screen(val route: String) {
     // Smart Tagging (Tinder-style swipe to tag)
     data object SmartTagging : Screen("smart-tagging")
 
+    // App Lock
+    data object AppLock : Screen("app-lock")
+
+    data object SetupAppLock : Screen("setup-app-lock/{isChangingPassword}") {
+        fun createRoute(isChangingPassword: Boolean): String {
+            return "setup-app-lock/$isChangingPassword"
+        }
+    }
+
     // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {
         fun createRoute(documentUri: Uri): String {

@@ -145,7 +145,8 @@ class LoginViewModel @Inject constructor(
             }
 
             authRepository.login(urlToUse, username, password)
-                .onSuccess {
+                .onSuccess { result ->
+                    // LoginResult only has Success now - MFA is handled as error
                     analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("password"))
                     withContext(Dispatchers.Main) {
                         _uiState.update { LoginUiState.Success }

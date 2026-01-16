@@ -155,7 +155,7 @@ class LoginViewModelTest {
 
     @Test
     fun `login success updates state to Success`() = runTest {
-        coEvery { authRepository.login(any(), any(), any()) } returns Result.success("token123")
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.success(AuthRepository.LoginResult.Success("token123"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -190,7 +190,7 @@ class LoginViewModelTest {
     fun `login transitions from Loading to Success`() = runTest {
         // This test verifies the login flow completes successfully
         // Note: Testing intermediate Loading state is unreliable with real IO dispatchers
-        coEvery { authRepository.login(any(), any(), any()) } returns Result.success("token123")
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.success(AuthRepository.LoginResult.Success("token123"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -444,7 +444,7 @@ class LoginViewModelTest {
     fun `login uses detected URL when serverStatus is Success`() = runTest {
         coEvery { authRepository.detectServerProtocol("example.com") } returns
             Result.success("https://detected.example.com")
-        coEvery { authRepository.login(any(), any(), any()) } returns Result.success("token123")
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.success(AuthRepository.LoginResult.Success("token123"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -468,7 +468,7 @@ class LoginViewModelTest {
 
     @Test
     fun `login trims trailing slash from serverUrl`() = runTest {
-        coEvery { authRepository.login(any(), any(), any()) } returns Result.success("token123")
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.success(AuthRepository.LoginResult.Success("token123"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()

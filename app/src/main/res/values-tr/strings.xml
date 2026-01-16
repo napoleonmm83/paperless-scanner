@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
-
-    <!-- Login -->
     <string name="login_title">Paperless Scanner</string>
     <string name="login_server_url">Sunucu URL</string>
     <string name="login_server_url_hint">https://paperless.example.com</string>
@@ -10,8 +8,6 @@
     <string name="login_password">Şifre</string>
     <string name="login_button">Giriş yap</string>
     <string name="login_error">Giriş başarısız: %1$s</string>
-
-    <!-- Onboarding Login Screen -->
     <string name="onboarding_back">Geri</string>
     <string name="onboarding_login_title">Giriş yap</string>
     <string name="onboarding_login_subtitle">Paperless-ngx hesabınızla giriş yapın</string>
@@ -26,21 +22,15 @@
     <string name="onboarding_token_help">Paperless\'ta bulabilirsiniz: Ayarlar → Profilim</string>
     <string name="onboarding_scan_token">Token\'ı kamerayla tara</string>
     <string name="onboarding_login_button">Giriş yap</string>
-
-    <!-- Scan -->
     <string name="scan_title">Belge tara</string>
     <string name="scan_button">Kamerayı aç</string>
     <string name="scan_from_gallery">Galeriden</string>
-
-    <!-- Upload -->
     <string name="upload_title">Belge yükle</string>
     <string name="upload_document_title">Başlık (isteğe bağlı)</string>
     <string name="upload_select_tags">Etiket seç</string>
     <string name="upload_button">Yükle</string>
     <string name="upload_success">Belge yüklendi</string>
     <string name="upload_error">Yükleme başarısız: %1$s</string>
-
-    <!-- Upload Screen -->
     <string name="upload_back">Geri</string>
     <string name="upload_queued">Bağlantı olduğunda yükleme senkronize edilecek</string>
     <string name="upload_tag_created">\"%1$s\" etiketi oluşturuldu</string>
@@ -54,8 +44,6 @@
     <string name="upload_tags_section_title">Etiket seç</string>
     <string name="upload_tag_new">Yeni</string>
     <string name="upload_tags_show_less">Daha az</string>
-
-    <!-- Batch Import Screen -->
     <string name="batch_import_title">Toplu içe aktarma</string>
     <string name="batch_import_back">Geri</string>
     <string name="batch_import_success_single">Belge kuyruğa eklendi!</string>
@@ -66,8 +54,8 @@
     <string name="batch_import_button_individual">Ayrı</string>
     <string name="batch_import_button_single">Tek belge olarak</string>
     <string name="batch_import_preview">Önizleme</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Görsel %1$d</string>
     <string name="batch_import_pdf_file">PDF dosyası</string>
     <string name="batch_import_file">Dosya</string>
@@ -88,13 +76,9 @@
     <string name="batch_import_add_more">Daha fazla ekle</string>
     <string name="batch_import_rotate">Döndür</string>
     <string name="batch_import_drag_hint">Sıralamak için sürükleyin</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Meta veriler</string>
     <string name="batch_metadata_mode_single_info">%1$d dosya tek PDF\'e birleştirilecek</string>
     <string name="batch_metadata_mode_individual_info">%1$d dosya ayrı ayrı yüklenecek</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF yükle</string>
     <string name="multipage_upload_back">Geri</string>
     <string name="multipage_upload_success">%1$d sayfalık PDF yüklendi!</string>
@@ -110,8 +94,6 @@
     <string name="multipage_upload_progress">Yükleniyor: %1$d%%</string>
     <string name="multipage_upload_uploading">PDF yükleniyor...</string>
     <string name="multipage_upload_button">PDF olarak yükle</string>
-
-    <!-- Document Detail Screen -->
     <string name="document_detail_back">Geri</string>
     <string name="document_detail_title">BELGE</string>
     <string name="document_detail_open_browser">Tarayıcıda aç</string>
@@ -133,16 +115,12 @@
     <string name="document_detail_delete_button">SİL</string>
     <string name="document_detail_cancel_button">İPTAL</string>
     <string name="document_detail_edit">Düzenle</string>
-
-    <!-- Document Detail Tabs -->
     <string name="document_tab_details">Ayrıntılar</string>
     <string name="document_tab_content">İçerik</string>
     <string name="document_tab_metadata">Meta veriler</string>
     <string name="document_tab_notes">Notlar</string>
     <string name="document_tab_history">Geçmiş</string>
     <string name="document_tab_permissions">İzinler</string>
-
-    <!-- Edit Document Dialog -->
     <string name="document_edit_title">BELGEYİ DÜZENLE</string>
     <string name="document_edit_title_label">Başlık</string>
     <string name="document_edit_tags_label">Etiketler</string>
@@ -153,8 +131,6 @@
     <string name="document_edit_asn_label">ASN (Arşiv numarası)</string>
     <string name="document_edit_save">KAYDET</string>
     <string name="document_edit_cancel">İPTAL</string>
-
-    <!-- Labels Screen -->
     <string name="labels_title">ETİKETLER</string>
     <string name="labels_subtitle">Etiketlerinizi yönetin</string>
     <string name="labels_search_placeholder">Etiketlerde ara...</string>
@@ -199,16 +175,12 @@
     <string name="labels_filter_many_docs">5\'ten fazla belge</string>
     <string name="labels_apply_button">Uygula</string>
     <string name="labels_reset_button">Sıfırla</string>
-
-    <!-- Welcome Screen -->
     <string name="welcome_subtitle">Paperless-ngx kurulumunuz için\nmobil yardımcı</string>
     <string name="welcome_feature_1">Kenar algılamalı akıllı tarama</string>
     <string name="welcome_feature_2">Çok sayfalı belgeler oluşturun</string>
     <string name="welcome_feature_3">Doğrudan Paperless-ngx\'e yükleyin</string>
     <string name="welcome_button">Başlayalım</string>
     <string name="welcome_footer">Kendi Paperless-ngx kurulumunuza ihtiyacınız var</string>
-
-    <!-- Server Setup Screen -->
     <string name="server_setup_back">Geri</string>
     <string name="server_setup_title">Sunucuya bağlan</string>
     <string name="server_setup_subtitle">Paperless-ngx kurulumunuzun URL\'sini girin</string>
@@ -221,8 +193,6 @@
     <string name="server_setup_hint_title">Güvenli bağlantı önerilir</string>
     <string name="server_setup_hint_text">Sunucunuza şifreli bağlantı için HTTPS kullanın.</string>
     <string name="server_setup_button">Devam</string>
-
-    <!-- Success Screen -->
     <string name="success_title">Her şey hazır!</string>
     <string name="success_subtitle">Bağlandınız ve artık\nbelgeleri tarayıp yükleyebilirsiniz.</string>
     <string name="success_stat_scanned">Bugün taranan</string>
@@ -232,8 +202,6 @@
     <string name="success_tip_2">Uygulama kenarları otomatik algılar</string>
     <string name="success_tip_3">Yüklemeden önce etiket seçebilirsiniz</string>
     <string name="success_button">Uygulamayı başlat</string>
-
-    <!-- Documents Screen -->
     <string name="documents_title">BELGELER</string>
     <string name="documents_count">%1$d belge</string>
     <string name="documents_search_placeholder">Belgelerde ara...</string>
@@ -243,8 +211,6 @@
     <string name="documents_empty_no_documents">Belge yok</string>
     <string name="documents_empty_hint_search">Başka bir arama terimi deneyin</string>
     <string name="documents_empty_hint_scan">Burada görmek için belge tarayın</string>
-
-    <!-- Scan Screen -->
     <string name="scan_page_removed">Sayfa %1$d kaldırıldı</string>
     <string name="scan_undo">Geri al</string>
     <string name="scan_scanner_error">Tarayıcı başlatılamadı: %1$s</string>
@@ -270,8 +236,6 @@
     <string name="scan_add_page">Sayfa ekle</string>
     <string name="scan_close">Kapat</string>
     <string name="scan_delete">Sil</string>
-
-    <!-- Home Screen -->
     <string name="home_welcome_back">TEKRARHOŞGELDİNİZ</string>
     <string name="home_your_archive">ARŞİVİNİZ</string>
     <string name="home_stat_documents">Belgeler</string>
@@ -292,8 +256,6 @@
     <string name="home_task_success">Başarılı</string>
     <string name="home_task_failure">Başarısız</string>
     <string name="home_dismiss">Gizle</string>
-
-    <!-- Pending Sync Screen -->
     <string name="pending_sync_back">Geri</string>
     <string name="pending_sync_title">BEKLEYEN SENKRONİZASYONLAR</string>
     <string name="pending_sync_upload_queue">Yükleme kuyruğu</string>
@@ -314,8 +276,6 @@
     <string name="pending_sync_status_uploading">Yükleniyor</string>
     <string name="pending_sync_status_completed">Tamamlandı</string>
     <string name="pending_sync_status_failed">Başarısız</string>
-
-    <!-- Settings Screen -->
     <string name="settings_title">AYARLAR</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Bağlı değil</string>
@@ -335,20 +295,14 @@
     <string name="settings_selected">Seçili</string>
     <string name="settings_close">Kapat</string>
     <string name="settings_theme">Tema</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Sistem</string>
     <string name="theme_mode_light">Açık</string>
     <string name="theme_mode_dark">Koyu</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Yeni etiket oluştur</string>
     <string name="create_tag_name_label">Etiket adı</string>
     <string name="create_tag_color_label">Renk (isteğe bağlı)</string>
     <string name="create_tag_create">Oluştur</string>
     <string name="create_tag_cancel">İptal</string>
-
-    <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Geri</string>
     <string name="pdf_viewer_page_info">Sayfa %1$d / %2$d</string>
     <string name="pdf_viewer_share">Paylaş</string>
@@ -358,38 +312,26 @@
     <string name="pdf_viewer_pdf_page">PDF sayfa %1$d</string>
     <string name="pdf_viewer_document_image">Belge görüntüsü</string>
     <string name="pdf_viewer_retry">Tekrar dene</string>
-
-    <!-- Upload Errors -->
     <string name="upload_error_generic">Yükleme başarısız</string>
     <string name="error_queue_add">Kuyruğa eklenirken hata</string>
     <string name="error_create_tag">Etiket oluşturulamadı</string>
     <string name="pdf_viewer_default_title">Belge</string>
-
-    <!-- General -->
     <string name="loading">Yükleniyor...</string>
     <string name="retry">Tekrar dene</string>
     <string name="cancel">İptal</string>
     <string name="ok">Tamam</string>
-
-    <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Belge taramaya hızlı erişim</string>
-
-    <!-- Upload Quality Settings -->
     <string name="upload_quality_auto">Otomatik</string>
     <string name="upload_quality_low">Düşük (daha hızlı yükleme)</string>
     <string name="upload_quality_medium">Orta</string>
     <string name="upload_quality_high">Yüksek (en iyi kalite)</string>
-
-    <!-- Time Formatting -->
     <string name="time_just_now">Şimdi</string>
     <string name="time_minutes_ago">%1$d dk önce</string>
     <string name="time_hours_ago">%1$d saat önce</string>
     <string name="time_days_ago">%1$d gün önce</string>
     <string name="time_unknown">Bilinmiyor</string>
     <string name="document_unknown">Bilinmeyen belge</string>
-
-    <!-- Document Tabs -->
     <string name="tab_no_text_content">Metin içeriği mevcut değil</string>
     <string name="tab_metadata">Meta veriler</string>
     <string name="tab_metadata_created">Oluşturuldu</string>
@@ -417,8 +359,6 @@
     <string name="tab_permissions_users">Kullanıcılar: %1$s</string>
     <string name="tab_permissions_groups">Gruplar: %1$s</string>
     <string name="tab_permissions_unavailable">İzin bilgisi mevcut değil</string>
-
-    <!-- Error Messages -->
     <string name="error_loading">Yüklenirken hata</string>
     <string name="error_creating">Oluştururken hata</string>
     <string name="error_updating">Güncellerken hata</string>
@@ -433,8 +373,6 @@
     <string name="error_token_invalid">Geçersiz token</string>
     <string name="error_server_unreachable">Sunucuya ulaşılamıyor</string>
     <string name="error_analyze_document">Belge analiz edilemedi</string>
-
-    <!-- Token Scanner -->
     <string name="token_scanner_title">Anahtarı tara</string>
     <string name="token_scanner_capturing">Yüksek çözünürlüklü fotoğraf çekiliyor...</string>
     <string name="token_scanner_found">Anahtar bulundu!</string>
@@ -451,12 +389,7 @@
     <string name="token_scanner_auto_active">Otomatik tanıma aktif • Yedek olarak manuel dokunun</string>
     <string name="token_scanner_hold_camera">Kamerayı sabit tutun - Otomatik tanıma çalışıyor</string>
     <string name="token_scanner_close">Kapat</string>
-
-    <!-- Share -->
     <string name="share_via">Şununla paylaş</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -468,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -548,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">İzinleri düzenle</string>
     <string name="tab_permissions_save">Kaydet</string>
     <string name="tab_permissions_cancel">İptal</string>
@@ -561,8 +490,6 @@
     <string name="tab_permissions_save_success">İzinler başarıyla kaydedildi</string>
     <string name="tab_permissions_no_edit_permission">Düzenleme izni yok</string>
     <string name="tab_permissions_selected">%1$d seçili</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">AI Kullanım Bilgisi</string>
     <string name="ai_limit_info_message">AI özelliklerini yoğun şekilde kullanıyorsunuz (bu ay 300 çağrıdan %1$d). Kullanımınızı takip edin!</string>
     <string name="ai_limit_warning_title">AI Limiti Neredeyse Doldu</string>
@@ -576,15 +503,11 @@
     <string name="ai_analyzing">Belge AI ile analiz ediliyor...</string>
     <string name="ai_suggestions_ready">AI önerileri hazır</string>
     <string name="ai_no_suggestions">Kullanılabilir öneri yok</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">AI ASİSTAN</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium %1$s tarihine kadar aktif</string>
     <string name="premium_status_inactive">Premium\'u Aç</string>
     <string name="premium_unlock">Premium\'u Aç</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">AI Önerileri</string>
     <string name="premium_settings_ai_suggestions_desc">AI ile otomatik etiket önerileri</string>
     <string name="premium_settings_wifi_only">Sadece WiFi</string>
@@ -594,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Aboneliği yönet</string>
     <string name="premium_settings_restore_purchases">Satın almaları geri yükle</string>
     <string name="premium_required">Premium gerekli</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">AI asistanını aç</string>
     <string name="premium_upgrade_subtitle">AI ile akıllı belge analizi</string>
     <string name="premium_feature_ai_analysis">Otomatik etiket önerileri</string>
@@ -608,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Fatura, sözleşme, mektup vb. algılar</string>
     <string name="premium_feature_unlimited">Sınırsız AI analizleri</string>
     <string name="premium_feature_unlimited_desc">Aylık limit yok</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Aylık</string>
     <string name="premium_option_yearly">Yıllık</string>
     <string name="premium_price_monthly">%1$s / ay</string>
@@ -618,8 +537,6 @@
     <string name="premium_button_upgrade">Şimdi yükselt</string>
     <string name="premium_button_later">Daha sonra</string>
     <string name="premium_button_restore">Satın almaları geri yükle</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Öneriler</string>
     <string name="suggestions_ai_title">AI Önerileri</string>
     <string name="suggestions_analyzing">Belge analiz ediliyor...</string>
@@ -639,8 +556,6 @@
     <string name="cd_suggestions">Öneriler</string>
     <string name="cd_ai_sparkle">AI özelliği</string>
     <string name="cd_apply_suggestion">Öneriyi uygula</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium başarıyla etkinleştirildi!</string>
     <string name="premium_purchase_cancelled">Satın alma iptal edildi</string>
@@ -652,9 +567,6 @@
     <string name="settings_debug_mode_enabled">AI geliştirici modu etkinleştirildi</string>
     <string name="settings_debug_mode_disabled">AI geliştirici modu devre dışı bırakıldı</string>
     <string name="settings_debug_mode_already_enabled">Geliştirici modu zaten etkin</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Akıllı Etiketleme</string>
     <string name="tag_suggestions_progress">%1$d / %2$d etiketlendi</string>
     <string name="tag_suggestions_complete">Tamamlandı!</string>
@@ -684,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Önerilen Yeni Etiketler</string>
     <string name="smart_tagging_suggested_new_tags_hint">Bu etiketler henüz mevcut değil. Oluşturmak için dokunun.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">Uygulama Kilidi</string>
+    <string name="app_lock_subtitle">Uygulamayı şifre veya biyometriyle koruyun</string>
+    <string name="app_lock_enabled">Kilit etkinleştirildi</string>
+    <string name="app_lock_disabled">Kilit devre dışı</string>
+    <string name="app_lock_setup_password">Şifre belirle</string>
+    <string name="app_lock_change_password">Şifreyi değiştir</string>
+    <string name="app_lock_enable_biometric">Biyometrik kilidi etkinleştir</string>
+    <string name="app_lock_disable_biometric">Biyometrik kilidi devre dışı bırak</string>
+    <string name="app_lock_timeout">Otomatik kilit</string>
+    <string name="app_lock_timeout_immediate">Hemen</string>
+    <string name="app_lock_timeout_1min">1 Dakika</string>
+    <string name="app_lock_timeout_5min">5 Dakika</string>
+    <string name="app_lock_timeout_15min">15 Dakika</string>
+    <string name="app_lock_timeout_30min">30 Dakika</string>
+    <string name="app_lock_screen_title">Uygulama kilitli</string>
+    <string name="app_lock_screen_subtitle">Devam etmek için şifrenizi girin</string>
+    <string name="app_lock_unlock">Kilidi Aç</string>
+    <string name="app_lock_unlock_biometric">Biyometrikle kilidi aç</string>
+    <string name="app_lock_unlocking">Kilit açılıyor...</string>
+    <string name="app_lock_password">Şifre</string>
+    <string name="app_lock_password_enter">Şifre girin</string>
+    <string name="app_lock_password_current">Mevcut şifre</string>
+    <string name="app_lock_password_new">Yeni şifre</string>
+    <string name="app_lock_password_confirm">Şifreyi onayla</string>
+    <string name="app_lock_password_show">Şifreyi göster</string>
+    <string name="app_lock_password_hide">Şifreyi gizle</string>
+    <string name="app_lock_error_wrong_password">Yanlış şifre</string>
+    <string name="app_lock_error_passwords_mismatch">Şifreler eşleşmiyor</string>
+    <string name="app_lock_error_password_too_short">Şifre en az 4 karakter olmalıdır</string>
+    <string name="app_lock_remaining_attempts">Kalan deneme: %1$d</string>
+    <string name="app_lock_locked_out">Çok fazla başarısız deneme. Çıkış yapıldı.</string>
+    <string name="app_lock_biometric_title">Uygulamanın kilidini aç</string>
+    <string name="app_lock_biometric_subtitle">Biyometriyi kullanın</string>
+    <string name="app_lock_biometric_failed">Biyometrik kimlik doğrulama başarısız</string>
+    <string name="app_lock_disable_confirm_title">Kilit devre dışı bırakılsın mı?</string>
+    <string name="app_lock_disable_confirm_message">Uygulama artık korunmayacak.</string>
+    <string name="settings_section_security">Güvenlik</string>
+    <string name="app_lock_change_password_subtitle">Mevcut şifre gerekli</string>
+    <string name="app_lock_biometric_unlock">Biyometrik kilit açma</string>
+    <string name="app_lock_biometric_unlock_subtitle">Parmak izi veya yüz tanıma kullan</string>
 </resources>

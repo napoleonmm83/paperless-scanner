@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
     <string name="login_title">Paperless Scanner</string>
@@ -54,8 +54,8 @@
     <string name="batch_import_button_individual">Afzonderlijk</string>
     <string name="batch_import_button_single">Als één document</string>
     <string name="batch_import_preview">Voorbeeld</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Afbeelding %1$d</string>
     <string name="batch_import_pdf_file">PDF-bestand</string>
     <string name="batch_import_file">Bestand</string>
@@ -76,13 +76,9 @@
     <string name="batch_import_add_more">Meer toevoegen</string>
     <string name="batch_import_rotate">Draaien</string>
     <string name="batch_import_drag_hint">Sleep om te sorteren</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Metadata</string>
     <string name="batch_metadata_mode_single_info">%1$d bestanden worden samengevoegd tot één PDF</string>
     <string name="batch_metadata_mode_individual_info">%1$d bestanden worden afzonderlijk geüpload</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">PDF uploaden</string>
     <string name="multipage_upload_back">Terug</string>
     <string name="multipage_upload_success">PDF met %1$d pagina\'s succesvol geüpload!</string>
@@ -299,13 +295,9 @@
     <string name="settings_selected">Geselecteerd</string>
     <string name="settings_close">Sluiten</string>
     <string name="settings_theme">Thema</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Systeem</string>
     <string name="theme_mode_light">Licht</string>
     <string name="theme_mode_dark">Donker</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Nieuwe tag maken</string>
     <string name="create_tag_name_label">Tag naam</string>
     <string name="create_tag_color_label">Kleur (optioneel)</string>
@@ -398,9 +390,6 @@
     <string name="token_scanner_hold_camera">Houd camera stil - Automatische detectie actief</string>
     <string name="token_scanner_close">Sluiten</string>
     <string name="share_via">Delen via</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -412,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -492,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">Machtigingen bewerken</string>
     <string name="tab_permissions_save">Opslaan</string>
     <string name="tab_permissions_cancel">Annuleren</string>
@@ -505,8 +490,6 @@
     <string name="tab_permissions_save_success">Machtigingen succesvol opgeslagen</string>
     <string name="tab_permissions_no_edit_permission">Geen toestemming om te bewerken</string>
     <string name="tab_permissions_selected">%1$d geselecteerd</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">AI-gebruiksinformatie</string>
     <string name="ai_limit_info_message">Je gebruikt AI-functies intensief (%1$d van 300 oproepen deze maand). Houd je gebruik bij!</string>
     <string name="ai_limit_warning_title">AI-limiet Bijna Bereikt</string>
@@ -520,15 +503,11 @@
     <string name="ai_analyzing">Document analyseren met AI...</string>
     <string name="ai_suggestions_ready">AI-suggesties klaar</string>
     <string name="ai_no_suggestions">Geen suggesties beschikbaar</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">AI-ASSISTENT</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium actief tot %1$s</string>
     <string name="premium_status_inactive">Premium ontgrendelen</string>
     <string name="premium_unlock">Premium ontgrendelen</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">AI-suggesties</string>
     <string name="premium_settings_ai_suggestions_desc">Automatische tag-suggesties met AI</string>
     <string name="premium_settings_wifi_only">Alleen WiFi</string>
@@ -538,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Abonnement beheren</string>
     <string name="premium_settings_restore_purchases">Aankopen herstellen</string>
     <string name="premium_required">Premium vereist</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">AI-assistent ontgrendelen</string>
     <string name="premium_upgrade_subtitle">Intelligente documentanalyse met AI</string>
     <string name="premium_feature_ai_analysis">Automatische tag-suggesties</string>
@@ -552,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Detecteert factuur, contract, brief, etc.</string>
     <string name="premium_feature_unlimited">Onbeperkte AI-analyses</string>
     <string name="premium_feature_unlimited_desc">Geen maandelijkse limieten</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Maandelijks</string>
     <string name="premium_option_yearly">Jaarlijks</string>
     <string name="premium_price_monthly">%1$s / maand</string>
@@ -562,8 +537,6 @@
     <string name="premium_button_upgrade">Nu upgraden</string>
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Aankopen herstellen</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Suggesties</string>
     <string name="suggestions_ai_title">AI Suggesties</string>
     <string name="suggestions_analyzing">Document analyseren...</string>
@@ -583,8 +556,6 @@
     <string name="cd_suggestions">Suggesties</string>
     <string name="cd_ai_sparkle">AI functie</string>
     <string name="cd_apply_suggestion">Suggestie toepassen</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Premium succesvol geactiveerd!</string>
     <string name="premium_purchase_cancelled">Aankoop geannuleerd</string>
@@ -596,9 +567,6 @@
     <string name="settings_debug_mode_enabled">AI-ontwikkelaarsmodus geactiveerd</string>
     <string name="settings_debug_mode_disabled">AI-ontwikkelaarsmodus gedeactiveerd</string>
     <string name="settings_debug_mode_already_enabled">Ontwikkelaarsmodus is al geactiveerd</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Slim Taggen</string>
     <string name="tag_suggestions_progress">%1$d van %2$d getagd</string>
     <string name="tag_suggestions_complete">Klaar!</string>
@@ -628,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Voorgestelde Nieuwe Tags</string>
     <string name="smart_tagging_suggested_new_tags_hint">Deze tags bestaan nog niet. Tik om ze te maken.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">App-vergrendeling</string>
+    <string name="app_lock_subtitle">Bescherm de app met wachtwoord of biometrie</string>
+    <string name="app_lock_enabled">Vergrendeling ingeschakeld</string>
+    <string name="app_lock_disabled">Vergrendeling uitgeschakeld</string>
+    <string name="app_lock_setup_password">Wachtwoord instellen</string>
+    <string name="app_lock_change_password">Wachtwoord wijzigen</string>
+    <string name="app_lock_enable_biometric">Biometrisch ontgrendelen inschakelen</string>
+    <string name="app_lock_disable_biometric">Biometrisch ontgrendelen uitschakelen</string>
+    <string name="app_lock_timeout">Automatische vergrendeling</string>
+    <string name="app_lock_timeout_immediate">Onmiddellijk</string>
+    <string name="app_lock_timeout_1min">1 Minuut</string>
+    <string name="app_lock_timeout_5min">5 Minuten</string>
+    <string name="app_lock_timeout_15min">15 Minuten</string>
+    <string name="app_lock_timeout_30min">30 Minuten</string>
+    <string name="app_lock_screen_title">App vergrendeld</string>
+    <string name="app_lock_screen_subtitle">Voer uw wachtwoord in om door te gaan</string>
+    <string name="app_lock_unlock">Ontgrendelen</string>
+    <string name="app_lock_unlock_biometric">Biometrisch ontgrendelen</string>
+    <string name="app_lock_unlocking">Ontgrendelen...</string>
+    <string name="app_lock_password">Wachtwoord</string>
+    <string name="app_lock_password_enter">Wachtwoord invoeren</string>
+    <string name="app_lock_password_current">Huidig wachtwoord</string>
+    <string name="app_lock_password_new">Nieuw wachtwoord</string>
+    <string name="app_lock_password_confirm">Wachtwoord bevestigen</string>
+    <string name="app_lock_password_show">Wachtwoord tonen</string>
+    <string name="app_lock_password_hide">Wachtwoord verbergen</string>
+    <string name="app_lock_error_wrong_password">Verkeerd wachtwoord</string>
+    <string name="app_lock_error_passwords_mismatch">Wachtwoorden komen niet overeen</string>
+    <string name="app_lock_error_password_too_short">Wachtwoord moet minimaal 4 tekens zijn</string>
+    <string name="app_lock_remaining_attempts">Resterende pogingen: %1$d</string>
+    <string name="app_lock_locked_out">Te veel mislukte pogingen. U bent uitgelogd.</string>
+    <string name="app_lock_biometric_title">App ontgrendelen</string>
+    <string name="app_lock_biometric_subtitle">Gebruik uw biometrie</string>
+    <string name="app_lock_biometric_failed">Biometrische authenticatie mislukt</string>
+    <string name="app_lock_disable_confirm_title">Vergrendeling uitschakelen?</string>
+    <string name="app_lock_disable_confirm_message">De app is niet langer beschermd.</string>
+    <string name="settings_section_security">Beveiliging</string>
+    <string name="app_lock_change_password_subtitle">Huidig wachtwoord vereist</string>
+    <string name="app_lock_biometric_unlock">Biometrisch ontgrendelen</string>
+    <string name="app_lock_biometric_unlock_subtitle">Gebruik vingerafdruk of gezichtsherkenning</string>
 </resources>

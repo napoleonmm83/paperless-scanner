@@ -74,6 +74,7 @@ import com.paperless.scanner.ui.theme.ThemeMode
 @Composable
 fun SettingsScreen(
     onLogout: () -> Unit,
+    onNavigateToSetupAppLock: (isChangingPassword: Boolean) -> Unit = { },
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -83,6 +84,7 @@ fun SettingsScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLicensesDialog by remember { mutableStateOf(false) }
+    var showAppLockTimeoutDialog by remember { mutableStateOf(false) }
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
     var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
 
@@ -316,6 +318,69 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_server_url),
                 value = uiState.serverUrl.ifEmpty { stringResource(R.string.settings_not_configured) }
             )
+        }
+
+        // Security Section (App-Lock)
+        SettingsSection(title = stringResource(R.string.settings_section_security)) {
+            // App-Lock Enable/Disable Toggle
+            SettingsToggleItem(
+                icon = Icons.Filled.Lock,
+                title = stringResource(R.string.app_lock_title),
+                subtitle = stringResource(R.string.app_lock_subtitle),
+                checked = uiState.appLockEnabled,
+                onCheckedChange = { enabled ->
+                    if (enabled) {
+                        // Navigate to setup screen to create password
+                        onNavigateToSetupAppLock(false)
+                    } else {
+                        // Disable app-lock
+                        viewModel.setAppLockEnabled(false)
+                    }
+                }
+            )
+
+            // Show additional options only if app-lock is enabled
+            if (uiState.appLockEnabled) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Biometric Unlock Toggle
+                SettingsToggleItem(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.app_lock_biometric_unlock),
+                    subtitle = stringResource(R.string.app_lock_biometric_unlock_subtitle),
+                    checked = uiState.appLockBiometricEnabled,
+                    onCheckedChange = { viewModel.setAppLockBiometricEnabled(it) }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Timeout Selection
+                SettingsClickableItem(
+                    icon = Icons.Filled.Settings,
+                    title = stringResource(R.string.app_lock_timeout),
+                    value = uiState.appLockTimeout.displayName,
+                    onClick = { showAppLockTimeoutDialog = true }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                // Change Password
+                SettingsClickableItem(
+                    icon = Icons.Filled.Lock,
+                    title = stringResource(R.string.app_lock_change_password),
+                    value = stringResource(R.string.app_lock_change_password_subtitle),
+                    onClick = { onNavigateToSetupAppLock(true) }
+                )
+            }
         }
 
         // Upload Section
@@ -581,6 +646,48 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showThemeDialog = false }) {
+                    Text(stringResource(R.string.settings_close))
+                }
+            }
+        )
+    }
+
+    // App-Lock Timeout Selection Dialog
+    if (showAppLockTimeoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAppLockTimeoutDialog = false },
+            title = { Text(stringResource(R.string.app_lock_timeout)) },
+            text = {
+                Column {
+                    com.paperless.scanner.util.AppLockTimeout.entries.forEach { timeout ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setAppLockTimeout(timeout)
+                                    showAppLockTimeoutDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = timeout.displayName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (timeout == uiState.appLockTimeout) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = stringResource(R.string.cd_selected),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAppLockTimeoutDialog = false }) {
                     Text(stringResource(R.string.settings_close))
                 }
             }

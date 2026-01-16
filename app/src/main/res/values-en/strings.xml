@@ -682,4 +682,46 @@
     <string name="smart_tagging_completed_desc">You tagged %1$d documents. Well done!</string>
     <string name="smart_tagging_suggested_new_tags">Suggested New Tags</string>
     <string name="smart_tagging_suggested_new_tags_hint">These tags don\'t exist yet. Tap to create them.</string>
+
+    <!-- App-Lock -->
+    <string name="app_lock_title">App Lock</string>
+    <string name="app_lock_subtitle">Protect the app with password or biometrics</string>
+    <string name="app_lock_enabled">App Lock enabled</string>
+    <string name="app_lock_disabled">App Lock disabled</string>
+    <string name="app_lock_setup_password">Set password</string>
+    <string name="app_lock_change_password">Change password</string>
+    <string name="app_lock_enable_biometric">Enable biometric unlock</string>
+    <string name="app_lock_disable_biometric">Disable biometric unlock</string>
+    <string name="app_lock_timeout">Auto-lock</string>
+    <string name="app_lock_timeout_immediate">Immediately</string>
+    <string name="app_lock_timeout_1min">1 Minute</string>
+    <string name="app_lock_timeout_5min">5 Minutes</string>
+    <string name="app_lock_timeout_15min">15 Minutes</string>
+    <string name="app_lock_timeout_30min">30 Minutes</string>
+    <string name="app_lock_screen_title">App Locked</string>
+    <string name="app_lock_screen_subtitle">Enter your password to continue</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_unlock_biometric">Unlock with Biometrics</string>
+    <string name="app_lock_unlocking">Unlocking...</string>
+    <string name="app_lock_password">Password</string>
+    <string name="app_lock_password_enter">Enter password</string>
+    <string name="app_lock_password_current">Current password</string>
+    <string name="app_lock_password_new">New password</string>
+    <string name="app_lock_password_confirm">Confirm password</string>
+    <string name="app_lock_password_show">Show password</string>
+    <string name="app_lock_password_hide">Hide password</string>
+    <string name="app_lock_error_wrong_password">Wrong password</string>
+    <string name="app_lock_error_passwords_mismatch">Passwords don\'t match</string>
+    <string name="app_lock_error_password_too_short">Password must be at least 4 characters</string>
+    <string name="app_lock_remaining_attempts">Remaining attempts: %1$d</string>
+    <string name="app_lock_locked_out">Too many failed attempts. You have been logged out.</string>
+    <string name="app_lock_biometric_title">Unlock App</string>
+    <string name="app_lock_biometric_subtitle">Use your biometrics</string>
+    <string name="app_lock_biometric_failed">Biometric authentication failed</string>
+    <string name="app_lock_disable_confirm_title">Disable App Lock?</string>
+    <string name="app_lock_disable_confirm_message">The app will no longer be protected.</string>
+    <string name="settings_section_security">Security</string>
+    <string name="app_lock_change_password_subtitle">Current password required</string>
+    <string name="app_lock_biometric_unlock">Biometric Unlock</string>
+    <string name="app_lock_biometric_unlock_subtitle">Use fingerprint or face recognition</string>
 </resources>

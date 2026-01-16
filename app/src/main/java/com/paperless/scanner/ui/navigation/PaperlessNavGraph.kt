@@ -44,10 +44,17 @@ fun PaperlessNavGraph(
     navController: NavHostController,
     startDestination: String,
     sharedUris: List<Uri> = emptyList(),
-    tokenManager: TokenManager
+    tokenManager: TokenManager,
+    appLockManager: com.paperless.scanner.util.AppLockManager
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    // App-Lock Navigation Interceptor
+    AppLockNavigationInterceptor(
+        navController = navController,
+        appLockManager = appLockManager
+    )
 
     // Handle navigation to BatchImport when shared URIs are present
     LaunchedEffect(sharedUris, startDestination) {
@@ -407,5 +414,45 @@ fun PaperlessNavGraph(
                 )
             }
         }
+
+        // App Lock Screen
+        composable(route = Screen.AppLock.route) {
+            com.paperless.scanner.ui.screens.applock.AppLockScreen(
+                onUnlocked = {
+                    navController.popBackStack()
+                },
+                onLockedOut = {
+                    // User was locked out after too many attempts
+                    // Navigate back to login
+                    navController.navigate(Screen.OnboardingWelcome.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Setup App Lock Screen (Password Setup/Change)
+        composable(
+            route = Screen.SetupAppLock.route,
+            arguments = listOf(
+                navArgument("isChangingPassword") {
+                    type = NavType.BoolType
+                }
+            )
+        ) { backStackEntry ->
+            val isChangingPassword = backStackEntry.arguments?.getBoolean("isChangingPassword") ?: false
+
+            com.paperless.scanner.ui.screens.applock.SetupAppLockScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onSetupComplete = {
+                    // Navigate back to settings
+                    navController.popBackStack()
+                },
+                isChangingPassword = isChangingPassword
+            )
+        }
+
     }
 }

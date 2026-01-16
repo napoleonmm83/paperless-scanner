@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
-
-    <!-- Login -->
     <string name="login_title">Paperless Scanner</string>
     <string name="login_server_url">URL διακομιστή</string>
     <string name="login_server_url_hint">https://paperless.example.com</string>
@@ -10,8 +8,6 @@
     <string name="login_password">Κωδικός</string>
     <string name="login_button">Σύνδεση</string>
     <string name="login_error">Η σύνδεση απέτυχε: %1$s</string>
-
-    <!-- Onboarding Login Screen -->
     <string name="onboarding_back">Πίσω</string>
     <string name="onboarding_login_title">Σύνδεση</string>
     <string name="onboarding_login_subtitle">Συνδεθείτε με τον λογαριασμό Paperless-ngx</string>
@@ -26,21 +22,15 @@
     <string name="onboarding_token_help">Βρείτε το στο Paperless: Ρυθμίσεις → Το προφίλ μου</string>
     <string name="onboarding_scan_token">Σάρωση token με κάμερα</string>
     <string name="onboarding_login_button">Σύνδεση</string>
-
-    <!-- Scan -->
     <string name="scan_title">Σάρωση εγγράφου</string>
     <string name="scan_button">Άνοιγμα κάμερας</string>
     <string name="scan_from_gallery">Από τη συλλογή</string>
-
-    <!-- Upload -->
     <string name="upload_title">Μεταφόρτωση εγγράφου</string>
     <string name="upload_document_title">Τίτλος (προαιρετικό)</string>
     <string name="upload_select_tags">Επιλογή ετικετών</string>
     <string name="upload_button">Μεταφόρτωση</string>
     <string name="upload_success">Το έγγραφο μεταφορτώθηκε</string>
     <string name="upload_error">Η μεταφόρτωση απέτυχε: %1$s</string>
-
-    <!-- Upload Screen -->
     <string name="upload_back">Πίσω</string>
     <string name="upload_queued">Η μεταφόρτωση θα συγχρονιστεί όταν υπάρχει σύνδεση</string>
     <string name="upload_tag_created">Η ετικέτα \"%1$s\" δημιουργήθηκε</string>
@@ -54,8 +44,6 @@
     <string name="upload_tags_section_title">Επιλογή ετικετών</string>
     <string name="upload_tag_new">Νέο</string>
     <string name="upload_tags_show_less">Λιγότερα</string>
-
-    <!-- Batch Import Screen -->
     <string name="batch_import_title">Μαζική εισαγωγή</string>
     <string name="batch_import_back">Πίσω</string>
     <string name="batch_import_success_single">Το έγγραφο προστέθηκε στην ουρά!</string>
@@ -66,8 +54,8 @@
     <string name="batch_import_button_individual">Ξεχωριστά</string>
     <string name="batch_import_button_single">Ως ένα έγγραφο</string>
     <string name="batch_import_preview">Προεπισκόπηση</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Εικόνα %1$d</string>
     <string name="batch_import_pdf_file">Αρχείο PDF</string>
     <string name="batch_import_file">Αρχείο</string>
@@ -88,13 +76,9 @@
     <string name="batch_import_add_more">Προσθήκη περισσότερων</string>
     <string name="batch_import_rotate">Περιστροφή</string>
     <string name="batch_import_drag_hint">Σύρετε για ταξινόμηση</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Μεταδεδομένα</string>
     <string name="batch_metadata_mode_single_info">%1$d αρχεία θα ενωθούν σε ένα PDF</string>
     <string name="batch_metadata_mode_individual_info">%1$d αρχεία θα μεταφορτωθούν ξεχωριστά</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Μεταφόρτωση PDF</string>
     <string name="multipage_upload_back">Πίσω</string>
     <string name="multipage_upload_success">PDF με %1$d σελίδες μεταφορτώθηκε!</string>
@@ -110,8 +94,6 @@
     <string name="multipage_upload_progress">Μεταφόρτωση: %1$d%%</string>
     <string name="multipage_upload_uploading">Μεταφόρτωση PDF...</string>
     <string name="multipage_upload_button">Μεταφόρτωση ως PDF</string>
-
-    <!-- Document Detail Screen -->
     <string name="document_detail_back">Πίσω</string>
     <string name="document_detail_title">ΕΓΓΡΑΦΟ</string>
     <string name="document_detail_open_browser">Άνοιγμα σε πρόγραμμα περιήγησης</string>
@@ -133,16 +115,12 @@
     <string name="document_detail_delete_button">ΔΙΑΓΡΑΦΗ</string>
     <string name="document_detail_cancel_button">ΑΚΥΡΩΣΗ</string>
     <string name="document_detail_edit">Επεξεργασία</string>
-
-    <!-- Document Detail Tabs -->
     <string name="document_tab_details">Λεπτομέρειες</string>
     <string name="document_tab_content">Περιεχόμενο</string>
     <string name="document_tab_metadata">Μεταδεδομένα</string>
     <string name="document_tab_notes">Σημειώσεις</string>
     <string name="document_tab_history">Ιστορικό</string>
     <string name="document_tab_permissions">Δικαιώματα</string>
-
-    <!-- Edit Document Dialog -->
     <string name="document_edit_title">ΕΠΕΞΕΡΓΑΣΙΑ ΕΓΓΡΑΦΟΥ</string>
     <string name="document_edit_title_label">Τίτλος</string>
     <string name="document_edit_tags_label">Ετικέτες</string>
@@ -153,8 +131,6 @@
     <string name="document_edit_asn_label">ASN (Αριθμός αρχείου)</string>
     <string name="document_edit_save">ΑΠΟΘΗΚΕΥΣΗ</string>
     <string name="document_edit_cancel">ΑΚΥΡΩΣΗ</string>
-
-    <!-- Labels Screen -->
     <string name="labels_title">ΕΤΙΚΕΤΕΣ</string>
     <string name="labels_subtitle">Διαχείριση ετικετών</string>
     <string name="labels_search_placeholder">Αναζήτηση ετικετών...</string>
@@ -199,16 +175,12 @@
     <string name="labels_filter_many_docs">Πάνω από 5 έγγραφα</string>
     <string name="labels_apply_button">Εφαρμογή</string>
     <string name="labels_reset_button">Επαναφορά</string>
-
-    <!-- Welcome Screen -->
     <string name="welcome_subtitle">Ο φορητός συνοδός για την\nεγκατάσταση Paperless-ngx</string>
     <string name="welcome_feature_1">Έξυπνη σάρωση με ανίχνευση άκρων</string>
     <string name="welcome_feature_2">Δημιουργία εγγράφων πολλών σελίδων</string>
     <string name="welcome_feature_3">Άμεση μεταφόρτωση στο Paperless-ngx</string>
     <string name="welcome_button">Ας ξεκινήσουμε</string>
     <string name="welcome_footer">Χρειάζεστε δική σας εγκατάσταση Paperless-ngx</string>
-
-    <!-- Server Setup Screen -->
     <string name="server_setup_back">Πίσω</string>
     <string name="server_setup_title">Σύνδεση διακομιστή</string>
     <string name="server_setup_subtitle">Εισαγάγετε το URL της εγκατάστασης Paperless-ngx</string>
@@ -221,8 +193,6 @@
     <string name="server_setup_hint_title">Συνιστάται ασφαλής σύνδεση</string>
     <string name="server_setup_hint_text">Χρησιμοποιήστε HTTPS για κρυπτογραφημένη σύνδεση με τον διακομιστή.</string>
     <string name="server_setup_button">Συνέχεια</string>
-
-    <!-- Success Screen -->
     <string name="success_title">Όλα έτοιμα!</string>
     <string name="success_subtitle">Είστε συνδεδεμένοι και μπορείτε τώρα\nνα σαρώνετε και να μεταφορτώνετε έγγραφα.</string>
     <string name="success_stat_scanned">Σαρώθηκαν σήμερα</string>
@@ -232,8 +202,6 @@
     <string name="success_tip_2">Η εφαρμογή αναγνωρίζει αυτόματα τις άκρες</string>
     <string name="success_tip_3">Μπορείτε να επιλέξετε ετικέτες πριν τη μεταφόρτωση</string>
     <string name="success_button">Εκκίνηση εφαρμογής</string>
-
-    <!-- Documents Screen -->
     <string name="documents_title">ΕΓΓΡΑΦΑ</string>
     <string name="documents_count">%1$d έγγραφα</string>
     <string name="documents_search_placeholder">Αναζήτηση εγγράφων...</string>
@@ -243,8 +211,6 @@
     <string name="documents_empty_no_documents">Κανένα έγγραφο</string>
     <string name="documents_empty_hint_search">Δοκιμάστε διαφορετικό όρο αναζήτησης</string>
     <string name="documents_empty_hint_scan">Σαρώστε έγγραφα για να τα δείτε εδώ</string>
-
-    <!-- Scan Screen -->
     <string name="scan_page_removed">Η σελίδα %1$d αφαιρέθηκε</string>
     <string name="scan_undo">Αναίρεση</string>
     <string name="scan_scanner_error">Αδυναμία εκκίνησης σαρωτή: %1$s</string>
@@ -270,8 +236,6 @@
     <string name="scan_add_page">Προσθήκη σελίδας</string>
     <string name="scan_close">Κλείσιμο</string>
     <string name="scan_delete">Διαγραφή</string>
-
-    <!-- Home Screen -->
     <string name="home_welcome_back">ΚΑΛΩΣ ΗΡΘΑΤΕ ΠΑΛΙ</string>
     <string name="home_your_archive">ΤΟ ΑΡΧΕΙΟ ΣΑΣ</string>
     <string name="home_stat_documents">Έγγραφα</string>
@@ -292,8 +256,6 @@
     <string name="home_task_success">Επιτυχία</string>
     <string name="home_task_failure">Αποτυχία</string>
     <string name="home_dismiss">Απόκρυψη</string>
-
-    <!-- Pending Sync Screen -->
     <string name="pending_sync_back">Πίσω</string>
     <string name="pending_sync_title">ΕΚΚΡΕΜΕΙΣ ΣΥΓΧΡΟΝΙΣΜΟΙ</string>
     <string name="pending_sync_upload_queue">Ουρά μεταφόρτωσης</string>
@@ -314,8 +276,6 @@
     <string name="pending_sync_status_uploading">Μεταφόρτωση</string>
     <string name="pending_sync_status_completed">Ολοκληρώθηκε</string>
     <string name="pending_sync_status_failed">Απέτυχε</string>
-
-    <!-- Settings Screen -->
     <string name="settings_title">ΡΥΘΜΙΣΕΙΣ</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Μη συνδεδεμένο</string>
@@ -335,20 +295,14 @@
     <string name="settings_selected">Επιλεγμένο</string>
     <string name="settings_close">Κλείσιμο</string>
     <string name="settings_theme">Θέμα</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Σύστημα</string>
     <string name="theme_mode_light">Φωτεινό</string>
     <string name="theme_mode_dark">Σκούρο</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Δημιουργία νέας ετικέτας</string>
     <string name="create_tag_name_label">Όνομα ετικέτας</string>
     <string name="create_tag_color_label">Χρώμα (προαιρετικό)</string>
     <string name="create_tag_create">Δημιουργία</string>
     <string name="create_tag_cancel">Ακύρωση</string>
-
-    <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Πίσω</string>
     <string name="pdf_viewer_page_info">Σελίδα %1$d από %2$d</string>
     <string name="pdf_viewer_share">Κοινοποίηση</string>
@@ -358,38 +312,26 @@
     <string name="pdf_viewer_pdf_page">Σελίδα PDF %1$d</string>
     <string name="pdf_viewer_document_image">Εικόνα εγγράφου</string>
     <string name="pdf_viewer_retry">Δοκιμή ξανά</string>
-
-    <!-- Upload Errors -->
     <string name="upload_error_generic">Η μεταφόρτωση απέτυχε</string>
     <string name="error_queue_add">Σφάλμα κατά την προσθήκη στην ουρά</string>
     <string name="error_create_tag">Αδυναμία δημιουργίας ετικέτας</string>
     <string name="pdf_viewer_default_title">Έγγραφο</string>
-
-    <!-- General -->
     <string name="loading">Φόρτωση...</string>
     <string name="retry">Δοκιμή ξανά</string>
     <string name="cancel">Ακύρωση</string>
     <string name="ok">OK</string>
-
-    <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Γρήγορη πρόσβαση σε σάρωση εγγράφων</string>
-
-    <!-- Upload Quality Settings -->
     <string name="upload_quality_auto">Αυτόματο</string>
     <string name="upload_quality_low">Χαμηλή (ταχύτερη μεταφόρτωση)</string>
     <string name="upload_quality_medium">Μεσαία</string>
     <string name="upload_quality_high">Υψηλή (καλύτερη ποιότητα)</string>
-
-    <!-- Time Formatting -->
     <string name="time_just_now">Μόλις τώρα</string>
     <string name="time_minutes_ago">πριν %1$d λεπτά</string>
     <string name="time_hours_ago">πριν %1$d ώρες</string>
     <string name="time_days_ago">πριν %1$d ημέρες</string>
     <string name="time_unknown">Άγνωστο</string>
     <string name="document_unknown">Άγνωστο έγγραφο</string>
-
-    <!-- Document Tabs -->
     <string name="tab_no_text_content">Δεν υπάρχει διαθέσιμο κείμενο</string>
     <string name="tab_metadata">Μεταδεδομένα</string>
     <string name="tab_metadata_created">Δημιουργήθηκε</string>
@@ -417,8 +359,6 @@
     <string name="tab_permissions_users">Χρήστες: %1$s</string>
     <string name="tab_permissions_groups">Ομάδες: %1$s</string>
     <string name="tab_permissions_unavailable">Μη διαθέσιμες πληροφορίες δικαιωμάτων</string>
-
-    <!-- Error Messages -->
     <string name="error_loading">Σφάλμα κατά τη φόρτωση</string>
     <string name="error_creating">Σφάλμα κατά τη δημιουργία</string>
     <string name="error_updating">Σφάλμα κατά την ενημέρωση</string>
@@ -433,8 +373,6 @@
     <string name="error_token_invalid">Μη έγκυρο token</string>
     <string name="error_server_unreachable">Ο διακομιστής δεν είναι προσβάσιμος</string>
     <string name="error_analyze_document">Αδυναμία ανάλυσης του εγγράφου</string>
-
-    <!-- Token Scanner -->
     <string name="token_scanner_title">Σάρωση κλειδιού</string>
     <string name="token_scanner_capturing">Λήψη φωτογραφίας υψηλής ανάλυσης...</string>
     <string name="token_scanner_found">Βρέθηκε κλειδί!</string>
@@ -451,12 +389,7 @@
     <string name="token_scanner_auto_active">Αυτόματη αναγνώριση ενεργή • Πατήστε χειροκίνητα ως εναλλακτική</string>
     <string name="token_scanner_hold_camera">Κρατήστε την κάμερα σταθερή - Αυτόματη αναγνώριση σε εξέλιξη</string>
     <string name="token_scanner_close">Κλείσιμο</string>
-
-    <!-- Share -->
     <string name="share_via">Κοινοποίηση μέσω</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -468,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -548,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">Επεξεργασία δικαιωμάτων</string>
     <string name="tab_permissions_save">Αποθήκευση</string>
     <string name="tab_permissions_cancel">Ακύρωση</string>
@@ -561,8 +490,6 @@
     <string name="tab_permissions_save_success">Τα δικαιώματα αποθηκεύτηκαν</string>
     <string name="tab_permissions_no_edit_permission">Δεν υπάρχει δικαίωμα επεξεργασίας</string>
     <string name="tab_permissions_selected">%1$d επιλεγμένα</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">Πληροφορίες χρήσης AI</string>
     <string name="ai_limit_info_message">Χρησιμοποιείτε εντατικά τις λειτουργίες AI (%1$d από 300 κλήσεις αυτόν τον μήνα). Παρακολουθήστε τη χρήση σας!</string>
     <string name="ai_limit_warning_title">Το όριο AI σχεδόν επιτεύχθηκε</string>
@@ -576,15 +503,11 @@
     <string name="ai_analyzing">Ανάλυση εγγράφου με AI...</string>
     <string name="ai_suggestions_ready">Προτάσεις AI έτοιμες</string>
     <string name="ai_no_suggestions">Δεν υπάρχουν διαθέσιμες προτάσεις</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">AI ΒΟΗΘΟΣ</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium ενεργό έως %1$s</string>
     <string name="premium_status_inactive">Ξεκλείδωμα Premium</string>
     <string name="premium_unlock">Ξεκλείδωμα Premium</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">Προτάσεις AI</string>
     <string name="premium_settings_ai_suggestions_desc">Αυτόματες προτάσεις ετικετών με AI</string>
     <string name="premium_settings_wifi_only">Μόνο WiFi</string>
@@ -594,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Διαχείριση συνδρομής</string>
     <string name="premium_settings_restore_purchases">Επαναφορά αγορών</string>
     <string name="premium_required">Απαιτείται Premium</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">Ξεκλείδωμα βοηθού AI</string>
     <string name="premium_upgrade_subtitle">Έξυπνη ανάλυση εγγράφων με AI</string>
     <string name="premium_feature_ai_analysis">Αυτόματες προτάσεις ετικετών</string>
@@ -608,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Ανιχνεύει τιμολόγιο, σύμβαση, επιστολή κ.λπ.</string>
     <string name="premium_feature_unlimited">Απεριόριστες αναλύσεις AI</string>
     <string name="premium_feature_unlimited_desc">Χωρίς μηνιαία όρια</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Μηνιαίως</string>
     <string name="premium_option_yearly">Ετησίως</string>
     <string name="premium_price_monthly">%1$s / μήνα</string>
@@ -618,8 +537,6 @@
     <string name="premium_button_upgrade">Αναβάθμιση τώρα</string>
     <string name="premium_button_later">Αργότερα</string>
     <string name="premium_button_restore">Επαναφορά αγορών</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Προτάσεις</string>
     <string name="suggestions_ai_title">Προτάσεις AI</string>
     <string name="suggestions_analyzing">Ανάλυση εγγράφου...</string>
@@ -639,8 +556,6 @@
     <string name="cd_suggestions">Προτάσεις</string>
     <string name="cd_ai_sparkle">Λειτουργία AI</string>
     <string name="cd_apply_suggestion">Εφαρμογή πρότασης</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">Το Premium ενεργοποιήθηκε επιτυχώς!</string>
     <string name="premium_purchase_cancelled">Η αγορά ακυρώθηκε</string>
@@ -652,9 +567,6 @@
     <string name="settings_debug_mode_enabled">Λειτουργία προγραμματιστή AI ενεργοποιημένη</string>
     <string name="settings_debug_mode_disabled">Λειτουργία προγραμματιστή AI απενεργοποιημένη</string>
     <string name="settings_debug_mode_already_enabled">Η λειτουργία προγραμματιστή είναι ήδη ενεργοποιημένη</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Έξυπνη επισήμανση</string>
     <string name="tag_suggestions_progress">%1$d από %2$d επισημάνθηκαν</string>
     <string name="tag_suggestions_complete">Ολοκληρώθηκε!</string>
@@ -684,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Προτεινόμενες Νέες Ετικέτες</string>
     <string name="smart_tagging_suggested_new_tags_hint">Αυτές οι ετικέτες δεν υπάρχουν ακόμα. Πατήστε για να τις δημιουργήσετε.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">Κλείδωμα εφαρμογής</string>
+    <string name="app_lock_subtitle">Προστατέψτε την εφαρμογή με κωδικό ή βιομετρικά</string>
+    <string name="app_lock_enabled">Κλείδωμα ενεργοποιημένο</string>
+    <string name="app_lock_disabled">Κλείδωμα απενεργοποιημένο</string>
+    <string name="app_lock_setup_password">Ορισμός κωδικού</string>
+    <string name="app_lock_change_password">Αλλαγή κωδικού</string>
+    <string name="app_lock_enable_biometric">Ενεργοποίηση βιομετρικού ξεκλειδώματος</string>
+    <string name="app_lock_disable_biometric">Απενεργοποίηση βιομετρικού ξεκλειδώματος</string>
+    <string name="app_lock_timeout">Αυτόματο κλείδωμα</string>
+    <string name="app_lock_timeout_immediate">Αμέσως</string>
+    <string name="app_lock_timeout_1min">1 Λεπτό</string>
+    <string name="app_lock_timeout_5min">5 Λεπτά</string>
+    <string name="app_lock_timeout_15min">15 Λεπτά</string>
+    <string name="app_lock_timeout_30min">30 Λεπτά</string>
+    <string name="app_lock_screen_title">Εφαρμογή κλειδωμένη</string>
+    <string name="app_lock_screen_subtitle">Εισαγάγετε τον κωδικό σας για να συνεχίσετε</string>
+    <string name="app_lock_unlock">Ξεκλείδωμα</string>
+    <string name="app_lock_unlock_biometric">Βιομετρικό ξεκλείδωμα</string>
+    <string name="app_lock_unlocking">Ξεκλειδώνει...</string>
+    <string name="app_lock_password">Κωδικός</string>
+    <string name="app_lock_password_enter">Εισαγωγή κωδικού</string>
+    <string name="app_lock_password_current">Τρέχων κωδικός</string>
+    <string name="app_lock_password_new">Νέος κωδικός</string>
+    <string name="app_lock_password_confirm">Επιβεβαίωση κωδικού</string>
+    <string name="app_lock_password_show">Εμφάνιση κωδικού</string>
+    <string name="app_lock_password_hide">Απόκρυψη κωδικού</string>
+    <string name="app_lock_error_wrong_password">Λάθος κωδικός</string>
+    <string name="app_lock_error_passwords_mismatch">Οι κωδικοί δεν ταιριάζουν</string>
+    <string name="app_lock_error_password_too_short">Ο κωδικός πρέπει να έχει τουλάχιστον 4 χαρακτήρες</string>
+    <string name="app_lock_remaining_attempts">Απομένουσες προσπάθειες: %1$d</string>
+    <string name="app_lock_locked_out">Πολλές αποτυχημένες προσπάθειες. Αποσυνδεθήκατε.</string>
+    <string name="app_lock_biometric_title">Ξεκλείδωμα εφαρμογής</string>
+    <string name="app_lock_biometric_subtitle">Χρησιμοποιήστε τα βιομετρικά σας</string>
+    <string name="app_lock_biometric_failed">Η βιομετρική επαλήθευση απέτυχε</string>
+    <string name="app_lock_disable_confirm_title">Απενεργοποίηση κλειδώματος;</string>
+    <string name="app_lock_disable_confirm_message">Η εφαρμογή δεν θα είναι πλέον προστατευμένη.</string>
+    <string name="settings_section_security">Ασφάλεια</string>
+    <string name="app_lock_change_password_subtitle">Απαιτείται τρέχων κωδικός πρόσβασης</string>
+    <string name="app_lock_biometric_unlock">Βιομετρικό ξεκλείδωμα</string>
+    <string name="app_lock_biometric_unlock_subtitle">Χρήση δακτυλικού αποτυπώματος ή αναγνώρισης προσώπου</string>
 </resources>

@@ -1,0 +1,17 @@
+Version 1.4.47:
+
+✨ New Features:
+- App Lock with password or biometric authentication: Keep your documents private, even if someone gets hold of your phone
+- Choose between 4-digit PIN code or biometric authentication (fingerprint/face)
+- MFA detection: If you have Two-Factor Authentication enabled, you'll be automatically redirected to token login
+
+🔒 Security:
+- App Lock with automatic locking after switching to background
+- Password protection with encrypted storage
+- Biometric authentication for quick access
+- Failsafe: After 5 failed attempts, the app will reset
+
+🔧 Improvements:
+- Clearer error messages for MFA scenarios
+- Consistent terminology throughout the app
+- Optimized onboarding flow for first-time users

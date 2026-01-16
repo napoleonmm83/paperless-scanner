@@ -1,8 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">Paperless Scanner</string>
-
-    <!-- Login -->
     <string name="login_title">Paperless Scanner</string>
     <string name="login_server_url">URL del servidor</string>
     <string name="login_server_url_hint">https://paperless.example.com</string>
@@ -10,8 +8,6 @@
     <string name="login_password">Contraseña</string>
     <string name="login_button">Iniciar sesión</string>
     <string name="login_error">Error de inicio de sesión: %1$s</string>
-
-    <!-- Onboarding Login Screen -->
     <string name="onboarding_back">Atrás</string>
     <string name="onboarding_login_title">Iniciar sesión</string>
     <string name="onboarding_login_subtitle">Inicia sesión con tu cuenta de Paperless-ngx</string>
@@ -26,21 +22,15 @@
     <string name="onboarding_token_help">Encuéntralo en Paperless en: Configuración → Mi perfil</string>
     <string name="onboarding_scan_token">Escanear token con la cámara</string>
     <string name="onboarding_login_button">Iniciar sesión</string>
-
-    <!-- Scan -->
     <string name="scan_title">Escanear documento</string>
     <string name="scan_button">Abrir cámara</string>
     <string name="scan_from_gallery">Desde galería</string>
-
-    <!-- Upload -->
     <string name="upload_title">Subir documento</string>
     <string name="upload_document_title">Título (opcional)</string>
     <string name="upload_select_tags">Seleccionar etiquetas</string>
     <string name="upload_button">Subir</string>
     <string name="upload_success">Documento subido correctamente</string>
     <string name="upload_error">Error al subir: %1$s</string>
-
-    <!-- Upload Screen -->
     <string name="upload_back">Atrás</string>
     <string name="upload_queued">La subida se sincronizará cuando haya conexión</string>
     <string name="upload_tag_created">Etiqueta « %1$s » creada</string>
@@ -54,8 +44,6 @@
     <string name="upload_tags_section_title">Seleccionar etiquetas</string>
     <string name="upload_tag_new">Nuevo</string>
     <string name="upload_tags_show_less">Menos</string>
-
-    <!-- Batch Import Screen -->
     <string name="batch_import_title">Importación por lotes</string>
     <string name="batch_import_back">Atrás</string>
     <string name="batch_import_success_single">¡Documento añadido a la cola!</string>
@@ -66,8 +54,8 @@
     <string name="batch_import_button_individual">Individual</string>
     <string name="batch_import_button_single">Como un documento</string>
     <string name="batch_import_preview">Vista previa</string>
-    <string name="batch_import_title_label"></string>
-    <string name="batch_import_title_placeholder"></string>
+    <string name="batch_import_title_label" />
+    <string name="batch_import_title_placeholder" />
     <string name="batch_import_image_description">Imagen %1$d</string>
     <string name="batch_import_pdf_file">Archivo PDF</string>
     <string name="batch_import_file">Archivo</string>
@@ -88,13 +76,9 @@
     <string name="batch_import_add_more">Añadir más</string>
     <string name="batch_import_rotate">Rotar</string>
     <string name="batch_import_drag_hint">Arrastrar para ordenar</string>
-
-    <!-- Batch Metadata Screen -->
     <string name="batch_metadata_title">Metadatos</string>
     <string name="batch_metadata_mode_single_info">%1$d archivos se fusionarán en un PDF</string>
     <string name="batch_metadata_mode_individual_info">%1$d archivos se subirán individualmente</string>
-
-    <!-- Multi-Page Upload Screen -->
     <string name="multipage_upload_title">Subir PDF</string>
     <string name="multipage_upload_back">Atrás</string>
     <string name="multipage_upload_success">¡PDF de %1$d páginas subido correctamente!</string>
@@ -110,8 +94,6 @@
     <string name="multipage_upload_progress">Subiendo: %1$d%%</string>
     <string name="multipage_upload_uploading">Subiendo PDF...</string>
     <string name="multipage_upload_button">Subir como PDF</string>
-
-    <!-- Document Detail Screen -->
     <string name="document_detail_back">Atrás</string>
     <string name="document_detail_title">DOCUMENTO</string>
     <string name="document_detail_open_browser">Abrir en navegador</string>
@@ -133,16 +115,12 @@
     <string name="document_detail_delete_button">ELIMINAR</string>
     <string name="document_detail_cancel_button">CANCELAR</string>
     <string name="document_detail_edit">Editar</string>
-
-    <!-- Document Detail Tabs -->
     <string name="document_tab_details">Detalles</string>
     <string name="document_tab_content">Contenido</string>
     <string name="document_tab_metadata">Metadatos</string>
     <string name="document_tab_notes">Notas</string>
     <string name="document_tab_history">Historial</string>
     <string name="document_tab_permissions">Permisos</string>
-
-    <!-- Edit Document Dialog -->
     <string name="document_edit_title">EDITAR DOCUMENTO</string>
     <string name="document_edit_title_label">Título</string>
     <string name="document_edit_tags_label">Etiquetas</string>
@@ -153,8 +131,6 @@
     <string name="document_edit_asn_label">NSA (Número de serie de archivo)</string>
     <string name="document_edit_save">GUARDAR</string>
     <string name="document_edit_cancel">CANCELAR</string>
-
-    <!-- Labels Screen -->
     <string name="labels_title">ETIQUETAS</string>
     <string name="labels_subtitle">Gestiona tus etiquetas</string>
     <string name="labels_search_placeholder">Buscar etiquetas...</string>
@@ -199,16 +175,12 @@
     <string name="labels_filter_many_docs">Más de 5 documentos</string>
     <string name="labels_apply_button">Aplicar</string>
     <string name="labels_reset_button">Restablecer</string>
-
-    <!-- Welcome Screen -->
     <string name="welcome_subtitle">El compañero móvil para tu\ninstalación de Paperless-ngx</string>
     <string name="welcome_feature_1">Escaneo inteligente con detección de bordes</string>
     <string name="welcome_feature_2">Crear documentos de varias páginas</string>
     <string name="welcome_feature_3">Subir directamente a Paperless-ngx</string>
     <string name="welcome_button">Empezar</string>
     <string name="welcome_footer">Necesitas tu propia instalación de Paperless-ngx</string>
-
-    <!-- Server Setup Screen -->
     <string name="server_setup_back">Atrás</string>
     <string name="server_setup_title">Conectar servidor</string>
     <string name="server_setup_subtitle">Introduce la URL de tu instalación de Paperless-ngx</string>
@@ -221,8 +193,6 @@
     <string name="server_setup_hint_title">Conexión segura recomendada</string>
     <string name="server_setup_hint_text">Usa HTTPS para una conexión cifrada a tu servidor.</string>
     <string name="server_setup_button">Continuar</string>
-
-    <!-- Success Screen -->
     <string name="success_title">¡Todo listo!</string>
     <string name="success_subtitle">Estás conectado y ya puedes\nescanear y subir documentos.</string>
     <string name="success_stat_scanned">Escaneado hoy</string>
@@ -232,8 +202,6 @@
     <string name="success_tip_2">La app detecta los bordes automáticamente</string>
     <string name="success_tip_3">Puedes seleccionar etiquetas antes de subir</string>
     <string name="success_button">Iniciar app</string>
-
-    <!-- Documents Screen -->
     <string name="documents_title">DOCUMENTOS</string>
     <string name="documents_count">%1$d documentos</string>
     <string name="documents_search_placeholder">Buscar documentos...</string>
@@ -243,8 +211,6 @@
     <string name="documents_empty_no_documents">Sin documentos</string>
     <string name="documents_empty_hint_search">Prueba con otro término de búsqueda</string>
     <string name="documents_empty_hint_scan">Escanea documentos para verlos aquí</string>
-
-    <!-- Scan Screen -->
     <string name="scan_page_removed">Página %1$d eliminada</string>
     <string name="scan_undo">Deshacer</string>
     <string name="scan_scanner_error">No se pudo iniciar el escáner: %1$s</string>
@@ -270,8 +236,6 @@
     <string name="scan_add_page">Añadir página</string>
     <string name="scan_close">Cerrar</string>
     <string name="scan_delete">Eliminar</string>
-
-    <!-- Home Screen -->
     <string name="home_welcome_back">BIENVENIDO DE NUEVO</string>
     <string name="home_your_archive">TU ARCHIVO</string>
     <string name="home_stat_documents">Documentos</string>
@@ -292,8 +256,6 @@
     <string name="home_task_success">Exitoso</string>
     <string name="home_task_failure">Fallido</string>
     <string name="home_dismiss">Descartar</string>
-
-    <!-- Pending Sync Screen -->
     <string name="pending_sync_back">Atrás</string>
     <string name="pending_sync_title">SINCRONIZACIONES PENDIENTES</string>
     <string name="pending_sync_upload_queue">Cola de subida</string>
@@ -314,8 +276,6 @@
     <string name="pending_sync_status_uploading">Subiendo</string>
     <string name="pending_sync_status_completed">Completado</string>
     <string name="pending_sync_status_failed">Fallido</string>
-
-    <!-- Settings Screen -->
     <string name="settings_title">CONFIGURACIÓN</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">No conectado</string>
@@ -335,20 +295,14 @@
     <string name="settings_selected">Seleccionado</string>
     <string name="settings_close">Cerrar</string>
     <string name="settings_theme">Tema</string>
-
-    <!-- Theme Settings -->
     <string name="theme_mode_system">Sistema</string>
     <string name="theme_mode_light">Claro</string>
     <string name="theme_mode_dark">Oscuro</string>
-
-    <!-- Create Tag Dialog -->
     <string name="create_tag_title">Crear nueva etiqueta</string>
     <string name="create_tag_name_label">Nombre de la etiqueta</string>
     <string name="create_tag_color_label">Color (opcional)</string>
     <string name="create_tag_create">Crear</string>
     <string name="create_tag_cancel">Cancelar</string>
-
-    <!-- PDF Viewer Screen -->
     <string name="pdf_viewer_back">Atrás</string>
     <string name="pdf_viewer_page_info">Página %1$d de %2$d</string>
     <string name="pdf_viewer_share">Compartir</string>
@@ -358,39 +312,27 @@
     <string name="pdf_viewer_pdf_page">Página PDF %1$d</string>
     <string name="pdf_viewer_document_image">Imagen del documento</string>
     <string name="pdf_viewer_retry">Reintentar</string>
-
-    <!-- Upload Errors -->
     <string name="upload_error_generic">Error al subir</string>
     <string name="error_queue_add">Error al añadir a la cola</string>
     <string name="error_create_tag">No se pudo crear la etiqueta</string>
     <string name="error_analyze_document">No se pudo analizar el documento</string>
     <string name="pdf_viewer_default_title">Documento</string>
-
-    <!-- General -->
     <string name="loading">Cargando...</string>
     <string name="retry">Reintentar</string>
     <string name="cancel">Cancelar</string>
     <string name="ok">OK</string>
-
-    <!-- Widget -->
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Acceso rápido para escanear documentos</string>
-
-    <!-- Upload Quality Settings -->
     <string name="upload_quality_auto">Automático</string>
     <string name="upload_quality_low">Baja (subida más rápida)</string>
     <string name="upload_quality_medium">Media</string>
     <string name="upload_quality_high">Alta (mejor calidad)</string>
-
-    <!-- Time Formatting -->
     <string name="time_just_now">Ahora mismo</string>
     <string name="time_minutes_ago">hace %1$d min</string>
     <string name="time_hours_ago">hace %1$d h</string>
     <string name="time_days_ago">hace %1$d días</string>
     <string name="time_unknown">Desconocido</string>
     <string name="document_unknown">Documento desconocido</string>
-
-    <!-- Document Tabs -->
     <string name="tab_no_text_content">Sin contenido de texto disponible</string>
     <string name="tab_metadata">Metadatos</string>
     <string name="tab_metadata_created">Creado</string>
@@ -418,8 +360,6 @@
     <string name="tab_permissions_users">Usuarios: %1$s</string>
     <string name="tab_permissions_groups">Grupos: %1$s</string>
     <string name="tab_permissions_unavailable">Sin información de permisos disponible</string>
-
-    <!-- Error Messages -->
     <string name="error_loading">Error al cargar</string>
     <string name="error_creating">Error al crear</string>
     <string name="error_updating">Error al actualizar</string>
@@ -433,8 +373,6 @@
     <string name="error_login_failed">Error de inicio de sesión</string>
     <string name="error_token_invalid">Token inválido</string>
     <string name="error_server_unreachable">Servidor inaccesible</string>
-
-    <!-- Token Scanner -->
     <string name="token_scanner_title">Escanear token</string>
     <string name="token_scanner_capturing">Capturando foto de alta resolución...</string>
     <string name="token_scanner_found">¡Token encontrado!</string>
@@ -451,12 +389,7 @@
     <string name="token_scanner_auto_active">Detección automática activa • Toca manualmente como alternativa</string>
     <string name="token_scanner_hold_camera">Mantén la cámara estable - Detección automática en curso</string>
     <string name="token_scanner_close">Cerrar</string>
-
-    <!-- Share -->
     <string name="share_via">Compartir vía</string>
-
-
-    <!-- Analytics Consent -->
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Help us improve the app</string>
     <string name="analytics_consent_description">We collect anonymous usage data to improve the app. No personal data is collected.</string>
@@ -468,8 +401,6 @@
     <string name="analytics_consent_decline">Decline</string>
     <string name="analytics_settings_title">Analytics &amp; Crash Reports</string>
     <string name="analytics_settings_subtitle">Anonymous data to improve the app</string>
-
-    <!-- Content Descriptions (Accessibility) -->
     <string name="cd_search">Search documents</string>
     <string name="cd_menu">Open menu</string>
     <string name="cd_close">Close</string>
@@ -548,8 +479,6 @@
     <string name="cd_security_tip">Security tip</string>
     <string name="cd_app_logo">Paperless Scanner logo</string>
     <string name="cd_feature_highlight">Feature</string>
-
-    <!-- Permissions Edit -->
     <string name="tab_permissions_edit">Editar permisos</string>
     <string name="tab_permissions_save">Guardar</string>
     <string name="tab_permissions_cancel">Cancelar</string>
@@ -561,8 +490,6 @@
     <string name="tab_permissions_save_success">Permisos guardados correctamente</string>
     <string name="tab_permissions_no_edit_permission">Sin permiso para editar</string>
     <string name="tab_permissions_selected">%1$d seleccionado(s)</string>
-
-    <!-- AI Usage Limits -->
     <string name="ai_limit_info_title">Información de uso de IA</string>
     <string name="ai_limit_info_message">Estás usando funciones de IA intensivamente (%1$d de 300 llamadas este mes). ¡Controla tu uso!</string>
     <string name="ai_limit_warning_title">Límite de IA Casi Alcanzado</string>
@@ -576,15 +503,11 @@
     <string name="ai_analyzing">Analizando documento con IA...</string>
     <string name="ai_suggestions_ready">Sugerencias de IA listas</string>
     <string name="ai_no_suggestions">No hay sugerencias disponibles</string>
-
-    <!-- Premium / Subscription -->
     <string name="premium_section_title">ASISTENTE IA</string>
     <string name="premium_badge">PRO</string>
     <string name="premium_status_active">Premium activo hasta %1$s</string>
     <string name="premium_status_inactive">Desbloquear Premium</string>
     <string name="premium_unlock">Desbloquear Premium</string>
-
-    <!-- Premium Settings -->
     <string name="premium_settings_ai_suggestions">Sugerencias IA</string>
     <string name="premium_settings_ai_suggestions_desc">Sugerencias automáticas de etiquetas con IA</string>
     <string name="premium_settings_wifi_only">Solo WiFi</string>
@@ -594,8 +517,6 @@
     <string name="premium_settings_manage_subscription">Gestionar suscripción</string>
     <string name="premium_settings_restore_purchases">Restaurar compras</string>
     <string name="premium_required">Premium requerido</string>
-
-    <!-- Premium Upgrade Sheet -->
     <string name="premium_upgrade_title">Desbloquear asistente IA</string>
     <string name="premium_upgrade_subtitle">Análisis inteligente de documentos con IA</string>
     <string name="premium_feature_ai_analysis">Sugerencias automáticas de etiquetas</string>
@@ -608,8 +529,6 @@
     <string name="premium_feature_ai_type_desc">Detecta factura, contrato, carta, etc.</string>
     <string name="premium_feature_unlimited">Análisis IA ilimitados</string>
     <string name="premium_feature_unlimited_desc">Sin límites mensuales</string>
-
-    <!-- Subscription Options -->
     <string name="premium_option_monthly">Mensual</string>
     <string name="premium_option_yearly">Anual</string>
     <string name="premium_price_monthly">%1$s / mes</string>
@@ -618,8 +537,6 @@
     <string name="premium_button_upgrade">Actualizar ahora</string>
     <string name="premium_button_later">Más tarde</string>
     <string name="premium_button_restore">Restaurar compras</string>
-
-    <!-- Suggestions Section -->
     <string name="suggestions_title">Sugerencias</string>
     <string name="suggestions_ai_title">Sugerencias IA</string>
     <string name="suggestions_analyzing">Analizando documento...</string>
@@ -639,8 +556,6 @@
     <string name="cd_suggestions">Sugerencias</string>
     <string name="cd_ai_sparkle">Función IA</string>
     <string name="cd_apply_suggestion">Aplicar sugerencia</string>
-
-    <!-- Premium Messages -->
     <string name="premium_status">Premium Status</string>
     <string name="premium_purchase_success">¡Premium activado con éxito!</string>
     <string name="premium_purchase_cancelled">Compra cancelada</string>
@@ -652,9 +567,6 @@
     <string name="settings_debug_mode_enabled">Modo desarrollador IA activado</string>
     <string name="settings_debug_mode_disabled">Modo desarrollador IA desactivado</string>
     <string name="settings_debug_mode_already_enabled">El modo desarrollador ya está activado</string>
-
-
-    <!-- Tag Suggestions Sheet -->
     <string name="tag_suggestions_title">Etiquetado inteligente</string>
     <string name="tag_suggestions_progress">%1$d de %2$d etiquetados</string>
     <string name="tag_suggestions_complete">¡Listo!</string>
@@ -684,4 +596,44 @@
     <string name="smart_tagging_suggested_new_tags">Nuevas Etiquetas Sugeridas</string>
     <string name="smart_tagging_suggested_new_tags_hint">Estas etiquetas aún no existen. Toca para crearlas.</string>
     <string name="error_ssl_certificate">SSL certificate invalid</string>
+    <string name="app_lock_title">Bloqueo de aplicación</string>
+    <string name="app_lock_subtitle">Protege la aplicación con contraseña o biometría</string>
+    <string name="app_lock_enabled">Bloqueo activado</string>
+    <string name="app_lock_disabled">Bloqueo desactivado</string>
+    <string name="app_lock_setup_password">Establecer contraseña</string>
+    <string name="app_lock_change_password">Cambiar contraseña</string>
+    <string name="app_lock_enable_biometric">Activar desbloqueo biométrico</string>
+    <string name="app_lock_disable_biometric">Desactivar desbloqueo biométrico</string>
+    <string name="app_lock_timeout">Bloqueo automático</string>
+    <string name="app_lock_timeout_immediate">Inmediatamente</string>
+    <string name="app_lock_timeout_1min">1 Minuto</string>
+    <string name="app_lock_timeout_5min">5 Minutos</string>
+    <string name="app_lock_timeout_15min">15 Minutos</string>
+    <string name="app_lock_timeout_30min">30 Minutos</string>
+    <string name="app_lock_screen_title">Aplicación bloqueada</string>
+    <string name="app_lock_screen_subtitle">Introduce tu contraseña para continuar</string>
+    <string name="app_lock_unlock">Desbloquear</string>
+    <string name="app_lock_unlock_biometric">Desbloquear con biometría</string>
+    <string name="app_lock_unlocking">Desbloqueando...</string>
+    <string name="app_lock_password">Contraseña</string>
+    <string name="app_lock_password_enter">Introducir contraseña</string>
+    <string name="app_lock_password_current">Contraseña actual</string>
+    <string name="app_lock_password_new">Nueva contraseña</string>
+    <string name="app_lock_password_confirm">Confirmar contraseña</string>
+    <string name="app_lock_password_show">Mostrar contraseña</string>
+    <string name="app_lock_password_hide">Ocultar contraseña</string>
+    <string name="app_lock_error_wrong_password">Contraseña incorrecta</string>
+    <string name="app_lock_error_passwords_mismatch">Las contraseñas no coinciden</string>
+    <string name="app_lock_error_password_too_short">La contraseña debe tener al menos 4 caracteres</string>
+    <string name="app_lock_remaining_attempts">Intentos restantes: %1$d</string>
+    <string name="app_lock_locked_out">Demasiados intentos fallidos. Has sido desconectado.</string>
+    <string name="app_lock_biometric_title">Desbloquear aplicación</string>
+    <string name="app_lock_biometric_subtitle">Usa tu biometría</string>
+    <string name="app_lock_biometric_failed">Falló la autenticación biométrica</string>
+    <string name="app_lock_disable_confirm_title">¿Desactivar bloqueo?</string>
+    <string name="app_lock_disable_confirm_message">La aplicación ya no estará protegida.</string>
+    <string name="settings_section_security">Seguridad</string>
+    <string name="app_lock_change_password_subtitle">Contraseña actual requerida</string>
+    <string name="app_lock_biometric_unlock">Desbloqueo biométrico</string>
+    <string name="app_lock_biometric_unlock_subtitle">Usar huella digital o reconocimiento facial</string>
 </resources>

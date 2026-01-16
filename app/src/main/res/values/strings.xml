@@ -322,6 +322,7 @@
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
     <string name="settings_not_configured">Nicht konfiguriert</string>
+    <string name="settings_section_security">Sicherheit</string>
     <string name="settings_section_upload">Upload</string>
     <string name="settings_upload_notifications">Upload-Benachrichtigungen</string>
     <string name="settings_upload_notifications_subtitle">Zeige Benachrichtigung während des Uploads</string>
@@ -684,4 +685,45 @@
     <string name="smart_tagging_completed_desc">Du hast %1$d Dokumente getaggt. Gut gemacht!</string>
     <string name="smart_tagging_suggested_new_tags">Vorgeschlagene neue Tags</string>
     <string name="smart_tagging_suggested_new_tags_hint">Diese Tags existieren noch nicht. Tippe um sie zu erstellen.</string>
+
+    <!-- App-Lock -->
+    <string name="app_lock_title">App-Sperre</string>
+    <string name="app_lock_subtitle">Schütze die App mit Passwort oder Biometrie</string>
+    <string name="app_lock_enabled">App-Sperre aktiviert</string>
+    <string name="app_lock_disabled">App-Sperre deaktiviert</string>
+    <string name="app_lock_setup_password">Passwort festlegen</string>
+    <string name="app_lock_change_password">Passwort ändern</string>
+    <string name="app_lock_change_password_subtitle">Aktuelles Passwort erforderlich</string>
+    <string name="app_lock_biometric_unlock">Biometrische Entsperrung</string>
+    <string name="app_lock_biometric_unlock_subtitle">Fingerabdruck oder Gesichtserkennung verwenden</string>
+    <string name="app_lock_enable_biometric">Biometrische Entsperrung aktivieren</string>
+    <string name="app_lock_disable_biometric">Biometrische Entsperrung deaktivieren</string>
+    <string name="app_lock_timeout">Automatische Sperre</string>
+    <string name="app_lock_timeout_immediate">Sofort</string>
+    <string name="app_lock_timeout_1min">1 Minute</string>
+    <string name="app_lock_timeout_5min">5 Minuten</string>
+    <string name="app_lock_timeout_15min">15 Minuten</string>
+    <string name="app_lock_timeout_30min">30 Minuten</string>
+    <string name="app_lock_screen_title">App gesperrt</string>
+    <string name="app_lock_screen_subtitle">Gib dein Passwort ein, um fortzufahren</string>
+    <string name="app_lock_unlock">Entsperren</string>
+    <string name="app_lock_unlock_biometric">Biometrisch entsperren</string>
+    <string name="app_lock_unlocking">Entsperren...</string>
+    <string name="app_lock_password">Passwort</string>
+    <string name="app_lock_password_enter">Passwort eingeben</string>
+    <string name="app_lock_password_current">Aktuelles Passwort</string>
+    <string name="app_lock_password_new">Neues Passwort</string>
+    <string name="app_lock_password_confirm">Passwort bestätigen</string>
+    <string name="app_lock_password_show">Passwort anzeigen</string>
+    <string name="app_lock_password_hide">Passwort verbergen</string>
+    <string name="app_lock_error_wrong_password">Falsches Passwort</string>
+    <string name="app_lock_error_passwords_mismatch">Passwörter stimmen nicht überein</string>
+    <string name="app_lock_error_password_too_short">Passwort muss mindestens 4 Zeichen lang sein</string>
+    <string name="app_lock_remaining_attempts">Verbleibende Versuche: %1$d</string>
+    <string name="app_lock_locked_out">Zu viele Fehlversuche. Du wurdest ausgeloggt.</string>
+    <string name="app_lock_biometric_title">App entsperren</string>
+    <string name="app_lock_biometric_subtitle">Verwende deine Biometrie</string>
+    <string name="app_lock_biometric_failed">Biometrische Authentifizierung fehlgeschlagen</string>
+    <string name="app_lock_disable_confirm_title">App-Sperre deaktivieren?</string>
+    <string name="app_lock_disable_confirm_message">Die App wird nicht mehr geschützt sein.</string>
 </resources>

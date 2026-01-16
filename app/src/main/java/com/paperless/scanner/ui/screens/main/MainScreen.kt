@@ -67,7 +67,10 @@ fun MainScreen(
                 onDocumentClick = onDocumentClick
             )
             Screen.Settings.route -> SettingsScreen(
-                onLogout = onLogout
+                onLogout = onLogout,
+                onNavigateToSetupAppLock = { isChangingPassword ->
+                    navController.navigate(Screen.SetupAppLock.createRoute(isChangingPassword))
+                }
             )
         }
     }
