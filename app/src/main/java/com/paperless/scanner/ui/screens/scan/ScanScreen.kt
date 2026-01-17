@@ -133,6 +133,11 @@ fun ScanScreen(
     val scannerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
+        // SECURITY: CRITICAL - Resume timeout IMMEDIATELY when scanner returns
+        // This MUST happen BEFORE any other logic (even error handling)
+        // Ensures timeout resumes correctly on: Success, Cancel, Error, Crash
+        viewModel.appLockManager.resumeFromScanner()
+
         if (result.resultCode == Activity.RESULT_OK) {
             val scanningResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
             val pageUris = scanningResult?.pages?.mapNotNull { it.imageUri } ?: emptyList()
@@ -202,11 +207,17 @@ fun ScanScreen(
     fun startScanner() {
         scanner.getStartScanIntent(context as Activity)
             .addOnSuccessListener { intentSender ->
+                // SECURITY: Suspend timeout IMMEDIATELY BEFORE launching scanner
+                // This must be as close as possible to the launch() call to prevent race condition
+                // between suspend() and onStop() lifecycle callback
+                viewModel.appLockManager.suspendForScanner()
+
                 scannerLauncher.launch(
                     IntentSenderRequest.Builder(intentSender).build()
                 )
             }
             .addOnFailureListener { e ->
+                // No need to resume here - we never suspended in this failure path
                 scope.launch {
                     snackbarHostState.showSnackbar(
                         context.getString(R.string.scan_scanner_error, e.message ?: "")

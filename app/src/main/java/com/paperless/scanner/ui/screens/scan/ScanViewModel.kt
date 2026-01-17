@@ -80,6 +80,7 @@ class ScanViewModel @Inject constructor(
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
+    val appLockManager: com.paperless.scanner.util.AppLockManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
 

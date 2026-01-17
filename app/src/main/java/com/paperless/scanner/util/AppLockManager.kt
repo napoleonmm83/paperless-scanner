@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -10,7 +11,9 @@ import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,13 +27,51 @@ import javax.inject.Singleton
  * App-Lock Manager
  *
  * Manages app-wide lock state with password and/or biometric protection.
- * Features:
+ *
+ * FEATURES:
  * - Session-based locking (only when user is logged in)
  * - Configurable timeout (immediate, 1min, 5min, 15min, 30min)
  * - BCrypt password hashing
  * - Biometric unlock support
  * - Fail-safe: 5 wrong attempts → logout + disable app-lock
  * - Lifecycle-aware: locks on background after timeout
+ * - Scanner suspend/resume: Pauses timeout during MLKit scanner activity
+ *
+ * SECURITY - SUSPEND/RESUME PATTERN:
+ * Problem: MLKit Scanner runs as external Activity → App goes to background → Timeout triggers
+ * Solution: Suspend timeout while scanner is active
+ *
+ * MITIGATIONS IMPLEMENTED:
+ * 1. Unbalanced Calls Protection
+ *    - Duplicate suspend() calls are ignored
+ *    - Missing resume() calls are handled gracefully
+ *    - Auto-resume after MAX_SUSPEND_DURATION (10 minutes)
+ *
+ * 2. Process Death Protection
+ *    - Suspended state is NEVER persisted (in-memory only)
+ *    - Cold start detection: Force resume on app start if suspended
+ *    - Prevents "stuck suspended" vulnerability after crash/force-kill
+ *
+ * 3. Time Manipulation Protection
+ *    - Uses SystemClock.elapsedRealtime() (monotonic clock) for suspend timing
+ *    - Immune to system time changes
+ *
+ * 4. Maximum Suspend Duration
+ *    - Auto-resumes after 10 minutes even if scanner still running
+ *    - Prevents indefinite suspended state attacks
+ *
+ * 5. Scanner Failure Protection
+ *    - Resume called on scanner startup failure
+ *    - Resume called on all scanner exit paths (success, cancel, error)
+ *
+ * USAGE:
+ * ```kotlin
+ * // In ScanScreen, BEFORE starting scanner:
+ * appLockManager.suspendForScanner()
+ *
+ * // In scanner result callback (ALWAYS, even on cancel/error):
+ * appLockManager.resumeFromScanner()
+ * ```
  */
 @Singleton
 class AppLockManager @Inject constructor(
@@ -47,12 +88,23 @@ class AppLockManager @Inject constructor(
     private var failedAttempts: Int = 0
     private var lockoutUntil: Long = 0L
 
+    // Suspend/Resume Pattern for Scanner (Security)
+    // CRITICAL: In-memory only, NEVER persisted to prevent "stuck suspended" vulnerability
+    private var isSuspended: Boolean = false
+    private var suspendStartTime: Long = 0L // Uses SystemClock.elapsedRealtime() for monotonic time
+    private var suspendedBy: String? = null // For debugging
+    private var autoResumeJob: Job? = null // Auto-resume coroutine job
+
     companion object {
         private const val TAG = "AppLockManager"
         private const val BCRYPT_ROUNDS = 10
         private const val MAX_FAILED_ATTEMPTS = 5
         private const val LOCKOUT_DURATION_MILLIS = 30 * 60 * 1000L // 30 minutes
         private const val MAX_TOTAL_ATTEMPTS = 15 // After this, permanent logout
+
+        // SECURITY: Maximum time timeout can be suspended (10 minutes)
+        // Prevents "permanently suspended" attack if resume() is never called
+        private const val MAX_SUSPEND_DURATION_MILLIS = 10 * 60 * 1000L
     }
 
     init {
@@ -210,6 +262,97 @@ class AppLockManager @Inject constructor(
     }
 
     /**
+     * Suspend timeout for MLKit Scanner.
+     *
+     * SECURITY FEATURES:
+     * - Prevents duplicate suspend calls
+     * - Uses monotonic clock (SystemClock.elapsedRealtime) to prevent time manipulation
+     * - Auto-resumes after MAX_SUSPEND_DURATION_MILLIS (10 minutes)
+     * - In-memory only (never persisted) to prevent "stuck suspended" vulnerability
+     *
+     * Called when MLKit Document Scanner starts.
+     */
+    fun suspendForScanner() {
+        if (isSuspended) {
+            Log.w(TAG, "Timeout already suspended by '$suspendedBy', ignoring duplicate suspend() call")
+            return
+        }
+
+        isSuspended = true
+        suspendStartTime = SystemClock.elapsedRealtime() // Monotonic clock, immune to time changes
+        suspendedBy = "mlkit_scanner"
+
+        Log.d(TAG, "⏸️ Timeout suspended for scanner (max ${MAX_SUSPEND_DURATION_MILLIS / 60000} minutes)")
+
+        // SECURITY: Auto-resume after MAX_SUSPEND_DURATION as safety fallback
+        // Prevents permanently suspended state if resume() is never called (crash, force-kill, etc.)
+        autoResumeJob?.cancel()
+        autoResumeJob = scope.launch {
+            delay(MAX_SUSPEND_DURATION_MILLIS)
+            if (isSuspended) {
+                Log.w(TAG, "⚠️ Max suspend duration reached (${MAX_SUSPEND_DURATION_MILLIS / 60000} min), force auto-resuming for security")
+                resumeFromScanner()
+            }
+        }
+    }
+
+    /**
+     * Resume timeout after MLKit Scanner completes.
+     *
+     * SECURITY FEATURES:
+     * - Handles missing suspend() call gracefully
+     * - Cancels auto-resume job
+     * - Resets backgroundTimestamp to current time so next lock check works correctly
+     *
+     * Called when MLKit Document Scanner returns (success, cancel, or error).
+     */
+    fun resumeFromScanner() {
+        if (!isSuspended) {
+            Log.w(TAG, "Timeout not suspended, ignoring resume() call")
+            return
+        }
+
+        val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
+        Log.d(TAG, "▶️ Resumed after ${suspendDuration}ms suspend (${suspendDuration / 1000}s)")
+
+        // Cancel auto-resume job
+        autoResumeJob?.cancel()
+        autoResumeJob = null
+
+        isSuspended = false
+        suspendStartTime = 0L
+        suspendedBy = null
+
+        // CRITICAL: Reset backgroundTimestamp to NOW so next timeout check starts fresh
+        // This prevents immediate lock trigger after resuming
+        backgroundTimestamp = System.currentTimeMillis()
+    }
+
+    /**
+     * Check if timeout should be suspended (scanner is active).
+     *
+     * SECURITY: Auto-resumes if suspended duration exceeds MAX_SUSPEND_DURATION_MILLIS.
+     * This prevents attacks where suspend state is kept indefinitely.
+     *
+     * @return true if timeout check should be skipped (scanner active)
+     */
+    private fun shouldSkipTimeoutCheck(): Boolean {
+        if (!isSuspended) return false
+
+        val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
+
+        // SECURITY: Force auto-resume if suspended too long
+        if (suspendDuration > MAX_SUSPEND_DURATION_MILLIS) {
+            Log.w(TAG, "⚠️ Suspend duration exceeded max (${suspendDuration / 60000} min), force resuming")
+            resumeFromScanner()
+            return false
+        }
+
+        Log.d(TAG, "⏸️ Timeout check skipped (suspended for ${suspendDuration / 1000}s)")
+        return true
+    }
+
+    /**
      * Check if app-lock should be active.
      * Returns true if user is logged in and app-lock is enabled.
      */
@@ -284,29 +427,63 @@ class AppLockManager @Inject constructor(
     override fun onStop(owner: LifecycleOwner) {
         super.onStop(owner)
         // App moved to background
-        backgroundTimestamp = System.currentTimeMillis()
-        Log.d(TAG, "onStop: App moved to background, timestamp=$backgroundTimestamp")
 
-        // IMPORTANT: Set to Unlocked so onStart() will trigger a state change
-        // This ensures LaunchedEffect(lockState) in Compose always fires
-        scope.launch {
-            if (shouldLock()) {
-                Log.d(TAG, "onStop: Setting to Unlocked (will be locked by onStart if timeout elapsed)")
-                _lockState.update { AppLockState.Unlocked }
+        // SECURITY: Only set backgroundTimestamp if NOT suspended
+        // If suspended (scanner running), we don't want to start timeout countdown
+        if (!isSuspended) {
+            backgroundTimestamp = System.currentTimeMillis()
+            Log.d(TAG, "onStop: App moved to background, timestamp=$backgroundTimestamp")
+
+            // IMPORTANT: Set to Unlocked so onStart() will trigger a state change
+            // This ensures LaunchedEffect(lockState) in Compose always fires
+            scope.launch {
+                if (shouldLock()) {
+                    Log.d(TAG, "onStop: Setting to Unlocked (will be locked by onStart if timeout elapsed)")
+                    _lockState.update { AppLockState.Unlocked }
+                }
             }
+        } else {
+            Log.d(TAG, "onStop: App moved to background but timeout is SUSPENDED (scanner active), NOT setting timestamp")
         }
     }
 
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
         Log.d(TAG, "onStart: App moved to foreground")
+
+        // SECURITY: CRITICAL Cold Start Protection
+        // If app starts while suspended (after process death, crash, force-kill),
+        // force resume to prevent "stuck suspended" vulnerability
+        // EXCEPTION: If suspended for less than 1 second, it's likely a legitimate scanner startup
+        // In that case, DON'T force resume - let the scanner run
+        if (isSuspended) {
+            val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
+            if (suspendDuration > 1000L) { // More than 1 second
+                Log.w(TAG, "⚠️ SECURITY: App started while suspended for ${suspendDuration}ms - force resuming (likely process death/crash)")
+                resumeFromScanner()
+                // CRITICAL: Return immediately after force-resume!
+                // DO NOT continue to timeout check, as resumeFromScanner() just reset backgroundTimestamp
+                // If we continue, we'll immediately lock because elapsed time is ~0ms
+                Log.d(TAG, "onStart: Force-resumed, skipping timeout check this time")
+                return
+            } else {
+                Log.d(TAG, "onStart: App suspended for only ${suspendDuration}ms - scanner just started, keeping suspended state")
+            }
+        }
+
         // App moved to foreground - check if we should lock
         scope.launch {
             val shouldLock = shouldLock()
             val currentState = _lockState.value
-            Log.d(TAG, "onStart: shouldLock=$shouldLock, currentState=$currentState, backgroundTimestamp=$backgroundTimestamp")
+            Log.d(TAG, "onStart: shouldLock=$shouldLock, currentState=$currentState, backgroundTimestamp=$backgroundTimestamp, isSuspended=$isSuspended")
 
             if (shouldLock) {
+                // SECURITY: Skip timeout check if suspended (scanner active)
+                if (shouldSkipTimeoutCheck()) {
+                    Log.d(TAG, "onStart: Timeout check SKIPPED (scanner active)")
+                    return@launch
+                }
+
                 // If backgroundTimestamp is 0, this is the first start (or after cold boot)
                 // In this case, lock immediately regardless of timeout
                 if (backgroundTimestamp == 0L) {
