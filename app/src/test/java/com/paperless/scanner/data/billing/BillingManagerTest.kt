@@ -152,7 +152,7 @@ class BillingManagerTest {
     }
 
     @Test
-    fun `launchPurchaseFlow returns Success when billing flow succeeds`() = runTest {
+    fun `launchPurchaseFlow returns Success when purchase completes`() = runTest {
         billingManager.initialize()
 
         // Setup product with offer token
@@ -167,11 +167,24 @@ class BillingManagerTest {
         val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_MONTHLY to mockProductDetails)
         setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
 
-        // Mock launchBillingFlow to return OK
+        // Mock launchBillingFlow to return OK (dialog launched)
         val mockBillingResult = mockk<BillingResult> {
             every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
         }
-        every { mockBillingClient.launchBillingFlow(any(), any()) } returns mockBillingResult
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // Immediately trigger purchasesUpdatedListener with success
+            val mockPurchase = mockk<Purchase>(relaxed = true) {
+                every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                every { products } returns listOf(BillingManager.PRODUCT_ID_MONTHLY)
+            }
+            val successResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(successResult, listOf(mockPurchase))
+            mockBillingResult
+        }
 
         val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_MONTHLY)
 
@@ -193,10 +206,20 @@ class BillingManagerTest {
         val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_YEARLY to mockProductDetails)
         setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
 
+        // Mock launchBillingFlow to return OK, then trigger cancel
         val mockBillingResult = mockk<BillingResult> {
-            every { responseCode } returns BillingClient.BillingResponseCode.USER_CANCELED
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
         }
-        every { mockBillingClient.launchBillingFlow(any(), any()) } returns mockBillingResult
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // Immediately trigger purchasesUpdatedListener with cancellation
+            val cancelResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.USER_CANCELED
+                every { debugMessage } returns "User cancelled"
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(cancelResult, null)
+            mockBillingResult
+        }
 
         val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_YEARLY)
 
