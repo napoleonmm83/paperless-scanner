@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/napoleonmm83/paperless-scanner/tree/main/docs
+    about: Read the comprehensive documentation
+  - name: ❓ FAQ
+    url: https://github.com/napoleonmm83/paperless-scanner#-faq
+    about: Check frequently asked questions
+  - name: 💬 Community Discussion (r/paperlessngx)
+    url: https://reddit.com/r/paperlessngx
+    about: Join the Paperless-ngx community on Reddit
+  - name: 💬 Community Discussion (r/paperless)
+    url: https://reddit.com/r/paperless
+    about: Join the Paperless community on Reddit
