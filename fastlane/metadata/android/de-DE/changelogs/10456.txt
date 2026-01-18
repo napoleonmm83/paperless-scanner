@@ -1,0 +1,15 @@
+Version 1.4.56:
+
+✨ Neue Features:
+- Pull-to-Refresh: Nach unten ziehen zum Aktualisieren
+- Auto-Sync alle 30 Min
+
+🐛 Fehlerbehebungen:
+- Korrekte Dokumentenzahl auf HomeScreen
+- Zuverlässige Web-Synchronisierung
+- Multi-Device Sync behoben
+
+🔧 Verbesserungen:
+- Batteriesparende Synchronisierung (30-Min-Intervall)
+- Auto-Update bei App-Wechsel
+- Schnellere Updates nach Upload/Delete

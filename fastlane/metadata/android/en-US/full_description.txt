@@ -1,43 +1,98 @@
-Paperless Scanner is the mobile companion for your Paperless-ngx installation. Scan documents on the go and upload them directly to your paperless archive.
+Transform your Android phone into a powerful document scanner with AI-powered metadata suggestions. Paperless Scanner is the native mobile client for Paperless-ngx that makes document management effortless.
 
-📄 SMART SCANNING
-• Automatic edge detection
-• Perspective correction
-• Optimized image quality
+📸 SMART DOCUMENT SCANNING
+• MLKit-powered scanner with automatic edge detection
+• Crystal-clear scan quality with perspective correction
+• Multi-page documents (combine up to 20 pages)
+• Reorder, rotate, or delete pages before uploading
+• Batch import from gallery
 
-📑 MULTI-PAGE DOCUMENTS
-• Scan multiple pages (up to 20)
-• Reorder or delete pages
-• Automatic PDF creation
+🤖 AI-POWERED ORGANIZATION (Premium)
+• Automatic tag suggestions based on document content
+• Smart title extraction
+• Intelligent correspondent matching
+• Date recognition
+• Save 30-60 seconds per document
+• Fair use policy - scan as much as you need
 
-🏷️ ORGANIZATION
-• Select or create new tags
-• Assign document type
-• Set correspondent
-• Add title
+🏷️ MANUAL ORGANIZATION (Free)
+• Select from your existing tags
+• Assign document types
+• Set correspondents
+• Add custom titles
+• Full control over your metadata
 
-📤 BATCH IMPORT
-• Import multiple images from gallery
-• Upload progress indicator
-• Background upload with notifications
+⚡ LIGHTNING FAST WORKFLOW
+• Scan → Tag → Upload in seconds
+• Direct upload to your Paperless-ngx server
+• No cloud middleman required
+• Offline mode with automatic sync
+• Background uploads with progress notifications
 
-🎨 MODERN DESIGN
-• Material 3 design
-• Dark mode support
-• Easy to use
+🔒 PRIVACY & SECURITY FIRST
+• No ads, no tracking, no data collection
+• Your documents stay on YOUR server
+• Credentials encrypted with Android Keystore
+• Optional App-Lock with biometric unlock
+• Automatic timeout protection
+• HTTPS enforced for remote connections
+
+🎨 BEAUTIFUL MODERN DESIGN
+• Material 3 design language
+• Automatic dark/light theme
+• Smooth animations
+• Intuitive user interface
+• Optimized for one-handed use
+
+🆓 FREE FEATURES
+All core features are completely free:
+• Unlimited scans and uploads
+• All organization features
+• Offline mode
+• Security features
+• No subscription required
+
+🌟 PREMIUM FEATURES (€4.99/month or €49.99/year)
+Optional AI-powered suggestions for power users:
+• Gemini AI document analysis
+• Automatic tag matching
+• Smart metadata extraction
+• Priority support
+• Cancel anytime
+
+🛠️ POWER-USER OPTION
+Self-host your own AI:
+• Paperless-GPT integration
+• Use your own Gemini API key
+• Any OpenAI-compatible endpoint
+• Full control, no subscription
 
 REQUIREMENTS
 
-This app requires your own Paperless-ngx installation. Paperless-ngx is an open-source document management system that you can self-host.
+• Android 8.0 or later
+• Google Play Services
+• Your own Paperless-ngx instance (v1.10.0+)
 
-More information: https://docs.paperless-ngx.com
+Paperless-ngx is a free, open-source document management system you can self-host. Learn more: https://docs.paperless-ngx.com
 
-PRIVACY
+WHY PAPERLESS SCANNER?
 
-• No ads
-• No tracking
-• No data collection
-• Your documents stay on your server
-• Credentials are stored securely on device
+✓ Native Android app - Fast, smooth, reliable
+✓ Privacy-first - No cloud services, no tracking
+✓ Open source - Audit the code yourself
+✓ Active development - Regular updates and improvements
+✓ Community-driven - Built for Paperless-ngx users
 
-Open Source: https://github.com/napoleonmm83/paperless-scanner
+OPEN SOURCE
+
+Licensed under MIT. View the source code and contribute:
+https://github.com/napoleonmm83/paperless-scanner
+
+SUPPORT
+
+• FAQ & Troubleshooting: GitHub README
+• Bug reports: GitHub Issues
+• Community: r/paperlessngx
+• Documentation: Full docs on GitHub
+
+Transform your document workflow today. Download Paperless Scanner and experience the fastest way to digitize your paperwork!

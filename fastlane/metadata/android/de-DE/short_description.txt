@@ -1,1 +1,1 @@
-Scanne Dokumente und lade sie direkt zu deinem Paperless-ngx Server
+Nativer Paperless-ngx Scanner mit KI-Vorschlägen. Schnell & privat.

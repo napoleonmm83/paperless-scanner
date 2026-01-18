@@ -1,1 +1,1 @@
-Scan documents and upload directly to your Paperless-ngx server
+Native Paperless-ngx scanner with AI-powered tag suggestions. Fast & private.

@@ -1,43 +1,98 @@
-Paperless Scanner ist der mobile Begleiter für deine Paperless-ngx Installation. Scanne Dokumente unterwegs und lade sie direkt in dein papierloses Archiv hoch.
+Verwandle dein Android-Smartphone in einen leistungsstarken Dokumentenscanner mit KI-gestützten Metadaten-Vorschlägen. Paperless Scanner ist der native mobile Client für Paperless-ngx, der Dokumentenverwaltung mühelos macht.
 
-📄 INTELLIGENTES SCANNEN
-• Automatische Kantenerkennung
-• Perspektivkorrektur
-• Optimierte Bildqualität
+📸 INTELLIGENTES DOKUMENTEN-SCANNEN
+• MLKit-Scanner mit automatischer Kantenerkennung
+• Gestochen scharfe Scan-Qualität mit Perspektivkorrektur
+• Multi-Page Dokumente (bis zu 20 Seiten kombinieren)
+• Seiten neu anordnen, drehen oder löschen vor dem Upload
+• Batch-Import aus der Galerie
 
-📑 MULTI-PAGE DOKUMENTE
-• Mehrere Seiten scannen (bis zu 20)
-• Seiten neu anordnen oder löschen
-• Automatische PDF-Erstellung
+🤖 KI-GESTÜTZTE ORGANISATION (Premium)
+• Automatische Tag-Vorschläge basierend auf Dokumentinhalt
+• Intelligente Titel-Extraktion
+• Automatische Korrespondenten-Zuordnung
+• Datumserkennung
+• Spare 30-60 Sekunden pro Dokument
+• Fair Use Policy - scanne so viel du brauchst
 
-🏷️ ORGANISATION
-• Tags auswählen oder neu erstellen
-• Dokumenttyp zuweisen
-• Korrespondent festlegen
-• Titel vergeben
+🏷️ MANUELLE ORGANISATION (Kostenlos)
+• Wähle aus deinen vorhandenen Tags
+• Weise Dokumenttypen zu
+• Setze Korrespondenten
+• Füge eigene Titel hinzu
+• Volle Kontrolle über deine Metadaten
 
-📤 BATCH-IMPORT
-• Mehrere Bilder aus Galerie importieren
-• Fortschrittsanzeige beim Upload
-• Hintergrund-Upload mit Benachrichtigung
+⚡ BLITZSCHNELLER WORKFLOW
+• Scannen → Taggen → Hochladen in Sekunden
+• Direkter Upload zu deinem Paperless-ngx Server
+• Kein Cloud-Umweg erforderlich
+• Offline-Modus mit automatischer Synchronisation
+• Hintergrund-Uploads mit Fortschrittsanzeige
 
-🎨 MODERNES DESIGN
-• Material 3 Design
-• Unterstützung für Dark Mode
-• Einfache Bedienung
+🔒 DATENSCHUTZ & SICHERHEIT AN ERSTER STELLE
+• Keine Werbung, kein Tracking, keine Datensammlung
+• Deine Dokumente bleiben auf DEINEM Server
+• Anmeldedaten verschlüsselt mit Android Keystore
+• Optionaler App-Lock mit biometrischer Entsperrung
+• Automatischer Timeout-Schutz
+• HTTPS-Pflicht für externe Verbindungen
+
+🎨 MODERNES SCHÖNES DESIGN
+• Material 3 Design-Sprache
+• Automatischer Dark/Light Modus
+• Flüssige Animationen
+• Intuitive Benutzeroberfläche
+• Optimiert für Einhandbedienung
+
+🆓 KOSTENLOSE FEATURES
+Alle Kernfunktionen sind komplett kostenlos:
+• Unbegrenzte Scans und Uploads
+• Alle Organisations-Features
+• Offline-Modus
+• Sicherheitsfunktionen
+• Kein Abo erforderlich
+
+🌟 PREMIUM FEATURES (€4,99/Monat oder €49,99/Jahr)
+Optionale KI-Vorschläge für Power-User:
+• Gemini KI Dokumentenanalyse
+• Automatisches Tag-Matching
+• Intelligente Metadaten-Extraktion
+• Vorrangiger Support
+• Jederzeit kündbar
+
+🛠️ POWER-USER OPTION
+Hoste deine eigene KI:
+• Paperless-GPT Integration
+• Nutze deinen eigenen Gemini API Key
+• Jeder OpenAI-kompatible Endpoint
+• Volle Kontrolle, kein Abo
 
 VORAUSSETZUNGEN
 
-Diese App benötigt eine eigene Paperless-ngx Installation. Paperless-ngx ist ein Open-Source Dokumentenmanagementsystem zum Selbsthosten.
+• Android 8.0 oder neuer
+• Google Play Services
+• Eigene Paperless-ngx Instanz (v1.10.0+)
 
-Mehr Informationen: https://docs.paperless-ngx.com
+Paperless-ngx ist ein kostenloses, quelloffenes Dokumentenverwaltungssystem zum Selbsthosten. Mehr Infos: https://docs.paperless-ngx.com
 
-DATENSCHUTZ
+WARUM PAPERLESS SCANNER?
 
-• Keine Werbung
-• Kein Tracking
-• Keine Datensammlung
-• Deine Dokumente bleiben auf deinem Server
-• Anmeldedaten werden sicher lokal gespeichert
+✓ Native Android App - Schnell, flüssig, zuverlässig
+✓ Privacy-First - Keine Cloud-Dienste, kein Tracking
+✓ Open Source - Prüfe den Code selbst
+✓ Aktive Entwicklung - Regelmäßige Updates und Verbesserungen
+✓ Community-getrieben - Gebaut für Paperless-ngx Nutzer
 
-Open Source: https://github.com/napoleonmm83/paperless-scanner
+OPEN SOURCE
+
+Lizenziert unter MIT. Code ansehen und beitragen:
+https://github.com/napoleonmm83/paperless-scanner
+
+SUPPORT
+
+• FAQ & Fehlerbehebung: GitHub README
+• Bug-Reports: GitHub Issues
+• Community: r/paperlessngx
+• Dokumentation: Vollständige Docs auf GitHub
+
+Transformiere deinen Dokumenten-Workflow noch heute. Lade Paperless Scanner herunter und erlebe die schnellste Art, Papierkram zu digitalisieren!
