@@ -1,172 +1,507 @@
 # Paperless Scanner
 
-Android-Client zum Scannen und Hochladen von Dokumenten zu einer selbstgehosteten Paperless-ngx Instanz.
+<div align="center">
 
-## Features
+**Native Android App for Paperless-ngx with AI-Powered Document Processing**
 
-### Free Features ✨
-- **Login** mit Server-URL und Credentials
-- **Dokumentenscan** mit automatischer Kantenerkennung (MLKit Document Scanner)
-- **Upload** zu Paperless-ngx mit optionalem Titel
-- **Tag-Auswahl** aus vorhandenen Tags
-- **Material 3 Design** mit dynamischen Farben
-- **Offline-Modus** mit Upload-Queue
-- **Batch-Import** mehrerer Dokumente
+[![Version](https://img.shields.io/badge/version-1.4.57-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
+[![Android](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://www.android.com)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.0-purple.svg)](https://kotlinlang.org)
+[![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
-### Premium Features 🌟 (Subscription Required)
-- **AI-gestützte Dokumentanalyse** via Firebase AI (Gemini 2.0 Flash)
-  - Automatische Titel-Extraktion
-  - Intelligentes Tag-Matching gegen vorhandene Tags
-  - Datum & Correspondent Erkennung
-  - Vorschläge für neue Tags
-- **Unbegrenzte AI-Nutzung** (Fair Use Policy)
-- **Vorrangiger Support**
+[Features](#features) • [Screenshots](#screenshots) • [Installation](#installation) • [Setup](#setup) • [FAQ](#faq) • [Contributing](#contributing)
 
-**Preise:**
-- Monatlich: €4.99/Monat
-- Jährlich: €49.99/Jahr (spare 2 Monate)
+</div>
 
-[Details zu Terms & Privacy](docs/TERMS_OF_SERVICE.md)
+---
 
-## Screenshots
+## 🚀 Overview
 
-```
-[Login] → [Scan] → [Preview + Tags] → [Upload Success]
-```
+**Paperless Scanner** is a modern, native Android client for [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) that transforms your phone into a powerful document scanner with optional AI-powered metadata suggestions.
 
-## Voraussetzungen
+### Why Choose Paperless Scanner?
 
-- Android 8.0+ (API 26)
-- Google Play Services (für MLKit)
-- Paperless-ngx Instanz mit API-Zugang
+- **📱 Native Android App** - Fast, smooth, Material 3 design
+- **🤖 AI-Powered** - Optional AI suggestions for tags, titles, and metadata (Premium)
+- **🔒 Privacy-First** - No data collection in free version, full control over your data
+- **⚡ Lightning Fast** - Scan, tag, and upload in seconds
+- **🌙 Beautiful UI** - Dark mode support with Material 3 design
+- **📴 Offline-Capable** - Queue uploads when offline, sync automatically
+- **🆓 Free & Open Source** - Core features completely free, Premium for power users
 
-## Installation
+---
 
-### Aus Source builden
+## ✨ Features
+
+### Free Features
+
+| Feature | Description |
+|---------|-------------|
+| **📸 Smart Scanner** | MLKit-powered document scanner with automatic edge detection |
+| **⬆️ Direct Upload** | Upload directly to your Paperless-ngx instance |
+| **🏷️ Tag Management** | Select from existing tags, correspondents, and document types |
+| **📄 Multi-Page Docs** | Combine multiple scans into a single PDF document |
+| **📚 Batch Import** | Upload multiple documents in one go |
+| **🌙 Dark Mode** | Automatic dark/light theme following system settings |
+| **📴 Offline Mode** | Queue uploads when offline, auto-sync when connected |
+| **🔐 Secure** | Credentials stored securely with Android Keystore |
+
+### Premium Features 🌟
+
+**€4.99/month or €49.99/year** (save 2 months)
+
+| Feature | Description |
+|---------|-------------|
+| **🤖 AI Tag Suggestions** | Gemini 2.0 Flash analyzes your documents and suggests relevant tags |
+| **✨ Smart Metadata** | Automatic title extraction, date recognition, correspondent matching |
+| **🎯 Intelligent Matching** | AI matches against your existing tags for consistency |
+| **💡 New Tag Proposals** | AI suggests new tags when existing ones don't fit |
+| **⚡ Time Saver** | Save 30-60 seconds per document |
+| **🔄 Unlimited Usage** | Fair use policy - scan as much as you need |
+| **🎁 Priority Support** | Get help faster |
+
+### Power-User Features (Self-Hosted)
+
+**For advanced users who want to run their own AI:**
+
+- **🛠️ Paperless-GPT Integration** - Connect your own AI instance
+- **🏠 Self-Hosted** - Full control over your AI infrastructure
+- **💰 Free Alternative** - No subscription needed if you host your own
+- **🔓 Open API** - Use any OpenAI-compatible endpoint
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+| Login | Scan | Upload | Multi-Page |
+|-------|------|--------|------------|
+| ![Login](fastlane/metadata/android/en-US/images/phoneScreenshots/1_login.png) | ![Scan](fastlane/metadata/android/en-US/images/phoneScreenshots/2_scan.png) | ![Upload](fastlane/metadata/android/en-US/images/phoneScreenshots/3_upload.png) | ![Multi-Page](fastlane/metadata/android/en-US/images/phoneScreenshots/4_multipage.png) |
+
+| Batch Import |
+|--------------|
+| ![Batch](fastlane/metadata/android/en-US/images/phoneScreenshots/5_batch.png) |
+
+</div>
+
+---
+
+## 📲 Installation
+
+### Google Play Store (Recommended)
+
+**Coming Soon!** The app is currently in internal testing.
+
+<!--
+[![Get it on Google Play](https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.paperless.scanner)
+-->
+
+### GitHub Releases
+
+Download the latest APK from our [Releases page](https://github.com/napoleonmm83/paperless-scanner/releases).
+
+**Note:** APKs from GitHub are signed with a development certificate. For production use, wait for the Play Store release.
+
+### Build from Source
 
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/napoleonmm83/paperless-scanner.git
 cd "paperless client"
+
+# Build debug APK
 ./gradlew assembleDebug
+
+# APK location:
+# app/build/outputs/apk/debug/app-debug.apk
 ```
 
-APK befindet sich unter: `app/build/outputs/apk/debug/app-debug.apk`
+---
 
-### In Android Studio
+## ⚙️ Setup
 
-1. Projekt öffnen: `File → Open → paperless client`
-2. Gradle Sync abwarten
-3. Run auf Gerät/Emulator mit Google Play Services
+### Quick Start
 
-## Konfiguration
+1. **Install the app** on your Android device (Android 8.0+)
+2. **Open the app** and tap "Login"
+3. **Enter your Paperless-ngx details:**
+   - Server URL (e.g., `https://paperless.example.com`)
+   - Username
+   - Password
+4. **Start scanning!** 📸
 
-### Netzwerk
+### Network Configuration
 
-Die App erlaubt Verbindungen zu:
-- HTTPS (Standard)
-- HTTP für lokale Netzwerke (10.x.x.x, 192.168.x.x, 172.16.x.x, localhost)
+The app supports:
 
-Für selbstsignierte Zertifikate: User-CA in Android installieren.
+- ✅ **HTTPS** (recommended for remote access)
+- ✅ **HTTP** for local networks only:
+  - `10.x.x.x` (Class A private)
+  - `172.16.x.x - 172.31.x.x` (Class B private)
+  - `192.168.x.x` (Class C private)
+  - `localhost` / `127.0.0.1`
 
-### Paperless-ngx
+**Self-Signed Certificates:** Install your CA certificate in Android's trusted certificates.
 
-Benötigte API-Endpoints:
-- `POST /api/token/` - Authentifizierung
-- `GET /api/tags/` - Tags abrufen
-- `POST /api/documents/post_document/` - Dokument hochladen
+### Paperless-ngx Requirements
 
-### Firebase AI (Optional)
+Your Paperless-ngx instance must support these API endpoints:
 
-Die App nutzt Firebase AI für AI-gestützte Tag-Vorschläge. **Keine zusätzliche Konfiguration nötig** - verwendet das bestehende Firebase-Projekt.
+- `POST /api/token/` - Authentication
+- `GET /api/tags/` - Fetch tags
+- `GET /api/correspondents/` - Fetch correspondents
+- `GET /api/document_types/` - Fetch document types
+- `POST /api/documents/post_document/` - Upload documents
 
-**Setup-Status:**
-- ✅ Firebase Projekt konfiguriert (`google-services.json`)
-- ✅ Firebase AI Backend aktiviert (`GenerativeBackend.firebaseAI()`)
-- ✅ Gemini 2.0 Flash Modell (1500 Anfragen/Tag kostenlos)
-- ✅ Usage Tracking & Limits (300 AI-Aufrufe/Monat)
+**Minimum Version:** Paperless-ngx v1.10.0 or later recommended.
 
-**Wie es funktioniert:**
-1. User scannt Dokument
-2. App sendet Bild an Firebase AI (Gemini)
-3. AI analysiert Dokument und schlägt Tags/Titel vor
-4. User kann Vorschläge übernehmen oder ignorieren
-5. Bei Limit-Erreichen: Automatischer Fallback auf Paperless Suggestions
+### Premium Setup (AI Features)
 
-**Kosten:** ~€0.004 pro User/Monat (30 Scans) - 98% Profit-Marge bei €1.99 Abo
+1. **Tap the settings icon** in the app
+2. **Navigate to "Subscription"**
+3. **Choose your plan:**
+   - Monthly: €4.99/month
+   - Yearly: €49.99/year (save 17%)
+4. **Complete purchase** via Google Play Billing
+5. **AI features activate automatically** ✨
 
-Mehr Details: [`docs/TECHNICAL.md` → Firebase AI Integration](docs/TECHNICAL.md#25-firebase-ai-gemini-integration)
+AI suggestions will now appear when you scan documents!
 
-## Tech Stack
+---
 
-| Komponente | Technologie |
-|------------|-------------|
-| Sprache | Kotlin 2.0 |
-| UI | Jetpack Compose + Material 3 |
-| DI | Hilt |
-| Networking | Retrofit + OkHttp |
-| Scanner | MLKit Document Scanner |
-| AI | Firebase AI (Gemini 2.0 Flash) |
-| Database | Room (AI Usage Tracking) |
-| Analytics | Firebase Analytics |
-| Storage | DataStore Preferences |
-| Image Loading | Coil |
+## 🛠️ Tech Stack
 
-## Projektstruktur
+| Component | Technology |
+|-----------|------------|
+| **Language** | Kotlin 2.0 |
+| **UI** | Jetpack Compose + Material 3 |
+| **Dependency Injection** | Hilt |
+| **Networking** | Retrofit + OkHttp |
+| **Document Scanner** | MLKit Document Scanner |
+| **AI Processing** | Firebase AI (Gemini 2.0 Flash) |
+| **Database** | Room (for usage tracking) |
+| **Analytics** | Firebase Analytics (opt-in) |
+| **Storage** | DataStore Preferences |
+| **Image Loading** | Coil |
+| **PDF Generation** | iText7 |
+| **Billing** | Google Play Billing Library 6.0 |
+
+---
+
+## 🏗️ Architecture
 
 ```
 app/src/main/java/com/paperless/scanner/
-├── di/                     # Dependency Injection
+├── di/                          # Dependency Injection (Hilt)
 │   └── AppModule.kt
 ├── data/
-│   ├── api/               # Retrofit API
+│   ├── api/                     # Retrofit API
 │   │   ├── PaperlessApi.kt
-│   │   └── models/
-│   ├── repository/        # Business Logic
+│   │   └── models/              # DTOs & API Models
+│   ├── repository/              # Business Logic Layer
 │   │   ├── AuthRepository.kt
 │   │   ├── DocumentRepository.kt
-│   │   └── TagRepository.kt
-│   └── datastore/
-│       └── TokenManager.kt
+│   │   ├── TagRepository.kt
+│   │   └── AiRepository.kt
+│   ├── datastore/               # Preferences & Settings
+│   │   └── TokenManager.kt
+│   └── database/                # Room Database
+│       └── AiUsageDao.kt
 ├── ui/
-│   ├── theme/             # Material 3 Theme
-│   ├── navigation/        # Navigation Graph
+│   ├── theme/                   # Material 3 Theme
+│   ├── navigation/              # Navigation Graph
 │   └── screens/
-│       ├── login/         # Login Screen + ViewModel
-│       ├── scan/          # Scan Screen + ViewModel
-│       └── upload/        # Upload Screen + ViewModel
+│       ├── login/               # Login Screen + ViewModel
+│       ├── scan/                # Scan Screen + ViewModel
+│       ├── upload/              # Upload Screen + ViewModel
+│       ├── settings/            # Settings Screen + ViewModel
+│       └── subscription/        # Subscription Screen + ViewModel
+├── util/                        # Utilities & Helpers
 ├── MainActivity.kt
 └── PaperlessApp.kt
 ```
 
-## Privacy & Security 🔒
+**Architecture Pattern:** MVVM + Repository Pattern + Clean Architecture
 
-**Privacy First:**
-- Keine Datenerfassung in der kostenlosen Version
-- Analytics nur mit expliziter Zustimmung (opt-in)
-- AI-Features nur bei Premium-Abo (opt-in via Kauf)
-- Keine Speicherung von Bildern bei Google nach AI-Analyse
-- Vollständige Kontrolle über Ihre Daten
+---
 
-[Vollständige Datenschutzerklärung](docs/PRIVACY_POLICY.md)
+## 🔒 Privacy & Security
 
-## Documentation
+**Privacy First - Your Data, Your Rules:**
 
-| Dokument | Beschreibung |
-|----------|--------------|
-| [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) | Datenschutzerklärung (DE/EN) |
-| [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md) | Nutzungsbedingungen (DE/EN) |
-| [TECHNICAL.md](docs/TECHNICAL.md) | Technische Dokumentation |
-| [ANALYTICS_DASHBOARD.md](docs/ANALYTICS_DASHBOARD.md) | Analytics & Business Monitoring |
-| [API_REFERENCE.md](docs/API_REFERENCE.md) | Paperless-ngx API Referenz |
+- ✅ **No tracking in free version** - Zero analytics or data collection
+- ✅ **Opt-in analytics** - You choose if you want to help improve the app
+- ✅ **Local-first** - All credentials stored securely on your device
+- ✅ **No cloud storage** - Documents go directly to YOUR Paperless instance
+- ✅ **AI processing** - Only when you subscribe (explicit opt-in)
+- ✅ **No permanent storage** - AI doesn't store your documents after processing
+- ✅ **Open source** - Audit the code yourself
 
-## Lizenz
+**Security Measures:**
 
+- 🔐 Credentials encrypted with Android Keystore
+- 🔒 HTTPS enforced for remote connections
+- 🛡️ Certificate pinning support
+- 🔑 Token-based authentication (no password storage)
+
+[Read our full Privacy Policy](docs/PRIVACY_POLICY.md) | [Terms of Service](docs/TERMS_OF_SERVICE.md)
+
+---
+
+## ❓ FAQ
+
+<details>
+<summary><strong>Is this app free?</strong></summary>
+
+Yes! The core features (scanning, uploading, manual tagging) are completely free and always will be. Premium AI features are optional for users who want to save time.
+</details>
+
+<details>
+<summary><strong>Do I need a subscription?</strong></summary>
+
+No, you don't need a subscription to use the app. The free version is fully functional. The Premium subscription (€4.99/month) adds AI-powered suggestions to save you time.
+</details>
+
+<details>
+<summary><strong>What is Paperless-ngx?</strong></summary>
+
+[Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) is a community-supported, open-source document management system that helps you scan, index, and archive all your physical documents. You need to host your own instance (or use a hosted solution) to use this app.
+</details>
+
+<details>
+<summary><strong>Can I use my own AI instead of the Premium subscription?</strong></summary>
+
+Yes! If you're technically savvy, you can set up [Paperless-GPT](https://github.com/icereed/paperless-gpt) or any OpenAI-compatible endpoint and configure it in the app settings. This is the "Power-User" option mentioned in our features.
+</details>
+
+<details>
+<summary><strong>Why does the scanner require Google Play Services?</strong></summary>
+
+The app uses MLKit Document Scanner, which is distributed via Google Play Services. This provides the best scanning experience with automatic edge detection and perspective correction. If you're on a device without Play Services, the app won't work (yet - we're considering alternatives).
+</details>
+
+<details>
+<summary><strong>Does the app work offline?</strong></summary>
+
+Yes! You can scan documents offline, and they'll be queued for upload. Once you're back online, the app will automatically sync them to your Paperless instance.
+</details>
+
+<details>
+<summary><strong>Can I scan multi-page documents?</strong></summary>
+
+Absolutely! After the first scan, tap "Add Page" to scan additional pages. The app will combine them into a single PDF before uploading.
+</details>
+
+<details>
+<summary><strong>What data does the AI see?</strong></summary>
+
+If you subscribe to Premium, the app sends the scanned document image to Google's Gemini AI for analysis. The AI returns suggestions for tags, title, date, and correspondent. Google doesn't permanently store your documents after processing. [Read more in our Privacy Policy](docs/PRIVACY_POLICY.md).
+</details>
+
+<details>
+<summary><strong>Where can I report bugs or request features?</strong></summary>
+
+Open an issue on our [GitHub Issues page](https://github.com/napoleonmm83/paperless-scanner/issues). We appreciate detailed bug reports with steps to reproduce!
+</details>
+
+<details>
+<summary><strong>Can I use this with Paperless (old version) instead of Paperless-ngx?</strong></summary>
+
+No, this app is designed specifically for Paperless-ngx. The original Paperless project is deprecated. We recommend [migrating to Paperless-ngx](https://docs.paperless-ngx.com/setup/#migrating-from-paperless).
+</details>
+
+---
+
+## 🐛 Troubleshooting
+
+### Login Issues
+
+**Problem:** "Unable to connect to server"
+
+- ✅ Check your server URL (must include `http://` or `https://`)
+- ✅ Verify your Paperless-ngx instance is running
+- ✅ Test the connection in a browser: `https://yourserver.com/api/`
+- ✅ Check firewall rules if using local network
+- ✅ For HTTPS with self-signed certs, install the CA certificate on your device
+
+**Problem:** "Invalid credentials"
+
+- ✅ Double-check username and password
+- ✅ Try logging in via web interface to verify credentials
+- ✅ Check for extra spaces in username/password fields
+
+### Scanning Issues
+
+**Problem:** "Scanner not available"
+
+- ✅ Make sure your device has Google Play Services installed
+- ✅ Update Google Play Services to the latest version
+- ✅ Check device compatibility (Android 8.0+ required)
+
+**Problem:** "Poor scan quality"
+
+- ✅ Use good lighting conditions
+- ✅ Place document on contrasting background
+- ✅ Hold device steady and parallel to document
+- ✅ Use the manual crop option if auto-detect fails
+
+### Upload Issues
+
+**Problem:** "Upload failed"
+
+- ✅ Check your internet connection
+- ✅ Verify you're still logged in (token might have expired)
+- ✅ Check Paperless-ngx server logs for errors
+- ✅ Try uploading a small test document first
+
+**Problem:** "AI suggestions not appearing"
+
+- ✅ Verify your Premium subscription is active
+- ✅ Check internet connection (AI requires online access)
+- ✅ Check if you've exceeded the fair use limit (see Settings → Subscription)
+
+### Performance Issues
+
+**Problem:** "App is slow or crashing"
+
+- ✅ Clear app cache: Settings → Apps → Paperless Scanner → Clear Cache
+- ✅ Check available storage space
+- ✅ Update to the latest version
+- ✅ Restart your device
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+### Reporting Bugs
+
+1. Check [existing issues](https://github.com/napoleonmm83/paperless-scanner/issues) first
+2. Use our [Bug Report template](.github/ISSUE_TEMPLATE/bug_report.md)
+3. Include:
+   - Android version
+   - Device model
+   - App version
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Screenshots if applicable
+
+### Suggesting Features
+
+1. Check [existing feature requests](https://github.com/napoleonmm83/paperless-scanner/issues?q=is%3Aissue+label%3Aenhancement)
+2. Use our [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md)
+3. Explain:
+   - What problem does it solve?
+   - How should it work?
+   - Why is it useful for other users?
+
+### Contributing Code
+
+1. **Fork the repository**
+2. **Create a feature branch:**
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Follow our coding standards:**
+   - Use Kotlin idioms and best practices
+   - Follow Material 3 design guidelines
+   - Write unit tests for new features
+   - Document public APIs
+4. **Run local CI checks:**
+   ```bash
+   ./scripts/validate-ci.sh
+   ```
+5. **Commit your changes:**
+   ```bash
+   git commit -m "feat: add amazing feature"
+   ```
+6. **Push to your fork:**
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+7. **Open a Pull Request**
+
+**Coding Standards:**
+
+- Use `data object` for sealed class singletons
+- Prefer `StateFlow` over `LiveData`
+- All async operations use `suspend` functions or `Flow`
+- Repository methods return `Result<T>`
+- Stateless Composables with state hoisting
+- Follow MVVM + Repository pattern
+
+See [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md) for detailed guidelines.
+
+---
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) | Privacy policy (DE/EN) |
+| [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md) | Terms of service (DE/EN) |
+| [TECHNICAL.md](docs/TECHNICAL.md) | Technical documentation & architecture |
+| [API_REFERENCE.md](docs/API_REFERENCE.md) | Paperless-ngx API reference |
+| [ANALYTICS_DASHBOARD.md](docs/ANALYTICS_DASHBOARD.md) | Analytics & business monitoring |
+| [BEST_PRACTICES.md](docs/BEST_PRACTICES.md) | Coding standards & best practices |
+| [ROADMAP.md](docs/ROADMAP.md) | Feature roadmap & future plans |
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+```
 MIT License
 
-## Mitwirken
+Copyright (c) 2024 Paperless Scanner
 
-1. Fork erstellen
-2. Feature Branch: `git checkout -b feature/neue-funktion`
-3. Commit: `git commit -m 'Add neue Funktion'`
-4. Push: `git push origin feature/neue-funktion`
-5. Pull Request erstellen
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+...
+```
+
+---
+
+## 💬 Support
+
+- **📖 Documentation:** [docs/](docs/)
+- **🐛 Bug Reports:** [GitHub Issues](https://github.com/napoleonmm83/paperless-scanner/issues)
+- **💡 Feature Requests:** [GitHub Issues](https://github.com/napoleonmm83/paperless-scanner/issues)
+- **💬 Community:** [r/paperless](https://reddit.com/r/paperless) or [r/paperlessngx](https://reddit.com/r/paperlessngx)
+- **📧 Email:** [Contact via GitHub](https://github.com/napoleonmm83)
+
+---
+
+## 🙏 Acknowledgments
+
+- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) - The amazing document management system this app connects to
+- [MLKit](https://developers.google.com/ml-kit) - Google's ML Kit for document scanning
+- [Jetpack Compose](https://developer.android.com/jetpack/compose) - Modern Android UI toolkit
+- [Firebase AI](https://firebase.google.com/docs/vertex-ai) - Gemini AI integration
+- All contributors and users who help improve this app!
+
+---
+
+## 🌟 Star History
+
+If you find this project useful, please consider giving it a star ⭐
+
+[![Star History Chart](https://api.star-history.com/svg?repos=napoleonmm83/paperless-scanner&type=Date)](https://star-history.com/#napoleonmm83/paperless-scanner&Date)
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the Paperless-ngx community**
+
+[⬆ Back to Top](#paperless-scanner)
+
+</div>
