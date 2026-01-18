@@ -159,29 +159,34 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          Write-Host "🔍 Checking changelog lengths (Google Play limit: 500 characters)..."
+          Write-Host "Checking changelog lengths (Google Play limit: 500 characters)..."
           $MAX_CHARS = 500
           $EXIT_CODE = 0
 
-          $changelogs = Get-ChildItem -Path "fastlane/metadata/android" -Recurse -Include "*.txt" | Where-Object { $_.FullName -match "(de-DE|en-US)[\\/]changelogs[\\/]" }
+          # Find all changelog files in de-DE and en-US directories
+          $changelogs = Get-ChildItem -Path "fastlane/metadata/android" -Recurse -Include "*.txt" | Where-Object {
+            ($_.FullName -like "*\de-DE\changelogs\*") -or ($_.FullName -like "*\en-US\changelogs\*")
+          }
 
           foreach ($changelog in $changelogs) {
             $charCount = (Get-Content $changelog.FullName -Raw).Length
-            $relPath = $changelog.FullName -replace [regex]::Escape("$pwd\fastlane\metadata\android\"), ""
+            $relPath = $changelog.FullName.Replace("$pwd\fastlane\metadata\android\", "")
 
             if ($charCount -gt $MAX_CHARS) {
-              Write-Host "❌ FAILED: $relPath"
+              Write-Host "FAILED: $relPath"
               Write-Host "   Length: $charCount characters (exceeds limit by $($charCount - $MAX_CHARS))"
               $EXIT_CODE = 1
             } else {
-              Write-Host "✅ PASSED: $relPath ($charCount characters)"
+              Write-Host "PASSED: $relPath ($charCount characters)"
             }
           }
 
           if ($EXIT_CODE -eq 0) {
-            Write-Host "`n✅ All changelogs are within the 500-character limit!"
+            Write-Host ""
+            Write-Host "All changelogs are within the 500-character limit!"
           } else {
-            Write-Host "`n❌ Some changelogs exceed the 500-character limit. Please shorten them."
+            Write-Host ""
+            Write-Host "ERROR: Some changelogs exceed the 500-character limit. Please shorten them."
             Write-Host "Tips: Use abbreviations, remove filler words, keep bullets under 60 chars"
             exit 1
           }
