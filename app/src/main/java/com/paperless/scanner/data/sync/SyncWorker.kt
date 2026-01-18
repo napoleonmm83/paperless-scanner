@@ -61,14 +61,31 @@ class SyncWorker @AssistedInject constructor(
         const val WORK_NAME = "paperless_sync"
         const val MAX_RETRIES = 3
 
+        /**
+         * BEST PRACTICE: Background sync following Android & modern app conventions.
+         *
+         * Sync Strategy (like Gmail, Google Drive, Dropbox):
+         * - Interval: 30 minutes (battery-efficient, catches most web changes)
+         * - Flex: 10 minutes (Android batches work for efficiency)
+         * - Constraints: Network + Battery not low
+         *
+         * This ensures:
+         * - Web/multi-device changes are synced within 20-40 minutes
+         * - Battery-efficient batching by Android OS
+         * - No sync during low battery conditions
+         * - Complements Phase 1 event-based refresh (ON_RESUME, Pull-to-Refresh)
+         */
         fun schedule(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiresBatteryNotLow(true)  // BEST PRACTICE: Don't drain low battery
                 .build()
 
             val request = PeriodicWorkRequestBuilder<SyncWorker>(
-                repeatInterval = 15,
-                repeatIntervalTimeUnit = TimeUnit.MINUTES
+                repeatInterval = 30,  // BEST PRACTICE: 30 min like Gmail/Drive
+                repeatIntervalTimeUnit = TimeUnit.MINUTES,
+                flexTimeInterval = 10,  // BEST PRACTICE: Flex window for Android batching
+                flexTimeIntervalUnit = TimeUnit.MINUTES
             )
                 .setConstraints(constraints)
                 .setBackoffCriteria(
@@ -84,7 +101,7 @@ class SyncWorker @AssistedInject constructor(
                 request
             )
 
-            Log.d("SyncWorker", "Periodic sync work scheduled (15 min interval)")
+            Log.d("SyncWorker", "Periodic sync work scheduled (30 min interval with 10 min flex)")
         }
 
         fun cancelSync(context: Context) {

@@ -1,0 +1,17 @@
+Version 1.4.55:
+
+✨ New Features:
+- Pull-to-Refresh on Home, Documents and Tags screens - Simply swipe down to refresh
+- Smart background sync every 30 minutes for automatic updates
+
+🐛 Bug Fixes:
+- Home screen stats now always show correct document count
+- Web changes are reliably synchronized
+- Multi-device sync works flawlessly
+
+🔧 Improvements:
+- Optimized sync with battery-efficient 30-minute interval
+- Stats auto-update when returning to app
+- Faster data updates after upload/delete
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>

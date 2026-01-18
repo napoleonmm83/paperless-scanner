@@ -315,6 +315,30 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * BEST PRACTICE: Refresh both stats and tasks.
+     * Use this for:
+     * - ON_RESUME lifecycle events
+     * - Pull-to-refresh user actions
+     * - After upload/delete operations
+     * - Network reconnect scenarios
+     */
+    fun refreshDashboard() {
+        viewModelScope.launch {
+            // Refresh stats from server (forceRefresh = true)
+            val stats = loadStats(forceRefresh = true)
+            _uiState.update { it.copy(stats = stats) }
+
+            // Refresh processing tasks
+            val tasks = loadProcessingTasks()
+            _uiState.update { it.copy(processingTasks = tasks) }
+
+            if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
+                startTaskPolling()
+            }
+        }
+    }
+
     fun acknowledgeTask(taskId: Int) {
         // Optimistic update - remove task from UI immediately
         _uiState.update { state ->
@@ -333,12 +357,14 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadStats(): DocumentStat {
+    private suspend fun loadStats(forceRefresh: Boolean = true): DocumentStat {
         val pendingCount = pendingChangesCount.value // Use live flow value
         var totalDocuments = 0
         var thisMonth = 0
 
-        documentRepository.getDocumentCount().onSuccess { count ->
+        // BEST PRACTICE: Always fetch stats from server (forceRefresh = true by default)
+        // to ensure accurate counts in multi-client scenarios (web + mobile)
+        documentRepository.getDocumentCount(forceRefresh = forceRefresh).onSuccess { count ->
             totalDocuments = count
         }
 
@@ -346,7 +372,8 @@ class HomeViewModel @Inject constructor(
         documentRepository.getDocuments(
             page = 1,
             pageSize = 1,
-            ordering = "-added"
+            ordering = "-added",
+            forceRefresh = forceRefresh
         ).onSuccess { response ->
             // Count documents added this month from response.count
             // Note: A more accurate approach would use date filtering if API supports it

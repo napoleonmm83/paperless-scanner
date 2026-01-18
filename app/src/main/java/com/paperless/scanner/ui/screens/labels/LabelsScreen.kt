@@ -48,6 +48,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -67,6 +68,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 data class LabelItem(
@@ -98,6 +100,10 @@ fun LabelsScreen(
     var showCreateSheet by remember { mutableStateOf(false) }
     var showSortFilterSheet by remember { mutableStateOf(false) }
     var editingLabel by remember { mutableStateOf<LabelItem?>(null) }
+
+    // Pull-to-refresh state
+    var isRefreshing by remember { mutableStateOf(false) }
+
     // BEST PRACTICE: selectedLabel moved to ViewModel to survive navigation
     // See LabelsUiState.selectedLabel
 
@@ -124,9 +130,22 @@ fun LabelsScreen(
     }
 
     // Main labels list view
-    Column(
-        modifier = Modifier.fillMaxSize()
+    // BEST PRACTICE: Pull-to-refresh for user-triggered updates
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            viewModel.refresh()
+            // Reset after a short delay (UI feedback)
+            scope.launch {
+                delay(1000)
+                isRefreshing = false
+            }
+        }
     ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
         // Header with Add Button
         Row(
             modifier = Modifier
@@ -281,6 +300,7 @@ fun LabelsScreen(
                     onDelete = { viewModel.prepareDeleteLabel(label.id) }
                 )
             }
+        }
         }
     }
 

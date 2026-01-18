@@ -455,17 +455,26 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getDocumentCount(): Result<Int> {
+    suspend fun getDocumentCount(forceRefresh: Boolean = false): Result<Int> {
         return try {
-            // Try cache first
-            val count = cachedDocumentDao.getCount()
-            if (count > 0 || !networkMonitor.checkOnlineStatus()) {
-                return Result.success(count)
+            // BEST PRACTICE: For stats/counts, prefer server over cache to avoid stale data
+            // especially in multi-client scenarios (web + mobile)
+            if (!forceRefresh) {
+                // Try cache first only when explicitly not forcing refresh
+                val count = cachedDocumentDao.getCount()
+                if (count > 0 || !networkMonitor.checkOnlineStatus()) {
+                    return Result.success(count)
+                }
             }
 
-            // Fallback to network
-            safeApiCall {
-                api.getDocuments(page = 1, pageSize = 1).count
+            // Fetch from network (forced or cache empty/offline)
+            if (networkMonitor.checkOnlineStatus()) {
+                safeApiCall {
+                    api.getDocuments(page = 1, pageSize = 1).count
+                }
+            } else {
+                // Offline fallback: use cache
+                Result.success(cachedDocumentDao.getCount())
             }
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))

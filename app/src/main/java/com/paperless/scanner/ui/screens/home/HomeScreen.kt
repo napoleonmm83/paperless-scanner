@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -48,11 +49,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import kotlinx.coroutines.delay
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -99,14 +102,19 @@ fun HomeScreen(
     // Premium Upgrade Sheet state
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
+    // Pull-to-refresh state
+    var isRefreshing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
     // Counter to trigger delayed refresh after resume
     val resumeCount = remember { mutableIntStateOf(0) }
 
-    // Refresh tasks when screen becomes visible (e.g., after upload or navigation back)
+    // BEST PRACTICE: Refresh dashboard (stats + tasks) when screen becomes visible
+    // This catches changes made via web interface or other devices
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshTasks()
+                viewModel.refreshDashboard()  // Refresh stats + tasks from server
                 // Increment counter to trigger delayed refresh
                 resumeCount.intValue++
             }
@@ -117,11 +125,12 @@ fun HomeScreen(
         }
     }
 
-    // Delayed refresh to catch newly created tasks
+    // Delayed refresh to catch newly created tasks and updated stats
+    // This is important after uploads/deletes when returning to HomeScreen
     LaunchedEffect(resumeCount.intValue) {
         if (resumeCount.intValue > 0) {
             delay(1500) // Wait 1.5 seconds for task to be created on server
-            viewModel.refreshTasks()
+            viewModel.refreshDashboard()  // Refresh stats + tasks
         }
     }
 
@@ -139,11 +148,25 @@ fun HomeScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+    // BEST PRACTICE: Pull-to-refresh for user-triggered updates
+    // Refreshes stats and tasks from server to catch web/multi-device changes
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            viewModel.refreshDashboard()
+            // Reset after a short delay (UI feedback)
+            coroutineScope.launch {
+                delay(1000)
+                isRefreshing = false
+            }
+        }
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
         // Offline Indicator
         com.paperless.scanner.ui.components.OfflineIndicator(
             isOnline = isOnline,
@@ -466,6 +489,7 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 
     // Tag Suggestions Bottom Sheet

@@ -1,0 +1,17 @@
+Version 1.4.55:
+
+✨ Neue Features:
+- Pull-to-Refresh auf HomeScreen, Dokumente und Tags - Einfach nach unten ziehen zum Aktualisieren
+- Intelligenter Background-Sync alle 30 Minuten für automatische Updates
+
+🐛 Fehlerbehebungen:
+- HomeScreen Stats zeigen jetzt immer korrekte Dokumentenzahl
+- Web-Änderungen werden zuverlässig synchronisiert
+- Multi-Device Sync funktioniert einwandfrei
+
+🔧 Verbesserungen:
+- Optimierte Synchronisierung mit batteriesparendem 30-Min-Intervall
+- Stats werden automatisch aktualisiert beim App-Wechsel
+- Schnellere Datenaktualisierung nach Upload/Delete
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>

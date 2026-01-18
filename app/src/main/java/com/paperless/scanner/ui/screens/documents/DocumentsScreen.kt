@@ -25,19 +25,24 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +61,7 @@ data class DocumentItem(
     val tags: List<String> = emptyList()
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentsScreen(
     onDocumentClick: (Int) -> Unit = {},
@@ -64,13 +70,29 @@ fun DocumentsScreen(
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
-    // BEST PRACTICE: No manual refresh needed!
-    // Room Flow automatically updates UI when documents change in DB.
+    // Pull-to-refresh state
+    var isRefreshing by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // BEST PRACTICE: Room Flow automatically updates UI when documents change in DB.
+    // Pull-to-refresh allows users to manually trigger server sync.
     // See DocumentsViewModel.observeDocumentsReactively()
 
-    Column(
-        modifier = Modifier.fillMaxSize()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            viewModel.refresh()
+            // Reset after a short delay (UI feedback)
+            coroutineScope.launch {
+                delay(1000)
+                isRefreshing = false
+            }
+        }
     ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
         // Header
         Column(
             modifier = Modifier
@@ -196,6 +218,7 @@ fun DocumentsScreen(
                     )
                 }
             }
+        }
         }
     }
 }
