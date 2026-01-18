@@ -178,9 +178,7 @@ fun SettingsScreen(
             }
         }
 
-        // Premium / AI Assistant Section - TEMPORARILY DISABLED
-        // TODO: Re-enable when AI Assistant feature is production-ready
-        /*
+        // Premium / AI Assistant Section
         SettingsSection(title = stringResource(R.string.premium_section_title)) {
             // Premium Status Card
             Row(
@@ -309,7 +307,6 @@ fun SettingsScreen(
                 )
             }
         }
-        */
 
         // Server Section
         SettingsSection(title = stringResource(R.string.settings_section_server)) {
