@@ -533,7 +533,7 @@
     <string name="premium_option_yearly">Annuale</string>
     <string name="premium_price_monthly">%1$s / mese</string>
     <string name="premium_price_yearly">%1$s / anno</string>
-    <string name="premium_price_yearly_savings">Risparmia 4 mesi</string>
+    <string name="premium_price_yearly_savings">Risparmia 2 mesi</string>
     <string name="premium_trial_7_days">7 giorni gratis</string>
     <string name="premium_trial_14_days">14 giorni gratis</string>
     <string name="premium_button_upgrade">Aggiorna ora</string>

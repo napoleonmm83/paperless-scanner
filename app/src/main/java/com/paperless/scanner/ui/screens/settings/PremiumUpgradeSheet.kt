@@ -164,7 +164,7 @@ fun PremiumUpgradeSheet(
 
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_yearly),
-                    price = stringResource(R.string.premium_price_yearly, "29.99€"),
+                    price = stringResource(R.string.premium_price_yearly, "39.99€"),
                     badge = stringResource(R.string.premium_price_yearly_savings),
                     trial = stringResource(R.string.premium_trial_14_days),
                     selected = selectedPlan == "yearly",

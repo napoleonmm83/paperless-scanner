@@ -533,7 +533,7 @@
     <string name="premium_option_yearly">Årlig</string>
     <string name="premium_price_monthly">%1$s / måned</string>
     <string name="premium_price_yearly">%1$s / år</string>
-    <string name="premium_price_yearly_savings">Spar 4 måneder</string>
+    <string name="premium_price_yearly_savings">Spar 2 måneder</string>
     <string name="premium_trial_7_days">7 dager gratis</string>
     <string name="premium_trial_14_days">14 dager gratis</string>
     <string name="premium_button_upgrade">Oppgrader nå</string>
