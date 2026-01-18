@@ -74,6 +74,13 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+
+            // Include native debug symbols for better crash analysis in Play Console
+            // Symbols are automatically uploaded with the AAB
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"  // Basic symbols, smaller file size
+            }
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
