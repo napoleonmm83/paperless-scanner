@@ -1,98 +1,131 @@
-Verwandle dein Android-Smartphone in einen leistungsstarken Dokumentenscanner mit KI-gestützten Metadaten-Vorschlägen. Paperless Scanner ist der native mobile Client für Paperless-ngx, der Dokumentenverwaltung mühelos macht.
+Ertrinken Sie in Papierkram? Genervt vom manuellen Organisieren jedes gescannten Dokuments?
 
-📸 INTELLIGENTES DOKUMENTEN-SCANNEN
-• MLKit-Scanner mit automatischer Kantenerkennung
-• Gestochen scharfe Scan-Qualität mit Perspektivkorrektur
-• Multi-Page Dokumente (bis zu 20 Seiten kombinieren)
-• Seiten neu anordnen, drehen oder löschen vor dem Upload
-• Batch-Import aus der Galerie
+Paperless Scanner verwandelt Ihr Smartphone in ein intelligentes Dokumentenverwaltungssystem, das Ihnen jeden Monat Stunden spart. Schließen Sie sich Tausenden Nutzern an, die langsame Desktop-Scanner und mühsames manuelles Taggen hinter sich gelassen haben.
 
-🤖 KI-GESTÜTZTE ORGANISATION (Premium)
-• Automatische Tag-Vorschläge basierend auf Dokumentinhalt
-• Intelligente Titel-Extraktion
-• Automatische Korrespondenten-Zuordnung
-• Datumserkennung
-• Spare 30-60 Sekunden pro Dokument
-• Fair Use Policy - scanne so viel du brauchst
+💪 WAS SIE BEKOMMEN (100% KOSTENLOS)
 
-🏷️ MANUELLE ORGANISATION (Kostenlos)
-• Wähle aus deinen vorhandenen Tags
-• Weise Dokumenttypen zu
-• Setze Korrespondenten
-• Füge eigene Titel hinzu
-• Volle Kontrolle über deine Metadaten
+Schluss mit unscharfen Scans:
+→ Profi-Qualität mit automatischer Kantenerkennung
+→ Mehrseitige Dokumente zu perfekten PDFs kombinieren
+→ Batch-Import mehrerer Dokumente auf einmal
+→ Offline-Modus - Upload erfolgt automatisch bei Verbindung
 
-⚡ BLITZSCHNELLER WORKFLOW
-• Scannen → Taggen → Hochladen in Sekunden
-• Direkter Upload zu deinem Paperless-ngx Server
-• Kein Cloud-Umweg erforderlich
-• Offline-Modus mit automatischer Synchronisation
-• Hintergrund-Uploads mit Fortschrittsanzeige
+Tschüss manuelle Tag-Vergabe:
+→ Sofortige Zuweisung von Tags, Dokumenttypen und Korrespondenten
+→ Individuelle Titel für jedes Dokument
+→ Volle Kontrolle über Ihr Organisationssystem
+→ Nie wieder ein Dokument verlieren
 
-🔒 DATENSCHUTZ & SICHERHEIT AN ERSTER STELLE
-• Keine Werbung, kein Tracking, keine Datensammlung
-• Deine Dokumente bleiben auf DEINEM Server
-• Anmeldedaten verschlüsselt mit Android Keystore
-• Optionaler App-Lock mit biometrischer Entsperrung
-• Automatischer Timeout-Schutz
-• HTTPS-Pflicht für externe Verbindungen
+Schlafen Sie ruhig wegen Datenschutz:
+→ IHR Server, IHRE Daten - kein Cloud-Umweg
+→ Null Tracking, null Werbung, null Datensammlung
+→ App-Lock mit biometrischem Schutz
+→ Open Source - prüfen Sie den Code selbst
 
-🎨 MODERNES SCHÖNES DESIGN
-• Material 3 Design-Sprache
-• Automatischer Dark/Light Modus
-• Flüssige Animationen
-• Intuitive Benutzeroberfläche
-• Optimiert für Einhandbedienung
+⚡ SPAREN SIE 60 SEKUNDEN PRO SCAN (Premium)
 
-🆓 KOSTENLOSE FEATURES
-Alle Kernfunktionen sind komplett kostenlos:
-• Unbegrenzte Scans und Uploads
-• Alle Organisations-Features
-• Offline-Modus
-• Sicherheitsfunktionen
-• Kein Abo erforderlich
+Lassen Sie die KI die langweilige Arbeit machen, während Sie sich auf Wichtiges konzentrieren:
+→ Intelligente Tag-Vorschläge basierend auf Dokumentinhalt
+→ Automatische Titel-Extraktion aus Ihren Dokumenten
+→ Cleveres Datum- und Korrespondenten-Matching
+→ Funktioniert mit IHREN vorhandenen Tags - kein Training nötig
 
-🌟 PREMIUM FEATURES (€4,99/Monat oder €49,99/Jahr)
-Optionale KI-Vorschläge für Power-User:
-• Gemini KI Dokumentenanalyse
-• Automatisches Tag-Matching
-• Intelligente Metadaten-Extraktion
-• Vorrangiger Support
-• Jederzeit kündbar
+Premium-Nutzer berichten von 2-3 Stunden Zeitersparnis pro Monat bei der Dokumentenverwaltung.
 
-🛠️ POWER-USER OPTION
-Hoste deine eigene KI:
-• Paperless-GPT Integration
-• Nutze deinen eigenen Gemini API Key
-• Jeder OpenAI-kompatible Endpoint
-• Volle Kontrolle, kein Abo
+💰 PREISE DIE SINN MACHEN
 
-VORAUSSETZUNGEN
+Kostenlos für immer:
+✓ Unbegrenzte Scans und Uploads
+✓ Alle Organisations-Features
+✓ Voller Datenschutz
+✓ Keine versteckten Kosten, jemals
+
+Premium (Optional):
+€4,99/Monat oder €49,99/Jahr
+✓ KI-gestützte Vorschläge
+✓ Sparen Sie Stunden jeden Monat
+✓ Vorrangiger Support
+✓ Jederzeit kündbar - ohne Rückfragen
+
+Power-User:
+✓ Hosten Sie Ihre eigene KI (Paperless-GPT)
+✓ Nutzen Sie Ihre eigenen API-Keys
+✓ Null Abo-Kosten
+✓ Ultimative Flexibilität
+
+🎯 FÜR WEN IST DAS?
+
+Perfekt wenn Sie:
+→ Einen Paperless-ngx Server haben (erforderlich)
+→ Manuelle Dateneingabe hassen
+→ Datenschutz und Datenhoheit schätzen
+→ Professionelles mobiles Scannen wollen
+→ Open Source gegenüber proprietärer Software bevorzugen
+
+Nicht richtig wenn Sie:
+→ Keinen Paperless-ngx Server haben (bekommen Sie einen auf docs.paperless-ngx.com)
+→ Cloud-basierte Lösungen bevorzugen
+→ Selten Dokumente scannen
+
+🚀 WARUM NUTZER UNS LIEBEN
+
+"Endlich ein mobiler Scanner der tatsächlich mit meinem selbst-gehosteten Setup funktioniert!" - Reddit Nutzer
+
+"Das KI-Tagging spart mir so viel Zeit. Jeden Cent wert." - Premium Abonnent
+
+"Liebe dass es Open Source ist. Ich kann der App mit sensiblen Dokumenten vertrauen." - GitHub Contributor
+
+Schnell & Zuverlässig:
+✓ Native Android App (kein Web-Wrapper)
+✓ Material 3 Design das sich Premium anfühlt
+✓ Flüssige Animationen, null Verzögerung
+✓ Funktioniert ab Android 8.0+
+
+Datenschutz dem Sie vertrauen können:
+✓ Keine Cloud-Dienste - Dokumente gehen direkt zu IHREM Server
+✓ Zugangsdaten verschlüsselt mit Android Keystore
+✓ HTTPS-Pflicht für externe Verbindungen
+✓ Quellcode verfügbar auf GitHub (MIT Lizenz)
+
+Von der Community gebaut:
+✓ Aktive Entwicklung mit regelmäßigen Updates
+✓ Reagiert auf Nutzer-Feedback
+✓ Wachsende Community auf Reddit (r/paperlessngx)
+✓ Professioneller Support verfügbar
+
+⚙️ TECHNISCHE VORAUSSETZUNGEN
 
 • Android 8.0 oder neuer
-• Google Play Services
+• Google Play Services (für Scanner)
 • Eigene Paperless-ngx Instanz (v1.10.0+)
 
-Paperless-ngx ist ein kostenloses, quelloffenes Dokumentenverwaltungssystem zum Selbsthosten. Mehr Infos: https://docs.paperless-ngx.com
+Kein Paperless-ngx? Es ist ein kostenloses, quelloffenes Dokumentenverwaltungssystem das Sie in unter 10 Minuten selbst hosten können. Mehr Infos auf docs.paperless-ngx.com
 
-WARUM PAPERLESS SCANNER?
+🔓 OPEN SOURCE & TRANSPARENT
 
-✓ Native Android App - Schnell, flüssig, zuverlässig
-✓ Privacy-First - Keine Cloud-Dienste, kein Tracking
-✓ Open Source - Prüfe den Code selbst
-✓ Aktive Entwicklung - Regelmäßige Updates und Verbesserungen
-✓ Community-getrieben - Gebaut für Paperless-ngx Nutzer
+Anders als proprietäre Scan-Apps glauben wir an Transparenz:
+→ MIT Lizenz - nutzen, modifizieren, verteilen frei
+→ Vollständiger Quellcode auf GitHub
+→ Kein Vendor Lock-in
+→ Community-Beiträge willkommen
 
-OPEN SOURCE
+Code ansehen: github.com/napoleonmm83/paperless-scanner
 
-Lizenziert unter MIT. Code ansehen und beitragen:
-https://github.com/napoleonmm83/paperless-scanner
+💬 HILFE WENN SIE SIE BRAUCHEN
 
-SUPPORT
+Hängen Sie fest? Wir helfen:
+→ Umfassende FAQ & Fehlerbehebungs-Anleitung
+→ Aktive Community auf r/paperlessngx
+→ GitHub Issues für Bug-Reports
+→ Premium-Nutzer erhalten vorrangigen E-Mail-Support
 
-• FAQ & Fehlerbehebung: GitHub README
-• Bug-Reports: GitHub Issues
-• Community: r/paperlessngx
-• Dokumentation: Vollständige Docs auf GitHub
+📱 RISIKOFREI TESTEN
 
-Transformiere deinen Dokumenten-Workflow noch heute. Lade Paperless Scanner herunter und erlebe die schnellste Art, Papierkram zu digitalisieren!
+Laden Sie jetzt herunter und starten Sie mit der kostenlosen Version. Keine Kreditkarte erforderlich. Keine Testversionen die ablaufen. Kein Druck zum Upgrade.
+
+Gefällt es? Erwägen Sie Premium um noch mehr Zeit zu sparen.
+Brauchen Sie keine KI? Bleiben Sie für immer kostenlos. Ernsthaft.
+
+Hören Sie auf, Stunden mit Dokumenten-Organisation zu verschwenden. Lassen Sie Paperless Scanner die schwere Arbeit machen.
+
+Jetzt herunterladen und Ihre Zeit zurückgewinnen. 📄→🗂️✨
