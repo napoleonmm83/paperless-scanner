@@ -222,14 +222,15 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Enable or disable AI debug mode (unlocked by 7x tap on version).
-     * This allows testers to access AI features in release builds.
+     * Enable or disable AI debug mode.
+     * NOTE: This no longer grants Premium access (PHASE 2 active).
+     * AI features require active subscription regardless of debug mode.
+     * Kept for backwards compatibility with existing preferences.
      */
     fun setAiDebugModeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             tokenManager.setAiDebugModeEnabled(enabled)
-            // Refresh premium access to pick up the change immediately
-            premiumFeatureManager.refreshPremiumAccess()
+            // No longer needs to refresh premium access - subscription determines access
         }
     }
 

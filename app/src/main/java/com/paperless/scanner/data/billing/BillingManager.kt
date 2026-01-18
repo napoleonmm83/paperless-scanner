@@ -58,20 +58,53 @@ class BillingManager @Inject constructor(
     private var billingClient: BillingClient? = null
     private var productDetailsCache: Map<String, ProductDetails> = emptyMap()
 
+    // Store pending purchase continuation to resume after purchasesUpdatedListener callback
+    private var pendingPurchaseContinuation: kotlin.coroutines.Continuation<PurchaseResult>? = null
+
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
+        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        Log.d(TAG, "purchasesUpdatedListener triggered")
+        Log.d(TAG, "Response Code: ${billingResult.responseCode}")
+        Log.d(TAG, "Debug Message: ${billingResult.debugMessage}")
+        Log.d(TAG, "Purchases count: ${purchases?.size ?: 0}")
+        Log.d(TAG, "Has pending continuation: ${pendingPurchaseContinuation != null}")
+
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
+                Log.d(TAG, "✓ Purchase SUCCESS")
                 purchases?.forEach { purchase ->
+                    Log.d(TAG, "  - Product: ${purchase.products}")
+                    Log.d(TAG, "  - State: ${purchase.purchaseState}")
+                    Log.d(TAG, "  - Acknowledged: ${purchase.isAcknowledged}")
                     handlePurchase(purchase)
                 }
+                // Resume pending purchase flow with success
+                pendingPurchaseContinuation?.let {
+                    Log.d(TAG, "Resuming continuation with SUCCESS")
+                    it.resume(PurchaseResult.Success)
+                    pendingPurchaseContinuation = null
+                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
-                Log.d(TAG, "Purchase canceled by user")
+                Log.d(TAG, "✗ Purchase CANCELLED by user")
+                // Resume pending purchase flow with cancelled
+                pendingPurchaseContinuation?.let {
+                    Log.d(TAG, "Resuming continuation with CANCELLED")
+                    it.resume(PurchaseResult.Cancelled)
+                    pendingPurchaseContinuation = null
+                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
             }
             else -> {
-                Log.e(TAG, "Purchase error: ${billingResult.debugMessage}")
+                Log.e(TAG, "✗ Purchase ERROR: ${billingResult.debugMessage}")
+                // Resume pending purchase flow with error
+                pendingPurchaseContinuation?.let {
+                    Log.d(TAG, "Resuming continuation with ERROR")
+                    it.resume(PurchaseResult.Error(billingResult.debugMessage))
+                    pendingPurchaseContinuation = null
+                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
             }
         }
+        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     /**
@@ -200,17 +233,43 @@ class BillingManager @Inject constructor(
      * - Monthly: 7-day trial (Product ID: `paperless_ai_monthly`)
      * - Yearly: 14-day trial (Product ID: `paperless_ai_yearly`)
      *
+     * **Important:**
+     * This function suspends until the purchase flow completes (success/cancel/error).
+     * The actual result comes from purchasesUpdatedListener callback.
+     *
      * @param activity Activity required for billing flow
      * @param productId Product ID from Play Console (e.g., "paperless_ai_monthly")
      * @return PurchaseResult indicating success, cancellation, or error
      */
     suspend fun launchPurchaseFlow(activity: Activity, productId: String): PurchaseResult {
+        Log.d(TAG, "════════════════════════════════════════════════")
+        Log.d(TAG, "launchPurchaseFlow called")
+        Log.d(TAG, "Product ID: $productId")
+
+        // Check if there's already a pending purchase
+        if (pendingPurchaseContinuation != null) {
+            Log.e(TAG, "✗ Purchase already in progress!")
+            return PurchaseResult.Error("Purchase already in progress")
+        }
+
         val productDetails = productDetailsCache[productId]
-            ?: return PurchaseResult.Error("Product not found. Please try again later.")
+        if (productDetails == null) {
+            Log.e(TAG, "✗ Product not found in cache!")
+            Log.d(TAG, "Available products: ${productDetailsCache.keys}")
+            return PurchaseResult.Error("Product not found. Please try again later.")
+        }
+
+        Log.d(TAG, "✓ Product found: ${productDetails.name}")
 
         // Get first offer token (trial offer if configured as default in Play Console)
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
-            ?: return PurchaseResult.Error("No subscription offers available")
+        if (offerToken == null) {
+            Log.e(TAG, "✗ No subscription offers available!")
+            return PurchaseResult.Error("No subscription offers available")
+        }
+
+        Log.d(TAG, "✓ Offer token found")
+        Log.d(TAG, "Offers available: ${productDetails.subscriptionOfferDetails?.size}")
 
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -224,20 +283,34 @@ class BillingManager @Inject constructor(
             .build()
 
         return suspendCancellableCoroutine { continuation ->
+            // Store continuation to be resumed by purchasesUpdatedListener
+            pendingPurchaseContinuation = continuation
+            Log.d(TAG, "✓ Pending continuation stored")
+
+            // Launch billing flow
+            Log.d(TAG, "Launching billing flow...")
             val billingResult = billingClient?.launchBillingFlow(activity, billingFlowParams)
 
-            when (billingResult?.responseCode) {
-                BillingClient.BillingResponseCode.OK -> {
-                    // Result will be delivered via purchasesUpdatedListener
-                    // For now, return Success (actual result will update via Flow)
-                    continuation.resume(PurchaseResult.Success)
-                }
-                BillingClient.BillingResponseCode.USER_CANCELED -> {
-                    continuation.resume(PurchaseResult.Cancelled)
-                }
-                else -> {
-                    continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: "Unknown error"))
-                }
+            Log.d(TAG, "launchBillingFlow returned:")
+            Log.d(TAG, "  Response Code: ${billingResult?.responseCode}")
+            Log.d(TAG, "  Debug Message: ${billingResult?.debugMessage}")
+
+            // Only handle flow launch errors here
+            // Success/Cancel/Error from actual purchase handled in purchasesUpdatedListener
+            if (billingResult?.responseCode != BillingClient.BillingResponseCode.OK) {
+                Log.e(TAG, "✗ Failed to launch billing flow!")
+                pendingPurchaseContinuation = null
+                continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: "Failed to launch billing flow"))
+            } else {
+                Log.d(TAG, "✓ Billing flow launched successfully")
+                Log.d(TAG, "Waiting for purchasesUpdatedListener callback...")
+            }
+            // If OK, wait for purchasesUpdatedListener to resume the continuation
+
+            // Handle cancellation
+            continuation.invokeOnCancellation {
+                Log.d(TAG, "⚠ Purchase flow cancelled (continuation)")
+                pendingPurchaseContinuation = null
             }
         }
     }

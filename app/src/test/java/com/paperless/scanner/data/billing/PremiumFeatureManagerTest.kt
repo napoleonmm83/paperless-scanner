@@ -17,11 +17,11 @@ import org.junit.Test
  * Unit tests for PremiumFeatureManager.
  *
  * Tests the feature gate logic that combines:
- * - Premium access (debug build in Phase 1, subscription in Phase 2)
+ * - Premium access (subscription status from BillingManager)
  * - User preferences (from TokenManager)
  *
- * PHASE 1 NOTE: Tests simulate premium access via _premiumAccessEnabled
- * which is controlled by BuildConfig.DEBUG in production.
+ * PHASE 2 NOTE: Tests simulate premium access via mocked BillingManager
+ * which returns subscription status in production.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PremiumFeatureManagerTest {
@@ -30,6 +30,7 @@ class PremiumFeatureManagerTest {
     private lateinit var billingManager: BillingManager
     private lateinit var tokenManager: TokenManager
 
+    private val mockSubscriptionActive = MutableStateFlow(false)
     private val mockAiSuggestionsEnabled = MutableStateFlow(true)
     private val mockAiNewTagsEnabled = MutableStateFlow(true)
     private val mockAiWifiOnly = MutableStateFlow(false)
@@ -38,6 +39,10 @@ class PremiumFeatureManagerTest {
     fun setup() {
         billingManager = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
+
+        // Mock BillingManager subscription status
+        every { billingManager.isSubscriptionActive } returns mockSubscriptionActive
+        every { billingManager.isSubscriptionActiveSync() } answers { mockSubscriptionActive.value }
 
         // Mock TokenManager flows
         every { tokenManager.aiSuggestionsEnabled } returns mockAiSuggestionsEnabled
@@ -53,11 +58,10 @@ class PremiumFeatureManagerTest {
 
     /**
      * Helper to set premium access state for testing.
-     * In production, this is controlled by BuildConfig.DEBUG (Phase 1)
-     * or BillingManager subscription status (Phase 2).
+     * In production, this is controlled by BillingManager subscription status.
      */
     private fun setPremiumAccessEnabled(enabled: Boolean) {
-        premiumFeatureManager._premiumAccessEnabled.value = enabled
+        mockSubscriptionActive.value = enabled
     }
 
     // ==================== isAiEnabled Tests ====================
@@ -206,22 +210,22 @@ class PremiumFeatureManagerTest {
     @Test
     fun `isAiEnabled reacts to premium access changes`() = runTest {
         mockAiSuggestionsEnabled.value = true
-        // Start from a known state to avoid BuildConfig.DEBUG variance
+        // Start from a known state (no subscription)
         setPremiumAccessEnabled(false)
 
         premiumFeatureManager.isAiEnabled.test {
-            // Initially false (simulates release build / no subscription)
+            // Initially false (no subscription)
             assertFalse(awaitItem())
 
-            // Set to true (simulates debug build or active subscription)
+            // Set to true (subscription activated)
             setPremiumAccessEnabled(true)
             assertTrue(awaitItem())
 
-            // Set back to false (simulates release build / subscription expired)
+            // Set back to false (subscription expired)
             setPremiumAccessEnabled(false)
             assertFalse(awaitItem())
 
-            // Set to true again
+            // Set to true again (subscription renewed)
             setPremiumAccessEnabled(true)
             assertTrue(awaitItem())
         }
@@ -245,20 +249,20 @@ class PremiumFeatureManagerTest {
         }
     }
 
-    // ==================== Phase 1 Specific Tests ====================
+    // ==================== Phase 2 Specific Tests ====================
 
     @Test
-    fun `debug build has premium access by default`() {
-        // In unit tests, BuildConfig.DEBUG determines initial state
+    fun `no subscription has no premium access by default`() {
+        // In unit tests, subscription is mocked as false initially
         // This test documents expected behavior
         val manager = PremiumFeatureManager(billingManager, tokenManager)
-        // Initial value comes from BuildConfig.DEBUG
-        // In test environment this is typically false
+        // Initial value comes from billingManager.isSubscriptionActive
+        // In test environment this is mocked as false by default
     }
 
     @Test
-    fun `release build has no premium access`() = runTest {
-        setPremiumAccessEnabled(false) // Simulates release build
+    fun `no subscription blocks AI features`() = runTest {
+        setPremiumAccessEnabled(false) // Simulates no subscription
         mockAiSuggestionsEnabled.value = true
 
         assertFalse(premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS))

@@ -430,7 +430,7 @@ fun SettingsScreen(
 
         // About Section
         SettingsSection(title = stringResource(R.string.settings_section_about)) {
-            // Version item with 7-tap Easter egg for AI debug mode
+            // Version item (7-tap Easter egg DISABLED for production)
             SettingsClickableItem(
                 icon = Icons.Filled.Info,
                 title = stringResource(R.string.settings_app_version),
@@ -440,49 +440,8 @@ fun SettingsScreen(
                     BuildConfig.VERSION_NAME
                 },
                 onClick = {
-                    val currentTime = System.currentTimeMillis()
-
-                    // Helper to show toast with instant feedback (cancel previous)
-                    fun showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
-                        developerModeToast.value?.cancel()
-                        developerModeToast.value = Toast.makeText(context, message, duration).also { it.show() }
-                    }
-
-                    // Reset counter if too much time has passed
-                    if (currentTime - lastTapTime > tapTimeoutMs) {
-                        versionTapCount = 0
-                    }
-                    lastTapTime = currentTime
-
-                    // Already enabled - show message and toggle off option
-                    if (uiState.aiDebugModeEnabled) {
-                        versionTapCount++
-                        if (versionTapCount >= requiredTaps) {
-                            // Disable debug mode
-                            viewModel.setAiDebugModeEnabled(false)
-                            showToast(context.getString(R.string.settings_debug_mode_disabled))
-                            versionTapCount = 0
-                        } else {
-                            showToast(context.getString(R.string.settings_debug_mode_already_enabled))
-                        }
-                        return@SettingsClickableItem
-                    }
-
-                    versionTapCount++
-
-                    when {
-                        versionTapCount >= requiredTaps -> {
-                            // Enable AI debug mode
-                            viewModel.setAiDebugModeEnabled(true)
-                            showToast(context.getString(R.string.settings_debug_mode_enabled), Toast.LENGTH_LONG)
-                            versionTapCount = 0
-                        }
-                        versionTapCount >= 3 -> {
-                            // Show countdown from 3 taps onwards
-                            val remaining = requiredTaps - versionTapCount
-                            showToast(context.getString(R.string.settings_debug_mode_steps_remaining, remaining))
-                        }
-                    }
+                    // 7-tap Easter egg DISABLED
+                    // Reason: Production release - no backdoor access to Premium features
                 }
             )
 
@@ -723,24 +682,34 @@ fun SettingsScreen(
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
             onSubscribe = { productId ->
+                android.util.Log.d("SettingsScreen", "════════════════════════════════════════════════")
+                android.util.Log.d("SettingsScreen", "onSubscribe called with productId: $productId")
                 val activity = context as? Activity
                 if (activity != null) {
+                    android.util.Log.d("SettingsScreen", "Activity found, launching coroutine...")
                     coroutineScope.launch {
+                        android.util.Log.d("SettingsScreen", "Calling viewModel.launchPurchaseFlow()...")
                         when (val result = viewModel.launchPurchaseFlow(activity, productId)) {
                             is PurchaseResult.Success -> {
+                                android.util.Log.d("SettingsScreen", "✓ Purchase Result: SUCCESS")
                                 purchaseResultMessage = context.getString(R.string.premium_purchase_success)
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Cancelled -> {
-                                // User cancelled, just close sheet
+                                android.util.Log.d("SettingsScreen", "✗ Purchase Result: CANCELLED")
+                                // User cancelled, just close sheet (NO SUCCESS MESSAGE!)
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Error -> {
+                                android.util.Log.e("SettingsScreen", "✗ Purchase Result: ERROR - ${result.message}")
                                 purchaseResultMessage = context.getString(R.string.premium_purchase_error, result.message)
                             }
                         }
+                        android.util.Log.d("SettingsScreen", "Purchase flow completed")
+                        android.util.Log.d("SettingsScreen", "════════════════════════════════════════════════")
                     }
                 } else {
+                    android.util.Log.e("SettingsScreen", "✗ Activity is null! Cannot launch purchase")
                     purchaseResultMessage = "Unable to launch purchase flow"
                     showPremiumUpgradeSheet = false
                 }
