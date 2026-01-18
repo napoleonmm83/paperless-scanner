@@ -1,6 +1,6 @@
 Drowning in paperwork? Tired of manually organizing every scanned document?
 
-Paperless Scanner turns your phone into a smart document management system that saves you hours every month. Join thousands of users who've ditched slow desktop scanners and tedious manual tagging.
+Paperless Scanner turns your phone into a smart document management system that saves you hours every month.
 
 💪 WHAT YOU GET (100% FREE)
 
@@ -14,7 +14,6 @@ Say goodbye to manual tagging:
 → Instantly assign tags, document types, and correspondents
 → Custom titles for every document
 → Full control over your organization system
-→ Never lose a document again
 
 Sleep easy about privacy:
 → YOUR server, YOUR data - no cloud middleman
@@ -24,13 +23,13 @@ Sleep easy about privacy:
 
 ⚡ SAVE 60 SECONDS PER SCAN (Premium)
 
-Let AI do the boring work while you focus on what matters:
+Let AI do the boring work:
 → Smart tag suggestions based on document content
 → Automatic title extraction from your documents
 → Intelligent date and correspondent matching
-→ Works with YOUR existing tags - no retraining needed
+→ Works with YOUR existing tags
 
-Premium users report saving 2-3 hours per month on document management.
+Premium users report saving 2-3 hours per month.
 
 💰 PRICING THAT MAKES SENSE
 
@@ -38,20 +37,19 @@ Free Forever:
 ✓ Unlimited scans and uploads
 ✓ All organization features
 ✓ Full privacy protection
-✓ No hidden fees, ever
+✓ No hidden fees
 
 Premium (Optional):
-€4.99/month or €49.99/year
+€3.99/month or €29.99/year
 ✓ AI-powered suggestions
 ✓ Save hours every month
 ✓ Priority support
-✓ Cancel anytime - no questions asked
+✓ Cancel anytime
 
 Power Users:
 ✓ Self-host your own AI (Paperless-GPT)
 ✓ Use your own API keys
 ✓ Zero subscription cost
-✓ Ultimate flexibility
 
 🎯 WHO IS THIS FOR?
 
@@ -60,25 +58,20 @@ Perfect if you:
 → Hate wasting time on manual data entry
 → Value privacy and data ownership
 → Want professional-quality mobile scanning
-→ Prefer open source over proprietary software
 
 Not right if you:
-→ Don't have a Paperless-ngx server (get one at docs.paperless-ngx.com)
+→ Don't have a Paperless-ngx server
 → Prefer cloud-based solutions
-→ Don't scan documents regularly
 
 🚀 WHY USERS LOVE US
 
-"Finally, a mobile scanner that actually works with my self-hosted setup!" - Reddit user
+"Finally, a mobile scanner that works with my self-hosted setup!" - Reddit
 
-"The AI tagging saves me so much time. Worth every penny." - Premium subscriber
-
-"Love that it's open source. I can trust it with my sensitive documents." - GitHub contributor
+"The AI tagging saves me so much time. Worth every penny." - Premium user
 
 Fast & Reliable:
 ✓ Native Android app (not a web wrapper)
-✓ Material 3 design that feels premium
-✓ Smooth animations, zero lag
+✓ Material 3 design
 ✓ Works on Android 8.0+
 
 Privacy You Can Trust:
@@ -91,7 +84,6 @@ Built by the Community:
 ✓ Active development with regular updates
 ✓ Responsive to user feedback
 ✓ Growing community on Reddit (r/paperlessngx)
-✓ Professional support available
 
 ⚙️ TECHNICAL REQUIREMENTS
 
@@ -113,7 +105,6 @@ View code: github.com/napoleonmm83/paperless-scanner
 
 💬 GET HELP WHEN YOU NEED IT
 
-Stuck? We're here to help:
 → Comprehensive FAQ & troubleshooting guide
 → Active community on r/paperlessngx
 → GitHub Issues for bug reports
@@ -121,10 +112,10 @@ Stuck? We're here to help:
 
 📱 TRY IT RISK-FREE
 
-Download now and start with the free version. No credit card required. No trials that expire. No pressure to upgrade.
+Download now and start with the free version. No credit card required. No trials that expire.
 
 Like it? Consider Premium to save even more time.
-Don't need AI? Stay free forever. Seriously.
+Don't need AI? Stay free forever.
 
 Stop spending hours organizing documents. Let Paperless Scanner do the heavy lifting.
 

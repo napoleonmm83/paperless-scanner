@@ -1,6 +1,6 @@
 Ertrinken Sie in Papierkram? Genervt vom manuellen Organisieren jedes gescannten Dokuments?
 
-Paperless Scanner verwandelt Ihr Smartphone in ein intelligentes Dokumentenverwaltungssystem, das Ihnen jeden Monat Stunden spart. Schließen Sie sich Tausenden Nutzern an, die langsame Desktop-Scanner und mühsames manuelles Taggen hinter sich gelassen haben.
+Paperless Scanner verwandelt Ihr Smartphone in ein intelligentes Dokumentenverwaltungssystem, das Ihnen jeden Monat Stunden spart.
 
 💪 WAS SIE BEKOMMEN (100% KOSTENLOS)
 
@@ -14,7 +14,6 @@ Tschüss manuelle Tag-Vergabe:
 → Sofortige Zuweisung von Tags, Dokumenttypen und Korrespondenten
 → Individuelle Titel für jedes Dokument
 → Volle Kontrolle über Ihr Organisationssystem
-→ Nie wieder ein Dokument verlieren
 
 Schlafen Sie ruhig wegen Datenschutz:
 → IHR Server, IHRE Daten - kein Cloud-Umweg
@@ -24,13 +23,13 @@ Schlafen Sie ruhig wegen Datenschutz:
 
 ⚡ SPAREN SIE 60 SEKUNDEN PRO SCAN (Premium)
 
-Lassen Sie die KI die langweilige Arbeit machen, während Sie sich auf Wichtiges konzentrieren:
+Lassen Sie die KI die langweilige Arbeit machen:
 → Intelligente Tag-Vorschläge basierend auf Dokumentinhalt
 → Automatische Titel-Extraktion aus Ihren Dokumenten
 → Cleveres Datum- und Korrespondenten-Matching
-→ Funktioniert mit IHREN vorhandenen Tags - kein Training nötig
+→ Funktioniert mit IHREN vorhandenen Tags
 
-Premium-Nutzer berichten von 2-3 Stunden Zeitersparnis pro Monat bei der Dokumentenverwaltung.
+Premium-Nutzer berichten von 2-3 Stunden Zeitersparnis pro Monat.
 
 💰 PREISE DIE SINN MACHEN
 
@@ -38,20 +37,19 @@ Kostenlos für immer:
 ✓ Unbegrenzte Scans und Uploads
 ✓ Alle Organisations-Features
 ✓ Voller Datenschutz
-✓ Keine versteckten Kosten, jemals
+✓ Keine versteckten Kosten
 
 Premium (Optional):
-€4,99/Monat oder €49,99/Jahr
+€3,99/Monat oder €29,99/Jahr
 ✓ KI-gestützte Vorschläge
 ✓ Sparen Sie Stunden jeden Monat
 ✓ Vorrangiger Support
-✓ Jederzeit kündbar - ohne Rückfragen
+✓ Jederzeit kündbar
 
 Power-User:
 ✓ Hosten Sie Ihre eigene KI (Paperless-GPT)
 ✓ Nutzen Sie Ihre eigenen API-Keys
 ✓ Null Abo-Kosten
-✓ Ultimative Flexibilität
 
 🎯 FÜR WEN IST DAS?
 
@@ -60,25 +58,20 @@ Perfekt wenn Sie:
 → Manuelle Dateneingabe hassen
 → Datenschutz und Datenhoheit schätzen
 → Professionelles mobiles Scannen wollen
-→ Open Source gegenüber proprietärer Software bevorzugen
 
 Nicht richtig wenn Sie:
-→ Keinen Paperless-ngx Server haben (bekommen Sie einen auf docs.paperless-ngx.com)
+→ Keinen Paperless-ngx Server haben
 → Cloud-basierte Lösungen bevorzugen
-→ Selten Dokumente scannen
 
 🚀 WARUM NUTZER UNS LIEBEN
 
-"Endlich ein mobiler Scanner der tatsächlich mit meinem selbst-gehosteten Setup funktioniert!" - Reddit Nutzer
+"Endlich ein mobiler Scanner der mit meinem selbst-gehosteten Setup funktioniert!" - Reddit
 
-"Das KI-Tagging spart mir so viel Zeit. Jeden Cent wert." - Premium Abonnent
-
-"Liebe dass es Open Source ist. Ich kann der App mit sensiblen Dokumenten vertrauen." - GitHub Contributor
+"Das KI-Tagging spart mir so viel Zeit. Jeden Cent wert." - Premium User
 
 Schnell & Zuverlässig:
 ✓ Native Android App (kein Web-Wrapper)
-✓ Material 3 Design das sich Premium anfühlt
-✓ Flüssige Animationen, null Verzögerung
+✓ Material 3 Design
 ✓ Funktioniert ab Android 8.0+
 
 Datenschutz dem Sie vertrauen können:
@@ -91,7 +84,6 @@ Von der Community gebaut:
 ✓ Aktive Entwicklung mit regelmäßigen Updates
 ✓ Reagiert auf Nutzer-Feedback
 ✓ Wachsende Community auf Reddit (r/paperlessngx)
-✓ Professioneller Support verfügbar
 
 ⚙️ TECHNISCHE VORAUSSETZUNGEN
 
@@ -99,12 +91,12 @@ Von der Community gebaut:
 • Google Play Services (für Scanner)
 • Eigene Paperless-ngx Instanz (v1.10.0+)
 
-Kein Paperless-ngx? Es ist ein kostenloses, quelloffenes Dokumentenverwaltungssystem das Sie in unter 10 Minuten selbst hosten können. Mehr Infos auf docs.paperless-ngx.com
+Kein Paperless-ngx? Es ist ein kostenloses, quelloffenes Dokumentenverwaltungssystem das Sie in unter 10 Minuten selbst hosten können. Mehr auf docs.paperless-ngx.com
 
 🔓 OPEN SOURCE & TRANSPARENT
 
 Anders als proprietäre Scan-Apps glauben wir an Transparenz:
-→ MIT Lizenz - nutzen, modifizieren, verteilen frei
+→ MIT Lizenz - frei nutzbar und modifizierbar
 → Vollständiger Quellcode auf GitHub
 → Kein Vendor Lock-in
 → Community-Beiträge willkommen
@@ -113,7 +105,6 @@ Code ansehen: github.com/napoleonmm83/paperless-scanner
 
 💬 HILFE WENN SIE SIE BRAUCHEN
 
-Hängen Sie fest? Wir helfen:
 → Umfassende FAQ & Fehlerbehebungs-Anleitung
 → Aktive Community auf r/paperlessngx
 → GitHub Issues für Bug-Reports
@@ -121,10 +112,10 @@ Hängen Sie fest? Wir helfen:
 
 📱 RISIKOFREI TESTEN
 
-Laden Sie jetzt herunter und starten Sie mit der kostenlosen Version. Keine Kreditkarte erforderlich. Keine Testversionen die ablaufen. Kein Druck zum Upgrade.
+Laden Sie jetzt herunter und starten Sie mit der kostenlosen Version. Keine Kreditkarte erforderlich. Keine Testversionen die ablaufen.
 
 Gefällt es? Erwägen Sie Premium um noch mehr Zeit zu sparen.
-Brauchen Sie keine KI? Bleiben Sie für immer kostenlos. Ernsthaft.
+Brauchen Sie keine KI? Bleiben Sie für immer kostenlos.
 
 Hören Sie auf, Stunden mit Dokumenten-Organisation zu verschwenden. Lassen Sie Paperless Scanner die schwere Arbeit machen.
 
