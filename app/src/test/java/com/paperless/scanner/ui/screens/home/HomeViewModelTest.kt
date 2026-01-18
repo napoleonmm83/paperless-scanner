@@ -78,7 +78,8 @@ class HomeViewModelTest {
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
         every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
-        coEvery { documentRepository.getDocumentCount() } returns Result.success(0)
+        coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
+        coEvery { documentRepository.getDocumentCount(any()) } returns Result.success(0)
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
