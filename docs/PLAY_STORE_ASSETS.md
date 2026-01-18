@@ -7,27 +7,22 @@ This document tracks the status of Play Store marketing assets.
 ### Current Status
 
 **Required:** 8 phone screenshots (minimum 2, recommended 8)
-**Current:** 5 screenshots available
+**Current:** ✅ 8 screenshots available (COMPLETE!)
 
 ### Existing Screenshots
 
 Located in: `fastlane/metadata/android/{locale}/images/phoneScreenshots/`
 
-| # | Filename | Description | Status |
-|---|----------|-------------|--------|
-| 1 | 1_login.png | Login screen with server connection | ✅ Ready |
-| 2 | 2_scan.png | MLKit scanner in action | ✅ Ready |
-| 3 | 3_upload.png | Upload screen with metadata entry | ✅ Ready |
-| 4 | 4_multipage.png | Multi-page document management | ✅ Ready |
-| 5 | 5_batch.png | Batch import functionality | ✅ Ready |
-
-### Missing Screenshots (Need 3 more for optimal listing)
-
-| # | Description | Priority | Notes |
-|---|-------------|----------|-------|
-| 6 | **Settings & App-Lock** | High | Show security features (App-Lock toggle, biometric, timeout) |
-| 7 | **AI Suggestions (Premium)** | High | Show AI tag suggestions in action on upload screen |
-| 8 | **Dark Mode** | Medium | Same screen as #3 but in dark mode to show theme support |
+| # | Filename | Description | Size | Status |
+|---|----------|-------------|------|--------|
+| 1 | 1_hero_upload.png | Upload/Tagging screen (Hero Shot) | 151K | ✅ Ready |
+| 2 | 2_scan.png | MLKit scanner interface | 76K | ✅ Ready |
+| 3 | 3_ai_suggestions.png | AI tag suggestions (Premium feature) | 174K | ✅ Ready |
+| 4 | 4_documents_list.png | Documents overview/list | 173K | ✅ Ready |
+| 5 | 5_settings_applock.png | Settings with App-Lock security | 172K | ✅ Ready |
+| 6 | 6_home.png | Home dashboard | 176K | ✅ Ready |
+| 7 | 7_scan_result.png | Scanned document result | 244K | ✅ Ready |
+| 8 | 8_login.png | Server login/connection | 85K | ✅ Ready |
 
 ### Screenshot Requirements
 
@@ -50,33 +45,33 @@ Located in: `fastlane/metadata/android/{locale}/images/phoneScreenshots/`
 
 ### Screenshot Order & Messaging
 
-Recommended order for Play Store display:
+✅ **Optimized for Play Store (current order):**
 
-1. **Hero Shot** - Upload screen with tags (current #3)
+1. **1_hero_upload.png** - Upload/Tagging screen
    - Message: "Upload documents with smart tagging"
 
-2. **Scan Process** - MLKit scanner (current #2)
+2. **2_scan.png** - MLKit scanner interface
    - Message: "Smart document scanning with edge detection"
 
-3. **AI Suggestions** - Premium feature (MISSING - need to create)
+3. **3_ai_suggestions.png** - AI tag suggestions (Premium)
    - Message: "AI-powered tag suggestions save you time"
 
-4. **Multi-Page** - Document management (current #4)
-   - Message: "Combine multiple pages into one PDF"
+4. **4_documents_list.png** - Documents overview
+   - Message: "Manage all your documents in one place"
 
-5. **Batch Import** - Gallery import (current #5)
-   - Message: "Import multiple documents at once"
-
-6. **Security** - Settings with App-Lock (MISSING - need to create)
+5. **5_settings_applock.png** - Settings with App-Lock
    - Message: "Protect your documents with App-Lock"
 
-7. **Dark Mode** - Upload screen dark (MISSING - need to create)
-   - Message: "Beautiful design, day or night"
+6. **6_home.png** - Home dashboard
+   - Message: "Your document workflow at a glance"
 
-8. **Login** - Server connection (current #1)
+7. **7_scan_result.png** - Scanned document result
+   - Message: "Perfect scan quality every time"
+
+8. **8_login.png** - Server connection
    - Message: "Connect to your Paperless-ngx server"
 
-**Note:** Screenshot order in filesystem doesn't matter - Play Store lets you reorder them in the console.
+**Note:** Screenshot order in filesystem DOES matter for fastlane automated upload. Files are uploaded in alphabetical order (1-8).
 
 ---
 
@@ -165,45 +160,6 @@ Before uploading to Play Store:
 
 ---
 
-## How to Create Missing Screenshots
-
-### Using Android Studio
-
-1. **Run app on emulator** (Pixel 6 Pro, API 33+)
-2. **Navigate to the screen** you want to capture
-3. **Take screenshot:**
-   - Use emulator camera button
-   - Or: `Ctrl+S` / `Cmd+S`
-   - Or: ADB command: `adb exec-out screencap -p > screenshot.png`
-4. **Save as PNG** with appropriate filename
-5. **Optimize file size** (optional): Use pngquant or ImageOptim
-
-### Content for Missing Screenshots
-
-**Screenshot #6: Settings & App-Lock**
-- Open Settings screen
-- Show Security section with:
-  - App-Lock toggle enabled
-  - Biometric unlock enabled
-  - Timeout set to 5 minutes
-  - "Change Password" option visible
-
-**Screenshot #7: AI Suggestions (Premium)**
-- Upload screen after scanning a document
-- Show AI suggestion chip/banner with:
-  - Suggested tags
-  - Suggested title
-  - "Apply" and "Dismiss" buttons
-  - Premium badge/indicator
-
-**Screenshot #8: Dark Mode**
-- Same as screenshot #3 (Upload screen)
-- But with dark theme active
-- Shows Material 3 dark theme colors
-- Make sure all text is readable
-
----
-
 ## Current Fastlane Metadata
 
 ### Titles (50 char limit)
@@ -225,25 +181,22 @@ Before uploading to Play Store:
 
 ## Next Steps
 
-1. **Create missing screenshots** (3 screenshots)
-   - Settings & App-Lock
-   - AI Suggestions (Premium)
-   - Dark Mode variant
+1. ✅ ~~Create missing screenshots~~ **COMPLETE!** All 8 screenshots ready
 
-2. **Create feature graphic** (1024x500px)
-   - Optional but highly recommended
+2. **Create feature graphic** (1024x500px) - OPTIONAL
    - Improves Play Store listing appearance
+   - Not required but recommended
 
 3. **Add screenshot text overlays** (optional)
    - Use Play Store's text overlay feature
    - Add short captions to each screenshot
    - Highlights key features
 
-4. **Upload to Play Store Console**
+4. **Upload to Play Store Console** - READY!
    - Graphics & Screenshots section
-   - Upload all 8 screenshots
-   - Reorder to match recommended sequence
-   - Add feature graphic
+   - Upload all 8 screenshots (via fastlane or manually)
+   - Screenshots will be uploaded in order 1-8
+   - Add feature graphic (if created)
    - Review preview on different devices
 
 5. **A/B test descriptions** (after launch)
@@ -255,4 +208,4 @@ Before uploading to Play Store:
 ---
 
 **Last Updated:** 2026-01-18
-**Status:** Descriptions ready, 5/8 screenshots ready, feature graphic needed
+**Status:** ✅ **READY FOR PLAY STORE!** All 8 screenshots complete, descriptions optimized (DE + EN), feature graphic optional
