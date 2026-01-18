@@ -356,12 +356,24 @@ fastlane/metadata/android/
 
 ### Changelog Format
 
+**CRITICAL: Google Play Store Limit - 500 Characters Maximum Per Language!**
+
+Each changelog file (e.g., `10455.txt`) MUST be ≤500 characters, otherwise Google Play deployment will FAIL.
+
+**Character Budget Strategy:**
+- Total available: 500 characters
+- Version line: ~20 chars ("Version 1.4.55:\n\n")
+- Emojis + Section headers: ~80 chars ("✨ Neue Features:\n🐛 Fehlerbehebungen:\n🔧 Verbesserungen:\n")
+- Remaining for content: ~400 chars
+- **Always verify with:** `wc -m <changelog-file>` (must show ≤500)
+
+**Writing Concise Changelogs:**
 ```
 Version 1.4.27:
 
 ✨ Neue Features:
-- Feature 1 Beschreibung
-- Feature 2 Beschreibung
+- Feature 1 (keep under 50 chars)
+- Feature 2
 
 🐛 Fehlerbehebungen:
 - Bug Fix 1
@@ -370,6 +382,13 @@ Version 1.4.27:
 🔧 Verbesserungen:
 - Improvement 1
 ```
+
+**Best Practices:**
+- Use abbreviations: "30-Min" not "30-Minuten", "Auto-Sync" not "Automatische Synchronisierung"
+- Remove filler words: "Nach unten ziehen" not "Einfach nach unten ziehen"
+- NO "Co-Authored-By" lines in changelogs (only in git commits)
+- Keep bullets concise: max 60 characters per line
+- Prioritize user-facing changes over technical details
 
 ### Was passiert automatisch:
 
