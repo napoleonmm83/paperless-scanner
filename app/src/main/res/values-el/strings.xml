@@ -534,6 +534,8 @@
     <string name="premium_price_monthly">%1$s / μήνα</string>
     <string name="premium_price_yearly">%1$s / έτος</string>
     <string name="premium_price_yearly_savings">Εξοικονομήστε 2 μήνες</string>
+    <string name="premium_trial_7_days">7 ημέρες δωρεάν</string>
+    <string name="premium_trial_14_days">14 ημέρες δωρεάν</string>
     <string name="premium_button_upgrade">Αναβάθμιση τώρα</string>
     <string name="premium_button_later">Αργότερα</string>
     <string name="premium_button_restore">Επαναφορά αγορών</string>

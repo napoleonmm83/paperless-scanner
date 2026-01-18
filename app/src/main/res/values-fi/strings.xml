@@ -533,7 +533,9 @@
     <string name="premium_option_yearly">Vuosittain</string>
     <string name="premium_price_monthly">%1$s / kuukausi</string>
     <string name="premium_price_yearly">%1$s / vuosi</string>
-    <string name="premium_price_yearly_savings">Säästä 2 kuukautta</string>
+    <string name="premium_price_yearly_savings">Säästä 4 kuukautta</string>
+    <string name="premium_trial_7_days">7 päivää ilmaiseksi</string>
+    <string name="premium_trial_14_days">14 päivää ilmaiseksi</string>
     <string name="premium_button_upgrade">Päivitä nyt</string>
     <string name="premium_button_later">Myöhemmin</string>
     <string name="premium_button_restore">Palauta ostokset</string>

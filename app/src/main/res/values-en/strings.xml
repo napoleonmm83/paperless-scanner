@@ -614,7 +614,9 @@
     <string name="premium_option_yearly">Yearly</string>
     <string name="premium_price_monthly">%1$s / month</string>
     <string name="premium_price_yearly">%1$s / year</string>
-    <string name="premium_price_yearly_savings">Save 2 months</string>
+    <string name="premium_price_yearly_savings">Save 4 months</string>
+    <string name="premium_trial_7_days">7 days free</string>
+    <string name="premium_trial_14_days">14 days free</string>
     <string name="premium_button_upgrade">Upgrade Now</string>
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Restore Purchases</string>

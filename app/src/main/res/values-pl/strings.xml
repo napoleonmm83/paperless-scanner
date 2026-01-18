@@ -534,6 +534,8 @@
     <string name="premium_price_monthly">%1$s / miesiąc</string>
     <string name="premium_price_yearly">%1$s / rok</string>
     <string name="premium_price_yearly_savings">Zaoszczędź 2 miesiące</string>
+    <string name="premium_trial_7_days">7 dni za darmo</string>
+    <string name="premium_trial_14_days">14 dni za darmo</string>
     <string name="premium_button_upgrade">Uaktualnij teraz</string>
     <string name="premium_button_later">Później</string>
     <string name="premium_button_restore">Przywróć zakupy</string>

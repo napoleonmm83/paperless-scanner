@@ -619,7 +619,9 @@
     <string name="premium_option_yearly">Jährlich</string>
     <string name="premium_price_monthly">%1$s / Monat</string>
     <string name="premium_price_yearly">%1$s / Jahr</string>
-    <string name="premium_price_yearly_savings">Spare 2 Monate</string>
+    <string name="premium_price_yearly_savings">Spare 4 Monate</string>
+    <string name="premium_trial_7_days">7 Tage kostenlos</string>
+    <string name="premium_trial_14_days">14 Tage kostenlos</string>
     <string name="premium_button_upgrade">Jetzt upgraden</string>
     <string name="premium_button_later">Später</string>
     <string name="premium_button_restore">Käufe wiederherstellen</string>

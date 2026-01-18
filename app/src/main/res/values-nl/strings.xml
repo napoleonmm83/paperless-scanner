@@ -533,7 +533,9 @@
     <string name="premium_option_yearly">Jaarlijks</string>
     <string name="premium_price_monthly">%1$s / maand</string>
     <string name="premium_price_yearly">%1$s / jaar</string>
-    <string name="premium_price_yearly_savings">Bespaar 2 maanden</string>
+    <string name="premium_price_yearly_savings">Bespaar 4 maanden</string>
+    <string name="premium_trial_7_days">7 dagen gratis</string>
+    <string name="premium_trial_14_days">14 dagen gratis</string>
     <string name="premium_button_upgrade">Nu upgraden</string>
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Aankopen herstellen</string>

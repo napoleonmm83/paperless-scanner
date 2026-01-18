@@ -533,7 +533,9 @@
     <string name="premium_option_yearly">Ročně</string>
     <string name="premium_price_monthly">%1$s / měsíc</string>
     <string name="premium_price_yearly">%1$s / rok</string>
-    <string name="premium_price_yearly_savings">Ušetřete 2 měsíce</string>
+    <string name="premium_price_yearly_savings">Ušetřete 4 měsíce</string>
+    <string name="premium_trial_7_days">7 dní zdarma</string>
+    <string name="premium_trial_14_days">14 dní zdarma</string>
     <string name="premium_button_upgrade">Upgradovat nyní</string>
     <string name="premium_button_later">Později</string>
     <string name="premium_button_restore">Obnovit nákupy</string>

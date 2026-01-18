@@ -534,6 +534,8 @@
     <string name="premium_price_monthly">%1$s / hónap</string>
     <string name="premium_price_yearly">%1$s / év</string>
     <string name="premium_price_yearly_savings">Takarítson meg 2 hónapot</string>
+    <string name="premium_trial_7_days">7 nap ingyenes</string>
+    <string name="premium_trial_14_days">14 nap ingyenes</string>
     <string name="premium_button_upgrade">Frissítés most</string>
     <string name="premium_button_later">Később</string>
     <string name="premium_button_restore">Vásárlások visszaállítása</string>

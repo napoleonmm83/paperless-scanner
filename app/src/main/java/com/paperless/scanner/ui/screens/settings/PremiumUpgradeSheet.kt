@@ -155,7 +155,8 @@ fun PremiumUpgradeSheet(
             ) {
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_monthly),
-                    price = stringResource(R.string.premium_price_monthly, "4.99€"),
+                    price = stringResource(R.string.premium_price_monthly, "3.99€"),
+                    trial = stringResource(R.string.premium_trial_7_days),
                     selected = selectedPlan == "monthly",
                     onClick = { selectedPlan = "monthly" },
                     modifier = Modifier.weight(1f)
@@ -163,8 +164,9 @@ fun PremiumUpgradeSheet(
 
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_yearly),
-                    price = stringResource(R.string.premium_price_yearly, "49.99€"),
+                    price = stringResource(R.string.premium_price_yearly, "29.99€"),
                     badge = stringResource(R.string.premium_price_yearly_savings),
+                    trial = stringResource(R.string.premium_trial_14_days),
                     selected = selectedPlan == "yearly",
                     onClick = { selectedPlan = "yearly" },
                     modifier = Modifier.weight(1f)
@@ -177,9 +179,9 @@ fun PremiumUpgradeSheet(
             Button(
                 onClick = {
                     val productId = if (selectedPlan == "monthly")
-                        "premium_monthly"
+                        "paperless_ai_monthly"
                     else
-                        "premium_yearly"
+                        "paperless_ai_yearly"
                     onSubscribe(productId)
                 },
                 modifier = Modifier
@@ -263,6 +265,7 @@ private fun SubscriptionOption(
     title: String,
     price: String,
     badge: String? = null,
+    trial: String? = null,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -306,6 +309,18 @@ private fun SubscriptionOption(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            if (trial != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = trial,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             if (badge != null) {
                 Spacer(modifier = Modifier.height(8.dp))

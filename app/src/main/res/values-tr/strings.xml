@@ -534,6 +534,8 @@
     <string name="premium_price_monthly">%1$s / ay</string>
     <string name="premium_price_yearly">%1$s / yıl</string>
     <string name="premium_price_yearly_savings">2 ay tasarruf edin</string>
+    <string name="premium_trial_7_days">7 gün ücretsiz</string>
+    <string name="premium_trial_14_days">14 gün ücretsiz</string>
     <string name="premium_button_upgrade">Şimdi yükselt</string>
     <string name="premium_button_later">Daha sonra</string>
     <string name="premium_button_restore">Satın almaları geri yükle</string>

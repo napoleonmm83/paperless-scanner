@@ -190,13 +190,25 @@ class BillingManager @Inject constructor(
 
     /**
      * Launch purchase flow for Premium subscription.
+     *
+     * **Trial Support:**
+     * If a trial offer is configured in Play Console and marked as "Default",
+     * it will be automatically selected by `firstOrNull()`. This is Google's
+     * recommended pattern for handling trial offers.
+     *
+     * **Play Console Setup Required:**
+     * - Monthly: 7-day trial (Product ID: `paperless_ai_monthly`)
+     * - Yearly: 14-day trial (Product ID: `paperless_ai_yearly`)
+     *
      * @param activity Activity required for billing flow
      * @param productId Product ID from Play Console (e.g., "paperless_ai_monthly")
+     * @return PurchaseResult indicating success, cancellation, or error
      */
     suspend fun launchPurchaseFlow(activity: Activity, productId: String): PurchaseResult {
         val productDetails = productDetailsCache[productId]
             ?: return PurchaseResult.Error("Product not found. Please try again later.")
 
+        // Get first offer token (trial offer if configured as default in Play Console)
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
             ?: return PurchaseResult.Error("No subscription offers available")
 
