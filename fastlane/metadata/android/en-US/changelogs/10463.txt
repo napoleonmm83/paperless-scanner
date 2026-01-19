@@ -1,0 +1,11 @@
+Version 1.4.63:
+
+🔧 Improvements:
+- WiFi-only AI setting now works reliably on all screens
+- More robust network detection (hotel WiFi, payment barriers, captive portals)
+- Upload system checks for real internet connection before starting uploads
+- Prevents upload failures with WiFi but no actual internet access
+
+📡 Technical:
+- Validated internet check for all network operations
+- Upload worker with pre-check before upload start

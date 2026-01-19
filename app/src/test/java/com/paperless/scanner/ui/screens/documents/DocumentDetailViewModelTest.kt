@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
@@ -50,6 +51,7 @@ class DocumentDetailViewModelTest {
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var premiumFeatureManager: PremiumFeatureManager
+    private lateinit var networkMonitor: NetworkMonitor
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -66,6 +68,7 @@ class DocumentDetailViewModelTest {
         suggestionOrchestrator = mockk(relaxed = true)
         aiUsageRepository = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
 
         // Default mock responses
         every { savedStateHandle.get<String>("documentId") } returns "123"
@@ -95,7 +98,8 @@ class DocumentDetailViewModelTest {
             tokenManager = tokenManager,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager
+            premiumFeatureManager = premiumFeatureManager,
+            networkMonitor = networkMonitor
         )
     }
 

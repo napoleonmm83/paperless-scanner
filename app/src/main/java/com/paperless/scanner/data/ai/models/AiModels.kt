@@ -53,5 +53,11 @@ sealed class SuggestionResult {
         val exception: Throwable? = null
     ) : SuggestionResult()
 
+    /**
+     * WiFi is required for AI suggestions, but device is not connected to WiFi.
+     * UI should show banner with "Use anyway" option.
+     */
+    data object WiFiRequired : SuggestionResult()
+
     data object Loading : SuggestionResult()
 }

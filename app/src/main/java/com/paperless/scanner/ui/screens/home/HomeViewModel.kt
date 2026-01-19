@@ -730,6 +730,13 @@ class HomeViewModel @Inject constructor(
                     is SuggestionResult.Loading -> {
                         // Already in loading state, no action needed
                     }
+                    is SuggestionResult.WiFiRequired -> {
+                        // WiFi-only restriction does not apply to HomeScreen analysis
+                        // (documents are already uploaded, only analyzing existing thumbnails)
+                        // This case should not occur here, but handle gracefully
+                        logger.log(Level.WARNING, "WiFiRequired in HomeViewModel - should not happen")
+                        updateDocumentState(documentId, UntaggedDocAnalysisState.Idle)
+                    }
                 }
             } catch (e: Exception) {
                 logger.log(Level.WARNING, "Error analyzing document $documentId: ${e.message}")

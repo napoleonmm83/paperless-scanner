@@ -6,6 +6,7 @@ import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
@@ -51,6 +52,7 @@ class AiAnalysisIntegrationTest {
     private lateinit var paperlessSuggestionsService: PaperlessSuggestionsService
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var tokenManager: TokenManager
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
@@ -78,6 +80,7 @@ class AiAnalysisIntegrationTest {
         context = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        tokenManager = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
@@ -89,6 +92,10 @@ class AiAnalysisIntegrationTest {
         every { correspondentRepository.observeCorrespondents() } returns flowOf(testCorrespondents)
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(testDocumentTypes)
 
+        // Setup tokenManager flows (required by SuggestionOrchestrator)
+        every { tokenManager.aiWifiOnly } returns flowOf(false)
+        every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
+
         // Create real AiAnalysisService (we'll mock Firebase via constructor)
         aiAnalysisService = AiAnalysisService(context)
 
@@ -99,6 +106,7 @@ class AiAnalysisIntegrationTest {
             tagMatchingEngine = tagMatchingEngine,
             paperlessSuggestionsService = paperlessSuggestionsService,
             networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository
@@ -146,6 +154,7 @@ class AiAnalysisIntegrationTest {
             tagMatchingEngine = tagMatchingEngine,
             paperlessSuggestionsService = paperlessSuggestionsService,
             networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository
@@ -197,6 +206,7 @@ class AiAnalysisIntegrationTest {
             tagMatchingEngine = tagMatchingEngine,
             paperlessSuggestionsService = paperlessSuggestionsService,
             networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository
@@ -248,6 +258,7 @@ class AiAnalysisIntegrationTest {
             tagMatchingEngine = tagMatchingEngine,
             paperlessSuggestionsService = paperlessSuggestionsService,
             networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository
@@ -362,6 +373,7 @@ class AiAnalysisIntegrationTest {
             tagMatchingEngine = tagMatchingEngine,
             paperlessSuggestionsService = paperlessSuggestionsService,
             networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository

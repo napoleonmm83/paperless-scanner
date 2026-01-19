@@ -52,7 +52,8 @@ class BatchImportViewModel @Inject constructor(
     private val correspondentRepository: CorrespondentRepository,
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
-    private val premiumFeatureManager: PremiumFeatureManager
+    private val premiumFeatureManager: PremiumFeatureManager,
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<BatchImportUiState>(BatchImportUiState.Idle)
@@ -79,6 +80,16 @@ class BatchImportViewModel @Inject constructor(
 
     private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
     val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
+
+    // WiFi-Only State
+    private val _wifiRequired = MutableStateFlow(false)
+    val wifiRequired: StateFlow<Boolean> = _wifiRequired.asStateFlow()
+
+    private val _wifiOnlyOverride = MutableStateFlow(false)
+    val wifiOnlyOverride: StateFlow<Boolean> = _wifiOnlyOverride.asStateFlow()
+
+    // Observe WiFi status for reactive UI
+    val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
 
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
@@ -292,6 +303,9 @@ class BatchImportViewModel @Inject constructor(
      * Supports both images (loaded via Coil) and PDFs (rendered via PdfRenderer).
      */
     fun analyzeDocument(uri: Uri) {
+        // Store URI for potential re-analysis with WiFi override
+        lastAnalyzedUri = uri
+
         viewModelScope.launch(Dispatchers.IO) {
             _analysisState.update { AnalysisState.Analyzing }
 
@@ -354,12 +368,22 @@ class BatchImportViewModel @Inject constructor(
                 val result = suggestionOrchestrator.getSuggestions(
                     bitmap = bitmap,
                     extractedText = "",
-                    documentId = null
+                    documentId = null,
+                    overrideWifiOnly = _wifiOnlyOverride.value
                 )
 
                 when (result) {
+                    is SuggestionResult.WiFiRequired -> {
+                        Log.d(TAG, "WiFi required for AI suggestions")
+                        _wifiRequired.update { true }
+                        _analysisState.update { AnalysisState.Idle }
+                        // Don't show error - banner will inform user
+                    }
                     is SuggestionResult.Success -> {
                         Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+
+                        // Clear WiFi required state if analysis succeeded
+                        _wifiRequired.update { false }
 
                         _suggestionSource.update { result.source }
 
@@ -409,6 +433,28 @@ class BatchImportViewModel @Inject constructor(
         _aiSuggestions.update { null }
         _analysisState.update { AnalysisState.Idle }
         _suggestionSource.update { null }
+        _wifiRequired.update { false }
+        _wifiOnlyOverride.update { false }
+    }
+
+    /**
+     * Override WiFi-only restriction for current session.
+     * Allows user to use AI even without WiFi when they explicitly choose "Use anyway".
+     *
+     * Note: For batch import, we need to re-trigger analysis with the first document URI.
+     * This is stored in the uiState, so we'll need to track it.
+     */
+    private var lastAnalyzedUri: Uri? = null
+
+    fun overrideWifiOnlyForSession() {
+        Log.d(TAG, "User overrode WiFi-only restriction")
+        _wifiOnlyOverride.update { true }
+        _wifiRequired.update { false }
+
+        // Re-trigger analysis with override if we have a previously analyzed URI
+        lastAnalyzedUri?.let { uri ->
+            analyzeDocument(uri)
+        }
     }
 }
 

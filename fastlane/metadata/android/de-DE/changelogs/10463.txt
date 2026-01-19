@@ -1,0 +1,11 @@
+Version 1.4.63:
+
+🔧 Verbesserungen:
+- WiFi-only AI-Einstellung funktioniert jetzt zuverlässig auf allen Screens
+- Robustere Netzwerk-Erkennung (Hotel-WiFi, Bezahlschranken, Captive Portals)
+- Upload-System prüft echte Internet-Verbindung vor Upload-Start
+- Verhindert Upload-Fehler bei WiFi ohne tatsächlichen Internet-Zugang
+
+📡 Technisch:
+- Validated Internet Check für alle Netzwerk-Operationen
+- Upload-Worker mit Pre-Check vor Upload-Start

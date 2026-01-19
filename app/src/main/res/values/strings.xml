@@ -596,6 +596,11 @@
     <string name="premium_settings_wifi_only_desc">AI-Features nur bei WLAN-Verbindung nutzen</string>
     <string name="premium_settings_new_tags">Neue Tags vorschlagen</string>
     <string name="premium_settings_new_tags_desc">AI kann Tags vorschlagen, die noch nicht existieren</string>
+
+    <string name="ai_wifi_only_banner">KI-Vorschläge nur im WLAN verfügbar (Einstellung aktiv)</string>
+    <string name="ai_wifi_only_override_button">Trotzdem nutzen</string>
+    <string name="ai_wifi_required_hint">KI-Analyse nutzt Bilddaten und ist nur im WLAN verfügbar, um mobile Daten zu sparen. Du kannst diese Einstellung unter \"Einstellungen → KI-Assistent\" ändern.</string>
+
     <string name="premium_settings_manage_subscription">Abo verwalten</string>
     <string name="premium_settings_restore_purchases">Käufe wiederherstellen</string>
     <string name="premium_required">Premium erforderlich</string>

@@ -30,7 +30,8 @@ class UploadWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
     private val uploadQueueRepository: UploadQueueRepository,
-    private val documentRepository: DocumentRepository
+    private val documentRepository: DocumentRepository,
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -43,6 +44,13 @@ class UploadWorker @AssistedInject constructor(
         Log.d(TAG, "UploadWorker started")
 
         createNotificationChannel()
+
+        // Pre-check: Ensure we have validated internet before starting uploads
+        if (!networkMonitor.hasValidatedInternet()) {
+            Log.w(TAG, "No validated internet connection - aborting upload worker")
+            Log.w(TAG, "This could be due to: captive portal, payment barrier, or WiFi/mobile without real internet")
+            return Result.retry() // Retry later when internet is validated
+        }
 
         // Zähle alle ausstehenden Uploads für Fortschrittsanzeige
         var totalUploads = uploadQueueRepository.getPendingUploadCount()

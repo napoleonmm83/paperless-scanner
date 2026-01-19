@@ -94,6 +94,8 @@ fun BatchMetadataScreen(
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
     val suggestionSource by viewModel.suggestionSource.collectAsState()
+    val wifiRequired by viewModel.wifiRequired.collectAsState()
+    val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -258,6 +260,14 @@ fun BatchMetadataScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            // WiFi Banner - shown when AI requires WiFi but device is not connected
+            if (wifiRequired && !isWifiConnected) {
+                WifiRequiredBanner(
+                    onUseAnywayClick = { viewModel.overrideWifiOnlyForSession() }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // AI Suggestions Section
             if (viewModel.isAiAvailable && imageUris.isNotEmpty()) {
@@ -511,6 +521,71 @@ private fun SmallPreviewItem(
                     text = "+${totalCount - 10}",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+/**
+ * WiFi Required Banner - shown when AI analysis requires WiFi but device is not connected.
+ * Provides "Use anyway" button to override the restriction for current session.
+ */
+@Composable
+private fun WifiRequiredBanner(
+    onUseAnywayClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.ai_wifi_only_banner),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(R.string.ai_wifi_required_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onUseAnywayClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = stringResource(R.string.ai_wifi_only_override_button),
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }

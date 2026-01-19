@@ -85,6 +85,16 @@ class UploadViewModel @Inject constructor(
     private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
     val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
 
+    // WiFi-Only State
+    private val _wifiRequired = MutableStateFlow(false)
+    val wifiRequired: StateFlow<Boolean> = _wifiRequired.asStateFlow()
+
+    private val _wifiOnlyOverride = MutableStateFlow(false)
+    val wifiOnlyOverride: StateFlow<Boolean> = _wifiOnlyOverride.asStateFlow()
+
+    // Observe WiFi status for reactive UI
+    val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
      * Used to conditionally show the SuggestionsSection in UploadScreen.
@@ -595,12 +605,22 @@ class UploadViewModel @Inject constructor(
                 val result = suggestionOrchestrator.getSuggestions(
                     bitmap = bitmap,
                     extractedText = "", // TODO: Add OCR text extraction in future
-                    documentId = null // Not applicable for pre-upload analysis
+                    documentId = null, // Not applicable for pre-upload analysis
+                    overrideWifiOnly = _wifiOnlyOverride.value
                 )
 
                 when (result) {
+                    is SuggestionResult.WiFiRequired -> {
+                        Log.d(TAG, "WiFi required for AI suggestions")
+                        _wifiRequired.update { true }
+                        _analysisState.update { AnalysisState.Idle }
+                        // Don't show error - banner will inform user
+                    }
                     is SuggestionResult.Success -> {
                         Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+
+                        // Clear WiFi required state if analysis succeeded
+                        _wifiRequired.update { false }
 
                         // Store the suggestion source for UI display
                         _suggestionSource.update { result.source }
@@ -660,6 +680,24 @@ class UploadViewModel @Inject constructor(
         _aiSuggestions.update { null }
         _analysisState.update { AnalysisState.Idle }
         _suggestionSource.update { null }
+        _wifiRequired.update { false }
+        _wifiOnlyOverride.update { false }
+    }
+
+    /**
+     * Override WiFi-only restriction for current session.
+     * Allows user to use AI even without WiFi when they explicitly choose "Use anyway".
+     *
+     * Note: Does not automatically re-trigger analysis.
+     * User must click "Analyze" button again after clicking "Use anyway".
+     */
+    fun overrideWifiOnlyForSession() {
+        Log.d(TAG, "User overrode WiFi-only restriction")
+        _wifiOnlyOverride.update { true }
+        _wifiRequired.update { false }
+
+        // User must manually trigger analysis again by clicking "Analyze" button
+        // This provides explicit control and avoids unexpected data usage
     }
 
     /**

@@ -514,6 +514,9 @@
     <string name="premium_settings_wifi_only_desc">Používat AI funkce pouze při WiFi</string>
     <string name="premium_settings_new_tags">Navrhovat nové tagy</string>
     <string name="premium_settings_new_tags_desc">AI může navrhovat tagy, které ještě neexistují</string>
+    <string name="ai_wifi_only_banner">AI návrhy dostupné pouze při WiFi (nastavení aktivní)</string>
+    <string name="ai_wifi_only_override_button">Použít přesto</string>
+    <string name="ai_wifi_required_hint">AI analýza používá obrazová data a je dostupná pouze při WiFi pro úsporu mobilních dat. Toto nastavení můžete změnit v \"Nastavení → AI asistent\".</string>
     <string name="premium_settings_manage_subscription">Spravovat předplatné</string>
     <string name="premium_settings_restore_purchases">Obnovit nákupy</string>
     <string name="premium_required">Vyžadováno Premium</string>

@@ -1,23 +1,32 @@
 package com.paperless.scanner.ui.screens.documents
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,7 +69,10 @@ fun EditDocumentSheet(
     analysisState: AnalysisState = AnalysisState.Idle,
     aiSuggestions: DocumentAnalysis? = null,
     suggestionSource: SuggestionSource? = null,
+    wifiRequired: Boolean = false,
+    isWifiConnected: Boolean = true,
     onAnalyzeClick: () -> Unit = {},
+    onOverrideWifiOnly: () -> Unit = {},
     onApplyTagSuggestion: (TagSuggestion) -> Unit = {},
     onCreateNewTag: () -> Unit,
     onSave: (
@@ -119,6 +132,14 @@ fun EditDocumentSheet(
         )
 
         Spacer(modifier = Modifier.height(20.dp))
+
+        // WiFi Banner - shown when AI requires WiFi but device is not connected
+        if (wifiRequired && !isWifiConnected) {
+            WifiRequiredBanner(
+                onUseAnywayClick = onOverrideWifiOnly
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         // AI Suggestions Section - Only shown when AI is available
         if (isAiAvailable) {
@@ -321,6 +342,71 @@ fun EditDocumentSheet(
                     text = stringResource(R.string.document_edit_save),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+/**
+ * WiFi Required Banner - shown when AI analysis requires WiFi but device is not connected.
+ * Provides "Use anyway" button to override the restriction for current session.
+ */
+@Composable
+private fun WifiRequiredBanner(
+    onUseAnywayClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.ai_wifi_only_banner),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(R.string.ai_wifi_required_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onUseAnywayClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Text(
+                    text = stringResource(R.string.ai_wifi_only_override_button),
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }

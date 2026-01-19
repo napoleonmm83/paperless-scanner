@@ -591,6 +591,11 @@
     <string name="premium_settings_wifi_only_desc">Use AI features only on WiFi</string>
     <string name="premium_settings_new_tags">Suggest New Tags</string>
     <string name="premium_settings_new_tags_desc">AI can suggest tags that don\'t exist yet</string>
+
+    <string name="ai_wifi_only_banner">AI suggestions only available on WiFi (setting active)</string>
+    <string name="ai_wifi_only_override_button">Use anyway</string>
+    <string name="ai_wifi_required_hint">AI analysis uses image data and is only available on WiFi to save mobile data. You can change this setting under \"Settings → AI Assistant\".</string>
+
     <string name="premium_settings_manage_subscription">Manage Subscription</string>
     <string name="premium_settings_restore_purchases">Restore Purchases</string>
     <string name="premium_required">Premium Required</string>

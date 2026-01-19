@@ -514,6 +514,9 @@
     <string name="premium_settings_wifi_only_desc">Käytä AI-toimintoja vain WiFi:llä</string>
     <string name="premium_settings_new_tags">Ehdota uusia tageja</string>
     <string name="premium_settings_new_tags_desc">AI voi ehdottaa tageja, joita ei vielä ole</string>
+    <string name="ai_wifi_only_banner">AI-ehdotukset saatavilla vain WiFi:llä (asetus aktiivinen)</string>
+    <string name="ai_wifi_only_override_button">Käytä silti</string>
+    <string name="ai_wifi_required_hint">AI-analyysi käyttää kuvatietoja ja on saatavilla vain WiFi:llä mobiilidatan säästämiseksi. Voit muuttaa tätä asetusta kohdassa \"Asetukset → AI-assistentti\".</string>
     <string name="premium_settings_manage_subscription">Hallitse tilausta</string>
     <string name="premium_settings_restore_purchases">Palauta ostokset</string>
     <string name="premium_required">Premium vaaditaan</string>

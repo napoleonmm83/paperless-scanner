@@ -8,6 +8,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
+import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.google.common.util.concurrent.ListenableFuture
@@ -50,12 +51,17 @@ class UploadWorkerTest {
     private lateinit var context: Context
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var documentRepository: DocumentRepository
+    private lateinit var networkMonitor: NetworkMonitor
 
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication()
         uploadQueueRepository = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
+        networkMonitor = mockk(relaxed = true)
+
+        // Default: hasValidatedInternet returns true
+        every { networkMonitor.hasValidatedInternet() } returns true
 
         // Mock Android Log class to avoid "Method not mocked" errors
         mockkStatic(Log::class)
@@ -78,7 +84,8 @@ class UploadWorkerTest {
                 context = context,
                 workerParams = mockk(relaxed = true),
                 uploadQueueRepository = uploadQueueRepository,
-                documentRepository = documentRepository
+                documentRepository = documentRepository,
+                networkMonitor = networkMonitor
             )
         )
         // Mock suspend function setForeground to avoid WorkManager context issues

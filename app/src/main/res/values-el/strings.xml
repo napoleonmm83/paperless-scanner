@@ -514,6 +514,9 @@
     <string name="premium_settings_wifi_only_desc">Χρήση λειτουργιών AI μόνο με WiFi</string>
     <string name="premium_settings_new_tags">Πρόταση νέων ετικετών</string>
     <string name="premium_settings_new_tags_desc">Η AI μπορεί να προτείνει ετικέτες που δεν υπάρχουν ακόμα</string>
+    <string name="ai_wifi_only_banner">Προτάσεις AI διαθέσιμες μόνο με WiFi (ρύθμιση ενεργή)</string>
+    <string name="ai_wifi_only_override_button">Χρήση παρόλα αυτά</string>
+    <string name="ai_wifi_required_hint">Η ανάλυση AI χρησιμοποιεί δεδομένα εικόνας και είναι διαθέσιμη μόνο με WiFi για εξοικονόμηση δεδομένων κινητής τηλεφωνίας. Μπορείτε να αλλάξετε αυτή τη ρύθμιση στο \"Ρυθμίσεις → Βοηθός AI\".</string>
     <string name="premium_settings_manage_subscription">Διαχείριση συνδρομής</string>
     <string name="premium_settings_restore_purchases">Επαναφορά αγορών</string>
     <string name="premium_required">Απαιτείται Premium</string>

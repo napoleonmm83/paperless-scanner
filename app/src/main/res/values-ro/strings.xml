@@ -514,6 +514,9 @@
     <string name="premium_settings_wifi_only_desc">Folosește funcții AI doar cu WiFi</string>
     <string name="premium_settings_new_tags">Sugerează etichete noi</string>
     <string name="premium_settings_new_tags_desc">AI poate sugera etichete care nu există încă</string>
+    <string name="ai_wifi_only_banner">Sugestii AI disponibile doar cu WiFi (setare activă)</string>
+    <string name="ai_wifi_only_override_button">Folosește oricum</string>
+    <string name="ai_wifi_required_hint">Analiza AI folosește date de imagine și este disponibilă doar cu WiFi pentru a economisi datele mobile. Puteți modifica această setare la \"Setări → Asistent AI\".</string>
     <string name="premium_settings_manage_subscription">Gestionează abonamentul</string>
     <string name="premium_settings_restore_purchases">Restabilește achizițiile</string>
     <string name="premium_required">Premium necesar</string>

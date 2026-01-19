@@ -63,17 +63,19 @@ class AiAnalysisService @Inject constructor(
      * @param availableTags List of available tags from Paperless for matching
      * @param availableCorrespondents List of available correspondent names
      * @param availableDocumentTypes List of available document type names
+     * @param allowNewTags Whether AI can suggest new tags that don't exist yet (default: true)
      * @return DocumentAnalysis with suggestions
      */
     suspend fun analyzeImage(
         bitmap: Bitmap,
         availableTags: List<Tag> = emptyList(),
         availableCorrespondents: List<String> = emptyList(),
-        availableDocumentTypes: List<String> = emptyList()
+        availableDocumentTypes: List<String> = emptyList(),
+        allowNewTags: Boolean = true
     ): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
             withTimeout(TIMEOUT_MS) {
-                android.util.Log.d(TAG, "Starting AI analysis with ${availableTags.size} available tags")
+                android.util.Log.d(TAG, "Starting AI analysis with ${availableTags.size} available tags, allowNewTags=$allowNewTags")
                 val prompt = buildPrompt(availableTags, availableCorrespondents, availableDocumentTypes)
                 android.util.Log.d(TAG, "Prompt built, sending to Gemini...")
 
@@ -87,7 +89,7 @@ class AiAnalysisService @Inject constructor(
 
                 android.util.Log.d(TAG, "AI Response received: $responseText")
 
-                val analysis = parseResponse(responseText, availableTags)
+                val analysis = parseResponse(responseText, availableTags, allowNewTags)
                 android.util.Log.d(TAG, "Parsed analysis: ${analysis.suggestedTags.size} tags, title=${analysis.suggestedTitle}")
                 analysis
             }
@@ -101,13 +103,14 @@ class AiAnalysisService @Inject constructor(
         uri: Uri,
         availableTags: List<Tag> = emptyList(),
         availableCorrespondents: List<String> = emptyList(),
-        availableDocumentTypes: List<String> = emptyList()
+        availableDocumentTypes: List<String> = emptyList(),
+        allowNewTags: Boolean = true
     ): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = loadBitmapFromUri(uri)
                 ?: throw IllegalArgumentException("Could not load image from URI")
 
-            analyzeImage(bitmap, availableTags, availableCorrespondents, availableDocumentTypes)
+            analyzeImage(bitmap, availableTags, availableCorrespondents, availableDocumentTypes, allowNewTags)
                 .getOrThrow()
         }
     }
@@ -185,7 +188,7 @@ class AiAnalysisService @Inject constructor(
         """.trimMargin()
     }
 
-    private fun parseResponse(responseText: String, availableTags: List<Tag>): DocumentAnalysis {
+    private fun parseResponse(responseText: String, availableTags: List<Tag>, allowNewTags: Boolean): DocumentAnalysis {
         val jsonString = extractJson(responseText)
         val json = JSONObject(jsonString)
 
@@ -210,20 +213,25 @@ class AiAnalysisService @Inject constructor(
             }
         }
 
-        // Parse new tag suggestions
-        val newTagsArray = json.optJSONArray("new_tags")
-        if (newTagsArray != null) {
-            for (i in 0 until newTagsArray.length()) {
-                val tagName = newTagsArray.getString(i)
-                suggestedTags.add(
-                    TagSuggestion(
-                        tagId = null,
-                        tagName = tagName,
-                        confidence = json.optDouble("confidence", 0.7).toFloat() * NEW_TAG_CONFIDENCE_FACTOR,
-                        reason = TagSuggestion.REASON_AI_DETECTED
+        // Parse new tag suggestions (only if allowed by user setting)
+        if (allowNewTags) {
+            val newTagsArray = json.optJSONArray("new_tags")
+            if (newTagsArray != null) {
+                for (i in 0 until newTagsArray.length()) {
+                    val tagName = newTagsArray.getString(i)
+                    suggestedTags.add(
+                        TagSuggestion(
+                            tagId = null,
+                            tagName = tagName,
+                            confidence = json.optDouble("confidence", 0.7).toFloat() * NEW_TAG_CONFIDENCE_FACTOR,
+                            reason = TagSuggestion.REASON_AI_DETECTED
+                        )
                     )
-                )
+                }
+                android.util.Log.d(TAG, "New tags included: ${newTagsArray.length()} suggestions")
             }
+        } else {
+            android.util.Log.d(TAG, "New tags filtered out (allowNewTags=false)")
         }
 
         return DocumentAnalysis(

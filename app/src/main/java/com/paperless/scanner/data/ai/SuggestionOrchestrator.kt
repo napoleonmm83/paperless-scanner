@@ -45,7 +45,8 @@ class SuggestionOrchestrator @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
-    private val documentTypeRepository: DocumentTypeRepository
+    private val documentTypeRepository: DocumentTypeRepository,
+    private val tokenManager: com.paperless.scanner.data.datastore.TokenManager
 ) {
     /**
      * Get suggestions for a document using the fallback chain.
@@ -54,19 +55,25 @@ class SuggestionOrchestrator @Inject constructor(
      * @param imageUri Optional image URI for AI analysis (alternative to bitmap)
      * @param extractedText Optional text for local matching
      * @param documentId Optional document ID for Paperless API suggestions
+     * @param overrideWifiOnly Optional override for WiFi-only setting (for "Use anyway" button)
      * @return SuggestionResult with merged suggestions and source info
      */
     suspend fun getSuggestions(
         bitmap: Bitmap? = null,
         imageUri: Uri? = null,
         extractedText: String? = null,
-        documentId: Int? = null
+        documentId: Int? = null,
+        overrideWifiOnly: Boolean = false
     ): SuggestionResult = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting suggestion orchestration")
 
         val availableTags = tagRepository.observeTags().first()
         val availableCorrespondents = correspondentRepository.observeCorrespondents().first()
         val availableDocumentTypes = documentTypeRepository.observeDocumentTypes().first()
+
+        // Read AI settings
+        val aiWifiOnly = tokenManager.aiWifiOnly.first()
+        val aiNewTagsEnabled = tokenManager.aiNewTagsEnabled.first()
 
         var primarySource: SuggestionSource = SuggestionSource.LOCAL_MATCHING
         var aiAnalysis: DocumentAnalysis? = null
@@ -77,33 +84,87 @@ class SuggestionOrchestrator @Inject constructor(
 
         // Step 1: Try Firebase AI (Premium only)
         if (premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)) {
-            Log.d(TAG, "Premium active - attempting Firebase AI analysis")
-            aiAttempted = true
+            Log.d(TAG, "Premium active - checking WiFi requirements")
 
-            val aiResult = when {
-                bitmap != null -> aiAnalysisService.analyzeImage(
-                    bitmap = bitmap,
-                    availableTags = availableTags,
-                    availableCorrespondents = availableCorrespondents.map { it.name },
-                    availableDocumentTypes = availableDocumentTypes.map { it.name }
-                )
-                imageUri != null -> aiAnalysisService.analyzeImageUri(
-                    uri = imageUri,
-                    availableTags = availableTags,
-                    availableCorrespondents = availableCorrespondents.map { it.name },
-                    availableDocumentTypes = availableDocumentTypes.map { it.name }
-                )
-                else -> null
-            }
+            // Check WiFi requirement
+            if (aiWifiOnly && !overrideWifiOnly) {
+                val isWifiConnected = networkMonitor.isWifiConnectedSync()
+                if (!isWifiConnected) {
+                    Log.d(TAG, "WiFi-only mode active, but not connected to WiFi - skipping AI")
+                    // Don't attempt AI, but don't treat it as error - return WiFiRequired
+                    // Continue to Paperless API / Local matching as fallback
+                    if (bitmap != null || imageUri != null) {
+                        // User tried to use AI, but WiFi is required
+                        // Return WiFiRequired ONLY if no other source can provide suggestions
+                        // For now, let's continue with fallback and check at the end
+                        aiAttempted = true
+                        Log.d(TAG, "WiFi required - will return WiFiRequired if no other suggestions available")
+                    }
+                } else {
+                    Log.d(TAG, "WiFi connected - proceeding with AI analysis")
+                    aiAttempted = true
 
-            if (aiResult != null) {
-                aiResult.onSuccess { analysis ->
-                    Log.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
-                    aiAnalysis = analysis
-                    primarySource = SuggestionSource.FIREBASE_AI
-                }.onFailure { e ->
-                    Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
-                    aiError = e
+                    val aiResult = when {
+                        bitmap != null -> aiAnalysisService.analyzeImage(
+                            bitmap = bitmap,
+                            availableTags = availableTags,
+                            availableCorrespondents = availableCorrespondents.map { it.name },
+                            availableDocumentTypes = availableDocumentTypes.map { it.name },
+                            allowNewTags = aiNewTagsEnabled
+                        )
+                        imageUri != null -> aiAnalysisService.analyzeImageUri(
+                            uri = imageUri,
+                            availableTags = availableTags,
+                            availableCorrespondents = availableCorrespondents.map { it.name },
+                            availableDocumentTypes = availableDocumentTypes.map { it.name },
+                            allowNewTags = aiNewTagsEnabled
+                        )
+                        else -> null
+                    }
+
+                    if (aiResult != null) {
+                        aiResult.onSuccess { analysis ->
+                            Log.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
+                            aiAnalysis = analysis
+                            primarySource = SuggestionSource.FIREBASE_AI
+                        }.onFailure { e ->
+                            Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
+                            aiError = e
+                        }
+                    }
+                }
+            } else {
+                // WiFi-only disabled or overridden - proceed with AI
+                Log.d(TAG, "WiFi-only disabled or overridden - proceeding with AI analysis")
+                aiAttempted = true
+
+                val aiResult = when {
+                    bitmap != null -> aiAnalysisService.analyzeImage(
+                        bitmap = bitmap,
+                        availableTags = availableTags,
+                        availableCorrespondents = availableCorrespondents.map { it.name },
+                        availableDocumentTypes = availableDocumentTypes.map { it.name },
+                        allowNewTags = aiNewTagsEnabled
+                    )
+                    imageUri != null -> aiAnalysisService.analyzeImageUri(
+                        uri = imageUri,
+                        availableTags = availableTags,
+                        availableCorrespondents = availableCorrespondents.map { it.name },
+                        availableDocumentTypes = availableDocumentTypes.map { it.name },
+                        allowNewTags = aiNewTagsEnabled
+                    )
+                    else -> null
+                }
+
+                if (aiResult != null) {
+                    aiResult.onSuccess { analysis ->
+                        Log.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
+                        aiAnalysis = analysis
+                        primarySource = SuggestionSource.FIREBASE_AI
+                    }.onFailure { e ->
+                        Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
+                        aiError = e
+                    }
                 }
             }
         } else {
@@ -148,6 +209,15 @@ class SuggestionOrchestrator @Inject constructor(
         )
 
         Log.d(TAG, "Orchestration complete: ${mergedAnalysis.suggestedTags.size} total suggestions, source: $primarySource")
+
+        // Check if WiFi was required but not available
+        if (aiWifiOnly && !overrideWifiOnly && !networkMonitor.isWifiConnectedSync() &&
+            aiAttempted && aiAnalysis == null && aiError == null) {
+            // WiFi was required, user tried to use AI (bitmap/imageUri provided), but WiFi not available
+            // Return WiFiRequired to show banner with "Use anyway" option
+            Log.d(TAG, "Returning WiFiRequired - AI skipped due to WiFi-only setting")
+            return@withContext SuggestionResult.WiFiRequired
+        }
 
         // If AI was attempted but failed, and no other source provided suggestions, return error
         if (mergedAnalysis.suggestedTags.isEmpty() && aiAttempted && aiError != null) {
