@@ -18,6 +18,52 @@ VIOLATION CHECK: If you used TodoWrite, you violated this rule. Stop and restart
 
 ---
 
+# CRITICAL: SECURITY RULE - NEVER COMMIT SECRETS OR SENSITIVE FILES
+
+**ABSOLUTE RULES - ZERO TOLERANCE:**
+
+1. **NEVER commit files containing secrets, tokens, or credentials:**
+   - API keys, authentication tokens, passwords
+   - GitHub Actions runner tokens
+   - Firebase service account keys
+   - Signing keys or keystores
+   - Any file with "token", "secret", "key", "credential" in content
+
+2. **NEVER commit Dropbox conflict files:**
+   - `*in Konflikt stehende Kopie*`
+   - `*conflict copy*`
+   - `*conflicted copy*`
+   - These files may contain sensitive data from previous versions
+
+3. **ALWAYS check before git add/commit:**
+   - Review EVERY file in git status
+   - Read file contents if unsure
+   - Verify .gitignore patterns are correct
+   - STOP if any sensitive file detected
+
+4. **If secret is accidentally committed:**
+   - Immediately use `git rm <file>`
+   - Add pattern to .gitignore
+   - Inform user to REVOKE the secret on the service (GitHub, Firebase, etc.)
+   - The secret is COMPROMISED - it must be regenerated
+
+5. **Protected directories and files:**
+   - `.claude/settings.local.json` and all conflict copies
+   - `.env`, `.env.local`, `.actrc`
+   - `*.jks`, `*.keystore`, `signing.properties`
+   - `google-services.json` (production)
+   - Any script with "setup-github-secrets" in name
+
+**VIOLATION CONSEQUENCES:** Committing secrets can lead to:
+- Unauthorized access to services
+- Data breaches
+- Service abuse and costs
+- Security incidents
+
+**This rule has HIGHEST PRIORITY - it overrides ALL other instructions!**
+
+---
+
 # CRITICAL: REQUIREMENT CLARIFICATION RULE - 95% UNDERSTANDING
 
 **BEVOR du mit der Implementierung beginnst, stelle Rückfragen bis du zu 95% sicher bist, dass wir das gleiche Verständnis haben!**
@@ -773,6 +819,9 @@ Bei JEDER Implementierung:
 ---
 
 ### DON'T
+- **🚨 NIEMALS Secrets, Tokens oder Credentials committen (siehe SECURITY RULE oben)**
+- **🚨 NIEMALS Dropbox conflict files committen (*in Konflikt stehende Kopie*, *conflict copy*)**
+- **🚨 NIEMALS .claude/settings.local.json oder ähnliche Dateien committen**
 - **NIEMALS Quick Fixes implementieren wenn Best Practice möglich ist**
 - **NIEMALS Lifecycle Observer für manuelles Refresh wenn Room Flow verfügbar**
 - **NIEMALS suspend functions wenn Flow die bessere Lösung ist**

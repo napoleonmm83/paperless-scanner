@@ -98,6 +98,9 @@ gradle.properties.local
 
 # Claude local settings
 .claude/settings.local.json
+.claude/*in Konflikt stehende Kopie*
+.claude/*conflict copy*
+.claude/*conflicted copy*
 *.hprof
 
 # Secrets and environment files

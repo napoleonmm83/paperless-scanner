@@ -33,6 +33,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -538,24 +539,35 @@ class DocumentDetailViewModelTest {
     // ==================== Document ID Parsing Tests ====================
 
     @Test
-    fun `invalid documentId defaults to 0`() = runTest {
+    fun `invalid documentId shows error and does not load`() = runTest {
         every { savedStateHandle.get<String>("documentId") } returns "invalid"
+        every { context.getString(any()) } returns "Ungültige Dokument-ID. Bitte navigiere zurück und öffne das Dokument erneut."
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        // Should try to load document 0
-        coVerify { documentRepository.getDocument(0, true) }
+        // Should NOT try to load document with invalid ID
+        coVerify(exactly = 0) { documentRepository.getDocument(any(), any()) }
+
+        // Should show error state
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNotNull(viewModel.uiState.value.error)
     }
 
     @Test
-    fun `null documentId defaults to 0`() = runTest {
+    fun `null documentId shows error and does not load`() = runTest {
         every { savedStateHandle.get<String>("documentId") } returns null
+        every { context.getString(any()) } returns "Ungültige Dokument-ID. Bitte navigiere zurück und öffne das Dokument erneut."
 
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        coVerify { documentRepository.getDocument(0, true) }
+        // Should NOT try to load document with null ID
+        coVerify(exactly = 0) { documentRepository.getDocument(any(), any()) }
+
+        // Should show error state
+        assertFalse(viewModel.uiState.value.isLoading)
+        assertNotNull(viewModel.uiState.value.error)
     }
 
     // ==================== Helper Functions ====================

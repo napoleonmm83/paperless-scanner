@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Törlés</string>
     <string name="document_detail_error">Hiba</string>
     <string name="document_detail_retry">Újrapróbálás</string>
+    <string name="document_detail_invalid_id_error">Érvénytelen dokumentumazonosító. Lépjen vissza és nyissa meg újra a dokumentumot.</string>
     <string name="document_detail_preview">Dokumentum előnézet</string>
     <string name="document_detail_correspondent">Levelező</string>
     <string name="document_detail_type">Dokumentum típus</string>

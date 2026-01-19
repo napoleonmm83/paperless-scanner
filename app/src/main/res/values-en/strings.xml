@@ -118,6 +118,7 @@
     <string name="document_detail_delete">Delete</string>
     <string name="document_detail_error">Error</string>
     <string name="document_detail_retry">Retry</string>
+    <string name="document_detail_invalid_id_error">Invalid document ID. Please navigate back and open the document again.</string>
     <string name="document_detail_preview">Document preview</string>
     <string name="document_detail_correspondent">Correspondent</string>
     <string name="document_detail_type">Document type</string>

@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.upload.components
 
+import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -39,6 +41,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -92,8 +96,16 @@ fun SuggestionsSection(
     onAnalyzeClick: () -> Unit,
     onApplyTagSuggestion: (TagSuggestion) -> Unit,
     onApplyTitle: (String) -> Unit,
+    onAiNewTagsEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    // DEBUG: Log parameters
+    Log.d("SuggestionsSection", "=== SuggestionsSection Debug ===")
+    Log.d("SuggestionsSection", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    Log.d("SuggestionsSection", "analysisState: $analysisState")
+    Log.d("SuggestionsSection", "suggestions: $suggestions")
+    Log.d("SuggestionsSection", "suggestionSource: $suggestionSource")
+
     // Animated border setup
     val infiniteTransition = rememberInfiniteTransition(label = "border_animation")
     val rotation by infiniteTransition.animateFloat(
@@ -258,16 +270,23 @@ fun SuggestionsSection(
 
                 is AnalysisState.Success -> {
                     // Show suggestions
+                    Log.d("SuggestionsSection", "Success state reached")
+                    Log.d("SuggestionsSection", "Has suggestions: ${suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)}")
+
                     if (suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)) {
                         SuggestionsContent(
                             suggestions = suggestions,
                             existingTags = existingTags,
                             selectedTagIds = selectedTagIds,
                             currentTitle = currentTitle,
+                            aiNewTagsEnabled = aiNewTagsEnabled,
                             onApplyTagSuggestion = onApplyTagSuggestion,
-                            onApplyTitle = onApplyTitle
+                            onApplyTitle = onApplyTitle,
+                            onAiNewTagsEnabledChange = onAiNewTagsEnabledChange,
+                            onAnalyzeClick = onAnalyzeClick
                         )
                     } else {
+                        Log.d("SuggestionsSection", "Showing NoSuggestionsMessage with aiNewTagsEnabled=$aiNewTagsEnabled")
                         NoSuggestionsMessage(aiNewTagsEnabled = aiNewTagsEnabled)
                     }
                 }
@@ -362,9 +381,17 @@ private fun SuggestionsContent(
     existingTags: List<Tag>,
     selectedTagIds: Set<Int>,
     currentTitle: String,
+    aiNewTagsEnabled: Boolean = true,
     onApplyTagSuggestion: (TagSuggestion) -> Unit,
-    onApplyTitle: (String) -> Unit
+    onApplyTitle: (String) -> Unit,
+    onAiNewTagsEnabledChange: (Boolean) -> Unit = {},
+    onAnalyzeClick: () -> Unit = {}
 ) {
+    // DEBUG: Log if we should show the info banner
+    Log.d("SuggestionsContent", "=== SuggestionsContent Debug ===")
+    Log.d("SuggestionsContent", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    Log.d("SuggestionsContent", "suggestedTags.isEmpty(): ${suggestions.suggestedTags.isEmpty()}")
+    Log.d("SuggestionsContent", "Should show info banner: ${suggestions.suggestedTags.isEmpty() && !aiNewTagsEnabled}")
     var showAllTags by remember { mutableStateOf(false) }
 
     // Sort tags: unselected first (so user sees what's available), then by confidence
@@ -452,6 +479,77 @@ private fun SuggestionsContent(
             }
         }
 
+        // Info banner when no tag matches found and new tags are disabled
+        if (suggestions.suggestedTags.isEmpty() && !aiNewTagsEnabled) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(12.dp)
+                ) {
+                    // Header row with icon, text, and switch
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Left side: Icon + Text
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.suggestions_no_matches_new_tags_disabled),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        // Right side: Switch to enable new tags
+                        Switch(
+                            checked = false, // Always false here since we only show banner when disabled
+                            onCheckedChange = { enabled ->
+                                Log.d("SuggestionsContent", "User toggled new tags switch to: $enabled")
+                                onAiNewTagsEnabledChange(enabled)
+
+                                // Auto-retry: Trigger new analysis after enabling the setting
+                                if (enabled) {
+                                    Log.d("SuggestionsContent", "Auto-retry: Triggering new analysis after enabling new tags")
+                                    onAnalyzeClick()
+                                }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
+                            )
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.suggestions_no_matches_new_tags_disabled_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 26.dp)
+                    )
+                }
+            }
+        }
+
         // Show suggested title if available - clickable to apply
         if (suggestions.suggestedTitle != null) {
             val isTitleApplied = currentTitle == suggestions.suggestedTitle
@@ -494,6 +592,11 @@ private fun SuggestionsContent(
 
 @Composable
 private fun NoSuggestionsMessage(aiNewTagsEnabled: Boolean = true) {
+    // DEBUG: Log parameter
+    Log.d("NoSuggestionsMessage", "=== NoSuggestionsMessage Debug ===")
+    Log.d("NoSuggestionsMessage", "aiNewTagsEnabled parameter: $aiNewTagsEnabled")
+    Log.d("NoSuggestionsMessage", "Will show hint: ${!aiNewTagsEnabled}")
+
     Column(
         modifier = Modifier
             .fillMaxWidth()

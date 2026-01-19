@@ -16,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -95,6 +96,17 @@ class MainActivity : FragmentActivity() {
                                 token.isNullOrBlank() -> Screen.Welcome.route
                                 // Logged in - go to home (AppLockNavigationInterceptor handles locking)
                                 else -> Screen.Home.route
+                            }
+                        }
+                    }
+
+                    // Reset navigation to startDestination after process death to avoid invalid state
+                    // When savedInstanceState != null, Android tried to restore the back stack but
+                    // navigation args may be lost, causing issues like documentId=0
+                    LaunchedEffect(savedInstanceState) {
+                        if (savedInstanceState != null) {
+                            navController.navigate(startDestination) {
+                                popUpTo(0) { inclusive = true }
                             }
                         }
                     }

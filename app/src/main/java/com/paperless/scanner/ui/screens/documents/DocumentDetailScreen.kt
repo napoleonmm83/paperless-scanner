@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +103,11 @@ fun DocumentDetailScreen(
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
+
+    // DEBUG: Log aiNewTagsEnabled value
+    Log.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
+    Log.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -353,6 +359,9 @@ fun DocumentDetailScreen(
                     onApplyTagSuggestion = { tagSuggestion ->
                         // Create new tag if it doesn't exist
                         viewModel.createTag(tagSuggestion.tagName)
+                    },
+                    onAiNewTagsEnabledChange = { enabled ->
+                        viewModel.setAiNewTagsEnabled(enabled)
                     },
                     onCreateNewTag = { showCreateTagDialog = true },
                     onSave = { title, tagIds, correspondentId, documentTypeId, asn ->

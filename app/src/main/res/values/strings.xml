@@ -118,6 +118,7 @@
     <string name="document_detail_delete">Löschen</string>
     <string name="document_detail_error">Fehler</string>
     <string name="document_detail_retry">Erneut versuchen</string>
+    <string name="document_detail_invalid_id_error">Ungültige Dokument-ID. Bitte navigiere zurück und öffne das Dokument erneut.</string>
     <string name="document_detail_preview">Dokumentvorschau</string>
     <string name="document_detail_correspondent">Korrespondent</string>
     <string name="document_detail_type">Dokumenttyp</string>

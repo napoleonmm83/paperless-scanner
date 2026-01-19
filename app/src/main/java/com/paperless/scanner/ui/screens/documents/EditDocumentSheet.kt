@@ -75,6 +75,7 @@ fun EditDocumentSheet(
     onAnalyzeClick: () -> Unit = {},
     onOverrideWifiOnly: () -> Unit = {},
     onApplyTagSuggestion: (TagSuggestion) -> Unit = {},
+    onAiNewTagsEnabledChange: (Boolean) -> Unit = {},
     onCreateNewTag: () -> Unit,
     onSave: (
         title: String,
@@ -153,6 +154,7 @@ fun EditDocumentSheet(
                 currentTitle = editedTitle,
                 aiNewTagsEnabled = aiNewTagsEnabled,
                 onAnalyzeClick = onAnalyzeClick,
+                onAiNewTagsEnabledChange = onAiNewTagsEnabledChange,
                 onApplyTagSuggestion = { tagSuggestion ->
                     val tagId = tagSuggestion.tagId ?: availableTags.find {
                         it.name.equals(tagSuggestion.tagName, ignoreCase = true)

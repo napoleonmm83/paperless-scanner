@@ -846,6 +846,16 @@ class UploadViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Enable or disable AI new tags feature.
+     * Updates the user preference in TokenManager.
+     */
+    fun setAiNewTagsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            tokenManager.setAiNewTagsEnabled(enabled)
+        }
+    }
 }
 
 sealed class UploadParams {

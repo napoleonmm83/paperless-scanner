@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Διαγραφή</string>
     <string name="document_detail_error">Σφάλμα</string>
     <string name="document_detail_retry">Δοκιμή ξανά</string>
+    <string name="document_detail_invalid_id_error">Μη έγκυρο αναγνωριστικό εγγράφου. Επιστρέψτε και ανοίξτε ξανά το έγγραφο.</string>
     <string name="document_detail_preview">Προεπισκόπηση εγγράφου</string>
     <string name="document_detail_correspondent">Ανταποκριτής</string>
     <string name="document_detail_type">Τύπος εγγράφου</string>

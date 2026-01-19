@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Verwijderen</string>
     <string name="document_detail_error">Fout</string>
     <string name="document_detail_retry">Opnieuw proberen</string>
+    <string name="document_detail_invalid_id_error">Ongeldige document-ID. Ga terug en open het document opnieuw.</string>
     <string name="document_detail_preview">Documentvoorbeeld</string>
     <string name="document_detail_correspondent">Correspondent</string>
     <string name="document_detail_type">Documenttype</string>

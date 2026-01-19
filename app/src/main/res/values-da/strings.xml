@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Slet</string>
     <string name="document_detail_error">Fejl</string>
     <string name="document_detail_retry">Prøv igen</string>
+    <string name="document_detail_invalid_id_error">Ugyldigt dokument-ID. Gå tilbage og åbn dokumentet igen.</string>
     <string name="document_detail_preview">Dokumentforhåndsvisning</string>
     <string name="document_detail_correspondent">Korrespondent</string>
     <string name="document_detail_type">Dokumenttype</string>

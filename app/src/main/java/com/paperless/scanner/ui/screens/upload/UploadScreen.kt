@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,6 +85,11 @@ fun UploadScreen(
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
+
+    // DEBUG: Log aiNewTagsEnabled value
+    Log.d("UploadScreen", "=== UploadScreen Debug ===")
+    Log.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -240,6 +246,9 @@ fun UploadScreen(
                     aiNewTagsEnabled = aiNewTagsEnabled,
                     onAnalyzeClick = {
                         viewModel.analyzeDocument(documentUri)
+                    },
+                    onAiNewTagsEnabledChange = { enabled ->
+                        viewModel.setAiNewTagsEnabled(enabled)
                     },
                     onApplyTagSuggestion = { tagSuggestion ->
                         // Use tagId from AI if available, otherwise search in local tags

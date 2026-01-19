@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Usuń</string>
     <string name="document_detail_error">Błąd</string>
     <string name="document_detail_retry">Ponów</string>
+    <string name="document_detail_invalid_id_error">Nieprawidłowy identyfikator dokumentu. Wróć i otwórz dokument ponownie.</string>
     <string name="document_detail_preview">Podgląd dokumentu</string>
     <string name="document_detail_correspondent">Korespondent</string>
     <string name="document_detail_type">Typ dokumentu</string>

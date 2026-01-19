@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Sil</string>
     <string name="document_detail_error">Hata</string>
     <string name="document_detail_retry">Tekrar dene</string>
+    <string name="document_detail_invalid_id_error">Geçersiz belge kimliği. Lütfen geri gidin ve belgeyi tekrar açın.</string>
     <string name="document_detail_preview">Belge önizleme</string>
     <string name="document_detail_correspondent">Muhatap</string>
     <string name="document_detail_type">Belge türü</string>

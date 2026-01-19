@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Poista</string>
     <string name="document_detail_error">Virhe</string>
     <string name="document_detail_retry">Yritä uudelleen</string>
+    <string name="document_detail_invalid_id_error">Virheellinen asiakirjan tunnus. Palaa takaisin ja avaa asiakirja uudelleen.</string>
     <string name="document_detail_preview">Asiakirjan esikatselu</string>
     <string name="document_detail_correspondent">Kirjeenvaihtaja</string>
     <string name="document_detail_type">Asiakirjatyyppi</string>

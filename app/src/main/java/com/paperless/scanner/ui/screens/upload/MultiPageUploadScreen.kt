@@ -308,6 +308,9 @@ fun MultiPageUploadScreen(
                         // Analyze the first page
                         viewModel.analyzeDocument(documentUris.first())
                     },
+                    onAiNewTagsEnabledChange = { enabled ->
+                        viewModel.setAiNewTagsEnabled(enabled)
+                    },
                     onApplyTagSuggestion = { tagSuggestion ->
                         val tagId = tagSuggestion.tagId ?: tags.find {
                             it.name.equals(tagSuggestion.tagName, ignoreCase = true)

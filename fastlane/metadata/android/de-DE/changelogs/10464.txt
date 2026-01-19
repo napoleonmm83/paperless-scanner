@@ -1,9 +1,16 @@
 Version 1.4.64:
 
-🔧 Verbesserungen:
-- Informativer Hinweis wenn keine passenden Tags gefunden werden und "Neue Tags vorschlagen" deaktiviert ist
-- Klare Erklärung warum keine Vorschläge angezeigt werden
-- Hinweis wie die Einstellung aktiviert werden kann
+✨ Neue Features:
+- Info wenn keine Tags gefunden + direkter Aktivierungs-Switch
+- Auto-Retry nach Feature-Aktivierung
+- Pull-to-Refresh + Auto-Sync alle 30 Min
 
-🌍 Lokalisierung:
-- Neue Meldungen in allen 17 unterstützten Sprachen verfügbar
+🐛 Fehlerbehebungen:
+- App-Neustart lädt Dokumente korrekt
+- Process Death Navigation korrigiert
+- Multi-Device Sync behoben
+
+🔧 Verbesserungen:
+- WiFi-only AI zuverlässig
+- Robuste Netzwerk-Erkennung (Hotel-WiFi, Captive Portals)
+- Upload prüft echte Internet-Verbindung

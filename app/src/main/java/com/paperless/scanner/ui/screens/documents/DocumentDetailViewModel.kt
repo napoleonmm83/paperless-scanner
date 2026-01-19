@@ -110,7 +110,7 @@ data class DocumentDetailUiState(
 @HiltViewModel
 class DocumentDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
@@ -124,9 +124,16 @@ class DocumentDetailViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "DocumentDetailViewModel"
+        private const val KEY_DOCUMENT_ID = "documentId"
     }
 
-    private val documentId: Int = savedStateHandle.get<String>("documentId")?.toIntOrNull() ?: 0
+    // Retrieve documentId from savedStateHandle and persist it for process death survival
+    private val documentId: Int = savedStateHandle.get<String>(KEY_DOCUMENT_ID)?.toIntOrNull()?.also { id ->
+        // Store the parsed ID back into SavedStateHandle to survive process death
+        if (id > 0) {
+            savedStateHandle[KEY_DOCUMENT_ID] = id.toString()
+        }
+    } ?: 0
 
     private val _uiState = MutableStateFlow(DocumentDetailUiState())
     val uiState: StateFlow<DocumentDetailUiState> = _uiState.asStateFlow()
@@ -172,7 +179,17 @@ class DocumentDetailViewModel @Inject constructor(
     private var documentTypeMap: Map<Int, DocumentType> = emptyMap()
 
     init {
-        loadDocument()
+        // Validate documentId before attempting to load
+        if (documentId <= 0) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = context.getString(R.string.document_detail_invalid_id_error)
+                )
+            }
+        } else {
+            loadDocument()
+        }
     }
 
     fun loadDocument() {
@@ -616,5 +633,15 @@ class DocumentDetailViewModel @Inject constructor(
 
         // Re-trigger analysis with override
         analyzeDocumentThumbnail()
+    }
+
+    /**
+     * Enable or disable AI new tags feature.
+     * Updates the user preference in TokenManager.
+     */
+    fun setAiNewTagsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            tokenManager.setAiNewTagsEnabled(enabled)
+        }
     }
 }

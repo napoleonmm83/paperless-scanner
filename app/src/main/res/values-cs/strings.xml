@@ -100,6 +100,7 @@
     <string name="document_detail_delete">Smazat</string>
     <string name="document_detail_error">Chyba</string>
     <string name="document_detail_retry">Zkusit znovu</string>
+    <string name="document_detail_invalid_id_error">Neplatné ID dokumentu. Vraťte se zpět a otevřete dokument znovu.</string>
     <string name="document_detail_preview">Náhled dokumentu</string>
     <string name="document_detail_correspondent">Korespondent</string>
     <string name="document_detail_type">Typ dokumentu</string>

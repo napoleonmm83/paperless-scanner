@@ -1,9 +1,16 @@
 Version 1.4.64:
 
-🔧 Improvements:
-- Informative message when no matching tags are found and "Suggest new tags" is disabled
-- Clear explanation why no suggestions are shown
-- Hint on how to enable the setting
+✨ New Features:
+- Info banner when no tags found + direct activation switch
+- Auto-retry after feature activation
+- Pull-to-refresh + auto-sync every 30 min
 
-🌍 Localization:
-- New messages available in all 17 supported languages
+🐛 Bug Fixes:
+- App restart loads documents correctly
+- Process death navigation fixed
+- Multi-device sync fixed
+
+🔧 Improvements:
+- WiFi-only AI works reliably
+- Robust network detection (hotel WiFi, captive portals)
+- Upload checks real internet connection
