@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Nykyinen salasana vaaditaan</string>
     <string name="app_lock_biometric_unlock">Biometrinen avaus</string>
     <string name="app_lock_biometric_unlock_subtitle">Käytä sormenjälkeä tai kasvojentunnistusta</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Ei vastaavia tunnisteita löytynyt</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">"Ehdota uusia tunnisteita" -asetus on poistettu käytöstä. Ota se käyttöön Asetuksista saadaksesi uusia tunnisteehdotuksia.</string>
 </resources>

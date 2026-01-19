@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Necesită parola curentă</string>
     <string name="app_lock_biometric_unlock">Deblocare biometrică</string>
     <string name="app_lock_biometric_unlock_subtitle">Folosește amprentă sau recunoaștere facială</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Nu s-au găsit etichete potrivite</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Setarea "Sugerează etichete noi" este dezactivată. Activați-o în Setări pentru a primi noi sugestii de etichete.</string>
 </resources>

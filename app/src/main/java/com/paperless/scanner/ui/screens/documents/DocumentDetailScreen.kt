@@ -101,6 +101,7 @@ fun DocumentDetailScreen(
     val suggestionSource by viewModel.suggestionSource.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+    val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditSheet by remember { mutableStateOf(false) }
@@ -346,6 +347,7 @@ fun DocumentDetailScreen(
                     suggestionSource = suggestionSource,
                     wifiRequired = wifiRequired,
                     isWifiConnected = isWifiConnected,
+                    aiNewTagsEnabled = aiNewTagsEnabled,
                     onAnalyzeClick = { viewModel.analyzeDocumentThumbnail() },
                     onOverrideWifiOnly = { viewModel.overrideWifiOnlyForSession() },
                     onApplyTagSuggestion = { tagSuggestion ->

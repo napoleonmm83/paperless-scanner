@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Jelenlegi jelszó szükséges</string>
     <string name="app_lock_biometric_unlock">Biometrikus feloldás</string>
     <string name="app_lock_biometric_unlock_subtitle">Ujjlenyomat vagy arcfelismerés használata</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Nem találhatók egyező címkék</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Az "Új címkék javaslása" beállítás le van tiltva. Engedélyezze a Beállításokban az új címkejavaslatokhoz.</string>
 </resources>

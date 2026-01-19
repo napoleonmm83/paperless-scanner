@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Mevcut şifre gerekli</string>
     <string name="app_lock_biometric_unlock">Biyometrik kilit açma</string>
     <string name="app_lock_biometric_unlock_subtitle">Parmak izi veya yüz tanıma kullan</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Eşleşen etiket bulunamadı</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">\"Yeni etiketler öner\" ayarı devre dışı. Yeni etiket önerileri almak için Ayarlar\'dan etkinleştirin.</string>
 </resources>

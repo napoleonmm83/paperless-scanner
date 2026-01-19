@@ -731,4 +731,8 @@
     <string name="app_lock_change_password_subtitle">Current password required</string>
     <string name="app_lock_biometric_unlock">Biometric Unlock</string>
     <string name="app_lock_biometric_unlock_subtitle">Use fingerprint or face recognition</string>
+
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">No matching tags found</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">The "Suggest new tags" setting is disabled. Enable it in Settings to receive new tag suggestions.</string>
 </resources>

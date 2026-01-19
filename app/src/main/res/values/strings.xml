@@ -733,4 +733,8 @@
     <string name="app_lock_biometric_failed">Biometrische Authentifizierung fehlgeschlagen</string>
     <string name="app_lock_disable_confirm_title">App-Sperre deaktivieren?</string>
     <string name="app_lock_disable_confirm_message">Die App wird nicht mehr geschützt sein.</string>
+
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Keine passenden Tags gefunden</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Die Einstellung „Neue Tags vorschlagen" ist deaktiviert. Aktiviere sie in den Einstellungen, um neue Tag-Vorschläge zu erhalten.</string>
 </resources>

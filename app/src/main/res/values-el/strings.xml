@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Απαιτείται τρέχων κωδικός πρόσβασης</string>
     <string name="app_lock_biometric_unlock">Βιομετρικό ξεκλείδωμα</string>
     <string name="app_lock_biometric_unlock_subtitle">Χρήση δακτυλικού αποτυπώματος ή αναγνώρισης προσώπου</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Δεν βρέθηκαν αντίστοιχες ετικέτες</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Η ρύθμιση "Πρόταση νέων ετικετών" είναι απενεργοποιημένη. Ενεργοποιήστε την στις Ρυθμίσεις για να λαμβάνετε νέες προτάσεις ετικετών.</string>
 </resources>

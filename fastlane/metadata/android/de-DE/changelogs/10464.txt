@@ -1,0 +1,9 @@
+Version 1.4.64:
+
+🔧 Verbesserungen:
+- Informativer Hinweis wenn keine passenden Tags gefunden werden und "Neue Tags vorschlagen" deaktiviert ist
+- Klare Erklärung warum keine Vorschläge angezeigt werden
+- Hinweis wie die Einstellung aktiviert werden kann
+
+🌍 Lokalisierung:
+- Neue Meldungen in allen 17 unterstützten Sprachen verfügbar

@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Vyžaduje se aktuální heslo</string>
     <string name="app_lock_biometric_unlock">Biometrické odemknutí</string>
     <string name="app_lock_biometric_unlock_subtitle">Použít otisk prstu nebo rozpoznávání obličeje</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Nenalezeny žádné odpovídající štítky</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Nastavení "Navrhnout nové štítky" je zakázáno. Povolte jej v Nastavení, abyste dostávali nové návrhy štítků.</string>
 </resources>

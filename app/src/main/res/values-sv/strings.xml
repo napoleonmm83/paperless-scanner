@@ -641,4 +641,7 @@
     <string name="app_lock_change_password_subtitle">Nuvarande lösenord krävs</string>
     <string name="app_lock_biometric_unlock">Biometrisk upplåsning</string>
     <string name="app_lock_biometric_unlock_subtitle">Använd fingeravtryck eller ansiktsigenkänning</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Inga matchande taggar hittades</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Inställningen "Föreslå nya taggar" är inaktiverad. Aktivera den i Inställningar för att få nya taggförslag.</string>
 </resources>

@@ -1,0 +1,9 @@
+Version 1.4.64:
+
+🔧 Improvements:
+- Informative message when no matching tags are found and "Suggest new tags" is disabled
+- Clear explanation why no suggestions are shown
+- Hint on how to enable the setting
+
+🌍 Localization:
+- New messages available in all 17 supported languages

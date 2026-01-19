@@ -83,6 +83,7 @@ fun UploadScreen(
     val suggestionSource by viewModel.suggestionSource.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+    val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -236,6 +237,7 @@ fun UploadScreen(
                     existingTags = tags,
                     selectedTagIds = selectedTagIds.toSet(),
                     currentTitle = title,
+                    aiNewTagsEnabled = aiNewTagsEnabled,
                     onAnalyzeClick = {
                         viewModel.analyzeDocument(documentUri)
                     },

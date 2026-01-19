@@ -643,4 +643,7 @@
     <string name="app_lock_change_password_subtitle">Contraseña actual requerida</string>
     <string name="app_lock_biometric_unlock">Desbloqueo biométrico</string>
     <string name="app_lock_biometric_unlock_subtitle">Usar huella digital o reconocimiento facial</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">No se encontraron etiquetas coincidentes</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">La configuración "Sugerir nuevas etiquetas" está desactivada. Actívala en Configuración para recibir nuevas sugerencias de etiquetas.</string>
 </resources>

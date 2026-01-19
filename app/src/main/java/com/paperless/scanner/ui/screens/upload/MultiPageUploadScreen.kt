@@ -89,6 +89,7 @@ fun MultiPageUploadScreen(
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
     val suggestionSource by viewModel.suggestionSource.collectAsState()
+    val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -302,6 +303,7 @@ fun MultiPageUploadScreen(
                     existingTags = tags,
                     selectedTagIds = selectedTagIds.toSet(),
                     currentTitle = title,
+                    aiNewTagsEnabled = aiNewTagsEnabled,
                     onAnalyzeClick = {
                         // Analyze the first page
                         viewModel.analyzeDocument(documentUris.first())

@@ -643,4 +643,7 @@
     <string name="app_lock_change_password_subtitle">Huidig wachtwoord vereist</string>
     <string name="app_lock_biometric_unlock">Biometrisch ontgrendelen</string>
     <string name="app_lock_biometric_unlock_subtitle">Gebruik vingerafdruk of gezichtsherkenning</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Geen overeenkomende tags gevonden</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">De instelling "Nieuwe tags voorstellen" is uitgeschakeld. Schakel deze in bij Instellingen om nieuwe tagvoorstellen te ontvangen.</string>
 </resources>

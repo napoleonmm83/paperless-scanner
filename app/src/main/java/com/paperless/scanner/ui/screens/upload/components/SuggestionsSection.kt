@@ -88,6 +88,7 @@ fun SuggestionsSection(
     existingTags: List<Tag>,
     selectedTagIds: Set<Int>,
     currentTitle: String,
+    aiNewTagsEnabled: Boolean = true,
     onAnalyzeClick: () -> Unit,
     onApplyTagSuggestion: (TagSuggestion) -> Unit,
     onApplyTitle: (String) -> Unit,
@@ -267,7 +268,7 @@ fun SuggestionsSection(
                             onApplyTitle = onApplyTitle
                         )
                     } else {
-                        NoSuggestionsMessage()
+                        NoSuggestionsMessage(aiNewTagsEnabled = aiNewTagsEnabled)
                     }
                 }
 
@@ -492,26 +493,55 @@ private fun SuggestionsContent(
 }
 
 @Composable
-private fun NoSuggestionsMessage() {
-    Row(
+private fun NoSuggestionsMessage(aiNewTagsEnabled: Boolean = true) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Info,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = stringResource(R.string.suggestions_no_suggestions),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Main message
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = if (aiNewTagsEnabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (aiNewTagsEnabled) {
+                    stringResource(R.string.suggestions_no_suggestions)
+                } else {
+                    stringResource(R.string.suggestions_no_matches_new_tags_disabled)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (aiNewTagsEnabled) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                fontWeight = if (aiNewTagsEnabled) FontWeight.Normal else FontWeight.SemiBold
+            )
+        }
+
+        // Hint message when new tags are disabled
+        if (!aiNewTagsEnabled) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.suggestions_no_matches_new_tags_disabled_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
     }
 }
 

@@ -643,4 +643,7 @@
     <string name="app_lock_change_password_subtitle">Mot de passe actuel requis</string>
     <string name="app_lock_biometric_unlock">Déverrouillage biométrique</string>
     <string name="app_lock_biometric_unlock_subtitle">Utiliser l\'empreinte digitale ou la reconnaissance faciale</string>
+    <!-- AI Suggestions: No matches with new tags disabled -->
+    <string name="suggestions_no_matches_new_tags_disabled">Aucun tag correspondant trouvé</string>
+    <string name="suggestions_no_matches_new_tags_disabled_hint">Le paramètre "Suggérer de nouveaux tags" est désactivé. Activez-le dans les paramètres pour recevoir de nouvelles suggestions de tags.</string>
 </resources>

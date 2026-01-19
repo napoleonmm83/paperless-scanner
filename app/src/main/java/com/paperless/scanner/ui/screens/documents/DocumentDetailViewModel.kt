@@ -28,6 +28,7 @@ import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -152,6 +153,9 @@ class DocumentDetailViewModel @Inject constructor(
 
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+
+    // Observe AI new tags setting
+    val aiNewTagsEnabled: Flow<Boolean> = tokenManager.aiNewTagsEnabled
 
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).

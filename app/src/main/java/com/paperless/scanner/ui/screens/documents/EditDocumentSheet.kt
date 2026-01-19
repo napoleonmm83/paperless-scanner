@@ -71,6 +71,7 @@ fun EditDocumentSheet(
     suggestionSource: SuggestionSource? = null,
     wifiRequired: Boolean = false,
     isWifiConnected: Boolean = true,
+    aiNewTagsEnabled: Boolean = true,
     onAnalyzeClick: () -> Unit = {},
     onOverrideWifiOnly: () -> Unit = {},
     onApplyTagSuggestion: (TagSuggestion) -> Unit = {},
@@ -150,6 +151,7 @@ fun EditDocumentSheet(
                 existingTags = availableTags,
                 selectedTagIds = editedTagIds.toSet(),
                 currentTitle = editedTitle,
+                aiNewTagsEnabled = aiNewTagsEnabled,
                 onAnalyzeClick = onAnalyzeClick,
                 onApplyTagSuggestion = { tagSuggestion ->
                     val tagId = tagSuggestion.tagId ?: availableTags.find {

@@ -18,6 +18,7 @@ import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.util.NetworkUtils
@@ -74,6 +75,7 @@ class UploadViewModelTest {
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var paperlessGptRepository: PaperlessGptRepository
     private lateinit var taskRepository: TaskRepository
+    private lateinit var tokenManager: TokenManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -121,6 +123,7 @@ class UploadViewModelTest {
         premiumFeatureManager = mockk(relaxed = true)
         paperlessGptRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
+        tokenManager = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -129,6 +132,9 @@ class UploadViewModelTest {
 
         // Mock AI usage limits Flow
         every { aiUsageRepository.observeCurrentMonthCallCount() } returns flowOf(0)
+
+        // Mock TokenManager aiNewTagsEnabled Flow
+        every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
 
         every { networkMonitor.checkOnlineStatus() } returns true
 
@@ -147,6 +153,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
     }
@@ -184,6 +191,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -220,6 +228,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -562,6 +571,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -601,6 +611,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -638,6 +649,7 @@ class UploadViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
+            tokenManager = tokenManager,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
