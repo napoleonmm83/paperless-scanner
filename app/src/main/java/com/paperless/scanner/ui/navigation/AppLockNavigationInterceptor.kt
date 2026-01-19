@@ -8,9 +8,41 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.paperless.scanner.util.AppLockManager
 import com.paperless.scanner.util.AppLockState
+
+/**
+ * Reconstructs the full route with actual argument values.
+ *
+ * Example:
+ * - Route template: "document/{documentId}"
+ * - Arguments: ["documentId" = "133"]
+ * - Result: "document/133"
+ */
+private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String? {
+    if (backStackEntry == null) return null
+
+    val routeTemplate = backStackEntry.destination.route ?: return null
+    val args = backStackEntry.arguments ?: return routeTemplate
+
+    var reconstructed = routeTemplate
+
+    // Replace all argument placeholders with actual values
+    args.keySet().forEach { key ->
+        // Skip navigation internal keys
+        if (key.startsWith("android-support-nav:")) return@forEach
+
+        val value = args.get(key)
+        if (value != null) {
+            // Replace {key} with actual value
+            reconstructed = reconstructed.replace("{$key}", value.toString())
+        }
+    }
+
+    return reconstructed
+}
 
 /**
  * App-Lock Navigation Interceptor
@@ -41,8 +73,12 @@ fun AppLockNavigationInterceptor(
     }
 
     LaunchedEffect(lockState) {
-        val currentRoute = navController.currentBackStackEntry?.destination?.route
-        val isCurrentRouteProtected = currentRoute?.let { route ->
+        // Get the route template for checking if protected
+        val currentRouteTemplate = navController.currentBackStackEntry?.destination?.route
+        // Get the FULL route with actual argument values for saving/restoring
+        val currentFullRoute = reconstructRouteWithArgs(navController.currentBackStackEntry)
+
+        val isCurrentRouteProtected = currentRouteTemplate?.let { route ->
             // Check if current route is NOT in white-list
             !unprotectedRoutes.any { unprotectedRoute ->
                 route.startsWith(unprotectedRoute)
@@ -51,7 +87,8 @@ fun AppLockNavigationInterceptor(
 
         Log.d("AppLockInterceptor", "=== LOCK STATE CHANGED ===")
         Log.d("AppLockInterceptor", "New lockState: $lockState")
-        Log.d("AppLockInterceptor", "currentRoute: $currentRoute")
+        Log.d("AppLockInterceptor", "currentRouteTemplate: $currentRouteTemplate")
+        Log.d("AppLockInterceptor", "currentFullRoute: $currentFullRoute")
         Log.d("AppLockInterceptor", "isProtected: $isCurrentRouteProtected")
         Log.d("AppLockInterceptor", "==========================")
 
@@ -59,10 +96,10 @@ fun AppLockNavigationInterceptor(
             is AppLockState.Locked -> {
                 Log.d("AppLockInterceptor", "State: LOCKED")
                 // App is locked - navigate to AppLockScreen if not already there
-                if (isCurrentRouteProtected && currentRoute != Screen.AppLock.route) {
-                    // Save current route before locking
-                    routeBeforeLock = currentRoute
-                    Log.d("AppLockInterceptor", "Saved route before lock: $routeBeforeLock")
+                if (isCurrentRouteProtected && currentRouteTemplate != Screen.AppLock.route) {
+                    // Save FULL route with actual arguments before locking
+                    routeBeforeLock = currentFullRoute
+                    Log.d("AppLockInterceptor", "Saved FULL route before lock: $routeBeforeLock")
 
                     Log.d("AppLockInterceptor", "Navigating to AppLock screen")
                     navController.navigate(Screen.AppLock.route) {
@@ -86,7 +123,7 @@ fun AppLockNavigationInterceptor(
                 if (lockedOutState.isPermanent) {
                     // User was permanently locked out - logout and go to onboarding
                     routeBeforeLock = null  // Clear saved route
-                    if (currentRoute != Screen.OnboardingWelcome.route) {
+                    if (currentRouteTemplate != Screen.OnboardingWelcome.route) {
                         navController.navigate(Screen.OnboardingWelcome.route) {
                             popUpTo(0) { inclusive = true }
                         }
@@ -98,7 +135,7 @@ fun AppLockNavigationInterceptor(
                 Log.d("AppLockInterceptor", "State: UNLOCKED")
                 // ONLY navigate if we're currently ON the AppLock screen
                 // If user disabled AppLock while on Settings, DON'T navigate away
-                if (currentRoute == Screen.AppLock.route) {
+                if (currentRouteTemplate == Screen.AppLock.route) {
                     // Use saved route, or fallback to Home for logged-in users
                     val targetRoute = routeBeforeLock ?: Screen.Home.route
                     Log.d("AppLockInterceptor", "Currently on AppLock screen, navigating back to: $targetRoute (saved=$routeBeforeLock, fallback=${Screen.Home.route})")
@@ -128,7 +165,7 @@ fun AppLockNavigationInterceptor(
                     // Clear saved route after using it
                     routeBeforeLock = null
                 } else {
-                    Log.d("AppLockInterceptor", "State changed to UNLOCKED but not on AppLock screen (current=$currentRoute), no navigation needed")
+                    Log.d("AppLockInterceptor", "State changed to UNLOCKED but not on AppLock screen (current=$currentRouteTemplate), no navigation needed")
                 }
             }
         }

@@ -30,9 +30,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.net.URL
@@ -127,13 +130,15 @@ class DocumentDetailViewModel @Inject constructor(
         private const val KEY_DOCUMENT_ID = "documentId"
     }
 
-    // Retrieve documentId from savedStateHandle and persist it for process death survival
-    private val documentId: Int = savedStateHandle.get<String>(KEY_DOCUMENT_ID)?.toIntOrNull()?.also { id ->
-        // Store the parsed ID back into SavedStateHandle to survive process death
-        if (id > 0) {
-            savedStateHandle[KEY_DOCUMENT_ID] = id.toString()
-        }
-    } ?: 0
+    // Reactive documentId using SavedStateHandle.getStateFlow()
+    // Automatically survives process death and configuration changes
+    private val documentIdStateFlow: StateFlow<Int> = savedStateHandle.getStateFlow<String?>(KEY_DOCUMENT_ID, null)
+        .map { it?.toIntOrNull() ?: 0 }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = savedStateHandle.get<String>(KEY_DOCUMENT_ID)?.toIntOrNull() ?: 0
+        )
 
     private val _uiState = MutableStateFlow(DocumentDetailUiState())
     val uiState: StateFlow<DocumentDetailUiState> = _uiState.asStateFlow()
@@ -179,21 +184,36 @@ class DocumentDetailViewModel @Inject constructor(
     private var documentTypeMap: Map<Int, DocumentType> = emptyMap()
 
     init {
-        // Validate documentId before attempting to load
-        if (documentId <= 0) {
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    error = context.getString(R.string.document_detail_invalid_id_error)
-                )
+        // Observe documentId changes (handles process death automatically)
+        viewModelScope.launch {
+            documentIdStateFlow.collect { id ->
+                if (id <= 0) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = context.getString(R.string.document_detail_invalid_id_error)
+                        )
+                    }
+                } else {
+                    loadDocument(id)
+                }
             }
-        } else {
-            loadDocument()
         }
     }
 
-    fun loadDocument() {
+    fun loadDocument(docId: Int? = null) {
         viewModelScope.launch {
+            val documentId = docId ?: documentIdStateFlow.value
+            if (documentId <= 0) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = context.getString(R.string.document_detail_invalid_id_error)
+                    )
+                }
+                return@launch
+            }
+
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             // Load lookup data in parallel
@@ -267,6 +287,9 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun deleteDocument() {
         viewModelScope.launch {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _uiState.update { it.copy(isDeleting = true, deleteError = null) }
 
             documentRepository.deleteDocument(documentId).onSuccess {
@@ -300,6 +323,9 @@ class DocumentDetailViewModel @Inject constructor(
         created: String?
     ) {
         viewModelScope.launch {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _uiState.update { it.copy(isUpdating = true, updateError = null) }
 
             val asnInt = archiveSerialNumber?.toIntOrNull()
@@ -347,6 +373,9 @@ class DocumentDetailViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _uiState.update { it.copy(isAddingNote = true, addNoteError = null) }
 
             documentRepository.addNote(documentId, noteText).onSuccess { updatedNotes ->
@@ -369,6 +398,9 @@ class DocumentDetailViewModel @Inject constructor(
 
     fun deleteNote(noteId: Int) {
         viewModelScope.launch {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _uiState.update { it.copy(isDeletingNoteId = noteId, deleteNoteError = null) }
 
             documentRepository.deleteNote(documentId, noteId).onSuccess { updatedNotes ->
@@ -432,6 +464,9 @@ class DocumentDetailViewModel @Inject constructor(
         changeGroups: List<Int>
     ) {
         viewModelScope.launch {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _uiState.update { it.copy(isUpdatingPermissions = true, updatePermissionsError = null) }
 
             documentRepository.updateDocumentPermissions(
@@ -502,6 +537,9 @@ class DocumentDetailViewModel @Inject constructor(
      */
     fun analyzeDocumentThumbnail() {
         viewModelScope.launch(Dispatchers.IO) {
+            val documentId = documentIdStateFlow.value
+            if (documentId <= 0) return@launch
+
             _analysisState.update { AnalysisState.Analyzing }
 
             try {
