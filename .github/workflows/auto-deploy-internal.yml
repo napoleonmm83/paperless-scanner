@@ -44,17 +44,19 @@ jobs:
 
           echo "API Response: $RESPONSE"
 
-          # Check for Windows runner only (Mac runner removed - too slow)
+          # Check for Windows self-hosted runner
+          # Only two options: Windows self-hosted OR GitHub-hosted ubuntu-latest
+          # macOS support removed (was too slow and not needed)
           WINDOWS_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperlesswin"])))) | length' 2>/dev/null || echo "0")
 
-          echo "Windows runners online: $WINDOWS_ONLINE"
+          echo "Windows self-hosted runners online: $WINDOWS_ONLINE"
 
           if [ "$WINDOWS_ONLINE" -gt 0 ]; then
-            echo "✅ Windows runner available - using it"
+            echo "✅ Windows self-hosted runner available"
             echo 'runner=["self-hosted", "paperlesswin"]' >> $GITHUB_OUTPUT
             echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
           else
-            echo "⚠️ No Windows runner available - falling back to ubuntu-latest"
+            echo "⚠️ No Windows runner online, using GitHub-hosted ubuntu-latest"
             echo 'runner=["ubuntu-latest"]' >> $GITHUB_OUTPUT
             echo 'is-self-hosted=false' >> $GITHUB_OUTPUT
           fi
@@ -75,23 +77,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: gradle
-
-      - name: Setup Android SDK path (self-hosted macOS)
-        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
-        run: |
-          echo "Setting up Android SDK for self-hosted macOS runner..."
-          ANDROID_SDK="$HOME/Library/Android/sdk"
-          if [ -d "$ANDROID_SDK" ]; then
-            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
-            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
-            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
-            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
-            echo "✅ Android SDK found at: $ANDROID_SDK"
-          else
-            echo "❌ Android SDK not found at: $ANDROID_SDK"
-            exit 1
-          fi
-        shell: bash
 
       - name: Setup Android SDK path (self-hosted Windows)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
@@ -236,23 +221,6 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Setup Android SDK path (self-hosted macOS)
-        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
-        run: |
-          echo "Setting up Android SDK for self-hosted macOS runner..."
-          ANDROID_SDK="$HOME/Library/Android/sdk"
-          if [ -d "$ANDROID_SDK" ]; then
-            echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
-            echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
-            echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
-            echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
-            echo "✅ Android SDK found at: $ANDROID_SDK"
-          else
-            echo "❌ Android SDK not found at: $ANDROID_SDK"
-            exit 1
-          fi
-        shell: bash
-
       - name: Setup Android SDK path (self-hosted Windows)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
         run: |
@@ -276,36 +244,6 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
-
-      - name: Setup Ruby via Homebrew (self-hosted macOS)
-        if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'macOS'
-        run: |
-          echo "Setting up Ruby via Homebrew for self-hosted macOS..."
-          # Ensure Homebrew is in PATH
-          eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || eval "$(/usr/local/bin/brew shellenv)" 2>/dev/null || true
-
-          # Install Ruby if not present via Homebrew
-          if ! brew list ruby &>/dev/null; then
-            echo "Installing Ruby via Homebrew..."
-            brew install ruby
-          else
-            echo "Ruby already installed via Homebrew"
-          fi
-
-          # Add Homebrew Ruby to PATH (takes precedence over system Ruby)
-          HOMEBREW_PREFIX=$(brew --prefix)
-          echo "$HOMEBREW_PREFIX/opt/ruby/bin" >> $GITHUB_PATH
-          echo "$HOMEBREW_PREFIX/lib/ruby/gems/3.4.0/bin" >> $GITHUB_PATH
-
-          # Set GEM_HOME for user installs
-          export PATH="$HOMEBREW_PREFIX/opt/ruby/bin:$PATH"
-          GEM_HOME="$($HOMEBREW_PREFIX/opt/ruby/bin/ruby -e 'puts Gem.user_dir')"
-          echo "GEM_HOME=$GEM_HOME" >> $GITHUB_ENV
-          echo "$GEM_HOME/bin" >> $GITHUB_PATH
-
-          echo "✅ Homebrew Ruby configured"
-          $HOMEBREW_PREFIX/opt/ruby/bin/ruby --version
-        shell: bash
 
       - name: Setup Ruby via RubyInstaller (self-hosted Windows)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
@@ -969,176 +907,18 @@ jobs:
           $releaseNotes | Out-File -FilePath release-notes.md -Encoding UTF8
           Write-Host "✅ Release notes generated successfully"
 
-      - name: Generate structured release notes (Linux/macOS)
+      - name: Generate structured release notes (Linux)
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          # Bash version for Linux/macOS
-          NEW_VERSION="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.NEW_VERSION || steps.bump_version.outputs.NEW_VERSION }}"
-          VERSION_CODE="${{ runner.os == 'Windows' && steps.bump_version_win.outputs.VERSION_CODE || steps.bump_version.outputs.VERSION_CODE }}"
-          PREVIOUS_VERSION="${{ runner.os == 'Windows' && steps.prev_version_win.outputs.PREVIOUS_VERSION || steps.prev_version.outputs.PREVIOUS_VERSION }}"
-          RELEASE_DATE=$(date +%Y-%m-%d)
-          TRACK="Internal Testing"
+          # Use robust external script to avoid SIGPIPE issues
+          chmod +x scripts/generate-release-notes.sh
 
-          # Get commits since last tag
-          PREVIOUS_TAG="v${PREVIOUS_VERSION}"
-          if git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
-            COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --oneline --no-merges)
-          else
-            COMMITS=$(git log --oneline --no-merges | head -20)
-          fi
+          NEW_VERSION="${{ steps.bump_version.outputs.NEW_VERSION }}"
+          VERSION_CODE="${{ steps.bump_version.outputs.VERSION_CODE }}"
+          PREVIOUS_VERSION="${{ steps.prev_version.outputs.PREVIOUS_VERSION }}"
 
-          # Read changelogs with robust 3-tier fallback strategy
-          # Tier 1: NEW version changelog (e.g., 10441.txt)
-          # Tier 2: PREVIOUS version changelog (e.g., 10440.txt) - BEST PRACTICE!
-          # Tier 3: default.txt generic changelog
-          CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${VERSION_CODE}.txt"
-          CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
-
-          # Calculate previous version code (subtract 1 from patch)
-          PREV_VERSION_CODE=$((VERSION_CODE - 1))
-          PREV_CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${PREV_VERSION_CODE}.txt"
-          PREV_CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${PREV_VERSION_CODE}.txt"
-
-          DEFAULT_DE="fastlane/metadata/android/de-DE/changelogs/default.txt"
-          DEFAULT_EN="fastlane/metadata/android/en-US/changelogs/default.txt"
-
-          # German changelog with 3-tier fallback
-          if [ -f "$CHANGELOG_DE_FILE" ]; then
-            echo "Using NEW version changelog: $CHANGELOG_DE_FILE"
-            CHANGELOG_DE=$(cat "$CHANGELOG_DE_FILE")
-          elif [ -f "$PREV_CHANGELOG_DE_FILE" ]; then
-            echo "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_DE_FILE"
-            CHANGELOG_DE=$(cat "$PREV_CHANGELOG_DE_FILE")
-            # Update version number in text
-            CHANGELOG_DE=$(echo "$CHANGELOG_DE" | sed -E "s/Version [0-9]+\.[0-9]+\.[0-9]+:/Version ${NEW_VERSION}:/")
-          elif [ -f "$DEFAULT_DE" ]; then
-            echo "Using DEFAULT changelog (fallback): $DEFAULT_DE"
-            CHANGELOG_DE=$(cat "$DEFAULT_DE")
-          else
-            CHANGELOG_DE="Version ${NEW_VERSION}"
-          fi
-
-          # English changelog with 3-tier fallback
-          if [ -f "$CHANGELOG_EN_FILE" ]; then
-            echo "Using NEW version changelog: $CHANGELOG_EN_FILE"
-            CHANGELOG_EN=$(cat "$CHANGELOG_EN_FILE")
-          elif [ -f "$PREV_CHANGELOG_EN_FILE" ]; then
-            echo "Using PREVIOUS version changelog (fallback): $PREV_CHANGELOG_EN_FILE"
-            CHANGELOG_EN=$(cat "$PREV_CHANGELOG_EN_FILE")
-            # Update version number in text
-            CHANGELOG_EN=$(echo "$CHANGELOG_EN" | sed -E "s/Version [0-9]+\.[0-9]+\.[0-9]+:/Version ${NEW_VERSION}:/")
-          elif [ -f "$DEFAULT_EN" ]; then
-            echo "Using DEFAULT changelog (fallback): $DEFAULT_EN"
-            CHANGELOG_EN=$(cat "$DEFAULT_EN")
-          else
-            CHANGELOG_EN="Version ${NEW_VERSION}"
-          fi
-
-          # Parse commits into categories
-          FEATURES=""
-          FIXES=""
-          IMPROVEMENTS=""
-          TECHNICAL=""
-
-          while IFS= read -r commit; do
-            msg=$(echo "$commit" | sed 's/^[a-f0-9]* //')
-
-            if [[ "$msg" =~ ^feat(\(.*\))?:\ (.+) ]]; then
-              FEATURES="${FEATURES}- **${BASH_REMATCH[2]}**\n"
-            elif [[ "$msg" =~ ^fix(\(.*\))?:\ (.+) ]]; then
-              FIXES="${FIXES}- **Fix: ${BASH_REMATCH[2]}**\n"
-            elif [[ "$msg" =~ ^perf(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^refactor(\(.*\))?:\ (.+) ]]; then
-              IMPROVEMENTS="${IMPROVEMENTS}- **${BASH_REMATCH[2]}**\n"
-            elif [[ "$msg" =~ ^test(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^chore(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^docs(\(.*\))?:\ (.+) ]]; then
-              TECHNICAL="${TECHNICAL}- ${msg}\n"
-            fi
-          done <<< "$COMMITS"
-
-          # Generate highlights
-          HIGHLIGHTS="Diese Version enthält Verbesserungen und Fehlerbehebungen."
-          if [ -n "$FEATURES" ]; then
-            HIGHLIGHTS="Diese Version bringt neue Features und Verbesserungen."
-          fi
-
-          # Generate comparison URL
-          REPO_URL="https://github.com/napoleonmm83/paperless-scanner"
-          COMPARISON_URL="${REPO_URL}/compare/v${PREVIOUS_VERSION}...v${NEW_VERSION}"
-
-          # Generate release notes
-          cat > release-notes.md <<EOF
-          ## 📱 Paperless Scanner v${NEW_VERSION}
-
-          **Release Date:** ${RELEASE_DATE}
-          **Version Code:** ${VERSION_CODE}
-          **Track:** ${TRACK}
-
-          ---
-
-          ## 🎯 Highlights
-
-          ${HIGHLIGHTS}
-
-          ---
-
-          EOF
-
-          if [ -n "$FEATURES" ]; then
-            echo -e "## ✨ Neue Features\n\n${FEATURES}\n" >> release-notes.md
-          fi
-
-          if [ -n "$FIXES" ]; then
-            echo -e "## 🐛 Fehlerbehebungen\n\n${FIXES}\n" >> release-notes.md
-          fi
-
-          if [ -n "$IMPROVEMENTS" ]; then
-            echo -e "## 🔧 Verbesserungen\n\n${IMPROVEMENTS}\n" >> release-notes.md
-          fi
-
-          if [ -n "$TECHNICAL" ]; then
-            echo -e "## 📚 Technische Änderungen\n\n${TECHNICAL}\n" >> release-notes.md
-          fi
-
-          cat >> release-notes.md <<EOF
-          ## ⚠️ Breaking Changes
-
-          *Keine Breaking Changes in dieser Version*
-
-          ---
-
-          ## 🔗 Links
-
-          - [GitHub Repository](${REPO_URL})
-          - [Issue Tracker](${REPO_URL}/issues)
-          - [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
-          - [Dokumentation](${REPO_URL}/tree/main/docs)
-          - [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)
-
-          ---
-
-          ## 🙏 Contributors
-
-          - @napoleonmm83 - Main development
-          - Claude Sonnet 4.5 - AI-assisted development and code review
-
-          ---
-
-          **Vollständige Änderungen:** [\`v${PREVIOUS_VERSION}...v${NEW_VERSION}\`](${COMPARISON_URL})
-
-          ---
-
-          ## 📊 Statistiken
-
-          - **Commits:** $(echo "$COMMITS" | wc -l) commits seit v${PREVIOUS_VERSION}
-          - **Version Code:** ${VERSION_CODE}
-
-          ---
-
-          **Release erstellt am:** ${RELEASE_DATE}
-          **Deployed to:** Google Play Console ${TRACK}
-          EOF
-
-          echo "✅ Release notes generated successfully"
+          ./scripts/generate-release-notes.sh "${NEW_VERSION}" "${VERSION_CODE}" "${PREVIOUS_VERSION}"
 
       - name: Create GitHub Release (Windows)
         if: runner.os == 'Windows'

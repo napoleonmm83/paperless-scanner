@@ -1,240 +1,148 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/bash
+set -e  # Exit on error, but NO pipefail to avoid SIGPIPE
 
-# Generate GitHub Release Notes following RELEASE_NOTES_TEMPLATE.md structure
-#
-# Usage: ./scripts/generate-release-notes.sh <NEW_VERSION> <VERSION_CODE> <PREVIOUS_VERSION>
-# Example: ./scripts/generate-release-notes.sh 1.5.0 10500 1.4.28
-
-if [ "$#" -lt 3 ]; then
-    echo "Usage: $0 <NEW_VERSION> <VERSION_CODE> <PREVIOUS_VERSION>"
-    echo "Example: $0 1.5.0 10500 1.4.28"
-    exit 1
-fi
+# Script to generate structured GitHub Release notes
+# Usage: ./generate-release-notes.sh <new_version> <version_code> <previous_version>
 
 NEW_VERSION="$1"
 VERSION_CODE="$2"
 PREVIOUS_VERSION="$3"
 RELEASE_DATE=$(date +%Y-%m-%d)
+TRACK="Internal Testing"
 
-# Determine track based on workflow or default to Internal Testing
-TRACK="${TRACK:-Internal Testing}"
-
-# Check if manual release notes exist
-MANUAL_NOTES="docs/releases/v${NEW_VERSION}.md"
-if [ -f "$MANUAL_NOTES" ]; then
-    echo "✅ Using manual release notes from: $MANUAL_NOTES"
-    cat "$MANUAL_NOTES"
-    exit 0
-fi
-
-echo "📝 Generating structured release notes for v${NEW_VERSION}..."
+echo "Generating release notes for v${NEW_VERSION} (code: ${VERSION_CODE})"
 
 # Get commits since last tag
 PREVIOUS_TAG="v${PREVIOUS_VERSION}"
-if ! git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
-    echo "⚠️  Previous tag $PREVIOUS_TAG not found, using all commits"
-    COMMITS=$(git log --oneline --no-merges)
+if git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
+  COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --oneline --no-merges)
+  echo "Found $(echo "$COMMITS" | wc -l) commits since ${PREVIOUS_TAG}"
 else
-    COMMITS=$(git log "${PREVIOUS_TAG}..HEAD" --oneline --no-merges)
+  echo "Tag ${PREVIOUS_TAG} not found, using last 20 commits"
+  COMMITS=$(git log --oneline --no-merges | head -20)
 fi
 
-# Read changelogs
-CHANGELOG_DE_FILE="fastlane/metadata/android/de-DE/changelogs/${VERSION_CODE}.txt"
-CHANGELOG_EN_FILE="fastlane/metadata/android/en-US/changelogs/${VERSION_CODE}.txt"
-DEFAULT_DE="fastlane/metadata/android/de-DE/changelogs/default.txt"
-DEFAULT_EN="fastlane/metadata/android/en-US/changelogs/default.txt"
-
-if [ -f "$CHANGELOG_DE_FILE" ]; then
-    CHANGELOG_DE=$(cat "$CHANGELOG_DE_FILE")
-else
-    CHANGELOG_DE=$(cat "$DEFAULT_DE" 2>/dev/null || echo "Version ${NEW_VERSION}")
-fi
-
-if [ -f "$CHANGELOG_EN_FILE" ]; then
-    CHANGELOG_EN=$(cat "$CHANGELOG_EN_FILE")
-else
-    CHANGELOG_EN=$(cat "$DEFAULT_EN" 2>/dev/null || echo "Version ${NEW_VERSION}")
-fi
+# Count commits BEFORE using in heredoc (avoid SIGPIPE in heredoc)
+COMMIT_COUNT=$(echo "$COMMITS" | wc -l)
 
 # Parse commits into categories
 FEATURES=""
 FIXES=""
 IMPROVEMENTS=""
 TECHNICAL=""
-BREAKING=""
 
 while IFS= read -r commit; do
-    # Extract commit message (remove hash)
-    msg=$(echo "$commit" | sed 's/^[a-f0-9]* //')
+  if [ -z "$commit" ]; then
+    continue
+  fi
 
-    # Categorize based on conventional commit prefixes
-    if [[ "$msg" =~ ^feat(\(.*\))?:\ (.+) ]]; then
-        FEATURES="${FEATURES}- **${BASH_REMATCH[2]}**\n"
-    elif [[ "$msg" =~ ^fix(\(.*\))?:\ (.+) ]]; then
-        FIXES="${FIXES}- **Fix: ${BASH_REMATCH[2]}**\n"
-    elif [[ "$msg" =~ ^perf(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^refactor(\(.*\))?:\ (.+) ]]; then
-        IMPROVEMENTS="${IMPROVEMENTS}- **${BASH_REMATCH[2]}**\n"
-    elif [[ "$msg" =~ ^test(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^chore(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^docs(\(.*\))?:\ (.+) ]]; then
-        TECHNICAL="${TECHNICAL}- ${msg}\n"
-    elif [[ "$msg" =~ BREAKING\ CHANGE ]]; then
-        BREAKING="${BREAKING}- **${msg}**\n"
-    fi
+  msg=$(echo "$commit" | sed 's/^[a-f0-9]* //')
+
+  if [[ "$msg" =~ ^feat(\(.*\))?:\ (.+) ]]; then
+    FEATURES="${FEATURES}- **${BASH_REMATCH[2]}**"$'\n'
+  elif [[ "$msg" =~ ^fix(\(.*\))?:\ (.+) ]]; then
+    FIXES="${FIXES}- **Fix: ${BASH_REMATCH[2]}**"$'\n'
+  elif [[ "$msg" =~ ^perf(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^refactor(\(.*\))?:\ (.+) ]]; then
+    IMPROVEMENTS="${IMPROVEMENTS}- **${BASH_REMATCH[2]}**"$'\n'
+  elif [[ "$msg" =~ ^test(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^chore(\(.*\))?:\ (.+) ]] || [[ "$msg" =~ ^docs(\(.*\))?:\ (.+) ]]; then
+    TECHNICAL="${TECHNICAL}- ${msg}"$'\n'
+  fi
 done <<< "$COMMITS"
 
-# Generate highlights (first feature or fix as placeholder)
+# Generate highlights
 HIGHLIGHTS="Diese Version enthält Verbesserungen und Fehlerbehebungen."
 if [ -n "$FEATURES" ]; then
-    HIGHLIGHTS="Diese Version bringt neue Features und Verbesserungen."
+  HIGHLIGHTS="Diese Version bringt neue Features und Verbesserungen."
 fi
 
 # Generate comparison URL
 REPO_URL="https://github.com/napoleonmm83/paperless-scanner"
 COMPARISON_URL="${REPO_URL}/compare/v${PREVIOUS_VERSION}...v${NEW_VERSION}"
 
-# Generate structured release notes
-cat <<EOF
-## 📱 Paperless Scanner v${NEW_VERSION}
+# Write release notes to file in smaller chunks to avoid SIGPIPE
+OUTPUT_FILE="release-notes.md"
 
-**Release Date:** ${RELEASE_DATE}
-**Version Code:** ${VERSION_CODE}
-**Track:** ${TRACK}
+# Header
+printf "## 📱 Paperless Scanner v%s\n\n" "${NEW_VERSION}" > "$OUTPUT_FILE"
+printf "**Release Date:** %s\n" "${RELEASE_DATE}" >> "$OUTPUT_FILE"
+printf "**Version Code:** %s\n" "${VERSION_CODE}" >> "$OUTPUT_FILE"
+printf "**Track:** %s\n\n" "${TRACK}" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
----
+# Highlights
+printf "## 🎯 Highlights\n\n" >> "$OUTPUT_FILE"
+printf "%s\n\n" "${HIGHLIGHTS}" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-## 🎯 Highlights
-
-${HIGHLIGHTS}
-
----
-
-EOF
-
-# Only include sections that have content
+# Features
 if [ -n "$FEATURES" ]; then
-    cat <<EOF
-## ✨ Neue Features
-
-$(echo -e "$FEATURES")
-
-EOF
+  printf "## ✨ Neue Features\n\n" >> "$OUTPUT_FILE"
+  printf "%s\n" "$FEATURES" >> "$OUTPUT_FILE"
 fi
 
+# Fixes
 if [ -n "$FIXES" ]; then
-    cat <<EOF
-## 🐛 Fehlerbehebungen
-
-$(echo -e "$FIXES")
-
-EOF
+  printf "## 🐛 Fehlerbehebungen\n\n" >> "$OUTPUT_FILE"
+  printf "%s\n" "$FIXES" >> "$OUTPUT_FILE"
 fi
 
+# Improvements
 if [ -n "$IMPROVEMENTS" ]; then
-    cat <<EOF
-## 🔧 Verbesserungen
-
-$(echo -e "$IMPROVEMENTS")
-
-EOF
+  printf "## 🔧 Verbesserungen\n\n" >> "$OUTPUT_FILE"
+  printf "%s\n" "$IMPROVEMENTS" >> "$OUTPUT_FILE"
 fi
 
+# Technical
 if [ -n "$TECHNICAL" ]; then
-    cat <<EOF
-## 📚 Technische Änderungen
-
-$(echo -e "$TECHNICAL")
-
-EOF
+  printf "## 📚 Technische Änderungen\n\n" >> "$OUTPUT_FILE"
+  printf "%s\n" "$TECHNICAL" >> "$OUTPUT_FILE"
 fi
 
-if [ -n "$BREAKING" ]; then
-    cat <<EOF
-## ⚠️ Breaking Changes
+# Breaking Changes
+printf "## ⚠️ Breaking Changes\n\n" >> "$OUTPUT_FILE"
+printf "*Keine Breaking Changes in dieser Version*\n\n" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-$(echo -e "$BREAKING")
+# Links
+echo "## 🔗 Links" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "- [GitHub Repository](${REPO_URL})" >> "$OUTPUT_FILE"
+echo "- [Issue Tracker](${REPO_URL}/issues)" >> "$OUTPUT_FILE"
+echo "- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)" >> "$OUTPUT_FILE"
+echo "- [Dokumentation](${REPO_URL}/tree/main/docs)" >> "$OUTPUT_FILE"
+echo "- [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-EOF
-else
-    cat <<EOF
-## ⚠️ Breaking Changes
+# Contributors
+echo "## 🙏 Contributors" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "- @napoleonmm83 - Main development" >> "$OUTPUT_FILE"
+echo "- Claude Sonnet 4.5 - AI-assisted development and code review" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-*Keine Breaking Changes in dieser Version*
+# Comparison
+printf "**Vollständige Änderungen:** [\`v%s...v%s\`](%s)\n\n" "${PREVIOUS_VERSION}" "${NEW_VERSION}" "${COMPARISON_URL}" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-EOF
-fi
+# Statistics
+echo "## 📊 Statistiken" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "- **Commits:** ${COMMIT_COUNT} commits seit v${PREVIOUS_VERSION}" >> "$OUTPUT_FILE"
+echo "- **Version Code:** ${VERSION_CODE}" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
 
-# Installation section
-cat <<EOF
----
+# Footer
+printf "**Release erstellt am:** %s\n" "${RELEASE_DATE}" >> "$OUTPUT_FILE"
+printf "**Deployed to:** Google Play Console %s\n" "${TRACK}" >> "$OUTPUT_FILE"
 
-## 📲 Installation
-
-### Google Play (Empfohlen)
-
-- **Internal Track:** Nur für eingeladene Tester verfügbar
-- **Beta Track:** Öffentliche Beta - Join via Google Play Console
-- **Production:** Vollständiger Release für alle Nutzer
-
-### Direkter Download (APK/AAB)
-
-1. Lade \`app-release.aab\` aus den Release Assets herunter
-2. Installiere mit \`bundletool\`:
-   \`\`\`bash
-   bundletool build-apks --bundle=app-release.aab --output=app.apks
-   bundletool install-apks --apks=app.apks
-   \`\`\`
-
-⚠️ **Hinweis:** Direkt-Downloads sind nur für Entwicklung/Testing. Production Apps sollten über Google Play bezogen werden.
-
----
-
-## 📝 Changelog (Vollständig)
-
-### Deutsch (DE)
-
-\`\`\`
-${CHANGELOG_DE}
-\`\`\`
-
-### English (EN)
-
-\`\`\`
-${CHANGELOG_EN}
-\`\`\`
-
----
-
-## 🔗 Links
-
-- [GitHub Repository](${REPO_URL})
-- [Issue Tracker](${REPO_URL}/issues)
-- [Paperless-ngx](https://github.com/paperless-ngx/paperless-ngx)
-- [Dokumentation](${REPO_URL}/tree/main/docs)
-- [Google Play Store](https://play.google.com/store/apps/details?id=com.paperless.scanner)
-
----
-
-## 🙏 Contributors
-
-- @napoleonmm83 - Main development
-- Claude Sonnet 4.5 - AI-assisted development and code review
-
----
-
-**Vollständige Änderungen:** [\`v${PREVIOUS_VERSION}...v${NEW_VERSION}\`](${COMPARISON_URL})
-
----
-
-## 📊 Statistiken
-
-- **Commits:** $(echo "$COMMITS" | wc -l) commits seit v${PREVIOUS_VERSION}
-- **Version Code:** ${VERSION_CODE}
-
----
-
-**Release erstellt am:** ${RELEASE_DATE}
-**Deployed to:** Google Play Console ${TRACK}
-EOF
-
-echo ""
-echo "✅ Release notes generated successfully"
+echo "✅ Release notes generated successfully at ${OUTPUT_FILE}"
