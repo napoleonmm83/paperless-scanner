@@ -76,12 +76,16 @@ class UploadViewModelTest {
     private lateinit var paperlessGptRepository: PaperlessGptRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var tokenManager: TokenManager
+    private lateinit var savedStateHandle: androidx.lifecycle.SavedStateHandle
 
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+
+        // Mock SavedStateHandle
+        savedStateHandle = mockk(relaxed = true)
 
         // Mock android.util.Log to prevent UnsatisfiedLinkError in unit tests
         mockkStatic(Log::class)
@@ -140,6 +144,7 @@ class UploadViewModelTest {
 
         viewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
@@ -178,6 +183,7 @@ class UploadViewModelTest {
 
         val newViewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
@@ -215,6 +221,7 @@ class UploadViewModelTest {
 
         val newViewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
@@ -558,6 +565,7 @@ class UploadViewModelTest {
 
         val testViewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
@@ -598,6 +606,7 @@ class UploadViewModelTest {
 
         val testViewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
@@ -636,6 +645,7 @@ class UploadViewModelTest {
 
         val testViewModel = UploadViewModel(
             context = context,
+            savedStateHandle = savedStateHandle,
             documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,

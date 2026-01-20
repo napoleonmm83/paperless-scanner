@@ -81,6 +81,23 @@ fun MultiPageUploadScreen(
     onNavigateBack: () -> Unit,
     viewModel: UploadViewModel = hiltViewModel()
 ) {
+    // Observe ViewModel's documentUris (reactive, survives process death)
+    val observedDocumentUris by viewModel.documentUris.collectAsState()
+
+    // Initialize ViewModel with navigation arguments (survives process death)
+    // CRITICAL: Only initialize from navigation args if ViewModel doesn't already have state
+    // This prevents stale route arguments from overwriting correct SavedStateHandle data after AppLock
+    LaunchedEffect(documentUris) {
+        if (documentUris.isNotEmpty() && observedDocumentUris.isEmpty()) {
+            // ViewModel is empty → initialize from navigation arguments
+            viewModel.setDocumentUris(documentUris)
+        }
+        // If ViewModel already has URIs (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
+    }
+
+    // Use observedDocumentUris for displaying documents (falls back to parameter if empty)
+    val activeDocumentUris = if (observedDocumentUris.isNotEmpty()) observedDocumentUris else documentUris
+
     val uiState by viewModel.uiState.collectAsState()
     val tags by viewModel.tags.collectAsState()
     val documentTypes by viewModel.documentTypes.collectAsState()
@@ -109,7 +126,7 @@ fun MultiPageUploadScreen(
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
     // Dropdowns automatically populate and update when metadata changes.
 
-    val successMessage = stringResource(R.string.multipage_upload_success, documentUris.size)
+    val successMessage = stringResource(R.string.multipage_upload_success, activeDocumentUris.size)
     val queuedMessage = stringResource(R.string.multipage_upload_queued)
     val tagCreatedMessage = stringResource(R.string.multipage_upload_tag_created)
 
@@ -203,7 +220,7 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.multipage_upload_info, documentUris.size),
+                        text = stringResource(R.string.multipage_upload_info, activeDocumentUris.size),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -223,7 +240,7 @@ fun MultiPageUploadScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(documentUris, key = { _, uri -> uri.toString() }) { index, uri ->
+                itemsIndexed(activeDocumentUris, key = { _, uri -> uri.toString() }) { index, uri ->
                     Card(
                         modifier = Modifier.width(100.dp),
                         shape = RoundedCornerShape(8.dp),
@@ -295,7 +312,7 @@ fun MultiPageUploadScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // AI Suggestions Section - Only shown when AI is available (Debug/Premium)
-            if (viewModel.isAiAvailable && documentUris.isNotEmpty()) {
+            if (viewModel.isAiAvailable && activeDocumentUris.isNotEmpty()) {
                 SuggestionsSection(
                     analysisState = analysisState,
                     suggestions = aiSuggestions,
@@ -306,7 +323,7 @@ fun MultiPageUploadScreen(
                     aiNewTagsEnabled = aiNewTagsEnabled,
                     onAnalyzeClick = {
                         // Analyze the first page
-                        viewModel.analyzeDocument(documentUris.first())
+                        viewModel.analyzeDocument(activeDocumentUris.first())
                     },
                     onAiNewTagsEnabledChange = { enabled ->
                         viewModel.setAiNewTagsEnabled(enabled)
@@ -507,7 +524,7 @@ fun MultiPageUploadScreen(
             Button(
                 onClick = {
                     viewModel.uploadMultiPageDocument(
-                        uris = documentUris,
+                        uris = activeDocumentUris,
                         title = title.ifBlank { null },
                         tagIds = selectedTagIds.toList(),
                         documentTypeId = selectedDocumentTypeId,

@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -12,6 +13,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
+import com.paperless.scanner.ui.screens.batchimport.BatchImportViewModel
 import com.paperless.scanner.ui.screens.batchimport.BatchMetadataScreen
 import com.paperless.scanner.ui.theme.PaperlessAnimations
 import kotlinx.coroutines.CoroutineScope
@@ -89,28 +91,75 @@ fun PaperlessNavGraph(
 
         // Main screens with bottom navigation
         mainScreenRoutes.forEach { route ->
-            composable(route = route) {
-                MainScreen(
-                    navController = navController,
-                    currentRoute = route,
-                    onDocumentScanned = { uri ->
-                        navController.navigate(Screen.Upload.createRoute(uri))
-                    },
-                    onMultipleDocumentsScanned = { uris ->
-                        navController.navigate(Screen.MultiPageUpload.createRoute(uris))
-                    },
-                    onBatchImport = { uris, sourceType ->
-                        navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
-                    },
-                    onDocumentClick = { documentId ->
-                        navController.navigate(Screen.DocumentDetail.createRoute(documentId))
-                    },
-                    onLogout = {
-                        navController.navigate(Screen.Welcome.route) {
-                            popUpTo(0) { inclusive = true }
+            // Scan screen needs special handling for optional pageUris parameter
+            if (route == Screen.Scan.route) {
+                composable(
+                    route = route,
+                    arguments = listOf(
+                        navArgument("pageUris") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
                         }
-                    }
-                )
+                    )
+                ) { backStackEntry ->
+                    val pageUrisString = backStackEntry.arguments?.getString("pageUris")
+                    val pageUris = pageUrisString?.split("|")?.mapNotNull { encodedUri ->
+                        try {
+                            Uri.parse(Uri.decode(encodedUri))
+                        } catch (e: Exception) {
+                            null
+                        }
+                    } ?: emptyList()
+
+                    MainScreen(
+                        navController = navController,
+                        currentRoute = Screen.Scan.routeBase,
+                        scanPageUris = pageUris,
+                        scanBackStackEntry = backStackEntry,
+                        onDocumentScanned = { uri ->
+                            navController.navigate(Screen.Upload.createRoute(uri))
+                        },
+                        onMultipleDocumentsScanned = { uris ->
+                            navController.navigate(Screen.MultiPageUpload.createRoute(uris))
+                        },
+                        onBatchImport = { uris, sourceType ->
+                            navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
+                        },
+                        onDocumentClick = { documentId ->
+                            navController.navigate(Screen.DocumentDetail.createRoute(documentId))
+                        },
+                        onLogout = {
+                            navController.navigate(Screen.Welcome.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
+                }
+            } else {
+                composable(route = route) {
+                    MainScreen(
+                        navController = navController,
+                        currentRoute = route,
+                        onDocumentScanned = { uri ->
+                            navController.navigate(Screen.Upload.createRoute(uri))
+                        },
+                        onMultipleDocumentsScanned = { uris ->
+                            navController.navigate(Screen.MultiPageUpload.createRoute(uris))
+                        },
+                        onBatchImport = { uris, sourceType ->
+                            navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
+                        },
+                        onDocumentClick = { documentId ->
+                            navController.navigate(Screen.DocumentDetail.createRoute(documentId))
+                        },
+                        onLogout = {
+                            navController.navigate(Screen.Welcome.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    )
+                }
             }
         }
 
@@ -284,9 +333,13 @@ fun PaperlessNavGraph(
             }
 
             if (imageUris.isNotEmpty()) {
+                val viewModel: BatchImportViewModel = hiltViewModel()
+
                 BatchImportScreen(
                     imageUris = imageUris,
                     sourceType = sourceType,
+                    viewModel = viewModel,
+                    navBackStackEntry = backStackEntry,
                     onContinueToMetadata = { selectedUris, uploadAsSingleDocument ->
                         navController.navigate(Screen.BatchMetadata.createRoute(selectedUris, uploadAsSingleDocument))
                     },

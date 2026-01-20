@@ -251,6 +251,58 @@ brv query "Wie funktioniert X?"
 - Feature-basierte Package-Struktur
 - Sealed Classes für UI State
 
+#### AppLock & SavedStateHandle Pattern
+
+**CRITICAL: Dual SavedStateHandle System**
+
+Es gibt **zwei separate SavedStateHandles** die beide synchron gehalten werden müssen:
+
+1. **ViewModel SavedStateHandle** (Hilt-injected)
+   - Für Process Death Recovery
+   - Persistiert über App-Neustart
+   - Beispiel: `ScanViewModel.savedStateHandle[KEY_PAGE_URIS]`
+
+2. **Navigation SavedStateHandle** (BackStackEntry)
+   - Für AppLock Route Reconstruction
+   - Wird von `AppLockNavigationInterceptor` gelesen
+   - Beispiel: `backStackEntry.savedStateHandle["pageUris"]`
+
+**Pattern für Screens mit dynamischen Daten:**
+
+```kotlin
+// In Screen Composable (z.B. ScanScreen, BatchImportScreen)
+LaunchedEffect(uiState.data) {
+    // Sync zu Navigation SavedStateHandle für AppLock
+    navBackStackEntry?.savedStateHandle?.let { savedState ->
+        if (uiState.data.isEmpty()) {
+            savedState["dataKey"] = null
+        } else {
+            val dataString = uiState.data.joinToString("|") { it.toString() }
+            savedState["dataKey"] = dataString
+        }
+    }
+}
+
+// In ViewModel
+private fun syncToSavedState(data: List<T>) {
+    // Sync zu ViewModel SavedStateHandle für Process Death
+    if (data.isEmpty()) {
+        savedStateHandle[KEY_DATA] = null
+    } else {
+        val dataString = data.joinToString("|") { it.toString() }
+        savedStateHandle[KEY_DATA] = dataString
+    }
+}
+```
+
+**Wichtig:** Beide SavedStateHandles müssen IMMER synchron gehalten werden, sonst funktioniert entweder AppLock-Wiederherstellung ODER Process Death Recovery nicht!
+
+**Implementiert in:**
+- `ScanScreen.kt` - Scanned pages persistence
+- `BatchImportScreen.kt` - Image URIs persistence
+- `MultiPageUploadScreen.kt` - Document URIs persistence
+- `AppLockNavigationInterceptor.kt` - Route reconstruction from SavedStateHandle
+
 ---
 
 ## Wichtige Pfade

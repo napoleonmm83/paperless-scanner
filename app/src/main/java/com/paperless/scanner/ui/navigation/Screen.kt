@@ -26,7 +26,17 @@ sealed class Screen(val route: String) {
     // Main navigation screens (bottom nav)
     data object Home : Screen("home")
     data object Documents : Screen("documents")
-    data object Scan : Screen("scan")
+    data object Scan : Screen("scan?pageUris={pageUris}") {
+        // Route without params for mode selection
+        const val routeBase = "scan"
+
+        // Route with page URIs for MultiPageContent (after scanning)
+        fun createRoute(pageUris: List<Uri>): String {
+            if (pageUris.isEmpty()) return routeBase
+            val encodedUris = pageUris.joinToString("|") { Uri.encode(it.toString()) }
+            return "scan?pageUris=$encodedUris"
+        }
+    }
     data object Labels : Screen("labels")
     data object Settings : Screen("settings")
 

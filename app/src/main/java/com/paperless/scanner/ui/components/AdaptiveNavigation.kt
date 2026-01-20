@@ -143,7 +143,10 @@ private fun NavigationRailContent(
         }
     ) {
         NavItem.entries.filter { it != NavItem.Scan }.forEach { item ->
-            val isSelected = currentRoute == item.screen.route
+            val isSelected = when (item) {
+                NavItem.Scan -> currentRoute.startsWith(Screen.Scan.routeBase)
+                else -> currentRoute == item.screen.route
+            }
             NavigationRailItem(
                 icon = {
                     Icon(
@@ -215,7 +218,10 @@ private fun NavigationDrawerContent(
 
             // Navigation items
             NavItem.entries.filter { it != NavItem.Scan }.forEach { item ->
-                val isSelected = currentRoute == item.screen.route
+                val isSelected = when (item) {
+                    NavItem.Scan -> currentRoute.startsWith(Screen.Scan.routeBase)
+                    else -> currentRoute == item.screen.route
+                }
                 NavigationDrawerItem(
                     icon = {
                         Icon(

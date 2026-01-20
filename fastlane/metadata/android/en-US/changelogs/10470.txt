@@ -1,0 +1,5 @@
+Version 1.4.70:
+
+🐛 Bug Fixes:
+- AppLock now correctly returns to scanned pages (not mode selection)
+- Dual SavedStateHandle system for AppLock + Process Death recovery

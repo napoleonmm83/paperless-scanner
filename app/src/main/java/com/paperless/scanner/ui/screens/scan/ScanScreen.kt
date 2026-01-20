@@ -108,6 +108,8 @@ private const val MAX_PAGES = 20
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScanScreen(
+    initialPageUris: List<Uri> = emptyList(),
+    navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
     onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
@@ -119,6 +121,32 @@ fun ScanScreen(
     val uiState by viewModel.uiState.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+
+    // Initialize ViewModel with route arguments (survives AppLock unlock)
+    // CRITICAL: Only initialize from route args if ViewModel doesn't already have pages
+    // This prevents stale route arguments from overwriting correct SavedStateHandle data after AppLock
+    LaunchedEffect(initialPageUris) {
+        if (initialPageUris.isNotEmpty() && !uiState.hasPages) {
+            // ViewModel is empty → initialize from route arguments
+            viewModel.addPages(initialPageUris)
+        }
+        // If ViewModel already has pages (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
+    }
+
+    // CRITICAL: Sync pages to Navigation SavedStateHandle for AppLock route reconstruction
+    // This is SEPARATE from ViewModel SavedStateHandle (which is used for process death)
+    // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle
+    LaunchedEffect(uiState.pages) {
+        navBackStackEntry?.savedStateHandle?.let { savedState ->
+            if (uiState.pages.isEmpty()) {
+                savedState["pageUris"] = null
+            } else {
+                val urisString = uiState.pages.joinToString("|") { it.uri.toString() }
+                savedState["pageUris"] = urisString
+                android.util.Log.d("ScanScreen", "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle: $urisString")
+            }
+        }
+    }
 
     val scannerOptions = remember {
         GmsDocumentScannerOptions.Builder()
@@ -153,6 +181,9 @@ fun ScanScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris ->
+        // CRITICAL: Always resume, even if user canceled (uris is empty)
+        viewModel.appLockManager.resumeFromFilePicker()
+
         if (uris.isNotEmpty()) {
             // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
             // Content URIs lose permissions when passed through navigation
@@ -172,6 +203,9 @@ fun ScanScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
+        // CRITICAL: Always resume, even if user canceled (uris is empty)
+        viewModel.appLockManager.resumeFromFilePicker()
+
         if (uris.isNotEmpty()) {
             // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
             // Content URIs lose permissions when passed through navigation
@@ -264,6 +298,8 @@ fun ScanScreen(
                 ModeSelectionContent(
                     onScanClick = { startScanner() },
                     onGalleryClick = {
+                        // CRITICAL: Suspend timeout BEFORE opening picker
+                        viewModel.appLockManager.suspendForFilePicker()
                         photoPickerLauncher.launch(
                             androidx.activity.result.PickVisualMediaRequest(
                                 ActivityResultContracts.PickVisualMedia.ImageOnly
@@ -271,6 +307,8 @@ fun ScanScreen(
                         )
                     },
                     onFilesClick = {
+                        // CRITICAL: Suspend timeout BEFORE opening picker
+                        viewModel.appLockManager.suspendForFilePicker()
                         filePickerLauncher.launch(
                             arrayOf("application/pdf", "image/*")
                         )

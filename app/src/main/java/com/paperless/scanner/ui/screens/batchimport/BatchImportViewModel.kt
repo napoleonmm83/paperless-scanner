@@ -35,9 +35,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -45,6 +48,7 @@ import javax.inject.Inject
 @HiltViewModel
 class BatchImportViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val uploadQueueRepository: UploadQueueRepository,
     private val uploadWorkManager: UploadWorkManager,
     private val tagRepository: TagRepository,
@@ -53,8 +57,56 @@ class BatchImportViewModel @Inject constructor(
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    val appLockManager: com.paperless.scanner.util.AppLockManager
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "BatchImportViewModel"
+        private const val KEY_IMAGE_URIS = "imageUris"
+    }
+
+    // Reactive imageUris using SavedStateHandle.getStateFlow()
+    // Automatically survives process death and configuration changes
+    private val imageUrisStateFlow: StateFlow<List<Uri>> =
+        savedStateHandle.getStateFlow<String?>(KEY_IMAGE_URIS, null)
+            .map { urisString ->
+                val parsed = if (urisString.isNullOrEmpty()) {
+                    emptyList()
+                } else {
+                    urisString.split("|").mapNotNull { uriString ->
+                        try {
+                            Uri.parse(uriString)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse URI: $uriString", e)
+                            null
+                        }
+                    }
+                }
+                Log.d(TAG, "imageUrisStateFlow.map: input=$urisString, parsed=${parsed.size} URIs")
+                parsed
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    val imageUris: StateFlow<List<Uri>> = imageUrisStateFlow
+
+    /**
+     * Initialize image URIs from navigation arguments.
+     * Called from the Screen when navigation arguments are received.
+     */
+    fun setImageUris(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            Log.w(TAG, "setImageUris called with empty list")
+            return
+        }
+        Log.d(TAG, "setImageUris: Setting ${uris.size} URIs")
+        val urisString = uris.joinToString("|") { it.toString() }
+        savedStateHandle[KEY_IMAGE_URIS] = urisString
+    }
 
     private val _uiState = MutableStateFlow<BatchImportUiState>(BatchImportUiState.Idle)
     val uiState: StateFlow<BatchImportUiState> = _uiState.asStateFlow()
@@ -267,10 +319,6 @@ class BatchImportViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "BatchImportViewModel"
     }
 
     fun resetState() {

@@ -1,0 +1,5 @@
+Version 1.4.70:
+
+🐛 Fehlerbehebungen:
+- AppLock kehrt nun korrekt zu gescannten Seiten zurück (nicht zur Modus-Auswahl)
+- Dual SavedStateHandle-System für AppLock + Process Death Recovery

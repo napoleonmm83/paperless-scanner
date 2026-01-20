@@ -51,6 +51,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -105,6 +107,8 @@ private data class FileItem(
 fun BatchImportScreen(
     imageUris: List<Uri>,
     sourceType: BatchSourceType,
+    viewModel: BatchImportViewModel,
+    navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onContinueToMetadata: (List<Uri>, Boolean) -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -112,7 +116,32 @@ fun BatchImportScreen(
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
 
-    // Convert initial URIs to FileItems with type detection
+    // Helper function to sync URIs to BOTH SavedStateHandles
+    val syncImageUris: (List<Uri>) -> Unit = { uris ->
+        val urisString = uris.joinToString("|") { it.toString() }
+        // 1. Sync to ViewModel's SavedStateHandle (for process death)
+        viewModel.setImageUris(uris)
+        // 2. Sync to NavBackStackEntry's SavedStateHandle (for AppLock route reconstruction)
+        navBackStackEntry?.savedStateHandle?.set("imageUris", urisString)
+    }
+
+    // Observe ViewModel's imageUris (reactive, survives process death via SavedStateHandle)
+    val observedImageUris by viewModel.imageUris.collectAsState()
+
+    // Initialize ViewModel with navigation arguments (survives process death)
+    // CRITICAL: Only initialize from navigation args if ViewModel doesn't already have state
+    // This prevents stale route arguments from overwriting correct SavedStateHandle data after AppLock
+    androidx.compose.runtime.LaunchedEffect(imageUris) {
+        if (imageUris.isNotEmpty() && observedImageUris.isEmpty()) {
+            // ViewModel is empty → initialize from navigation arguments
+            syncImageUris(imageUris)
+        }
+        // If ViewModel already has URIs (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
+    }
+
+    // Convert URIs to FileItems with type detection
+    // Note: We don't use rememberSaveable here because URIs are preserved in ViewModel
+    // and rotations are ephemeral UI state that resets on process death
     var fileItems by remember {
         mutableStateOf(
             imageUris.map { uri ->
@@ -123,6 +152,19 @@ fun BatchImportScreen(
             }
         )
     }
+
+    // Reactively update fileItems when observedImageUris changes (after process death)
+    LaunchedEffect(observedImageUris) {
+        if (observedImageUris.isNotEmpty() && fileItems.isEmpty()) {
+            fileItems = observedImageUris.map { uri ->
+                FileItem(
+                    uri = uri,
+                    fileType = getFileType(context, uri)
+                )
+            }
+        }
+    }
+
     var uploadAsSingleDocument by rememberSaveable { mutableStateOf(false) }
 
     // LazyRow state for drag & drop
@@ -143,6 +185,9 @@ fun BatchImportScreen(
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia()
     ) { uris ->
+        // CRITICAL: Always resume, even if user canceled (uris is empty)
+        viewModel.appLockManager.resumeFromFilePicker()
+
         if (uris.isNotEmpty()) {
             scope.launch(Dispatchers.IO) {
                 val localUris = uris.mapNotNull { uri ->
@@ -156,6 +201,8 @@ fun BatchImportScreen(
                         )
                     }
                     fileItems = fileItems + newItems
+                    // Sync to BOTH SavedStateHandles for process death + AppLock navigation
+                    syncImageUris(fileItems.map { it.uri })
                 }
             }
         }
@@ -165,6 +212,9 @@ fun BatchImportScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
+        // CRITICAL: Always resume, even if user canceled (uris is empty)
+        viewModel.appLockManager.resumeFromFilePicker()
+
         if (uris.isNotEmpty()) {
             scope.launch(Dispatchers.IO) {
                 val localUris = uris.mapNotNull { uri ->
@@ -178,6 +228,8 @@ fun BatchImportScreen(
                         )
                     }
                     fileItems = fileItems + newItems
+                    // Sync to BOTH SavedStateHandles for process death + AppLock navigation
+                    syncImageUris(fileItems.map { it.uri })
                 }
             }
         }
@@ -185,6 +237,10 @@ fun BatchImportScreen(
 
     // Function to add more files using the appropriate picker
     val onAddMoreFiles: () -> Unit = {
+        // CRITICAL: Suspend AppLock timeout BEFORE opening picker
+        // This prevents lock trigger when user is actively selecting files
+        viewModel.appLockManager.suspendForFilePicker()
+
         when (sourceType) {
             BatchSourceType.GALLERY -> {
                 photoPickerLauncher.launch(
@@ -212,6 +268,8 @@ fun BatchImportScreen(
     // Function to remove a file
     val onRemoveFile: (String) -> Unit = { fileId ->
         fileItems = fileItems.filter { it.id != fileId }
+        // Sync to BOTH SavedStateHandles for process death + AppLock navigation
+        syncImageUris(fileItems.map { it.uri })
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 

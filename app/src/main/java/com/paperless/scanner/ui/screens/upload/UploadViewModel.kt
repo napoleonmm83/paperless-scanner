@@ -36,9 +36,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -46,6 +49,7 @@ import javax.inject.Inject
 @HiltViewModel
 class UploadViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
@@ -62,6 +66,53 @@ class UploadViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "UploadViewModel"
+        private const val KEY_DOCUMENT_URIS = "documentUris"
+    }
+
+    // Reactive documentUris using SavedStateHandle.getStateFlow()
+    // Automatically survives process death and configuration changes
+    private val documentUrisStateFlow: StateFlow<List<Uri>> =
+        savedStateHandle.getStateFlow<String?>(KEY_DOCUMENT_URIS, null)
+            .map { urisString ->
+                val parsed = if (urisString.isNullOrEmpty()) {
+                    emptyList()
+                } else {
+                    urisString.split("|").mapNotNull { uriString ->
+                        try {
+                            Uri.parse(uriString)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse URI: $uriString", e)
+                            null
+                        }
+                    }
+                }
+                Log.d(TAG, "documentUrisStateFlow.map: input=$urisString, parsed=${parsed.size} URIs")
+                parsed
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    val documentUris: StateFlow<List<Uri>> = documentUrisStateFlow
+
+    /**
+     * Initialize document URIs from navigation arguments.
+     * Called from the Screen when navigation arguments are received.
+     */
+    fun setDocumentUris(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            Log.w(TAG, "setDocumentUris called with empty list")
+            return
+        }
+        Log.d(TAG, "setDocumentUris: Setting ${uris.size} URIs")
+        val urisString = uris.joinToString("|") { it.toString() }
+        savedStateHandle[KEY_DOCUMENT_URIS] = urisString
+    }
 
     private val _uiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
     val uiState: StateFlow<UploadUiState> = _uiState.asStateFlow()
@@ -190,10 +241,6 @@ class UploadViewModel @Inject constructor(
     // These methods are no longer needed because reactive Flows automatically
     // populate dropdown state via observeTagsReactively(), observeDocumentTypesReactively(),
     // and observeCorrespondentsReactively() in init{}
-
-    companion object {
-        private const val TAG = "UploadViewModel"
-    }
 
     /**
      * Checks storage space before upload and returns error if insufficient.

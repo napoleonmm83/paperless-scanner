@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.main
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.paperless.scanner.ui.components.AdaptiveNavigation
 import com.paperless.scanner.ui.navigation.BatchSourceType
@@ -16,6 +17,8 @@ import com.paperless.scanner.ui.screens.settings.SettingsScreen
 fun MainScreen(
     navController: NavHostController,
     currentRoute: String,
+    scanPageUris: List<Uri> = emptyList(),
+    scanBackStackEntry: NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>) -> Unit,
     onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
@@ -25,8 +28,10 @@ fun MainScreen(
     AdaptiveNavigation(
         currentRoute = currentRoute,
         onNavigate = { screen ->
-            if (screen.route != currentRoute) {
-                navController.navigate(screen.route) {
+            // For Scan, always navigate to base route (without params)
+            val targetRoute = if (screen == Screen.Scan) Screen.Scan.routeBase else screen.route
+            if (targetRoute != currentRoute && !currentRoute.startsWith(targetRoute)) {
+                navController.navigate(targetRoute) {
                     // Pop up to Home, keeping Home in the back stack
                     popUpTo(Screen.Home.route) {
                         inclusive = false
@@ -39,7 +44,7 @@ fun MainScreen(
         when (currentRoute) {
             Screen.Home.route -> HomeScreen(
                 onNavigateToScan = {
-                    navController.navigate(Screen.Scan.route)
+                    navController.navigate(Screen.Scan.routeBase)
                 },
                 onNavigateToDocuments = {
                     navController.navigate(Screen.Documents.route)
@@ -58,7 +63,9 @@ fun MainScreen(
             Screen.Documents.route -> DocumentsScreen(
                 onDocumentClick = onDocumentClick
             )
-            Screen.Scan.route -> ScanScreen(
+            Screen.Scan.routeBase -> ScanScreen(
+                initialPageUris = scanPageUris,
+                navBackStackEntry = scanBackStackEntry,
                 onDocumentScanned = onDocumentScanned,
                 onMultipleDocumentsScanned = onMultipleDocumentsScanned,
                 onBatchImport = onBatchImport

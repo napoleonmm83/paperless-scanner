@@ -33,6 +33,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,6 +74,7 @@ sealed class CreateTagState {
 
 @HiltViewModel
 class ScanViewModel @Inject constructor(
+    private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
     private val authRepository: AuthRepository,
     private val analyticsService: AnalyticsService,
     private val tagRepository: TagRepository,
@@ -87,7 +90,73 @@ class ScanViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ScanViewModel"
+        private const val KEY_PAGE_URIS = "pageUris"
+        private const val KEY_PAGE_IDS = "pageIds"
+        private const val KEY_PAGE_ROTATIONS = "pageRotations"
     }
+
+    // Reactive page URIs from SavedStateHandle (survives process death)
+    private val pageUrisStateFlow: StateFlow<List<Uri>> =
+        savedStateHandle.getStateFlow<String?>(KEY_PAGE_URIS, null)
+            .map { urisString ->
+                if (urisString.isNullOrEmpty()) {
+                    emptyList()
+                } else {
+                    urisString.split("|").mapNotNull { uriString ->
+                        try {
+                            Uri.parse(uriString)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse URI: $uriString", e)
+                            null
+                        }
+                    }
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    // Reactive page IDs from SavedStateHandle
+    private val pageIdsStateFlow: StateFlow<List<String>> =
+        savedStateHandle.getStateFlow<String?>(KEY_PAGE_IDS, null)
+            .map { idsString ->
+                if (idsString.isNullOrEmpty()) {
+                    emptyList()
+                } else {
+                    idsString.split("|")
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
+
+    // Reactive rotations map from SavedStateHandle
+    private val pageRotationsStateFlow: StateFlow<Map<String, Int>> =
+        savedStateHandle.getStateFlow<String?>(KEY_PAGE_ROTATIONS, null)
+            .map { rotationsString ->
+                if (rotationsString.isNullOrEmpty()) {
+                    emptyMap()
+                } else {
+                    rotationsString.split("|").mapNotNull { pair ->
+                        val parts = pair.split(":")
+                        if (parts.size == 2) {
+                            val rotation = parts[1].toIntOrNull()
+                            if (rotation != null) {
+                                parts[0] to rotation
+                            } else null
+                        } else null
+                    }.toMap()
+                }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyMap()
+            )
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
@@ -136,10 +205,107 @@ class ScanViewModel @Inject constructor(
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
 
     init {
+        // CRITICAL: Restore pages FIRST (synchronously) before ANY other operations
+        // This prevents race conditions where scanner callbacks trigger before restoration
+        restorePagesFromSavedState()
+
         loadTags()
         observeDocumentTypes()
         observeCorrespondents()
         observeUsageLimits()
+    }
+
+    /**
+     * Restore pages from SavedStateHandle after process death/configuration change.
+     * Runs ONCE synchronously in init-block to prevent race conditions with scanner callbacks.
+     */
+    private fun restorePagesFromSavedState() {
+        // Read from SavedStateHandle directly (synchronous, no Flow overhead)
+        val urisString = savedStateHandle.get<String>(KEY_PAGE_URIS)
+        val idsString = savedStateHandle.get<String>(KEY_PAGE_IDS)
+        val rotationsString = savedStateHandle.get<String>(KEY_PAGE_ROTATIONS)
+
+        // Only restore if we have valid data
+        if (!urisString.isNullOrEmpty() && !idsString.isNullOrEmpty()) {
+            try {
+                // Parse URIs
+                val uris = urisString.split("|").mapNotNull { uriString ->
+                    try {
+                        Uri.parse(uriString)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to parse URI: $uriString", e)
+                        null
+                    }
+                }
+
+                // Parse IDs
+                val ids = idsString.split("|")
+
+                // Parse rotations (optional)
+                val rotations = if (!rotationsString.isNullOrEmpty()) {
+                    rotationsString.split("|").mapNotNull { pair ->
+                        val parts = pair.split(":")
+                        if (parts.size == 2) {
+                            val rotation = parts[1].toIntOrNull()
+                            if (rotation != null) {
+                                parts[0] to rotation
+                            } else null
+                        } else null
+                    }.toMap()
+                } else {
+                    emptyMap()
+                }
+
+                // Validate data integrity
+                if (uris.isNotEmpty() && uris.size == ids.size) {
+                    val restoredPages = uris.mapIndexed { index, uri ->
+                        val id = ids[index]
+                        ScannedPage(
+                            id = id,
+                            uri = uri,
+                            pageNumber = index + 1,
+                            rotation = rotations[id] ?: 0
+                        )
+                    }
+
+                    // Update UI state ONCE
+                    _uiState.update { it.copy(pages = restoredPages) }
+                    Log.d(TAG, "✅ Restored ${restoredPages.size} pages from SavedStateHandle (one-time init)")
+                } else {
+                    Log.w(TAG, "⚠️ Data mismatch: ${uris.size} URIs vs ${ids.size} IDs - skipping restoration")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to restore pages from SavedStateHandle", e)
+            }
+        }
+    }
+
+    /**
+     * Sync current pages to SavedStateHandle (for process death survival).
+     */
+    private fun syncPagesToSavedState(pages: List<ScannedPage>) {
+        if (pages.isEmpty()) {
+            savedStateHandle[KEY_PAGE_URIS] = null
+            savedStateHandle[KEY_PAGE_IDS] = null
+            savedStateHandle[KEY_PAGE_ROTATIONS] = null
+        } else {
+            // Serialize URIs as pipe-separated string
+            val urisString = pages.joinToString("|") { it.uri.toString() }
+            savedStateHandle[KEY_PAGE_URIS] = urisString
+
+            // Serialize IDs as pipe-separated string
+            val idsString = pages.joinToString("|") { it.id }
+            savedStateHandle[KEY_PAGE_IDS] = idsString
+
+            // Serialize rotations as "id:rotation|..." (only non-zero rotations)
+            val rotationsString = pages
+                .filter { it.rotation != 0 }
+                .joinToString("|") { "${it.id}:${it.rotation}" }
+                .ifEmpty { null }
+            savedStateHandle[KEY_PAGE_ROTATIONS] = rotationsString
+
+            Log.d(TAG, "Synced ${pages.size} pages to SavedStateHandle")
+        }
     }
 
     /**
@@ -240,7 +406,9 @@ class ScanViewModel @Inject constructor(
             }
             val newTotalPages = state.pageCount + uris.size
             analyticsService.trackEvent(AnalyticsEvent.ScanPageAdded(totalPages = newTotalPages))
-            state.copy(pages = state.pages + newPages)
+            val updatedPages = state.pages + newPages
+            syncPagesToSavedState(updatedPages)
+            state.copy(pages = updatedPages)
         }
     }
 
@@ -255,6 +423,7 @@ class ScanViewModel @Inject constructor(
             val renumberedPages = filteredPages.mapIndexed { index, page ->
                 page.copy(pageNumber = index + 1)
             }
+            syncPagesToSavedState(renumberedPages)
             state.copy(
                 pages = renumberedPages,
                 lastRemovedPage = RemovedPageInfo(removedPage, removedIndex)
@@ -272,6 +441,7 @@ class ScanViewModel @Inject constructor(
             val renumberedPages = mutablePages.mapIndexed { index, page ->
                 page.copy(pageNumber = index + 1)
             }
+            syncPagesToSavedState(renumberedPages)
             state.copy(
                 pages = renumberedPages,
                 lastRemovedPage = null
@@ -298,6 +468,7 @@ class ScanViewModel @Inject constructor(
             val renumberedPages = mutablePages.mapIndexed { index, p ->
                 p.copy(pageNumber = index + 1)
             }
+            syncPagesToSavedState(renumberedPages)
             state.copy(pages = renumberedPages)
         }
     }
@@ -312,12 +483,14 @@ class ScanViewModel @Inject constructor(
                     page
                 }
             }
+            syncPagesToSavedState(updatedPages)
             state.copy(pages = updatedPages)
         }
     }
 
     fun clearPages() {
         _uiState.update { it.copy(pages = emptyList()) }
+        syncPagesToSavedState(emptyList())
     }
 
     fun getPageUris(): List<Uri> = _uiState.value.pages.map { it.uri }

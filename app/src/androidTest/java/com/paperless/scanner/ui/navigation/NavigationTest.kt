@@ -4,12 +4,15 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
+import com.paperless.scanner.util.AppLockManager
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import javax.inject.Inject
 
 @HiltAndroidTest
 class NavigationTest {
@@ -19,6 +22,12 @@ class NavigationTest {
 
     @get:Rule(order = 1)
     val composeTestRule = createComposeRule()
+
+    @Inject
+    lateinit var tokenManager: TokenManager
+
+    @Inject
+    lateinit var appLockManager: AppLockManager
 
     @Before
     fun setup() {
@@ -32,7 +41,9 @@ class NavigationTest {
                 val navController = rememberNavController()
                 PaperlessNavGraph(
                     navController = navController,
-                    startDestination = Screen.Login.route
+                    startDestination = Screen.Login.route,
+                    tokenManager = tokenManager,
+                    appLockManager = appLockManager
                 )
             }
         }
@@ -49,7 +60,9 @@ class NavigationTest {
                 val navController = rememberNavController()
                 PaperlessNavGraph(
                     navController = navController,
-                    startDestination = Screen.Scan.route
+                    startDestination = Screen.Scan.routeBase,
+                    tokenManager = tokenManager,
+                    appLockManager = appLockManager
                 )
             }
         }

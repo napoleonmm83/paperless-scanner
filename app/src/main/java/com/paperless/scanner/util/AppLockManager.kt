@@ -273,6 +273,21 @@ class AppLockManager @Inject constructor(
      * Called when MLKit Document Scanner starts.
      */
     fun suspendForScanner() {
+        suspend("mlkit_scanner")
+    }
+
+    /**
+     * Suspend timeout for File Picker / Photo Picker.
+     * Prevents lock trigger when user is actively selecting files.
+     */
+    fun suspendForFilePicker() {
+        suspend("file_picker")
+    }
+
+    /**
+     * Generic suspend implementation for external activities (Scanner, File Picker, etc.).
+     */
+    private fun suspend(reason: String) {
         if (isSuspended) {
             Log.w(TAG, "Timeout already suspended by '$suspendedBy', ignoring duplicate suspend() call")
             return
@@ -280,9 +295,9 @@ class AppLockManager @Inject constructor(
 
         isSuspended = true
         suspendStartTime = SystemClock.elapsedRealtime() // Monotonic clock, immune to time changes
-        suspendedBy = "mlkit_scanner"
+        suspendedBy = reason
 
-        Log.d(TAG, "⏸️ Timeout suspended for scanner (max ${MAX_SUSPEND_DURATION_MILLIS / 60000} minutes)")
+        Log.d(TAG, "⏸️ Timeout suspended for $reason (max ${MAX_SUSPEND_DURATION_MILLIS / 60000} minutes)")
 
         // SECURITY: Auto-resume after MAX_SUSPEND_DURATION as safety fallback
         // Prevents permanently suspended state if resume() is never called (crash, force-kill, etc.)
@@ -291,7 +306,7 @@ class AppLockManager @Inject constructor(
             delay(MAX_SUSPEND_DURATION_MILLIS)
             if (isSuspended) {
                 Log.w(TAG, "⚠️ Max suspend duration reached (${MAX_SUSPEND_DURATION_MILLIS / 60000} min), force auto-resuming for security")
-                resumeFromScanner()
+                resume()
             }
         }
     }
@@ -307,13 +322,27 @@ class AppLockManager @Inject constructor(
      * Called when MLKit Document Scanner returns (success, cancel, or error).
      */
     fun resumeFromScanner() {
+        resume()
+    }
+
+    /**
+     * Resume timeout after File Picker / Photo Picker completes.
+     */
+    fun resumeFromFilePicker() {
+        resume()
+    }
+
+    /**
+     * Generic resume implementation.
+     */
+    private fun resume() {
         if (!isSuspended) {
             Log.w(TAG, "Timeout not suspended, ignoring resume() call")
             return
         }
 
         val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
-        Log.d(TAG, "▶️ Resumed after ${suspendDuration}ms suspend (${suspendDuration / 1000}s)")
+        Log.d(TAG, "▶️ Resumed from '$suspendedBy' after ${suspendDuration}ms suspend (${suspendDuration / 1000}s)")
 
         // Cancel auto-resume job
         autoResumeJob?.cancel()
@@ -329,12 +358,12 @@ class AppLockManager @Inject constructor(
     }
 
     /**
-     * Check if timeout should be suspended (scanner is active).
+     * Check if timeout should be suspended (external activity is active).
      *
      * SECURITY: Auto-resumes if suspended duration exceeds MAX_SUSPEND_DURATION_MILLIS.
      * This prevents attacks where suspend state is kept indefinitely.
      *
-     * @return true if timeout check should be skipped (scanner active)
+     * @return true if timeout check should be skipped (external activity active)
      */
     private fun shouldSkipTimeoutCheck(): Boolean {
         if (!isSuspended) return false
@@ -344,11 +373,11 @@ class AppLockManager @Inject constructor(
         // SECURITY: Force auto-resume if suspended too long
         if (suspendDuration > MAX_SUSPEND_DURATION_MILLIS) {
             Log.w(TAG, "⚠️ Suspend duration exceeded max (${suspendDuration / 60000} min), force resuming")
-            resumeFromScanner()
+            resume()
             return false
         }
 
-        Log.d(TAG, "⏸️ Timeout check skipped (suspended for ${suspendDuration / 1000}s)")
+        Log.d(TAG, "⏸️ Timeout check skipped (suspended for ${suspendDuration / 1000}s by '$suspendedBy')")
         return true
     }
 
@@ -454,20 +483,20 @@ class AppLockManager @Inject constructor(
         // SECURITY: CRITICAL Cold Start Protection
         // If app starts while suspended (after process death, crash, force-kill),
         // force resume to prevent "stuck suspended" vulnerability
-        // EXCEPTION: If suspended for less than 1 second, it's likely a legitimate scanner startup
-        // In that case, DON'T force resume - let the scanner run
+        // EXCEPTION: If suspended for less than 1 second, it's likely a legitimate external activity startup
+        // In that case, DON'T force resume - let the external activity run
         if (isSuspended) {
             val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
             if (suspendDuration > 1000L) { // More than 1 second
                 Log.w(TAG, "⚠️ SECURITY: App started while suspended for ${suspendDuration}ms - force resuming (likely process death/crash)")
-                resumeFromScanner()
+                resume()
                 // CRITICAL: Return immediately after force-resume!
-                // DO NOT continue to timeout check, as resumeFromScanner() just reset backgroundTimestamp
+                // DO NOT continue to timeout check, as resume() just reset backgroundTimestamp
                 // If we continue, we'll immediately lock because elapsed time is ~0ms
                 Log.d(TAG, "onStart: Force-resumed, skipping timeout check this time")
                 return
             } else {
-                Log.d(TAG, "onStart: App suspended for only ${suspendDuration}ms - scanner just started, keeping suspended state")
+                Log.d(TAG, "onStart: App suspended for only ${suspendDuration}ms - external activity just started, keeping suspended state")
             }
         }
 

@@ -74,7 +74,10 @@ fun BottomNavBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             NavItem.entries.forEach { item ->
-                val isSelected = currentRoute == item.screen.route
+                val isSelected = when (item) {
+                    NavItem.Scan -> currentRoute.startsWith(Screen.Scan.routeBase)
+                    else -> currentRoute == item.screen.route
+                }
                 val isScanButton = item == NavItem.Scan
 
                 if (isScanButton) {

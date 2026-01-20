@@ -16,6 +16,9 @@ import com.paperless.scanner.util.AppLockState
 /**
  * Reconstructs the full route with actual argument values.
  *
+ * IMPORTANT: For screens that dynamically update URIs (BatchImport, MultiPageUpload),
+ * we read the CURRENT URIs from SavedStateHandle, not the stale navigation arguments!
+ *
  * Example:
  * - Route template: "document/{documentId}"
  * - Arguments: ["documentId" = "133"]
@@ -29,15 +32,61 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
 
     var reconstructed = routeTemplate
 
-    // Replace all argument placeholders with actual values
+    // Special handling for BatchImport/MultiPageUpload/Scan: Use current URIs from SavedStateHandle
+    // instead of stale navigation arguments (user may have added/removed images)
+    when {
+        routeTemplate.startsWith("batch-import/") -> {
+            // Read current URIs from SavedStateHandle (where BatchImportViewModel stores them)
+            val currentUris = backStackEntry.savedStateHandle.get<String>("imageUris")
+            if (currentUris != null) {
+                Log.d("AppLockInterceptor", "BatchImport: Using CURRENT URIs from SavedStateHandle: $currentUris")
+                // Encode the entire pipe-separated URI string
+                val encodedUris = android.net.Uri.encode(currentUris)
+                reconstructed = reconstructed.replace("{imageUris}", encodedUris)
+                // Replace sourceType normally
+                val sourceType = args.getString("sourceType") ?: "GALLERY"
+                reconstructed = reconstructed.replace("{sourceType}", sourceType)
+                return reconstructed
+            }
+        }
+        routeTemplate.startsWith("multi-page-upload/") -> {
+            // Read current URIs from SavedStateHandle (where UploadViewModel stores them)
+            val currentUris = backStackEntry.savedStateHandle.get<String>("documentUris")
+            if (currentUris != null) {
+                Log.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle: $currentUris")
+                val encodedUris = android.net.Uri.encode(currentUris)
+                reconstructed = reconstructed.replace("{documentUris}", encodedUris)
+                return reconstructed
+            }
+        }
+        routeTemplate.startsWith("scan") -> {
+            // Read current page URIs from SavedStateHandle (where ScanViewModel stores them)
+            val currentPageUris = backStackEntry.savedStateHandle.get<String>("pageUris")
+            if (currentPageUris != null && currentPageUris.isNotEmpty()) {
+                Log.d("AppLockInterceptor", "Scan: Using CURRENT page URIs from SavedStateHandle: $currentPageUris")
+                // Encode the entire pipe-separated URI string
+                val encodedUris = android.net.Uri.encode(currentPageUris)
+                // Build route with query parameter
+                reconstructed = "scan?pageUris=$encodedUris"
+                return reconstructed
+            } else {
+                // No pages - return base route for mode selection
+                Log.d("AppLockInterceptor", "Scan: No pages, using base route")
+                return "scan"
+            }
+        }
+    }
+
+    // Default: Replace all argument placeholders with actual values (URI-encoded)
     args.keySet().forEach { key ->
         // Skip navigation internal keys
         if (key.startsWith("android-support-nav:")) return@forEach
 
         val value = args.get(key)
         if (value != null) {
-            // Replace {key} with actual value
-            reconstructed = reconstructed.replace("{$key}", value.toString())
+            // Replace {key} with URI-encoded value (important for file:// URIs and special chars)
+            val encodedValue = android.net.Uri.encode(value.toString())
+            reconstructed = reconstructed.replace("{$key}", encodedValue)
         }
     }
 
@@ -105,7 +154,7 @@ fun AppLockNavigationInterceptor(
                     navController.navigate(Screen.AppLock.route) {
                         // Clear back stack - user must unlock
                         popUpTo(navController.graph.startDestinationId) {
-                            // Don't save state - we do fresh navigation after unlock anyway
+                            // No need to save navigation state - ViewModels persist via SavedStateHandle
                             saveState = false
                         }
                         launchSingleTop = true
@@ -141,16 +190,17 @@ fun AppLockNavigationInterceptor(
                     Log.d("AppLockInterceptor", "Currently on AppLock screen, navigating back to: $targetRoute (saved=$routeBeforeLock, fallback=${Screen.Home.route})")
 
                     try {
-                        // CRITICAL FIX: Navigate to target but keep existing ViewModel instances
-                        // Destroying everything (popUpTo(0)) causes ViewModels to be recreated with default state
+                        // IMPORTANT: restoreState = false to avoid restoring entire back stack
+                        // ViewModels already persist state via SavedStateHandle (ScanViewModel, BatchImportViewModel)
+                        // restoreState = true would reactivate ALL screens in back stack, not just target
                         navController.navigate(targetRoute) {
                             // Only remove AppLock screen from back stack
                             popUpTo(Screen.AppLock.route) { inclusive = true }
                             launchSingleTop = true
-                            // Don't restore state - target screen will handle its own state
+                            // Don't restore navigation state - ViewModels handle their own state via SavedStateHandle
                             restoreState = false
                         }
-                        Log.d("AppLockInterceptor", "Navigation successful to: $targetRoute (ViewModels preserved)")
+                        Log.d("AppLockInterceptor", "Navigation successful to: $targetRoute")
                     } catch (e: Exception) {
                         Log.e("AppLockInterceptor", "Navigation FAILED to $targetRoute", e)
                         // Emergency fallback: try navigating to Home without any options
