@@ -15,11 +15,13 @@ import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
 import com.paperless.scanner.data.database.migrations.MIGRATION_3_4
+import com.paperless.scanner.data.database.migrations.MIGRATION_4_5
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
@@ -277,7 +279,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         // For debug builds, allow destructive migration if migration fails
         if (BuildConfig.DEBUG) {
@@ -319,6 +321,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideCachedTaskDao(
+        database: AppDatabase
+    ): CachedTaskDao = database.cachedTaskDao()
+
+    @Provides
+    @Singleton
     fun providePendingChangeDao(
         database: AppDatabase
     ): PendingChangeDao = database.pendingChangeDao()
@@ -350,8 +358,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTaskRepository(
-        api: PaperlessApi
-    ): TaskRepository = TaskRepository(api)
+        api: PaperlessApi,
+        cachedTaskDao: CachedTaskDao,
+        networkMonitor: NetworkMonitor
+    ): TaskRepository = TaskRepository(api, cachedTaskDao, networkMonitor)
 
     @Provides
     @Singleton

@@ -156,3 +156,46 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         """)
     }
 }
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create cached_tasks table for offline task access and reactive UI
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS cached_tasks (
+                id INTEGER PRIMARY KEY NOT NULL,
+                taskId TEXT NOT NULL,
+                taskFileName TEXT,
+                dateCreated TEXT NOT NULL,
+                dateDone TEXT,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                result TEXT,
+                acknowledged INTEGER NOT NULL,
+                relatedDocument TEXT,
+                lastSyncedAt INTEGER NOT NULL,
+                isDeleted INTEGER NOT NULL
+            )
+        """)
+
+        // Create indices for faster queries
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_cached_tasks_isDeleted
+            ON cached_tasks(isDeleted)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_cached_tasks_acknowledged
+            ON cached_tasks(acknowledged)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_cached_tasks_status
+            ON cached_tasks(status)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_cached_tasks_taskId
+            ON cached_tasks(taskId)
+        """)
+    }
+}

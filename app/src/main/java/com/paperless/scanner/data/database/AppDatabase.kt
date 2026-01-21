@@ -8,6 +8,7 @@ import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.entities.AiUsageLog
@@ -15,6 +16,7 @@ import com.paperless.scanner.data.database.entities.CachedCorrespondent
 import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.database.entities.CachedDocumentType
 import com.paperless.scanner.data.database.entities.CachedTag
+import com.paperless.scanner.data.database.entities.CachedTask
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.entities.SyncMetadata
 
@@ -25,11 +27,12 @@ import com.paperless.scanner.data.database.entities.SyncMetadata
         CachedTag::class,
         CachedCorrespondent::class,
         CachedDocumentType::class,
+        CachedTask::class,
         PendingChange::class,
         SyncMetadata::class,
         AiUsageLog::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -39,6 +42,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cachedTagDao(): CachedTagDao
     abstract fun cachedCorrespondentDao(): CachedCorrespondentDao
     abstract fun cachedDocumentTypeDao(): CachedDocumentTypeDao
+    abstract fun cachedTaskDao(): CachedTaskDao
     abstract fun pendingChangeDao(): PendingChangeDao
     abstract fun syncMetadataDao(): SyncMetadataDao
     abstract fun aiUsageDao(): AiUsageDao
