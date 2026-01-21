@@ -1,4 +1,4 @@
-Version 1.4.83:
+Version 1.4.84:
 
 ✨ New Features:
 - Subscription management in-app
