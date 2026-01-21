@@ -159,9 +159,13 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
 
 val MIGRATION_4_5 = object : Migration(4, 5) {
     override fun migrate(database: SupportSQLiteDatabase) {
+        // Drop cached_tasks if it exists (from old debug/beta builds with incorrect schema)
+        // This is safe because cached_tasks is a NEW table in this release (no production data)
+        database.execSQL("DROP TABLE IF EXISTS cached_tasks")
+
         // Create cached_tasks table for offline task access and reactive UI
         database.execSQL("""
-            CREATE TABLE IF NOT EXISTS cached_tasks (
+            CREATE TABLE cached_tasks (
                 id INTEGER PRIMARY KEY NOT NULL,
                 taskId TEXT NOT NULL,
                 taskFileName TEXT,
@@ -179,22 +183,22 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 
         // Create indices for faster queries
         database.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_cached_tasks_isDeleted
+            CREATE INDEX index_cached_tasks_isDeleted
             ON cached_tasks(isDeleted)
         """)
 
         database.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_cached_tasks_acknowledged
+            CREATE INDEX index_cached_tasks_acknowledged
             ON cached_tasks(acknowledged)
         """)
 
         database.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_cached_tasks_status
+            CREATE INDEX index_cached_tasks_status
             ON cached_tasks(status)
         """)
 
         database.execSQL("""
-            CREATE INDEX IF NOT EXISTS index_cached_tasks_taskId
+            CREATE INDEX index_cached_tasks_taskId
             ON cached_tasks(taskId)
         """)
     }
