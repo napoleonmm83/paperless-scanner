@@ -256,80 +256,56 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(database: SupportSQLiteDatabase) {
-        // AGGRESSIVE FIX for users stuck at v5/v6 with faulty cached_tasks
-        // Users who upgraded v1.4.78 → v1.4.79 → v1.4.80 but still crash
-        // This migration uses more aggressive tactics to force-drop the faulty table
+        // SIMPLIFIED FIX for users stuck at v5/v6 with faulty cached_tasks
+        // CRITICAL: Cannot use VACUUM inside migration (runs in transaction)
+        // Strategy: Simple DROP + CREATE without any transaction-incompatible commands
 
-        try {
-            // Step 1: Disable foreign key constraints (allows unconditional DROP)
-            database.execSQL("PRAGMA foreign_keys=OFF")
+        // Drop all indices first
+        database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_isDeleted")
+        database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_acknowledged")
+        database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_status")
+        database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_taskId")
 
-            // Step 2: Drop ALL indices first (prevents lock issues)
-            database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_isDeleted")
-            database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_acknowledged")
-            database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_status")
-            database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_taskId")
+        // Force drop table (any old schema)
+        database.execSQL("DROP TABLE IF EXISTS cached_tasks")
 
-            // Step 3: Force drop table (even if locked)
-            database.execSQL("DROP TABLE IF EXISTS cached_tasks")
+        // Recreate table with correct schema
+        database.execSQL("""
+            CREATE TABLE cached_tasks (
+                id INTEGER PRIMARY KEY NOT NULL,
+                taskId TEXT NOT NULL,
+                taskFileName TEXT,
+                dateCreated TEXT NOT NULL,
+                dateDone TEXT,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                result TEXT,
+                acknowledged INTEGER NOT NULL,
+                relatedDocument TEXT,
+                lastSyncedAt INTEGER NOT NULL,
+                isDeleted INTEGER NOT NULL
+            )
+        """)
 
-            // Step 4: Vacuum to clean up (removes fragmentation and cached schemas)
-            database.execSQL("VACUUM")
+        // Recreate indices
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_isDeleted
+            ON cached_tasks(isDeleted)
+        """)
 
-            // Step 5: Recreate table with correct schema
-            database.execSQL("""
-                CREATE TABLE cached_tasks (
-                    id INTEGER PRIMARY KEY NOT NULL,
-                    taskId TEXT NOT NULL,
-                    taskFileName TEXT,
-                    dateCreated TEXT NOT NULL,
-                    dateDone TEXT,
-                    type TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    result TEXT,
-                    acknowledged INTEGER NOT NULL,
-                    relatedDocument TEXT,
-                    lastSyncedAt INTEGER NOT NULL,
-                    isDeleted INTEGER NOT NULL
-                )
-            """)
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_acknowledged
+            ON cached_tasks(acknowledged)
+        """)
 
-            // Step 6: Recreate indices
-            database.execSQL("""
-                CREATE INDEX index_cached_tasks_isDeleted
-                ON cached_tasks(isDeleted)
-            """)
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_status
+            ON cached_tasks(status)
+        """)
 
-            database.execSQL("""
-                CREATE INDEX index_cached_tasks_acknowledged
-                ON cached_tasks(acknowledged)
-            """)
-
-            database.execSQL("""
-                CREATE INDEX index_cached_tasks_status
-                ON cached_tasks(status)
-            """)
-
-            database.execSQL("""
-                CREATE INDEX index_cached_tasks_taskId
-                ON cached_tasks(taskId)
-            """)
-
-            // Step 7: Re-enable foreign keys
-            database.execSQL("PRAGMA foreign_keys=ON")
-
-        } catch (e: Exception) {
-            // If all else fails: Log error but don't crash
-            // Room will detect schema mismatch and user can clear data
-            android.util.Log.e("MIGRATION_6_7", "Failed to migrate cached_tasks", e)
-
-            // Re-enable foreign keys even on error
-            try {
-                database.execSQL("PRAGMA foreign_keys=ON")
-            } catch (ignored: Exception) {}
-
-            // Re-throw to let Room handle it
-            throw e
-        }
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_taskId
+            ON cached_tasks(taskId)
+        """)
     }
 }
