@@ -184,103 +184,129 @@ class DocumentDetailViewModel @Inject constructor(
     private var documentTypeMap: Map<Int, DocumentType> = emptyMap()
 
     init {
-        // Observe documentId changes (handles process death automatically)
+        loadLookupData()
+        observeDocumentReactively()
+    }
+
+    /**
+     * BEST PRACTICE: Load tags, correspondents, and document types once at init.
+     * These are used for name lookups throughout the screen.
+     */
+    private fun loadLookupData() {
         viewModelScope.launch {
-            documentIdStateFlow.collect { id ->
-                if (id <= 0) {
+            tagRepository.getTags().onSuccess { tags ->
+                tagMap = tags.associateBy { it.id }
+                _uiState.update { it.copy(availableTags = tags) }
+            }
+            correspondentRepository.getCorrespondents().onSuccess { correspondents ->
+                correspondentMap = correspondents.associateBy { it.id }
+                _uiState.update { it.copy(availableCorrespondents = correspondents) }
+            }
+            documentTypeRepository.getDocumentTypes().onSuccess { types ->
+                documentTypeMap = types.associateBy { it.id }
+                _uiState.update { it.copy(availableDocumentTypes = types) }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for document observation.
+     * Automatically updates UI when document is modified (via sync, edit, etc.).
+     * Observes documentId changes from SavedStateHandle (handles process death).
+     */
+    private fun observeDocumentReactively() {
+        viewModelScope.launch {
+            documentIdStateFlow.collect { documentId ->
+                if (documentId <= 0) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             error = context.getString(R.string.document_detail_invalid_id_error)
                         )
                     }
-                } else {
-                    loadDocument(id)
+                    return@collect
+                }
+
+                // Set loading state
+                _uiState.update { it.copy(isLoading = true, error = null) }
+
+                // Trigger background API refresh (fire and forget)
+                triggerBackgroundRefresh(documentId)
+
+                // Observe reactive Flow - automatically updates when DB changes
+                documentRepository.observeDocument(documentId).collect { doc ->
+                    if (doc == null) {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = context.getString(R.string.error_loading)
+                            )
+                        }
+                        return@collect
+                    }
+
+                    val serverUrl = tokenManager.serverUrl.first()?.removeSuffix("/") ?: ""
+                    val token = tokenManager.token.first() ?: ""
+
+                    _uiState.update {
+                        it.copy(
+                            id = doc.id,
+                            title = doc.title,
+                            content = doc.content,
+                            created = DateFormatter.formatDateWithTime(doc.created),
+                            createdRaw = doc.created,
+                            added = DateFormatter.formatDateWithTime(doc.added),
+                            modified = DateFormatter.formatDateWithTime(doc.modified),
+                            correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
+                            correspondentId = doc.correspondentId,
+                            documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
+                            documentTypeId = doc.documentTypeId,
+                            tags = doc.tags.mapNotNull { tagMap[it] },
+                            tagIds = doc.tags,
+                            thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/",
+                            downloadUrl = "$serverUrl/api/documents/$documentId/download/",
+                            authToken = token,
+                            originalFileName = doc.originalFileName,
+                            archiveSerialNumber = doc.archiveSerialNumber,
+                            notes = doc.notes,
+                            owner = doc.owner,
+                            permissions = doc.permissions,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
                 }
             }
         }
     }
 
-    fun loadDocument(docId: Int? = null) {
+    /**
+     * Triggers background API refresh to fetch latest document data including notes,
+     * permissions, and history. Room Flow will automatically update UI when cache changes.
+     */
+    private fun triggerBackgroundRefresh(documentId: Int) {
         viewModelScope.launch {
-            val documentId = docId ?: documentIdStateFlow.value
-            if (documentId <= 0) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = context.getString(R.string.document_detail_invalid_id_error)
-                    )
-                }
-                return@launch
-            }
+            // Fetch full document data (notes, permissions, etc.)
+            documentRepository.getDocument(documentId, forceRefresh = true)
 
+            // Fetch history separately (don't block if it fails)
+            val historyResult = documentRepository.getDocumentHistory(documentId)
+            val historyList = historyResult.getOrNull() ?: emptyList()
+            if (historyList.isNotEmpty()) {
+                _uiState.update { it.copy(history = historyList) }
+            }
+        }
+    }
+
+    /**
+     * Manual refresh function for pull-to-refresh or retry actions.
+     * BEST PRACTICE: Reactive Flow handles automatic updates, this is just for user-triggered refresh.
+     */
+    fun refresh() {
+        val documentId = documentIdStateFlow.value
+        if (documentId > 0) {
             _uiState.update { it.copy(isLoading = true, error = null) }
-
-            // Load lookup data in parallel
-            var allTags = emptyList<Tag>()
-            var allCorrespondents = emptyList<Correspondent>()
-            var allDocumentTypes = emptyList<DocumentType>()
-
-            tagRepository.getTags().onSuccess { tags ->
-                tagMap = tags.associateBy { it.id }
-                allTags = tags
-            }
-            correspondentRepository.getCorrespondents().onSuccess { correspondents ->
-                correspondentMap = correspondents.associateBy { it.id }
-                allCorrespondents = correspondents
-            }
-            documentTypeRepository.getDocumentTypes().onSuccess { types ->
-                documentTypeMap = types.associateBy { it.id }
-                allDocumentTypes = types
-            }
-
-            // Load document and history (forceRefresh to get notes, permissions, etc.)
-            documentRepository.getDocument(documentId, forceRefresh = true).onSuccess { doc ->
-                val serverUrl = tokenManager.serverUrl.first()?.removeSuffix("/") ?: ""
-                val token = tokenManager.token.first() ?: ""
-
-                // Load history (don't block if it fails)
-                val historyResult = documentRepository.getDocumentHistory(documentId)
-                val historyList = historyResult.getOrNull() ?: emptyList()
-
-                _uiState.update {
-                    DocumentDetailUiState(
-                        id = doc.id,
-                        title = doc.title,
-                        content = doc.content,
-                        created = DateFormatter.formatDateWithTime(doc.created),
-                        createdRaw = doc.created,
-                        added = DateFormatter.formatDateWithTime(doc.added),
-                        modified = DateFormatter.formatDateWithTime(doc.modified),
-                        correspondent = doc.correspondentId?.let { correspondentMap[it]?.name },
-                        correspondentId = doc.correspondentId,
-                        documentType = doc.documentTypeId?.let { documentTypeMap[it]?.name },
-                        documentTypeId = doc.documentTypeId,
-                        tags = doc.tags.mapNotNull { tagMap[it] },
-                        tagIds = doc.tags,
-                        thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/",
-                        downloadUrl = "$serverUrl/api/documents/$documentId/download/",
-                        authToken = token,
-                        originalFileName = doc.originalFileName,
-                        archiveSerialNumber = doc.archiveSerialNumber,
-                        notes = doc.notes,
-                        owner = doc.owner,
-                        permissions = doc.permissions,
-                        history = historyList,
-                        isLoading = false,
-                        availableTags = allTags,
-                        availableCorrespondents = allCorrespondents,
-                        availableDocumentTypes = allDocumentTypes
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = error.message ?: context.getString(R.string.error_loading)
-                    )
-                }
-            }
+            triggerBackgroundRefresh(documentId)
         }
     }
 
@@ -346,7 +372,7 @@ class DocumentDetailViewModel @Inject constructor(
                     )
                 }
                 // Reload document to show updated values
-                loadDocument()
+                refresh()
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -484,7 +510,7 @@ class DocumentDetailViewModel @Inject constructor(
                     )
                 }
                 // Reload document to show updated permissions
-                loadDocument()
+                refresh()
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(

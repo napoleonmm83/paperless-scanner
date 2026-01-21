@@ -53,6 +53,14 @@ interface CachedDocumentDao {
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     suspend fun getDocuments(limit: Int, offset: Int): List<CachedDocument>
 
+    /**
+     * BEST PRACTICE: Reactive Flow for single document observation.
+     * Automatically updates UI when document is modified/synced.
+     * Used by DocumentDetailViewModel for live updates.
+     */
+    @Query("SELECT * FROM cached_documents WHERE id = :id AND isDeleted = 0")
+    fun observeDocument(id: Int): Flow<CachedDocument?>
+
     @Query("SELECT * FROM cached_documents WHERE id = :id AND isDeleted = 0")
     suspend fun getDocument(id: Int): CachedDocument?
 

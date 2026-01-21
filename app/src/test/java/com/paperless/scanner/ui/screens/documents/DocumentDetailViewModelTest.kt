@@ -77,9 +77,11 @@ class DocumentDetailViewModelTest {
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(emptyList())
         coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocument(any(), any()) } returns Result.success(createMockDocument(123))
+        coEvery { documentRepository.observeDocument(any()) } returns flowOf(createMockDocument(123))
         coEvery { documentRepository.getDocumentHistory(any()) } returns Result.success(emptyList())
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
         coEvery { tokenManager.token } returns flowOf("test-token")
+        coEvery { tokenManager.aiNewTagsEnabled } returns flowOf(true)
         every { premiumFeatureManager.isFeatureAvailable(any()) } returns false
     }
 
@@ -117,9 +119,9 @@ class DocumentDetailViewModelTest {
     }
 
     @Test
-    fun `loadDocument success updates state with document data`() = runTest {
+    fun `observeDocument success updates state with document data`() = runTest {
         val mockDoc = createMockDocument(123, "Test Document", "Content here")
-        coEvery { documentRepository.getDocument(123, true) } returns Result.success(mockDoc)
+        coEvery { documentRepository.observeDocument(123) } returns flowOf(mockDoc)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -132,9 +134,8 @@ class DocumentDetailViewModelTest {
     }
 
     @Test
-    fun `loadDocument failure updates state with error`() = runTest {
-        coEvery { documentRepository.getDocument(any(), any()) } returns
-            Result.failure(Exception("Document not found"))
+    fun `observeDocument returns null shows error`() = runTest {
+        coEvery { documentRepository.observeDocument(any()) } returns flowOf(null)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -145,7 +146,7 @@ class DocumentDetailViewModelTest {
     }
 
     @Test
-    fun `loadDocument loads lookup data`() = runTest {
+    fun `init loads lookup data`() = runTest {
         val mockTags = listOf(Tag(id = 1, name = "Invoice"))
         val mockCorrespondents = listOf(Correspondent(id = 1, name = "Company A"))
         val mockTypes = listOf(DocumentType(id = 1, name = "Bill"))
@@ -164,9 +165,10 @@ class DocumentDetailViewModelTest {
     }
 
     @Test
-    fun `loadDocument builds correct URLs`() = runTest {
+    fun `observeDocument builds correct URLs`() = runTest {
         coEvery { tokenManager.serverUrl } returns flowOf("https://my-paperless.com")
         coEvery { tokenManager.token } returns flowOf("secret-token")
+        coEvery { documentRepository.observeDocument(123) } returns flowOf(createMockDocument(123))
 
         val viewModel = createViewModel()
         advanceUntilIdle()

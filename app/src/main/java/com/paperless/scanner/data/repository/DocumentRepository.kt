@@ -446,6 +446,29 @@ class DocumentRepository @Inject constructor(
         }
     }
 
+    /**
+     * BEST PRACTICE: Reactive Flow for single document observation.
+     * Automatically updates UI when document is modified in Room DB.
+     *
+     * Note: ViewModel should trigger background refresh via getDocument(id, forceRefresh=true)
+     * to sync latest data from API. Room Flow will automatically update UI when cache changes.
+     *
+     * Usage in ViewModel:
+     * ```kotlin
+     * // Trigger background API refresh (fire and forget)
+     * viewModelScope.launch { getDocument(id, forceRefresh = true) }
+     *
+     * // Observe reactive Flow
+     * observeDocument(documentId).collect { document ->
+     *     // UI updates automatically when cache changes
+     * }
+     * ```
+     */
+    fun observeDocument(id: Int): Flow<Document?> {
+        return cachedDocumentDao.observeDocument(id)
+            .map { it?.toCachedDomain() }
+    }
+
     suspend fun searchDocuments(query: String): Result<List<Document>> {
         return try {
             val cachedResults = cachedDocumentDao.searchDocuments(query)

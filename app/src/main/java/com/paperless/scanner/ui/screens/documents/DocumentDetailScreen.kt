@@ -238,7 +238,7 @@ fun DocumentDetailScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadDocument() }) {
+                        Button(onClick = { viewModel.refresh() }) {
                             Text(stringResource(R.string.document_detail_retry))
                         }
                     }
