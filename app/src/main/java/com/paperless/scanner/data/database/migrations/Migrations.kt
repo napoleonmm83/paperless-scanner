@@ -256,11 +256,12 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(database: SupportSQLiteDatabase) {
-        // SIMPLIFIED FIX for users stuck at v5/v6 with faulty cached_tasks
-        // CRITICAL: Cannot use VACUUM inside migration (runs in transaction)
-        // Strategy: Simple DROP + CREATE without any transaction-incompatible commands
+        // CRITICAL FIX for users stuck at v5/v6 with faulty cached_tasks
+        // Root cause: CachedTask entity has NO @Index annotations, but old migrations created indices
+        // Room expects NO indices, but DB has indices → schema mismatch
+        // Solution: Drop indices, recreate table WITHOUT indices (matching Entity definition)
 
-        // Drop all indices first
+        // Drop all indices first (from old faulty migrations)
         database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_isDeleted")
         database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_acknowledged")
         database.execSQL("DROP INDEX IF EXISTS index_cached_tasks_status")
@@ -269,7 +270,7 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         // Force drop table (any old schema)
         database.execSQL("DROP TABLE IF EXISTS cached_tasks")
 
-        // Recreate table with correct schema
+        // Recreate table with correct schema (matching CachedTask.kt)
         database.execSQL("""
             CREATE TABLE cached_tasks (
                 id INTEGER PRIMARY KEY NOT NULL,
@@ -287,25 +288,7 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
             )
         """)
 
-        // Recreate indices
-        database.execSQL("""
-            CREATE INDEX index_cached_tasks_isDeleted
-            ON cached_tasks(isDeleted)
-        """)
-
-        database.execSQL("""
-            CREATE INDEX index_cached_tasks_acknowledged
-            ON cached_tasks(acknowledged)
-        """)
-
-        database.execSQL("""
-            CREATE INDEX index_cached_tasks_status
-            ON cached_tasks(status)
-        """)
-
-        database.execSQL("""
-            CREATE INDEX index_cached_tasks_taskId
-            ON cached_tasks(taskId)
-        """)
+        // DO NOT recreate indices!
+        // CachedTask entity has NO @Index annotations, so Room expects NO indices
     }
 }
