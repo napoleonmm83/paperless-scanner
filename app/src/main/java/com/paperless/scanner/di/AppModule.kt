@@ -23,6 +23,7 @@ import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
 import com.paperless.scanner.data.database.migrations.MIGRATION_3_4
 import com.paperless.scanner.data.database.migrations.MIGRATION_4_5
 import com.paperless.scanner.data.database.migrations.MIGRATION_5_6
+import com.paperless.scanner.data.database.migrations.MIGRATION_6_7
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
@@ -280,7 +281,7 @@ object AppModule {
             context,
             AppDatabase::class.java,
             AppDatabase.DATABASE_NAME
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
 
         // For debug builds, allow destructive migration if migration fails
         if (BuildConfig.DEBUG) {
