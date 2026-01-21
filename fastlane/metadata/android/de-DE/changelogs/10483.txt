@@ -1,0 +1,17 @@
+Version 1.4.83:
+
+✨ Neue Features:
+- Abo-Verwaltung in der App
+- Gemini 2.5 Flash-Lite (schneller)
+
+🐛 Fehlerbehebungen:
+- KRITISCH: DB-Migration Crashes
+- Notizen & Berechtigungen bleiben erhalten
+- Duplizierte Docs besser erkennbar
+- AppLock Wiederherstellung
+- OnePlus Widget & Billing Crashes
+- Portrait-Modus gesperrt
+
+🔧 Verbesserungen:
+- Reaktive Architektur
+- Process Death Recovery

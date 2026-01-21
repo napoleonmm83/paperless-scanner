@@ -1,0 +1,17 @@
+Version 1.4.83:
+
+✨ New Features:
+- Subscription management in-app
+- Gemini 2.5 Flash-Lite (faster)
+
+🐛 Bug Fixes:
+- CRITICAL: DB migration crashes
+- Notes & permissions persist
+- Better duplicate detection
+- AppLock restoration
+- OnePlus Widget & Billing crashes
+- Portrait mode locked
+
+🔧 Improvements:
+- Reactive architecture
+- Process death recovery
