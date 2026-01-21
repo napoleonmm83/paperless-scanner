@@ -47,7 +47,9 @@ data class SettingsUiState(
     // App-Lock
     val appLockEnabled: Boolean = false,
     val appLockBiometricEnabled: Boolean = false,
-    val appLockTimeout: com.paperless.scanner.util.AppLockTimeout = com.paperless.scanner.util.AppLockTimeout.IMMEDIATE
+    val appLockTimeout: com.paperless.scanner.util.AppLockTimeout = com.paperless.scanner.util.AppLockTimeout.IMMEDIATE,
+    // Subscription Management
+    val subscriptionInfo: com.paperless.scanner.data.billing.SubscriptionInfo? = null
 )
 
 @HiltViewModel
@@ -242,9 +244,34 @@ class SettingsViewModel @Inject constructor(
         return billingManager.restorePurchases()
     }
 
-    fun openSubscriptionManagement() {
-        // TODO: Open Google Play subscription management
-        // This would typically launch an Intent to the Play Store
+    /**
+     * Load subscription information for display in subscription management sheet.
+     */
+    fun loadSubscriptionInfo() {
+        viewModelScope.launch {
+            val info = billingManager.getSubscriptionInfo()
+            _uiState.value = _uiState.value.copy(subscriptionInfo = info)
+        }
+    }
+
+    /**
+     * Open Google Play subscription management.
+     * Returns Intent for launching Play Store subscription management page.
+     */
+    fun getSubscriptionManagementIntent(context: android.content.Context): android.content.Intent {
+        // Google Play subscription management deep link
+        // Format: https://play.google.com/store/account/subscriptions?package=<package_name>&sku=<product_id>
+        val packageName = context.packageName
+
+        // Try to use the current subscription product ID, fallback to monthly if unknown
+        val productId = _uiState.value.subscriptionInfo?.productId
+            ?: com.paperless.scanner.data.billing.BillingManager.PRODUCT_ID_MONTHLY
+
+        val subscriptionUrl = "https://play.google.com/store/account/subscriptions?package=$packageName&sku=$productId"
+
+        return android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            data = android.net.Uri.parse(subscriptionUrl)
+        }
     }
 
     // App-Lock Methods

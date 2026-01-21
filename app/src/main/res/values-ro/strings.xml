@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d achiziții restabilite</string>
     <string name="premium_restore_none">Nu s-au găsit achiziții</string>
     <string name="premium_restore_error">Eroare restabilire: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Gestionați în Google Play</string>
+    <string name="subscription_price_label">Preț</string>
+    <string name="subscription_renewal_label">Reînnoire</string>
+    <string name="subscription_restore_purchases">Restaurare achiziții</string>
+    <string name="subscription_status_active">Activ</string>
+    <string name="subscription_status_cancelled">Anulat</string>
+    <string name="subscription_status_expired">Expirat</string>
+    <string name="subscription_status_label">Stare</string>
+    <string name="subscription_status_paused">Suspendat</string>
+    <string name="subscription_upgrade_hint">Economisiți 17%% cu abonament anual</string>
+    <string name="subscription_upgrade_savings">Faceți upgrade acum și economisiți anual</string>
     <string name="settings_debug_mode_steps_remaining">Încă %1$d pași până la modul dezvoltator</string>
     <string name="settings_debug_mode_enabled">Modul dezvoltator AI activat</string>
     <string name="settings_debug_mode_disabled">Modul dezvoltator AI dezactivat</string>

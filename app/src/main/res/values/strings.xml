@@ -662,7 +662,20 @@
     <string name="premium_restore_none">Keine Käufe gefunden</string>
     <string name="premium_restore_error">Fehler beim Wiederherstellen: %1$s</string>
 
-    
+    <!-- Subscription Management -->
+    <string name="subscription_price_label">Preis</string>
+    <string name="subscription_renewal_label">Verlängerung</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_active">Aktiv</string>
+    <string name="subscription_status_cancelled">Gekündigt</string>
+    <string name="subscription_status_paused">Pausiert</string>
+    <string name="subscription_status_expired">Abgelaufen</string>
+    <string name="subscription_upgrade_hint">Spare 17%% mit Jahresabo</string>
+    <string name="subscription_upgrade_savings">Jetzt upgraden und jährlich sparen</string>
+    <string name="subscription_open_google_play">In Google Play verwalten</string>
+    <string name="subscription_restore_purchases">Käufe wiederherstellen</string>
+
+
     <string name="tag_suggestions_title">Smart Tagging</string>
     <string name="tag_suggestions_progress">%1$d von %2$d getaggt</string>
     <string name="tag_suggestions_complete">Fertig!</string>

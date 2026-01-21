@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d køb gendannet</string>
     <string name="premium_restore_none">Ingen køb fundet</string>
     <string name="premium_restore_error">Gendannelsesfejl: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Administrer i Google Play</string>
+    <string name="subscription_price_label">Pris</string>
+    <string name="subscription_renewal_label">Fornyelse</string>
+    <string name="subscription_restore_purchases">Gendan køb</string>
+    <string name="subscription_status_active">Aktiv</string>
+    <string name="subscription_status_cancelled">Annulleret</string>
+    <string name="subscription_status_expired">Udløbet</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_paused">Sat på pause</string>
+    <string name="subscription_upgrade_hint">Spar 17%% med årligt abonnement</string>
+    <string name="subscription_upgrade_savings">Opgradér nu og spar årligt</string>
     <string name="settings_debug_mode_steps_remaining">%1$d trin tilbage til udviklertilstand</string>
     <string name="settings_debug_mode_enabled">AI-udviklertilstand aktiveret</string>
     <string name="settings_debug_mode_disabled">AI-udviklertilstand deaktiveret</string>

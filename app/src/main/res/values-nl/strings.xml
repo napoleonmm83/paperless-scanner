@@ -571,6 +571,20 @@
     <string name="premium_restore_success">%1$d aankopen hersteld</string>
     <string name="premium_restore_none">Geen aankopen gevonden</string>
     <string name="premium_restore_error">Herstel fout: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Beheren in Google Play</string>
+    <string name="subscription_price_label">Prijs</string>
+    <string name="subscription_renewal_label">Verlenging</string>
+    <string name="subscription_restore_purchases">Aankopen herstellen</string>
+    <string name="subscription_status_active">Actief</string>
+    <string name="subscription_status_cancelled">Geannuleerd</string>
+    <string name="subscription_status_expired">Verlopen</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_paused">Gepauzeerd</string>
+    <string name="subscription_upgrade_hint">Bespaar 17%% met jaarabonnement</string>
+    <string name="subscription_upgrade_savings">Upgrade nu en bespaar jaarlijks</string>
     <string name="settings_debug_mode_steps_remaining">Nog %1$d stappen voor ontwikkelaarsmodus</string>
     <string name="settings_debug_mode_enabled">AI-ontwikkelaarsmodus geactiveerd</string>
     <string name="settings_debug_mode_disabled">AI-ontwikkelaarsmodus gedeactiveerd</string>

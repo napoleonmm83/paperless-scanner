@@ -571,6 +571,20 @@
     <string name="premium_restore_success">Przywrócono %1$d zakupów</string>
     <string name="premium_restore_none">Nie znaleziono zakupów</string>
     <string name="premium_restore_error">Błąd przywracania: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Zarządzaj w Google Play</string>
+    <string name="subscription_price_label">Cena</string>
+    <string name="subscription_renewal_label">Odnowienie</string>
+    <string name="subscription_restore_purchases">Przywróć zakupy</string>
+    <string name="subscription_status_active">Aktywny</string>
+    <string name="subscription_status_cancelled">Anulowany</string>
+    <string name="subscription_status_expired">Wygasły</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_paused">Wstrzymany</string>
+    <string name="subscription_upgrade_hint">Oszczędź 17%% z rocznym abonamentem</string>
+    <string name="subscription_upgrade_savings">Uaktualnij teraz i oszczędzaj rocznie</string>
     <string name="settings_debug_mode_steps_remaining">Jeszcze %1$d kroków do trybu deweloperskiego</string>
     <string name="settings_debug_mode_enabled">Tryb deweloperski AI włączony</string>
     <string name="settings_debug_mode_disabled">Tryb deweloperski AI wyłączony</string>

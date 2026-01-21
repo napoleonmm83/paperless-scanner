@@ -656,6 +656,20 @@
     <string name="premium_restore_success">%1$d purchases restored</string>
     <string name="premium_restore_none">No purchases found</string>
     <string name="premium_restore_error">Restore error: %1$s</string>
+
+    <!-- Subscription Management -->
+    <string name="subscription_price_label">Price</string>
+    <string name="subscription_renewal_label">Renewal</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_active">Active</string>
+    <string name="subscription_status_cancelled">Cancelled</string>
+    <string name="subscription_status_paused">Paused</string>
+    <string name="subscription_status_expired">Expired</string>
+    <string name="subscription_upgrade_hint">Save 17%% with yearly subscription</string>
+    <string name="subscription_upgrade_savings">Upgrade now and save annually</string>
+    <string name="subscription_open_google_play">Manage in Google Play</string>
+    <string name="subscription_restore_purchases">Restore purchases</string>
+
     <string name="settings_debug_mode_steps_remaining">%1$d steps remaining for developer mode</string>
     <string name="settings_debug_mode_enabled">AI developer mode enabled</string>
     <string name="settings_debug_mode_disabled">AI developer mode disabled</string>

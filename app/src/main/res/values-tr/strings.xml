@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d satın alma geri yüklendi</string>
     <string name="premium_restore_none">Satın alma bulunamadı</string>
     <string name="premium_restore_error">Geri yükleme hatası: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Google Play\'de yönet</string>
+    <string name="subscription_price_label">Fiyat</string>
+    <string name="subscription_renewal_label">Yenileme</string>
+    <string name="subscription_restore_purchases">Satın alımları geri yükle</string>
+    <string name="subscription_status_active">Aktif</string>
+    <string name="subscription_status_cancelled">İptal edildi</string>
+    <string name="subscription_status_expired">Süresi doldu</string>
+    <string name="subscription_status_label">Durum</string>
+    <string name="subscription_status_paused">Duraklatıldı</string>
+    <string name="subscription_upgrade_hint">Yıllık abonelikle %%17 tasarruf edin</string>
+    <string name="subscription_upgrade_savings">Şimdi yükseltin ve yıllık tasarruf edin</string>
     <string name="settings_debug_mode_steps_remaining">Geliştirici moduna %1$d adım kaldı</string>
     <string name="settings_debug_mode_enabled">AI geliştirici modu etkinleştirildi</string>
     <string name="settings_debug_mode_disabled">AI geliştirici modu devre dışı bırakıldı</string>

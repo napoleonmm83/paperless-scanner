@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d nákupů obnoveno</string>
     <string name="premium_restore_none">Žádné nákupy nenalezeny</string>
     <string name="premium_restore_error">Chyba obnovení: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Spravovat v Google Play</string>
+    <string name="subscription_price_label">Cena</string>
+    <string name="subscription_renewal_label">Obnovení</string>
+    <string name="subscription_restore_purchases">Obnovit nákupy</string>
+    <string name="subscription_status_active">Aktivní</string>
+    <string name="subscription_status_cancelled">Zrušeno</string>
+    <string name="subscription_status_expired">Vypršelo</string>
+    <string name="subscription_status_label">Stav</string>
+    <string name="subscription_status_paused">Pozastaveno</string>
+    <string name="subscription_upgrade_hint">Ušetřete 17%% s ročním předplatným</string>
+    <string name="subscription_upgrade_savings">Upgradujte nyní a ušetřete ročně</string>
     <string name="settings_debug_mode_steps_remaining">Ještě %1$d kroků do vývojářského režimu</string>
     <string name="settings_debug_mode_enabled">AI vývojářský režim aktivován</string>
     <string name="settings_debug_mode_disabled">AI vývojářský režim deaktivován</string>

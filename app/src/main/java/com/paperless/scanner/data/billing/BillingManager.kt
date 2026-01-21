@@ -571,6 +571,98 @@ class BillingManager @Inject constructor(
     }
 
     /**
+     * Get detailed subscription information for UI display.
+     * Returns null if no active subscription or if data cannot be retrieved.
+     *
+     * @return SubscriptionInfo with product details, price, renewal date, and status
+     */
+    suspend fun getSubscriptionInfo(): SubscriptionInfo? {
+        // Check if billing is ready
+        val client = billingClient
+        if (client == null || !client.isReady) {
+            Log.w(TAG, "Cannot get subscription info: BillingClient not ready")
+            return null
+        }
+
+        // Query purchases
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+
+        return suspendCancellableCoroutine { continuation ->
+            client.queryPurchasesAsync(params) { billingResult, purchases ->
+                if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                    Log.e(TAG, "Failed to query purchases for subscription info")
+                    continuation.resume(null)
+                    return@queryPurchasesAsync
+                }
+
+                // Find active purchase
+                val activePurchase = purchases.firstOrNull {
+                    it.isAcknowledged && it.purchaseState == Purchase.PurchaseState.PURCHASED
+                }
+
+                if (activePurchase == null) {
+                    continuation.resume(null)
+                    return@queryPurchasesAsync
+                }
+
+                // Get product ID
+                val productId = activePurchase.products.firstOrNull() ?: run {
+                    continuation.resume(null)
+                    return@queryPurchasesAsync
+                }
+
+                // Get product details from cache
+                val productDetails = productDetailsCache[productId]
+                if (productDetails == null) {
+                    Log.w(TAG, "Product details not found in cache for $productId")
+                    continuation.resume(null)
+                    return@queryPurchasesAsync
+                }
+
+                // Extract price
+                val offerDetails = productDetails.subscriptionOfferDetails?.firstOrNull()
+                val pricePhase = offerDetails?.pricingPhases?.pricingPhaseList?.firstOrNull()
+                val formattedPrice = pricePhase?.formattedPrice ?: "N/A"
+
+                // Determine product name
+                val isMonthly = productId == PRODUCT_ID_MONTHLY
+                val productName = if (isMonthly) "Monatlich" else "Jährlich"
+
+                // Calculate renewal date (purchaseTime + subscription period)
+                // Note: Google Play doesn't provide exact renewal date in Purchase object
+                // We estimate based on purchase time + billing period
+                val purchaseTimeMs = activePurchase.purchaseTime
+                val billingPeriodMs = if (isMonthly) {
+                    30L * 24 * 60 * 60 * 1000 // 30 days
+                } else {
+                    365L * 24 * 60 * 60 * 1000 // 365 days
+                }
+                val renewalDateMs = purchaseTimeMs + billingPeriodMs
+
+                // Determine status
+                val status = if (activePurchase.isAutoRenewing) {
+                    SubscriptionInfoStatus.ACTIVE
+                } else {
+                    SubscriptionInfoStatus.CANCELLED // Cancelled but still valid
+                }
+
+                val subscriptionInfo = SubscriptionInfo(
+                    productId = productId,
+                    productName = productName,
+                    price = formattedPrice,
+                    renewalDateMs = renewalDateMs,
+                    status = status,
+                    isMonthly = isMonthly
+                )
+
+                continuation.resume(subscriptionInfo)
+            }
+        }
+    }
+
+    /**
      * Clean up billing client on destroy.
      *
      * Edge Case: If purchase flow is active when destroy() is called,
@@ -630,4 +722,27 @@ sealed class RestoreResult {
     data class Success(val restoredCount: Int) : RestoreResult()
     data object NoPurchasesFound : RestoreResult()
     data class Error(val message: String) : RestoreResult()
+}
+
+/**
+ * Detailed subscription information for UI display.
+ * Used in subscription management screens.
+ */
+data class SubscriptionInfo(
+    val productId: String,                    // "paperless_ai_monthly" or "paperless_ai_yearly"
+    val productName: String,                  // "Monatlich" or "Jährlich"
+    val price: String,                        // "2,99 €/Monat" or "29,99 €/Jahr"
+    val renewalDateMs: Long?,                 // Next renewal date in milliseconds (null if unknown)
+    val status: SubscriptionInfoStatus,       // ACTIVE, PAUSED, CANCELLED, EXPIRED
+    val isMonthly: Boolean                    // true if monthly, false if yearly
+)
+
+/**
+ * Subscription status for display purposes.
+ */
+enum class SubscriptionInfoStatus {
+    ACTIVE,      // Subscription is active and will auto-renew
+    PAUSED,      // Subscription paused (Google Play feature)
+    CANCELLED,   // Cancelled but still valid until expiry
+    EXPIRED      // Expired, no longer valid
 }

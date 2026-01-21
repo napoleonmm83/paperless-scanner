@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d köp återställda</string>
     <string name="premium_restore_none">Inga köp hittade</string>
     <string name="premium_restore_error">Återställningsfel: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Hantera i Google Play</string>
+    <string name="subscription_price_label">Pris</string>
+    <string name="subscription_renewal_label">Förnyelse</string>
+    <string name="subscription_restore_purchases">Återställ köp</string>
+    <string name="subscription_status_active">Aktiv</string>
+    <string name="subscription_status_cancelled">Avbruten</string>
+    <string name="subscription_status_expired">Utgången</string>
+    <string name="subscription_status_label">Status</string>
+    <string name="subscription_status_paused">Pausad</string>
+    <string name="subscription_upgrade_hint">Spara 17%% med årsprenumeration</string>
+    <string name="subscription_upgrade_savings">Uppgradera nu och spara årligen</string>
     <string name="settings_debug_mode_steps_remaining">%1$d steg kvar till utvecklarläge</string>
     <string name="settings_debug_mode_enabled">AI-utvecklarläge aktiverat</string>
     <string name="settings_debug_mode_disabled">AI-utvecklarläge inaktiverat</string>

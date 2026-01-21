@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d ostosta palautettu</string>
     <string name="premium_restore_none">Ostoksia ei löytynyt</string>
     <string name="premium_restore_error">Palautusvirhe: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Hallinnoi Google Playssa</string>
+    <string name="subscription_price_label">Hinta</string>
+    <string name="subscription_renewal_label">Uusiminen</string>
+    <string name="subscription_restore_purchases">Palauta ostokset</string>
+    <string name="subscription_status_active">Aktiivinen</string>
+    <string name="subscription_status_cancelled">Peruutettu</string>
+    <string name="subscription_status_expired">Vanhentunut</string>
+    <string name="subscription_status_label">Tila</string>
+    <string name="subscription_status_paused">Keskeytetty</string>
+    <string name="subscription_upgrade_hint">Säästä 17%% vuositilauksella</string>
+    <string name="subscription_upgrade_savings">Päivitä nyt ja säästä vuosittain</string>
     <string name="settings_debug_mode_steps_remaining">%1$d vaihetta kehittäjätilaan</string>
     <string name="settings_debug_mode_enabled">AI-kehittäjätila käytössä</string>
     <string name="settings_debug_mode_disabled">AI-kehittäjätila pois käytöstä</string>

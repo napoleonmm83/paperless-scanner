@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d vásárlás visszaállítva</string>
     <string name="premium_restore_none">Nem találhatók vásárlások</string>
     <string name="premium_restore_error">Visszaállítási hiba: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Kezelés Google Play-ben</string>
+    <string name="subscription_price_label">Ár</string>
+    <string name="subscription_renewal_label">Megújítás</string>
+    <string name="subscription_restore_purchases">Vásárlások visszaállítása</string>
+    <string name="subscription_status_active">Aktív</string>
+    <string name="subscription_status_cancelled">Törölve</string>
+    <string name="subscription_status_expired">Lejárt</string>
+    <string name="subscription_status_label">Állapot</string>
+    <string name="subscription_status_paused">Szüneteltetve</string>
+    <string name="subscription_upgrade_hint">Takarítson meg 17%%-ot éves előfizetéssel</string>
+    <string name="subscription_upgrade_savings">Frissítsen most és takarítson meg évente</string>
     <string name="settings_debug_mode_steps_remaining">Még %1$d lépés a fejlesztői módhoz</string>
     <string name="settings_debug_mode_enabled">AI fejlesztői mód bekapcsolva</string>
     <string name="settings_debug_mode_disabled">AI fejlesztői mód kikapcsolva</string>

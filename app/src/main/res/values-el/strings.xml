@@ -569,6 +569,20 @@
     <string name="premium_restore_success">%1$d αγορές επαναφέρθηκαν</string>
     <string name="premium_restore_none">Δεν βρέθηκαν αγορές</string>
     <string name="premium_restore_error">Σφάλμα επαναφοράς: %1$s</string>
+
+
+    <!-- Subscription Management -->
+    <string name="subscription_open_google_play">Διαχείριση στο Google Play</string>
+    <string name="subscription_price_label">Τιμή</string>
+    <string name="subscription_renewal_label">Ανανέωση</string>
+    <string name="subscription_restore_purchases">Επαναφορά αγορών</string>
+    <string name="subscription_status_active">Ενεργό</string>
+    <string name="subscription_status_cancelled">Ακυρωμένο</string>
+    <string name="subscription_status_expired">Έχει λήξει</string>
+    <string name="subscription_status_label">Κατάσταση</string>
+    <string name="subscription_status_paused">Σε παύση</string>
+    <string name="subscription_upgrade_hint">Εξοικονομήστε 17%% με ετήσια συνδρομή</string>
+    <string name="subscription_upgrade_savings">Αναβαθμίστε τώρα και εξοικονομήστε ετησίως</string>
     <string name="settings_debug_mode_steps_remaining">%1$d βήματα ακόμα για λειτουργία προγραμματιστή</string>
     <string name="settings_debug_mode_enabled">Λειτουργία προγραμματιστή AI ενεργοποιημένη</string>
     <string name="settings_debug_mode_disabled">Λειτουργία προγραμματιστή AI απενεργοποιημένη</string>

@@ -86,6 +86,7 @@ fun SettingsScreen(
     var showLicensesDialog by remember { mutableStateOf(false) }
     var showAppLockTimeoutDialog by remember { mutableStateOf(false) }
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
+    var showSubscriptionManagementSheet by remember { mutableStateOf(false) }
     var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
 
     // 7-tap Easter egg for AI debug mode activation
@@ -303,7 +304,10 @@ fun SettingsScreen(
                     icon = Icons.Filled.Settings,
                     title = stringResource(R.string.premium_settings_manage_subscription),
                     value = "",
-                    onClick = { viewModel.openSubscriptionManagement() }
+                    onClick = {
+                        viewModel.loadSubscriptionInfo()
+                        showSubscriptionManagementSheet = true
+                    }
                 )
             }
         }
@@ -746,6 +750,34 @@ fun SettingsScreen(
             }
         )
     }
+
+    // Subscription Management Sheet
+    if (showSubscriptionManagementSheet) {
+        SubscriptionManagementSheet(
+            subscriptionInfo = uiState.subscriptionInfo,
+            onDismiss = { showSubscriptionManagementSheet = false },
+            onOpenGooglePlay = {
+                val intent = viewModel.getSubscriptionManagementIntent(context)
+                context.startActivity(intent)
+            },
+            onRestore = {
+                coroutineScope.launch {
+                    when (val result = viewModel.restorePurchases()) {
+                        is RestoreResult.Success -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_success, result.restoredCount)
+                            viewModel.loadSubscriptionInfo() // Reload subscription info after restore
+                        }
+                        is RestoreResult.NoPurchasesFound -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_none)
+                        }
+                        is RestoreResult.Error -> {
+                            purchaseResultMessage = context.getString(R.string.premium_restore_error, result.message)
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -916,6 +948,245 @@ private fun SettingsToggleItem(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange
+        )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun SubscriptionManagementSheet(
+    subscriptionInfo: com.paperless.scanner.data.billing.SubscriptionInfo?,
+    onDismiss: () -> Unit,
+    onOpenGooglePlay: () -> Unit,
+    onRestore: () -> Unit
+) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            // Header
+            Text(
+                text = stringResource(R.string.premium_settings_manage_subscription),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            // Subscription Info Card (if available)
+            if (subscriptionInfo != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        // Product Name
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = subscriptionInfo.productName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Price
+                        SubscriptionInfoRow(
+                            label = stringResource(R.string.subscription_price_label),
+                            value = subscriptionInfo.price
+                        )
+
+                        // Renewal Date
+                        subscriptionInfo.renewalDateMs?.let { renewalMs ->
+                            val renewalDate = java.text.SimpleDateFormat(
+                                "dd.MM.yyyy",
+                                java.util.Locale.getDefault()
+                            ).format(java.util.Date(renewalMs))
+
+                            SubscriptionInfoRow(
+                                label = stringResource(R.string.subscription_renewal_label),
+                                value = renewalDate
+                            )
+                        }
+
+                        // Status
+                        val statusText = when (subscriptionInfo.status) {
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.ACTIVE ->
+                                stringResource(R.string.subscription_status_active)
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.CANCELLED ->
+                                stringResource(R.string.subscription_status_cancelled)
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.PAUSED ->
+                                stringResource(R.string.subscription_status_paused)
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.EXPIRED ->
+                                stringResource(R.string.subscription_status_expired)
+                        }
+
+                        val statusColor = when (subscriptionInfo.status) {
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.ACTIVE ->
+                                MaterialTheme.colorScheme.primary
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.CANCELLED ->
+                                MaterialTheme.colorScheme.error
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.PAUSED ->
+                                MaterialTheme.colorScheme.tertiary
+                            com.paperless.scanner.data.billing.SubscriptionInfoStatus.EXPIRED ->
+                                MaterialTheme.colorScheme.error
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.subscription_status_label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = statusText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = statusColor
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Upgrade Hint (if monthly subscription)
+                if (subscriptionInfo.isMonthly) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.subscription_upgrade_hint),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = stringResource(R.string.subscription_upgrade_savings),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+
+            // Action Buttons
+            // Google Play Button (Primary)
+            androidx.compose.material3.Button(
+                onClick = {
+                    onOpenGooglePlay()
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.subscription_open_google_play),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Restore Purchases Button (Secondary)
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    onRestore()
+                    onDismiss()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Text(
+                    text = stringResource(R.string.subscription_restore_purchases),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }
