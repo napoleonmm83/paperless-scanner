@@ -1,0 +1,9 @@
+Version 1.4.75:
+
+🔒 Verbesserungen:
+- App bleibt jetzt im Hochkant-Modus (kein Auto-Rotate mehr)
+
+🤖 KI-Optimierung:
+- Migration auf Gemini 2.5 Flash-Lite für bessere Performance
+- Verhindert Service-Unterbrechung ab März 2026
+- Optimierte Kosten bei gleichbleibender Qualität

@@ -1,0 +1,9 @@
+Version 1.4.75:
+
+🔒 Improvements:
+- App now stays in portrait mode (no auto-rotate)
+
+🤖 AI Optimization:
+- Migrated to Gemini 2.5 Flash-Lite for better performance
+- Prevents service disruption from March 2026
+- Optimized costs with same quality
