@@ -159,6 +159,7 @@ class HomeViewModel @Inject constructor(
         observePendingUploads()
         observeTagsReactively()
         observeRecentDocumentsReactively()
+        observeProcessingTasksReactively()
     }
 
     /**
@@ -213,27 +214,68 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * BEST PRACTICE: Reactive Flow for processing tasks.
+     * Automatically updates UI when tasks are added/updated/deleted in DB.
+     */
+    private fun observeProcessingTasksReactively() {
+        viewModelScope.launch {
+            taskRepository.observeUnacknowledgedTasks().collect { tasks ->
+                val processingTasks = tasks
+                    // Only show document processing tasks, not system tasks like train_classifier
+                    .filter { task -> task.taskFileName != null }
+                    .map { task ->
+                        ProcessingTask(
+                            id = task.id,
+                            taskId = task.taskId,
+                            fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
+                            status = mapTaskStatus(task.status),
+                            timeAgo = formatTimeAgo(task.dateCreated),
+                            resultMessage = task.result,
+                            documentId = task.relatedDocument?.toIntOrNull()
+                        )
+                    }
+                    .sortedByDescending { it.id }
+                    .take(10)
+
+                // Track newly completed tasks for document sync
+                val previousTasks = _uiState.value.processingTasks
+                syncCompletedDocuments(previousTasks, processingTasks)
+
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        processingTasks = processingTasks,
+                        isLoading = false
+                    )
+                }
+
+                // Start/stop polling based on task status
+                if (processingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
+                    startTaskPolling()
+                } else {
+                    stopTaskPolling()
+                }
+            }
+        }
+    }
+
     fun loadDashboardData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // BEST PRACTICE: Tags and recent documents are handled by reactive Flows.
-            // Only load stats and processing tasks here.
+            // BEST PRACTICE: Tags, recent documents, and tasks are handled by reactive Flows.
+            // Only load stats and trigger initial task fetch here.
 
             val stats = loadStats()
-            val tasks = loadProcessingTasks()
+
+            // Force refresh tasks from API to populate cache (triggers reactive Flow update)
+            taskRepository.getTasks(forceRefresh = true)
 
             _uiState.update { currentState ->
                 currentState.copy(
                     stats = stats,
-                    processingTasks = tasks,
                     isLoading = false
                 )
-            }
-
-            // Start polling for task updates if there are pending tasks
-            if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                startTaskPolling()
             }
         }
     }
@@ -247,19 +289,17 @@ class HomeViewModel @Inject constructor(
         pollingJob = viewModelScope.launch {
             while (isActive) {
                 delay(POLLING_INTERVAL_MS)
-                val previousTasks = _uiState.value.processingTasks
-                val tasks = loadProcessingTasks()
-                _uiState.update { it.copy(processingTasks = tasks) }
 
-                // Sync newly completed documents to local DB
-                syncCompletedDocuments(previousTasks, tasks)
+                // Refresh tasks from API (triggers reactive Flow update automatically)
+                taskRepository.getTasks(forceRefresh = true)
+
+                // Refresh stats when polling (in case new documents were created)
+                val stats = loadStats()
+                _uiState.update { it.copy(stats = stats) }
 
                 // Stop polling if no more pending tasks
-                if (tasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                    // BEST PRACTICE: Recent documents update automatically via Flow.
-                    // Just refresh stats when all tasks complete.
-                    val stats = loadStats()
-                    _uiState.update { it.copy(stats = stats) }
+                val currentTasks = _uiState.value.processingTasks
+                if (currentTasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
                     break
                 }
             }
@@ -306,12 +346,10 @@ class HomeViewModel @Inject constructor(
 
     fun refreshTasks() {
         viewModelScope.launch {
-            val tasks = loadProcessingTasks()
-            _uiState.update { it.copy(processingTasks = tasks) }
+            // Force refresh tasks from API (triggers reactive Flow update automatically)
+            taskRepository.getTasks(forceRefresh = true)
 
-            if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                startTaskPolling()
-            }
+            // Polling will be started/stopped automatically by observeProcessingTasksReactively()
         }
     }
 
@@ -329,13 +367,10 @@ class HomeViewModel @Inject constructor(
             val stats = loadStats(forceRefresh = true)
             _uiState.update { it.copy(stats = stats) }
 
-            // Refresh processing tasks
-            val tasks = loadProcessingTasks()
-            _uiState.update { it.copy(processingTasks = tasks) }
+            // Refresh processing tasks from API (triggers reactive Flow update automatically)
+            taskRepository.getTasks(forceRefresh = true)
 
-            if (tasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                startTaskPolling()
-            }
+            // Polling will be started/stopped automatically by observeProcessingTasksReactively()
         }
     }
 
@@ -391,24 +426,6 @@ class HomeViewModel @Inject constructor(
         return docs.count { it.tagName == null }
     }
 
-    private suspend fun loadProcessingTasks(): List<ProcessingTask> {
-        val result = taskRepository.getUnacknowledgedTasks()
-
-        return result.getOrNull()
-            // Only show document processing tasks, not system tasks like train_classifier
-            ?.filter { task -> task.taskFileName != null }
-            ?.map { task ->
-                ProcessingTask(
-                    id = task.id,
-                    taskId = task.taskId,
-                    fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
-                    status = mapTaskStatus(task.status),
-                    timeAgo = formatTimeAgo(task.dateCreated),
-                    resultMessage = task.result,
-                    documentId = task.relatedDocument?.toIntOrNull()
-                )
-            }?.sortedByDescending { it.id }?.take(10) ?: emptyList()
-    }
 
     private fun mapTaskStatus(status: String): TaskStatus {
         return when (status) {
