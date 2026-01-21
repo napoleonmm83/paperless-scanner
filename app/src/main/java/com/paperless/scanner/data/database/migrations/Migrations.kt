@@ -203,3 +203,53 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         """)
     }
 }
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Fix for users who already upgraded to v1.4.78 with faulty cached_tasks schema
+        // from internal test builds (v1.4.77). These users are at DB v5 but have incorrect schema.
+        // MIGRATION_4_5 won't run for them (already at v5), so we need this additional migration.
+
+        // Drop and recreate cached_tasks to ensure correct schema for all users
+        database.execSQL("DROP TABLE IF EXISTS cached_tasks")
+
+        // Create cached_tasks table with correct schema
+        database.execSQL("""
+            CREATE TABLE cached_tasks (
+                id INTEGER PRIMARY KEY NOT NULL,
+                taskId TEXT NOT NULL,
+                taskFileName TEXT,
+                dateCreated TEXT NOT NULL,
+                dateDone TEXT,
+                type TEXT NOT NULL,
+                status TEXT NOT NULL,
+                result TEXT,
+                acknowledged INTEGER NOT NULL,
+                relatedDocument TEXT,
+                lastSyncedAt INTEGER NOT NULL,
+                isDeleted INTEGER NOT NULL
+            )
+        """)
+
+        // Recreate indices
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_isDeleted
+            ON cached_tasks(isDeleted)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_acknowledged
+            ON cached_tasks(acknowledged)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_status
+            ON cached_tasks(status)
+        """)
+
+        database.execSQL("""
+            CREATE INDEX index_cached_tasks_taskId
+            ON cached_tasks(taskId)
+        """)
+    }
+}
