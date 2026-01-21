@@ -256,6 +256,8 @@
     <string name="home_task_processing">Elaborazione...</string>
     <string name="home_task_success">Riuscito</string>
     <string name="home_task_failure">Fallito</string>
+    <string name="home_task_duplicate">Duplicato rilevato</string>
+    <string name="home_task_duplicate_message">Questo documento è già stato caricato</string>
     <string name="home_dismiss">Ignora</string>
     <string name="pending_sync_back">Indietro</string>
     <string name="pending_sync_title">SINCRONIZZAZIONI IN ATTESA</string>

@@ -256,6 +256,8 @@
     <string name="home_task_processing">Verwerken...</string>
     <string name="home_task_success">Geslaagd</string>
     <string name="home_task_failure">Mislukt</string>
+    <string name="home_task_duplicate">Duplicaat gedetecteerd</string>
+    <string name="home_task_duplicate_message">Dit document is al geüpload</string>
     <string name="home_dismiss">Negeren</string>
     <string name="pending_sync_back">Terug</string>
     <string name="pending_sync_title">WACHTENDE SYNCS</string>

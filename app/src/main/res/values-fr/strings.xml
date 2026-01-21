@@ -256,6 +256,8 @@
     <string name="home_task_processing">Traitement...</string>
     <string name="home_task_success">Réussi</string>
     <string name="home_task_failure">Échoué</string>
+    <string name="home_task_duplicate">Doublon détecté</string>
+    <string name="home_task_duplicate_message">Ce document a déjà été téléchargé</string>
     <string name="home_dismiss">Ignorer</string>
     <string name="pending_sync_back">Retour</string>
     <string name="pending_sync_title">SYNCHRONISATIONS EN ATTENTE</string>

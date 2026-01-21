@@ -256,6 +256,8 @@
     <string name="home_task_processing">İşleniyor...</string>
     <string name="home_task_success">Başarılı</string>
     <string name="home_task_failure">Başarısız</string>
+    <string name="home_task_duplicate">Kopya tespit edildi</string>
+    <string name="home_task_duplicate_message">Bu belge zaten yüklendi</string>
     <string name="home_dismiss">Gizle</string>
     <string name="pending_sync_back">Geri</string>
     <string name="pending_sync_title">BEKLEYEN SENKRONİZASYONLAR</string>

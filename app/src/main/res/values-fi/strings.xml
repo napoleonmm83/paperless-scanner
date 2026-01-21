@@ -256,6 +256,8 @@
     <string name="home_task_processing">Käsitellään...</string>
     <string name="home_task_success">Onnistui</string>
     <string name="home_task_failure">Epäonnistui</string>
+    <string name="home_task_duplicate">Kaksoiskappale havaittu</string>
+    <string name="home_task_duplicate_message">Tämä asiakirja on jo ladattu</string>
     <string name="home_dismiss">Piilota</string>
     <string name="pending_sync_back">Takaisin</string>
     <string name="pending_sync_title">ODOTTAVAT SYNKRONOINNIT</string>

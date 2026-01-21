@@ -256,6 +256,8 @@
     <string name="home_task_processing">Behandler...</string>
     <string name="home_task_success">Vellykket</string>
     <string name="home_task_failure">Mislyktes</string>
+    <string name="home_task_duplicate">Duplikat oppdaget</string>
+    <string name="home_task_duplicate_message">Dette dokumentet er allerede lastet opp</string>
     <string name="home_dismiss">Skjul</string>
     <string name="pending_sync_back">Tilbake</string>
     <string name="pending_sync_title">VENTENDE SYNKRONISERINGER</string>

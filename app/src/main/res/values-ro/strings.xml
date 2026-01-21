@@ -256,6 +256,8 @@
     <string name="home_task_processing">Se procesează...</string>
     <string name="home_task_success">Reușit</string>
     <string name="home_task_failure">Eșuat</string>
+    <string name="home_task_duplicate">Duplicat detectat</string>
+    <string name="home_task_duplicate_message">Acest document a fost deja încărcat</string>
     <string name="home_dismiss">Ascunde</string>
     <string name="pending_sync_back">Înapoi</string>
     <string name="pending_sync_title">SINCRONIZĂRI ÎN AȘTEPTARE</string>

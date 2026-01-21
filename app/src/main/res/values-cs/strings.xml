@@ -256,6 +256,8 @@
     <string name="home_task_processing">Zpracování...</string>
     <string name="home_task_success">Úspěšně</string>
     <string name="home_task_failure">Selhalo</string>
+    <string name="home_task_duplicate">Duplicita zjištěna</string>
+    <string name="home_task_duplicate_message">Tento dokument byl již nahrán</string>
     <string name="home_dismiss">Skrýt</string>
     <string name="pending_sync_back">Zpět</string>
     <string name="pending_sync_title">ČEKAJÍCÍ SYNCHRONIZACE</string>

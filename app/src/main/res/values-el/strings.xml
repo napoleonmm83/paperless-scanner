@@ -256,6 +256,8 @@
     <string name="home_task_processing">Επεξεργασία...</string>
     <string name="home_task_success">Επιτυχία</string>
     <string name="home_task_failure">Αποτυχία</string>
+    <string name="home_task_duplicate">Εντοπίστηκε διπλότυπο</string>
+    <string name="home_task_duplicate_message">Αυτό το έγγραφο έχει ήδη μεταφορτωθεί</string>
     <string name="home_dismiss">Απόκρυψη</string>
     <string name="pending_sync_back">Πίσω</string>
     <string name="pending_sync_title">ΕΚΚΡΕΜΕΙΣ ΣΥΓΧΡΟΝΙΣΜΟΙ</string>

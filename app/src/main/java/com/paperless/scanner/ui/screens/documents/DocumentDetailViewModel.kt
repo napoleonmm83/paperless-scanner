@@ -230,17 +230,24 @@ class DocumentDetailViewModel @Inject constructor(
                 // Set loading state
                 _uiState.update { it.copy(isLoading = true, error = null) }
 
-                // Trigger background API refresh (fire and forget)
-                triggerBackgroundRefresh(documentId)
+                // Trigger background API refresh to fetch notes & permissions
+                viewModelScope.launch {
+                    triggerBackgroundRefresh(documentId)
+                }
 
                 // Observe reactive Flow - automatically updates when DB changes
                 documentRepository.observeDocument(documentId).collect { doc ->
                     if (doc == null) {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = context.getString(R.string.error_loading)
-                            )
+                        // Don't show error if document is being deleted or was just deleted
+                        // (this prevents "Error loading" flash before navigation back)
+                        val currentState = _uiState.value
+                        if (!currentState.isDeleting && !currentState.deleteSuccess) {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = context.getString(R.string.error_loading)
+                                )
+                            }
                         }
                         return@collect
                     }
@@ -248,8 +255,8 @@ class DocumentDetailViewModel @Inject constructor(
                     val serverUrl = tokenManager.serverUrl.first()?.removeSuffix("/") ?: ""
                     val token = tokenManager.token.first() ?: ""
 
-                    _uiState.update {
-                        it.copy(
+                    _uiState.update { currentState ->
+                        currentState.copy(
                             id = doc.id,
                             title = doc.title,
                             content = doc.content,
@@ -268,9 +275,17 @@ class DocumentDetailViewModel @Inject constructor(
                             authToken = token,
                             originalFileName = doc.originalFileName,
                             archiveSerialNumber = doc.archiveSerialNumber,
-                            notes = doc.notes,
-                            owner = doc.owner,
-                            permissions = doc.permissions,
+                            // CRITICAL: Preserve notes, permissions, owner correctly
+                            // DB doesn't store these fields, so keep them from currentState if doc (from DB) doesn't have them
+                            notes = if (doc.notes.isNotEmpty()) {
+                                doc.notes
+                            } else if (currentState.notes.isNotEmpty()) {
+                                currentState.notes
+                            } else {
+                                emptyList()
+                            },
+                            owner = doc.owner ?: currentState.owner,
+                            permissions = doc.permissions ?: currentState.permissions,
                             isLoading = false,
                             error = null
                         )
@@ -284,17 +299,26 @@ class DocumentDetailViewModel @Inject constructor(
      * Triggers background API refresh to fetch latest document data including notes,
      * permissions, and history. Room Flow will automatically update UI when cache changes.
      */
-    private fun triggerBackgroundRefresh(documentId: Int) {
-        viewModelScope.launch {
-            // Fetch full document data (notes, permissions, etc.)
-            documentRepository.getDocument(documentId, forceRefresh = true)
+    private suspend fun triggerBackgroundRefresh(documentId: Int) {
+        // Fetch full document data (notes, permissions, etc.)
+        val docResult = documentRepository.getDocument(documentId, forceRefresh = true)
 
-            // Fetch history separately (don't block if it fails)
-            val historyResult = documentRepository.getDocumentHistory(documentId)
-            val historyList = historyResult.getOrNull() ?: emptyList()
-            if (historyList.isNotEmpty()) {
-                _uiState.update { it.copy(history = historyList) }
+        // Extract notes & permissions from API response (DB doesn't store them!)
+        docResult.onSuccess { doc ->
+            _uiState.update { currentState ->
+                currentState.copy(
+                    notes = if (doc.notes.isNotEmpty()) doc.notes else currentState.notes,
+                    permissions = doc.permissions ?: currentState.permissions,
+                    owner = doc.owner ?: currentState.owner
+                )
             }
+        }
+
+        // Fetch history separately (don't block if it fails)
+        val historyResult = documentRepository.getDocumentHistory(documentId)
+        val historyList = historyResult.getOrNull() ?: emptyList()
+        if (historyList.isNotEmpty()) {
+            _uiState.update { it.copy(history = historyList) }
         }
     }
 
@@ -306,7 +330,9 @@ class DocumentDetailViewModel @Inject constructor(
         val documentId = documentIdStateFlow.value
         if (documentId > 0) {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            triggerBackgroundRefresh(documentId)
+            viewModelScope.launch {
+                triggerBackgroundRefresh(documentId)
+            }
         }
     }
 
@@ -405,12 +431,17 @@ class DocumentDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isAddingNote = true, addNoteError = null) }
 
             documentRepository.addNote(documentId, noteText).onSuccess { updatedNotes ->
+                // First update UI with new notes (instant feedback)
                 _uiState.update {
                     it.copy(
                         isAddingNote = false,
                         notes = updatedNotes
                     )
                 }
+
+                // Then sync to DB (await to prevent race condition)
+                // This ensures DB is updated before reactive Flow can overwrite UI
+                triggerBackgroundRefresh(documentId)
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -430,12 +461,17 @@ class DocumentDetailViewModel @Inject constructor(
             _uiState.update { it.copy(isDeletingNoteId = noteId, deleteNoteError = null) }
 
             documentRepository.deleteNote(documentId, noteId).onSuccess { updatedNotes ->
+                // First update UI with updated notes (instant feedback)
                 _uiState.update {
                     it.copy(
                         isDeletingNoteId = null,
                         notes = updatedNotes
                     )
                 }
+
+                // Then sync to DB (await to prevent race condition)
+                // This ensures DB is updated before reactive Flow can overwrite UI
+                triggerBackgroundRefresh(documentId)
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -502,15 +538,20 @@ class DocumentDetailViewModel @Inject constructor(
                 viewGroups = viewGroups,
                 changeUsers = changeUsers,
                 changeGroups = changeGroups
-            ).onSuccess {
+            ).onSuccess { updatedDoc ->
                 _uiState.update {
                     it.copy(
                         isUpdatingPermissions = false,
-                        updatePermissionsSuccess = true
+                        updatePermissionsSuccess = true,
+                        // Update permissions immediately (DB doesn't store them)
+                        permissions = updatedDoc.permissions,
+                        owner = updatedDoc.owner
                     )
                 }
-                // Reload document to show updated permissions
-                refresh()
+                // Trigger background refresh to ensure consistency
+                viewModelScope.launch {
+                    triggerBackgroundRefresh(documentId)
+                }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(

@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Inbox
@@ -716,35 +717,54 @@ private fun ProcessingTaskCard(
     val statusProcessing = stringResource(R.string.home_task_processing)
     val statusSuccess = stringResource(R.string.home_task_success)
     val statusFailure = stringResource(R.string.home_task_failure)
+    val statusDuplicate = stringResource(R.string.home_task_duplicate)
 
-    val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when (task.status) {
-        TaskStatus.PENDING -> Quintuple(
+    // Detect duplicate error
+    val isDuplicate = task.status == TaskStatus.FAILURE &&
+            task.resultMessage?.contains("duplicate", ignoreCase = true) == true
+
+    val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when {
+        isDuplicate -> Quintuple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            Icons.Filled.ContentCopy,
+            MaterialTheme.colorScheme.primary,
+            MaterialTheme.colorScheme.primary,
+            statusDuplicate
+        )
+        task.status == TaskStatus.PENDING -> Quintuple(
             MaterialTheme.colorScheme.surfaceVariant,
             null,
             MaterialTheme.colorScheme.onSurfaceVariant,
             MaterialTheme.colorScheme.onSurfaceVariant,
             statusWaiting
         )
-        TaskStatus.PROCESSING -> Quintuple(
+        task.status == TaskStatus.PROCESSING -> Quintuple(
             MaterialTheme.colorScheme.primaryContainer,
             null,
             MaterialTheme.colorScheme.onPrimaryContainer,
             MaterialTheme.colorScheme.onPrimaryContainer,
             statusProcessing
         )
-        TaskStatus.SUCCESS -> Quintuple(
+        task.status == TaskStatus.SUCCESS -> Quintuple(
             MaterialTheme.colorScheme.primary,
             Icons.Filled.CheckCircle,
             MaterialTheme.colorScheme.onPrimary,
             MaterialTheme.colorScheme.onPrimary,
             statusSuccess
         )
-        TaskStatus.FAILURE -> Quintuple(
+        task.status == TaskStatus.FAILURE -> Quintuple(
             MaterialTheme.colorScheme.errorContainer,
             Icons.Filled.Error,
             MaterialTheme.colorScheme.onErrorContainer,
             MaterialTheme.colorScheme.onErrorContainer,
             statusFailure
+        )
+        else -> Quintuple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            null,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            statusWaiting
         )
     }
 
@@ -796,6 +816,11 @@ private fun ProcessingTaskCard(
                         text = task.fileName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium,
+                        color = if (isDuplicate) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            Color.Unspecified
+                        },
                         maxLines = 1
                     )
                     Row(
@@ -839,10 +864,21 @@ private fun ProcessingTaskCard(
             // Show result message for failures
             if (task.status == TaskStatus.FAILURE && task.resultMessage != null) {
                 Spacer(modifier = Modifier.height(8.dp))
+
+                val displayMessage = if (isDuplicate) {
+                    stringResource(R.string.home_task_duplicate_message)
+                } else {
+                    task.resultMessage
+                }
+
                 Text(
-                    text = task.resultMessage,
+                    text = displayMessage,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = if (isDuplicate) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
                     maxLines = 2
                 )
             }

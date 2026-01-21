@@ -110,6 +110,13 @@ gradle.properties.local
 setup-github-secrets.sh
 setup-github-secrets.bat
 
+# GitHub Runner setup scripts (contain tokens!)
+scripts/*runner*.ps1
+scripts/check-runner.ps1
+scripts/*subscription*.ps1
+scripts/*subscription*.py
+scripts/fix-percent-escape.py
+
 # Local CI test results
 lint-results.txt
 test-results.txt
