@@ -13,6 +13,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +155,25 @@ class BillingManager @Inject constructor(
     /**
      * Query product details for subscription products.
      */
+    /**
+     * Query product details for subscription products.
+     *
+     * Edge Case: BillingClient might be null or not ready when this is called.
+     * We handle gracefully to prevent crashes.
+     */
     private suspend fun queryProductDetails() {
+        // Edge Case: BillingClient might be null
+        val client = billingClient
+        if (client == null) {
+            Log.e(TAG, "Cannot query product details: BillingClient is null")
+            return
+        }
+
+        if (!client.isReady) {
+            Log.e(TAG, "Cannot query product details: BillingClient not ready")
+            return
+        }
+
         val productList = listOf(
             QueryProductDetailsParams.Product.newBuilder()
                 .setProductId(PRODUCT_ID_MONTHLY)
@@ -171,12 +190,22 @@ class BillingManager @Inject constructor(
             .build()
 
         suspendCancellableCoroutine { continuation ->
-            billingClient?.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     productDetailsCache = productDetailsList.associateBy { it.productId }
                     Log.d(TAG, "Product details loaded: ${productDetailsList.size} products")
                 } else {
                     Log.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
+
+                    // Log to Crashlytics
+                    try {
+                        val crashlytics = FirebaseCrashlytics.getInstance()
+                            
+                        crashlytics.log("Failed to query product details: ${billingResult.debugMessage}")
+                        crashlytics.setCustomKey("billing_error_code", billingResult.responseCode)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to log product query error to Crashlytics", e)
+                    }
                 }
                 continuation.resume(Unit)
             }
@@ -185,14 +214,28 @@ class BillingManager @Inject constructor(
 
     /**
      * Query existing purchases and update subscription status.
+     *
+     * Edge Case: BillingClient might be null or not ready.
      */
     private suspend fun queryPurchases() {
+        // Edge Case: BillingClient might be null
+        val client = billingClient
+        if (client == null) {
+            Log.e(TAG, "Cannot query purchases: BillingClient is null")
+            return
+        }
+
+        if (!client.isReady) {
+            Log.e(TAG, "Cannot query purchases: BillingClient not ready")
+            return
+        }
+
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
         suspendCancellableCoroutine { continuation ->
-            billingClient?.queryPurchasesAsync(params) { billingResult, purchases ->
+            client.queryPurchasesAsync(params) { billingResult, purchases ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val activePurchase = purchases.firstOrNull { it.isAcknowledged && it.purchaseState == Purchase.PurchaseState.PURCHASED }
 
@@ -246,17 +289,73 @@ class BillingManager @Inject constructor(
         Log.d(TAG, "launchPurchaseFlow called")
         Log.d(TAG, "Product ID: $productId")
 
+        // CRITICAL: Check if BillingClient is ready before launching flow
+        // Prevents NullPointerException in ProxyBillingActivity.onCreate
+        // when PendingIntent.getIntentSender() is called on null object
+        if (billingClient?.isReady != true) {
+            Log.e(TAG, "✗ BillingClient not ready!")
+            Log.e(TAG, "  BillingClient: ${if (billingClient == null) "null" else "initialized"}")
+            Log.e(TAG, "  isReady: ${billingClient?.isReady}")
+
+            // Log to Crashlytics for monitoring
+            try {
+                val crashlytics = FirebaseCrashlytics.getInstance()
+                    
+                crashlytics.log("BillingClient not ready when launchPurchaseFlow called")
+                crashlytics.setCustomKey("billing_client_null", billingClient == null)
+                crashlytics.setCustomKey("billing_client_ready", billingClient?.isReady ?: false)
+                crashlytics.setCustomKey("product_id", productId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to log to Crashlytics", e)
+            }
+
+            return PurchaseResult.Error("Billing service not ready. Please wait a moment and try again.")
+        }
+
+        Log.d(TAG, "✓ BillingClient is ready")
+
         // Check if there's already a pending purchase
         if (pendingPurchaseContinuation != null) {
             Log.e(TAG, "✗ Purchase already in progress!")
             return PurchaseResult.Error("Purchase already in progress")
         }
 
-        val productDetails = productDetailsCache[productId]
+        // Edge Case: ProductDetails cache might be empty if initial query failed
+        // Retry loading product details before failing
+        var productDetails = productDetailsCache[productId]
         if (productDetails == null) {
-            Log.e(TAG, "✗ Product not found in cache!")
-            Log.d(TAG, "Available products: ${productDetailsCache.keys}")
-            return PurchaseResult.Error("Product not found. Please try again later.")
+            Log.w(TAG, "⚠ Product not found in cache, attempting to reload...")
+            Log.d(TAG, "Available products before reload: ${productDetailsCache.keys}")
+
+            // Try to reload product details
+            try {
+                queryProductDetails()
+                productDetails = productDetailsCache[productId]
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to reload product details", e)
+            }
+
+            // Still not found after retry?
+            if (productDetails == null) {
+                Log.e(TAG, "✗ Product not found even after retry!")
+                Log.d(TAG, "Available products after retry: ${productDetailsCache.keys}")
+
+                // Log to Crashlytics
+                try {
+                    val crashlytics = FirebaseCrashlytics.getInstance()
+                        
+                    crashlytics.log("Product not found: $productId")
+                    crashlytics.setCustomKey("product_id_requested", productId)
+                    crashlytics.setCustomKey("available_products", productDetailsCache.keys.joinToString(","))
+                    crashlytics.recordException(Exception("ProductDetails not found for $productId"))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log missing product to Crashlytics", e)
+                }
+
+                return PurchaseResult.Error("Product not found. Please try again later.")
+            } else {
+                Log.d(TAG, "✓ Product loaded successfully after retry")
+            }
         }
 
         Log.d(TAG, "✓ Product found: ${productDetails.name}")
@@ -295,10 +394,33 @@ class BillingManager @Inject constructor(
             Log.d(TAG, "  Response Code: ${billingResult?.responseCode}")
             Log.d(TAG, "  Debug Message: ${billingResult?.debugMessage}")
 
+            // Log to Crashlytics for monitoring
+            try {
+                val crashlytics = FirebaseCrashlytics.getInstance()
+                    
+                crashlytics.log("BillingFlow launch attempt: ${billingResult?.responseCode}")
+                crashlytics.setCustomKey("billing_flow_response_code", billingResult?.responseCode ?: -1)
+                crashlytics.setCustomKey("billing_flow_product_id", productId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to log billing flow to Crashlytics", e)
+            }
+
             // Only handle flow launch errors here
             // Success/Cancel/Error from actual purchase handled in purchasesUpdatedListener
             if (billingResult?.responseCode != BillingClient.BillingResponseCode.OK) {
                 Log.e(TAG, "✗ Failed to launch billing flow!")
+
+                // Log error to Crashlytics
+                try {
+                    val crashlytics = FirebaseCrashlytics.getInstance()
+                        
+                    crashlytics.recordException(
+                        Exception("BillingFlow launch failed: ${billingResult?.debugMessage}")
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to record exception to Crashlytics", e)
+                }
+
                 pendingPurchaseContinuation = null
                 continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: "Failed to launch billing flow"))
             } else {
@@ -356,17 +478,66 @@ class BillingManager @Inject constructor(
 
     /**
      * Handle new purchase.
+     *
+     * Edge Case: PENDING purchases occur when payment processing is delayed
+     * (e.g., bank transfer, certain payment methods in some countries).
+     * Google requires acknowledging within 3 days or refund is triggered.
      */
     private fun handlePurchase(purchase: Purchase) {
-        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-            if (!purchase.isAcknowledged) {
-                scope.launch {
-                    acknowledgePurchase(purchase)
+        when (purchase.purchaseState) {
+            Purchase.PurchaseState.PURCHASED -> {
+                Log.d(TAG, "Purchase state: PURCHASED")
+                if (!purchase.isAcknowledged) {
+                    scope.launch {
+                        acknowledgePurchase(purchase)
+                    }
+                }
+                updateSubscriptionStatus(SubscriptionStatus.ACTIVE(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000))
+                _isSubscriptionActive.value = true
+                Log.d(TAG, "Purchase successful: ${purchase.products}")
+
+                // Log to Crashlytics
+                try {
+                    val crashlytics = FirebaseCrashlytics.getInstance()
+                        
+                    crashlytics.log("Purchase completed: ${purchase.products}")
+                    crashlytics.setCustomKey("purchase_state", "PURCHASED")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log purchase to Crashlytics", e)
                 }
             }
-            updateSubscriptionStatus(SubscriptionStatus.ACTIVE(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000))
-            _isSubscriptionActive.value = true
-            Log.d(TAG, "Purchase successful: ${purchase.products}")
+            Purchase.PurchaseState.PENDING -> {
+                Log.d(TAG, "Purchase state: PENDING (payment being processed)")
+                // Don't grant access yet, but inform user
+                updateSubscriptionStatus(SubscriptionStatus.FREE)
+                _isSubscriptionActive.value = false
+
+                // Log to Crashlytics for monitoring
+                try {
+                    val crashlytics = FirebaseCrashlytics.getInstance()
+                        
+                    crashlytics.log("Purchase PENDING: ${purchase.products}")
+                    crashlytics.setCustomKey("purchase_state", "PENDING")
+                    crashlytics.setCustomKey("purchase_token", purchase.purchaseToken)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log pending purchase to Crashlytics", e)
+                }
+            }
+            Purchase.PurchaseState.UNSPECIFIED_STATE -> {
+                Log.w(TAG, "Purchase state: UNSPECIFIED_STATE")
+                // Log to Crashlytics
+                try {
+                    val crashlytics = FirebaseCrashlytics.getInstance()
+                        
+                    crashlytics.log("Purchase UNSPECIFIED_STATE: ${purchase.products}")
+                    crashlytics.setCustomKey("purchase_state", "UNSPECIFIED_STATE")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log unspecified purchase to Crashlytics", e)
+                }
+            }
+            else -> {
+                Log.w(TAG, "Unknown purchase state: ${purchase.purchaseState}")
+            }
         }
     }
 
@@ -401,10 +572,34 @@ class BillingManager @Inject constructor(
 
     /**
      * Clean up billing client on destroy.
+     *
+     * Edge Case: If purchase flow is active when destroy() is called,
+     * the pendingPurchaseContinuation would hang indefinitely.
+     * We cancel it gracefully to prevent memory leaks.
      */
     fun destroy() {
-        billingClient?.endConnection()
+        Log.d(TAG, "destroy() called")
+
+        // Cancel any pending purchase flow to prevent continuation leak
+        pendingPurchaseContinuation?.let {
+            Log.w(TAG, "Cancelling pending purchase continuation on destroy")
+            try {
+                it.resume(PurchaseResult.Error("Billing service disconnected"))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resume continuation on destroy", e)
+            }
+            pendingPurchaseContinuation = null
+        }
+
+        // Safely disconnect billing client
+        try {
+            billingClient?.endConnection()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error disconnecting billing client", e)
+        }
+
         billingClient = null
+        Log.d(TAG, "BillingClient destroyed")
     }
 }
 

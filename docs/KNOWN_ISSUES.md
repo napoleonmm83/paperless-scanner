@@ -76,7 +76,102 @@ val taskId = response.string().trim().removeSurrounding("\"")
 
 ---
 
-### 5. Launcher Icons fehlen
+### 5. Widget Crash auf OnePlus Android 11
+
+**Problem:**
+```
+java.lang.IllegalArgumentException:
+List adapter activity trampoline invoked without specifying target intent.
+```
+
+**Betroffene Geräte:** OnePlus mit Android 11 (OxygenOS 11.x)
+
+**Stacktrace:**
+```
+at androidx.glance.appwidget.action.InvisibleActionTrampolineActivity
+at v5.f.e (Unknown Source)
+```
+
+**Ursache:**
+Glance Framework verwendet intern eine `InvisibleActionTrampolineActivity` um Widget-Klicks zu verarbeiten. Auf OnePlus Android 11 scheitert die Intent-Konstruktion durch OEM-spezifische Anpassungen.
+
+**Lösung (implementiert seit v1.4.70):**
+- `actionStartActivity()` ersetzt durch `ActionCallback`
+- Direkte `PendingIntent` Erstellung mit `FLAG_IMMUTABLE`
+- Umgeht Glance Trampoline-Activity komplett
+- Fallback auf direktes `context.startActivity()` bei Fehler
+
+**Code:**
+```kotlin
+class LaunchMainActivityCallback : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, ...) {
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        try {
+            pendingIntent.send()
+        } catch (e: Exception) {
+            context.startActivity(intent)  // Fallback
+        }
+    }
+}
+```
+
+**Monitoring:** Firebase Crashlytics trackt Device-Manufacturer, Model, Android-Version
+
+**Datei:** `app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt`
+
+**Referenzen:**
+- [Android 11 PendingIntent Mutability](https://developer.android.com/about/versions/12/behavior-changes-12#pending-intent-mutability)
+- [Glance ActionCallback API](https://developer.android.com/jetpack/androidx/releases/glance)
+
+---
+
+### 6. Billing NullPointerException in ProxyBillingActivity
+
+**Problem:**
+```
+java.lang.NullPointerException:
+Attempt to invoke virtual method 'android.content.IntentSender
+android.app.PendingIntent.getIntentSender()' on a null object reference
+at com.android.billingclient.api.ProxyBillingActivity.onCreate
+```
+
+**Ursache:**
+`launchBillingFlow()` wird aufgerufen bevor BillingClient verbunden ist → PendingIntent ist null → Crash
+
+**Lösung (implementiert seit v1.4.70):**
+- `isReady()` Check vor jedem `launchBillingFlow()`
+- Null-safe callbacks in allen Billing-Operationen
+- ProductDetails retry wenn Cache leer
+- PENDING purchase state handling
+- Graceful destroy() mit continuation cleanup
+
+**Code:**
+```kotlin
+// Check if BillingClient is ready
+if (billingClient?.isReady != true) {
+    return PurchaseResult.Error("Billing not ready")
+}
+
+// Only then launch flow
+billingClient.launchBillingFlow(activity, params)
+```
+
+**Edge Cases gefixt:**
+1. **PENDING purchases** - Langsame Zahlungsmethoden (Überweisung)
+2. **Null-safe destroy** - App destroyed während Purchase läuft
+3. **ProductDetails retry** - Automatisches Nachladen bei leerer Cache
+4. **Null-safe callbacks** - Alle Billing-Callbacks prüfen auf null
+
+**Monitoring:** Firebase Crashlytics trackt alle Billing-Operationen
+
+**Datei:** `app/src/main/java/com/paperless/scanner/data/billing/BillingManager.kt`
+
+---
+
+### 7. Launcher Icons fehlen
 
 **Problem:**
 ```

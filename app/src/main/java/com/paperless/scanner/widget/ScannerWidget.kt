@@ -3,8 +3,11 @@
 package com.paperless.scanner.widget
 
 import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -15,9 +18,11 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.action.actionStartActivity
+import androidx.glance.appwidget.action.ActionCallback
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.background
@@ -37,8 +42,76 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
+
+/**
+ * ActionCallback to launch MainActivity from widget.
+ *
+ * Uses ActionCallback instead of actionStartActivity() to avoid Glance's
+ * InvisibleActionTrampolineActivity which causes IllegalArgumentException
+ * on OnePlus Android 11 devices.
+ *
+ * Crash: "List adapter activity trampoline invoked without specifying target intent"
+ * Fix: Create PendingIntent with FLAG_IMMUTABLE directly, bypassing trampoline
+ */
+class LaunchMainActivityCallback : ActionCallback {
+    override suspend fun onAction(
+        context: Context,
+        glanceId: GlanceId,
+        parameters: ActionParameters
+    ) {
+        val crashlytics = FirebaseCrashlytics.getInstance()
+
+        // Log widget click for monitoring
+        crashlytics.log("Widget clicked - launching MainActivity")
+        crashlytics.setCustomKey("widget_launch_method", "ActionCallback")
+        crashlytics.setCustomKey("device_manufacturer", Build.MANUFACTURER)
+        crashlytics.setCustomKey("device_model", Build.MODEL)
+        crashlytics.setCustomKey("android_version", Build.VERSION.SDK_INT)
+
+        try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+
+            // Create PendingIntent with FLAG_IMMUTABLE (required for Android 11+)
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            Log.d("ScannerWidget", "Launching MainActivity via PendingIntent")
+            pendingIntent.send()
+
+            crashlytics.log("Widget launch successful via PendingIntent")
+
+        } catch (e: Exception) {
+            // Fallback: Direct activity launch if PendingIntent fails
+            Log.w("ScannerWidget", "PendingIntent failed, using direct startActivity", e)
+            crashlytics.recordException(e)
+            crashlytics.setCustomKey("widget_launch_fallback", true)
+
+            try {
+                val intent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                context.startActivity(intent)
+
+                crashlytics.log("Widget launch successful via fallback startActivity")
+
+            } catch (fallbackException: Exception) {
+                // Both methods failed - log for debugging
+                Log.e("ScannerWidget", "Widget launch completely failed", fallbackException)
+                crashlytics.recordException(fallbackException)
+                crashlytics.setCustomKey("widget_launch_failed", true)
+            }
+        }
+    }
+}
 
 class ScannerWidget : GlanceAppWidget() {
 
@@ -56,18 +129,13 @@ class ScannerWidget : GlanceAppWidget() {
 
     @Composable
     private fun ScannerWidgetContent() {
-        val context = LocalContext.current
         val pendingCount = currentState(key = PENDING_COUNT_KEY) ?: 0
-
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
 
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
                 .background(GlanceTheme.colors.primaryContainer)
-                .clickable(actionStartActivity(intent)),
+                .clickable(actionRunCallback<LaunchMainActivityCallback>()),
             contentAlignment = Alignment.Center
         ) {
             Column(

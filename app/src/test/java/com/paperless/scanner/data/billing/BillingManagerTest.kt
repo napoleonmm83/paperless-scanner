@@ -66,7 +66,42 @@ class BillingManagerTest {
             capturedBillingClientStateListener = firstArg()
         }
 
+        // Mock isReady to return true by default (tests can override)
+        every { mockBillingClient.isReady } returns true
+
         billingManager = BillingManager(context)
+    }
+
+    // Helper to setup billing client mocks for purchase flow tests
+    private fun setupBillingClientMocks() {
+        // Mock queryProductDetailsAsync to prevent hanging on retry
+        // Using coEvery for suspend-like async callbacks
+        every {
+            mockBillingClient.queryProductDetailsAsync(
+                ofType<QueryProductDetailsParams>(),
+                ofType<com.android.billingclient.api.ProductDetailsResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<com.android.billingclient.api.ProductDetailsResponseListener>()
+            val mockResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+            }
+            callback.onProductDetailsResponse(mockResult, emptyList())
+        }
+
+        // Mock queryPurchasesAsync to prevent hanging
+        every {
+            mockBillingClient.queryPurchasesAsync(
+                ofType<QueryPurchasesParams>(),
+                ofType<com.android.billingclient.api.PurchasesResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<com.android.billingclient.api.PurchasesResponseListener>()
+            val mockResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+            }
+            callback.onQueryPurchasesResponse(mockResult, emptyList())
+        }
     }
 
     // ==================== Initialization Tests ====================
@@ -124,6 +159,7 @@ class BillingManagerTest {
     @Test
     fun `launchPurchaseFlow returns Error when product not found`() = runTest {
         billingManager.initialize()
+        setupBillingClientMocks()
 
         val result = billingManager.launchPurchaseFlow(mockActivity, "unknown_product")
 
@@ -134,6 +170,7 @@ class BillingManagerTest {
     @Test
     fun `launchPurchaseFlow returns Error when no offer token`() = runTest {
         billingManager.initialize()
+        setupBillingClientMocks()
 
         // Setup product without offer token
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -154,6 +191,7 @@ class BillingManagerTest {
     @Test
     fun `launchPurchaseFlow returns Success when purchase completes`() = runTest {
         billingManager.initialize()
+        setupBillingClientMocks()
 
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
@@ -194,6 +232,7 @@ class BillingManagerTest {
     @Test
     fun `launchPurchaseFlow returns Cancelled when user cancels`() = runTest {
         billingManager.initialize()
+        setupBillingClientMocks()
 
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
