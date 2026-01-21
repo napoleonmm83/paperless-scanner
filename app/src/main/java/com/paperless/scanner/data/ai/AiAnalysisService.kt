@@ -36,7 +36,7 @@ class AiAnalysisService @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AiAnalysisService"
-        private const val MODEL_NAME = "gemini-2.0-flash"
+        private const val MODEL_NAME = "gemini-2.5-flash-lite"
         private const val TEMPERATURE = 0.3f
         private const val MAX_OUTPUT_TOKENS = 1024
         private const val TIMEOUT_MS = 30_000L
