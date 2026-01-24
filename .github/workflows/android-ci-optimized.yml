@@ -1,0 +1,362 @@
+name: Android CI (Optimized)
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - '*.gradle'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+      - 'version.properties'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/workflows/**'
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  check-runner:
+    name: Check Runner Availability
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.check.outputs.runner }}
+      is-self-hosted: ${{ steps.check.outputs.is-self-hosted }}
+    steps:
+      - name: Check for self-hosted runner
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.RUNNER_CHECK_TOKEN || github.token }}
+        run: |
+          RESPONSE=$(gh api repos/${{ github.repository }}/actions/runners 2>&1) || RESPONSE='{"runners":[]}'
+          echo "API Response: $RESPONSE"
+
+          WINDOWS_ONLINE=$(echo "$RESPONSE" | jq -r '.runners // [] | map(select(.status == "online" and (.labels | map(.name) | contains(["paperlesswin"])))) | length' 2>/dev/null || echo "0")
+          echo "Windows runners online: $WINDOWS_ONLINE"
+
+          if [ "$WINDOWS_ONLINE" -gt 0 ]; then
+            echo "✅ Windows runner available - using it"
+            echo 'runner=["self-hosted", "paperlesswin"]' >> $GITHUB_OUTPUT
+            echo 'is-self-hosted=true' >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ No Windows runner available - falling back to ubuntu-latest"
+            echo 'runner=["ubuntu-latest"]' >> $GITHUB_OUTPUT
+            echo 'is-self-hosted=false' >> $GITHUB_OUTPUT
+          fi
+
+  # ========== PARALLEL JOBS (Build + Lint + Validate) ==========
+  # These jobs run in parallel for maximum speed
+
+  build:
+    name: Build & Test
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Android Environment
+        uses: ./.github/actions/setup-android
+        with:
+          runner-is-self-hosted: ${{ needs.check-runner.outputs.is-self-hosted }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      # ✅ OPTIMIZATION: Restore Gradle build cache from previous runs
+      - name: Restore Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # ✅ OPTIMIZATION: Combined Gradle tasks (test + build in one process)
+      - name: Run tests and build release (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat testReleaseUnitTest assembleRelease --no-daemon --parallel --build-cache
+        shell: cmd
+
+      - name: Run tests and build release (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew testReleaseUnitTest assembleRelease --parallel --build-cache
+        shell: bash
+
+      # ✅ OPTIMIZATION: Share build outputs with other jobs via cache
+      - name: Cache build outputs
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            app/build/intermediates
+            app/build/outputs
+          key: build-outputs-${{ github.sha }}
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: app/build/reports/tests/
+          retention-days: 7
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
+
+      - name: Show runner info
+        run: |
+          echo "## Build Performance" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runner:** ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OS:** ${{ runner.os }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Self-hosted:** ${{ needs.check-runner.outputs.is-self-hosted }}" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
+  lint:
+    name: Lint Check
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Android Environment
+        uses: ./.github/actions/setup-android
+        with:
+          runner-is-self-hosted: ${{ needs.check-runner.outputs.is-self-hosted }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      - name: Restore Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # ✅ OPTIMIZATION: Reuse build outputs from build job if available
+      - name: Restore build outputs
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            app/build/intermediates
+            app/build/outputs
+          key: build-outputs-${{ github.sha }}
+
+      - name: Run lint (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat lintRelease --no-daemon --build-cache
+        shell: cmd
+
+      - name: Run lint (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew lintRelease --build-cache
+        shell: bash
+
+      - name: Upload lint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-results
+          path: app/build/reports/lint-results-release.html
+          retention-days: 7
+
+  validate:
+    name: Validation Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Grant execute permission for scripts
+        run: chmod +x scripts/*.sh
+
+      - name: Check translation completeness
+        run: ./scripts/check-translations.sh
+
+      - name: Check for hardcoded strings
+        run: |
+          echo "Checking for potential hardcoded strings..."
+          HARDCODED=$(grep -rn 'text = "' app/src/main/java --include="*.kt" | grep -v "// OK" | grep -v "TODO" | head -20 || true)
+          if [ -n "$HARDCODED" ]; then
+            echo "⚠️ Potential hardcoded strings found (review manually):"
+            echo "$HARDCODED"
+            echo ""
+            echo "Consider using stringResource(R.string.xxx) instead."
+          else
+            echo "✓ No obvious hardcoded strings found"
+          fi
+
+      - name: Validate XML resources
+        run: |
+          echo "Validating XML resources..."
+          DUPLICATES=$(grep '<string name="' app/src/main/res/values/strings.xml | sed 's/.*name="\([^"]*\)".*/\1/' | sort | uniq -d)
+          if [ -n "$DUPLICATES" ]; then
+            echo "❌ Duplicate string IDs found:"
+            echo "$DUPLICATES"
+            exit 1
+          else
+            echo "✓ No duplicate string IDs"
+          fi
+
+          EMPTY=$(grep '<string name="[^"]*"></string>' app/src/main/res/values/strings.xml || true)
+          if [ -n "$EMPTY" ]; then
+            echo "⚠️ Empty strings found:"
+            echo "$EMPTY"
+          else
+            echo "✓ No empty strings"
+          fi
+
+  # ========== CONDITIONAL JOBS (only on manual trigger or schedule) ==========
+
+  code-quality:
+    name: Code Quality (Detekt + KtLint)
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
+    # ✅ OPTIMIZATION: Only run code quality on manual trigger or schedule
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Android Environment
+        uses: ./.github/actions/setup-android
+        with:
+          runner-is-self-hosted: ${{ needs.check-runner.outputs.is-self-hosted }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      - name: Restore Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # ✅ OPTIMIZATION: Run Detekt and KtLint in parallel
+      - name: Run code quality checks (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat detekt ktlintCheck --continue --no-daemon --parallel || exit 0
+        shell: cmd
+
+      - name: Run code quality checks (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew detekt ktlintCheck --continue --parallel || true
+        shell: bash
+
+      - name: Upload Detekt results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detekt-results
+          path: app/build/reports/detekt/
+          retention-days: 7
+
+      - name: Upload KtLint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ktlint-results
+          path: app/build/reports/ktlint/
+          retention-days: 7
+
+  screenshot-tests:
+    name: Screenshot Tests (Paparazzi)
+    needs: check-runner
+    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Android Environment
+        uses: ./.github/actions/setup-android
+        with:
+          runner-is-self-hosted: ${{ needs.check-runner.outputs.is-self-hosted }}
+          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
+
+      - name: Restore Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Run Paparazzi screenshot tests
+        run: ./gradlew verifyPaparazziDebug --continue || true
+        shell: bash
+
+      - name: Upload screenshot test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshot-test-results
+          path: app/build/reports/paparazzi/
+          retention-days: 14
+
+  dependency-updates:
+    name: Dependency Updates Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Check for dependency updates
+        run: ./gradlew dependencyUpdates
+
+      - name: Upload dependency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-updates-report
+          path: build/reports/dependencyUpdates/
+          retention-days: 30

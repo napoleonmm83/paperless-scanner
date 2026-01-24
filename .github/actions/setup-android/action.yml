@@ -1,0 +1,85 @@
+name: 'Setup Android Build Environment'
+description: 'Sets up JDK, Android SDK, and Google Services for Android builds'
+
+inputs:
+  runner-is-self-hosted:
+    description: 'Whether runner is self-hosted'
+    required: true
+  google-services-json:
+    description: 'Base64 encoded google-services.json'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Setup Android SDK path (self-hosted macOS)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os == 'macOS'
+      shell: bash
+      run: |
+        echo "Setting up Android SDK for self-hosted macOS runner..."
+        ANDROID_SDK="$HOME/Library/Android/sdk"
+        if [ -d "$ANDROID_SDK" ]; then
+          echo "ANDROID_HOME=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $GITHUB_ENV
+          echo "$ANDROID_SDK/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "✅ Android SDK found at: $ANDROID_SDK"
+        else
+          echo "❌ Android SDK not found at: $ANDROID_SDK"
+          exit 1
+        fi
+
+    - name: Setup Android SDK path (self-hosted Windows)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os == 'Windows'
+      shell: powershell
+      run: |
+        echo "Setting up Android SDK for self-hosted Windows runner..."
+        $ANDROID_SDK = "$env:LOCALAPPDATA\Android\Sdk"
+        if (Test-Path $ANDROID_SDK) {
+          echo "ANDROID_HOME=$ANDROID_SDK" >> $env:GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> $env:GITHUB_ENV
+          echo "$ANDROID_SDK\platform-tools" >> $env:GITHUB_PATH
+          echo "$ANDROID_SDK\cmdline-tools\latest\bin" >> $env:GITHUB_PATH
+          echo "✅ Android SDK found at: $ANDROID_SDK"
+        } else {
+          echo "❌ Android SDK not found at: $ANDROID_SDK"
+          exit 1
+        }
+
+    - name: Grant execute permission for gradlew
+      if: runner.os != 'Windows'
+      shell: bash
+      run: chmod +x gradlew
+
+    - name: Setup Google Services JSON (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.google-services-json }}" ]; then
+          echo "${{ inputs.google-services-json }}" | base64 --decode > app/google-services.json
+          echo "google-services.json decoded from secret"
+        else
+          # Create dummy for debug builds
+          echo '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' > app/google-services.json
+          echo "::warning::Using dummy google-services.json for CI"
+        fi
+
+    - name: Setup Google Services JSON (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        if ("${{ inputs.google-services-json }}") {
+          [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${{ inputs.google-services-json }}")) | Out-File -FilePath app/google-services.json -Encoding UTF8
+          Write-Host "google-services.json decoded from secret"
+        } else {
+          '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
+          Write-Host "::warning::Using dummy google-services.json for CI"
+        }
