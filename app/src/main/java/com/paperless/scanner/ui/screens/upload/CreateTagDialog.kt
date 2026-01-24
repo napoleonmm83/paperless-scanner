@@ -139,16 +139,14 @@ private fun ColorCircle(
             .size(36.dp)
             .clip(CircleShape)
             .background(parsedColor)
-            .then(
-                if (isSelected) {
-                    Modifier.border(
-                        width = 3.dp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        shape = CircleShape
-                    )
+            .border(
+                width = if (isSelected) 3.dp else 1.dp,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.onSurface
                 } else {
-                    Modifier
-                }
+                    MaterialTheme.colorScheme.outline
+                },
+                shape = CircleShape
             )
             .clickable(enabled = enabled, onClick = onClick)
     )
