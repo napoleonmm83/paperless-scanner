@@ -105,6 +105,37 @@ class UploadWorker @AssistedInject constructor(
                 ?: "Dokument $currentUpload"
 
             Log.d(TAG, "Processing upload $currentUpload/$totalUploads: ${pendingUpload.id}")
+
+            // Validate that files exist before attempting upload
+            if (pendingUpload.isMultiPage) {
+                val uris = uploadQueueRepository.getAllUris(pendingUpload)
+                val missingFiles = uris.filterNot { FileUtils.fileExists(it) }
+                if (missingFiles.isNotEmpty()) {
+                    Log.e(TAG, "Upload ${pendingUpload.id}: ${missingFiles.size}/${uris.size} files missing!")
+                    missingFiles.forEach { uri ->
+                        Log.e(TAG, "  Missing file: $uri")
+                    }
+                    uploadQueueRepository.markAsFailed(
+                        pendingUpload.id,
+                        "Dateien nicht gefunden (${missingFiles.size}/${uris.size} fehlen)"
+                    )
+                    failCount++
+                    continue
+                }
+                Log.d(TAG, "Upload ${pendingUpload.id}: All ${uris.size} files verified (${uris.sumOf { FileUtils.getFileSize(it) }} bytes total)")
+            } else {
+                val uri = Uri.parse(pendingUpload.uri)
+                if (!FileUtils.fileExists(uri)) {
+                    val fileSize = FileUtils.getFileSize(uri)
+                    Log.e(TAG, "Upload ${pendingUpload.id}: File not found or not readable: $uri (size: $fileSize bytes)")
+                    uploadQueueRepository.markAsFailed(pendingUpload.id, "Datei nicht gefunden: ${uri.lastPathSegment}")
+                    failCount++
+                    continue
+                }
+                val fileSize = FileUtils.getFileSize(uri)
+                Log.d(TAG, "Upload ${pendingUpload.id}: File verified: $uri ($fileSize bytes)")
+            }
+
             uploadQueueRepository.markAsUploading(pendingUpload.id)
 
             // Reset throttle state für neues Dokument

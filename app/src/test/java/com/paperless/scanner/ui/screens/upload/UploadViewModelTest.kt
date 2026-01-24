@@ -103,6 +103,8 @@ class UploadViewModelTest {
         every { FileUtils.isLocalFileUri(any()) } returns true
         every { FileUtils.copyToLocalStorage(any(), any()) } answers { secondArg() }
         every { FileUtils.deleteLocalCopy(any()) } returns true
+        every { FileUtils.fileExists(any()) } returns true
+        every { FileUtils.getFileSize(any()) } returns 1024L  // 1KB default
 
         // Mock StorageUtil to prevent Android framework calls in unit tests
         mockkObject(StorageUtil)

@@ -11,16 +11,19 @@ import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.util.FileUtils
 import com.google.common.util.concurrent.ListenableFuture
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.Runs
 import io.mockk.slot
 import io.mockk.spyk
+import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -71,11 +74,17 @@ class UploadWorkerTest {
         every { Log.i(any(), any()) } returns 0
         every { Log.w(any<String>(), any<String>()) } returns 0
         every { Log.v(any(), any()) } returns 0
+
+        // Mock FileUtils object for file existence checks
+        mockkObject(FileUtils)
+        every { FileUtils.fileExists(any()) } returns true
+        every { FileUtils.getFileSize(any()) } returns 1024L  // 1KB default
     }
 
     @After
     fun tearDown() {
         unmockkStatic(Log::class)
+        unmockkObject(FileUtils)
     }
 
     private fun createWorker(): UploadWorker {

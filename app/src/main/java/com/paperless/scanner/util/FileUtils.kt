@@ -23,7 +23,7 @@ import java.util.UUID
 object FileUtils {
 
     private const val TAG = "FileUtils"
-    private const val UPLOAD_CACHE_DIR = "pending_uploads"
+    private const val UPLOAD_PERSISTENT_DIR = "pending_uploads" // Changed from cache to persistent storage
 
     /**
      * Copies a content URI to app-local cache storage.
@@ -40,16 +40,17 @@ object FileUtils {
      */
     fun copyToLocalStorage(context: Context, sourceUri: Uri): Uri? {
         return try {
-            // Create upload cache directory if needed
-            val cacheDir = File(context.cacheDir, UPLOAD_CACHE_DIR)
-            if (!cacheDir.exists()) {
-                cacheDir.mkdirs()
+            // Create persistent upload directory if needed (using filesDir, not cacheDir)
+            val persistentDir = File(context.filesDir, UPLOAD_PERSISTENT_DIR)
+            if (!persistentDir.exists()) {
+                persistentDir.mkdirs()
+                Log.d(TAG, "Created persistent upload directory: ${persistentDir.absolutePath}")
             }
 
             // Generate unique filename with original extension
             val extension = getFileExtension(context, sourceUri)
             val uniqueName = "${UUID.randomUUID()}.$extension"
-            val destFile = File(cacheDir, uniqueName)
+            val destFile = File(persistentDir, uniqueName)
 
             // Copy file content
             context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
@@ -94,7 +95,7 @@ object FileUtils {
             if (uri.scheme == "file") {
                 val file = File(uri.path ?: return false)
                 // Safety check: only delete files in our cache directory
-                if (file.exists() && file.absolutePath.contains(UPLOAD_CACHE_DIR)) {
+                if (file.exists() && file.absolutePath.contains(UPLOAD_PERSISTENT_DIR)) {
                     val deleted = file.delete()
                     Log.d(TAG, "Deleted local copy: ${file.absolutePath}, success=$deleted")
                     deleted
@@ -114,20 +115,20 @@ object FileUtils {
     }
 
     /**
-     * Deletes all files in the upload cache directory.
+     * Deletes all files in the persistent upload directory.
      * Use with caution - only call when no uploads are pending.
      */
     fun clearUploadCache(context: Context) {
         try {
-            val cacheDir = File(context.cacheDir, UPLOAD_CACHE_DIR)
-            if (cacheDir.exists()) {
-                cacheDir.listFiles()?.forEach { file ->
+            val persistentDir = File(context.filesDir, UPLOAD_PERSISTENT_DIR)
+            if (persistentDir.exists()) {
+                val deletedCount = persistentDir.listFiles()?.count { file ->
                     file.delete()
-                }
-                Log.d(TAG, "Cleared upload cache directory")
+                } ?: 0
+                Log.d(TAG, "Cleared upload directory: deleted $deletedCount files from ${persistentDir.absolutePath}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear upload cache", e)
+            Log.e(TAG, "Failed to clear upload directory", e)
         }
     }
 
@@ -166,6 +167,51 @@ object FileUtils {
      */
     fun isLocalFileUri(uri: Uri): Boolean {
         return uri.scheme == "file"
+    }
+
+    /**
+     * Checks if a file URI actually exists and is readable.
+     *
+     * @param uri File URI to check (must be file:// scheme)
+     * @return true if file exists and is readable, false otherwise
+     */
+    fun fileExists(uri: Uri): Boolean {
+        if (uri.scheme != "file") {
+            Log.w(TAG, "fileExists() called with non-file URI: $uri")
+            return false
+        }
+
+        return try {
+            val file = File(uri.path ?: return false)
+            val exists = file.exists() && file.canRead()
+            if (!exists) {
+                Log.w(TAG, "File does not exist or not readable: ${uri.path}")
+            }
+            exists
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking file existence: $uri", e)
+            false
+        }
+    }
+
+    /**
+     * Gets file size in bytes for a URI.
+     *
+     * @param uri File URI (file:// scheme)
+     * @return File size in bytes, or 0 if file doesn't exist
+     */
+    fun getFileSize(uri: Uri): Long {
+        if (uri.scheme != "file") {
+            return 0
+        }
+
+        return try {
+            val file = File(uri.path ?: return 0)
+            if (file.exists()) file.length() else 0
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting file size: $uri", e)
+            0
+        }
     }
 
     /**

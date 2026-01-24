@@ -345,8 +345,10 @@ class UploadViewModel @Inject constructor(
                 Log.d(TAG, "Server not reachable - queueing upload for later sync")
                 // Copy file to local storage to ensure WorkManager can access it later
                 val localUri = if (FileUtils.isLocalFileUri(uri)) {
+                    Log.d(TAG, "URI is already local file: $uri")
                     uri
                 } else {
+                    Log.d(TAG, "Copying content URI to persistent storage: $uri")
                     FileUtils.copyToLocalStorage(context, uri) ?: run {
                         Log.e(TAG, "Failed to copy file for offline queue: $uri")
                         _uiState.update { UploadUiState.Error(
@@ -357,13 +359,29 @@ class UploadViewModel @Inject constructor(
                         return@launch
                     }
                 }
-                uploadQueueRepository.queueUpload(
+
+                // Verify file exists before queueing
+                if (!FileUtils.fileExists(localUri)) {
+                    Log.e(TAG, "File validation failed after copy: $localUri")
+                    _uiState.update { UploadUiState.Error(
+                        userMessage = "Datei konnte nicht gespeichert werden",
+                        technicalDetails = "File not accessible: ${localUri.lastPathSegment}",
+                        isRetryable = false
+                    ) }
+                    return@launch
+                }
+
+                val fileSize = FileUtils.getFileSize(localUri)
+                Log.d(TAG, "Queueing upload: $localUri ($fileSize bytes)")
+
+                val queueId = uploadQueueRepository.queueUpload(
                     uri = localUri,
                     title = title,
                     tagIds = tagIds,
                     documentTypeId = documentTypeId,
                     correspondentId = correspondentId
                 )
+                Log.d(TAG, "Upload queued with ID: $queueId")
                 lastUploadParams = null
                 analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
                 _uiState.update { UploadUiState.Queued }
@@ -435,17 +453,24 @@ class UploadViewModel @Inject constructor(
 
             // Check server availability - if offline or unreachable, queue the upload
             if (!serverHealthMonitor.isServerReachable.value) {
-                Log.d(TAG, "Server not reachable - queueing multi-page upload for later sync")
+                Log.d(TAG, "Server not reachable - queueing multi-page upload (${uris.size} pages) for later sync")
                 // Copy files to local storage to ensure WorkManager can access them later
-                val localUris = uris.mapNotNull { uri ->
+                val localUris = uris.mapIndexedNotNull { index, uri ->
                     if (FileUtils.isLocalFileUri(uri)) {
+                        Log.d(TAG, "  Page ${index + 1}: Already local file: $uri")
                         uri
                     } else {
-                        FileUtils.copyToLocalStorage(context, uri)
+                        Log.d(TAG, "  Page ${index + 1}: Copying content URI to persistent storage: $uri")
+                        val copiedUri = FileUtils.copyToLocalStorage(context, uri)
+                        if (copiedUri == null) {
+                            Log.e(TAG, "  Page ${index + 1}: Failed to copy: $uri")
+                        }
+                        copiedUri
                     }
                 }
+
                 if (localUris.isEmpty()) {
-                    Log.e(TAG, "Failed to copy any files for offline queue")
+                    Log.e(TAG, "Failed to copy any files for offline queue (0/${uris.size} succeeded)")
                     _uiState.update { UploadUiState.Error(
                         userMessage = "Fehler beim Speichern für Offline-Warteschlange",
                         technicalDetails = context.getString(R.string.error_queue_add),
@@ -453,13 +478,37 @@ class UploadViewModel @Inject constructor(
                     ) }
                     return@launch
                 }
-                uploadQueueRepository.queueMultiPageUpload(
+
+                if (localUris.size < uris.size) {
+                    Log.w(TAG, "Only ${localUris.size}/${uris.size} files copied successfully for offline queue")
+                }
+
+                // Verify all files exist before queueing
+                val missingFiles = localUris.filterNot { FileUtils.fileExists(it) }
+                if (missingFiles.isNotEmpty()) {
+                    Log.e(TAG, "File validation failed: ${missingFiles.size}/${localUris.size} files not accessible")
+                    missingFiles.forEach { uri ->
+                        Log.e(TAG, "  Missing: $uri")
+                    }
+                    _uiState.update { UploadUiState.Error(
+                        userMessage = "Einige Dateien konnten nicht gespeichert werden",
+                        technicalDetails = "${missingFiles.size}/${localUris.size} files not accessible",
+                        isRetryable = false
+                    ) }
+                    return@launch
+                }
+
+                val totalSize = localUris.sumOf { FileUtils.getFileSize(it) }
+                Log.d(TAG, "Queueing multi-page upload: ${localUris.size} files ($totalSize bytes total)")
+
+                val queueId = uploadQueueRepository.queueMultiPageUpload(
                     uris = localUris,
                     title = title,
                     tagIds = tagIds,
                     documentTypeId = documentTypeId,
                     correspondentId = correspondentId
                 )
+                Log.d(TAG, "Multi-page upload queued with ID: $queueId")
                 lastUploadParams = null
                 analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
                 _uiState.update { UploadUiState.Queued }
