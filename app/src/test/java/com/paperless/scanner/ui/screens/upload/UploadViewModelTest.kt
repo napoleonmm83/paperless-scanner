@@ -9,19 +9,15 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
-import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
-import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.FileUtils
-import com.paperless.scanner.util.NetworkUtils
 import com.paperless.scanner.utils.StorageUtil
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -51,11 +47,13 @@ import org.junit.Ignore
 import org.junit.Test
 
 /**
- * BEST PRACTICE: Updated tests for reactive Flow-based UploadViewModel.
+ * BEST PRACTICE: Updated tests for Queue-Only UploadViewModel.
  *
  * Key Changes:
- * - Removed obsolete load*() method tests (now using reactive Flows)
- * - Updated network checks to use NetworkMonitor instead of NetworkUtils
+ * - All uploads go through UploadQueueRepository (Queue-Only Flow)
+ * - Removed direct upload tests (deprecated Success, Uploading, Retrying states)
+ * - Tests now verify queue operations instead of direct DocumentRepository calls
+ * - Manual retry logic removed (WorkManager handles automatic retry)
  * - Mocking reactive Flows (observeTags, observeDocumentTypes, observeCorrespondents)
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -63,19 +61,16 @@ class UploadViewModelTest {
 
     private lateinit var context: Context
     private lateinit var viewModel: UploadViewModel
-    private lateinit var documentRepository: DocumentRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
+    private lateinit var uploadWorkManager: com.paperless.scanner.worker.UploadWorkManager
     private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var networkUtils: NetworkUtils
     private lateinit var analyticsService: AnalyticsService
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var premiumFeatureManager: PremiumFeatureManager
-    private lateinit var paperlessGptRepository: PaperlessGptRepository
-    private lateinit var taskRepository: TaskRepository
     private lateinit var tokenManager: TokenManager
     private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
     private lateinit var savedStateHandle: androidx.lifecycle.SavedStateHandle
@@ -118,19 +113,16 @@ class UploadViewModelTest {
         every { StorageUtil.validateFileSize(any(), any()) } returns Result.success(1000000L)  // 1MB
 
         context = mockk(relaxed = true)
-        documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
+        uploadWorkManager = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
-        networkUtils = mockk()
         analyticsService = mockk(relaxed = true)
         suggestionOrchestrator = mockk(relaxed = true)
         aiUsageRepository = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
-        paperlessGptRepository = mockk(relaxed = true)
-        taskRepository = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
 
@@ -148,26 +140,24 @@ class UploadViewModelTest {
         // Mock ServerHealthMonitor isServerReachable StateFlow
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
 
-        every { networkMonitor.checkOnlineStatus() } returns true
+        // Mock NetworkMonitor isOnline StateFlow
+        every { networkMonitor.isOnline } returns MutableStateFlow(true)
 
         viewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
     }
@@ -193,21 +183,18 @@ class UploadViewModelTest {
         val newViewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -232,21 +219,18 @@ class UploadViewModelTest {
         val newViewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -264,8 +248,19 @@ class UploadViewModelTest {
     @Test
     fun `uploadDocument when offline queues upload`() = runTest {
         val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns false
+        every { networkMonitor.isOnline } returns MutableStateFlow(false)
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
+
+        // Mock queueUpload to return upload ID
+        coEvery {
+            uploadQueueRepository.queueUpload(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any()
+            )
+        } returns 1L
 
         viewModel.uiState.test {
             assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
@@ -273,6 +268,7 @@ class UploadViewModelTest {
             viewModel.uploadDocument(uri = mockUri, title = "Test")
             advanceUntilIdle()
 
+            assertEquals(UploadUiState.Queuing, awaitItem())
             assertEquals(UploadUiState.Queued, awaitItem())
         }
 
@@ -288,70 +284,80 @@ class UploadViewModelTest {
     }
 
     @Test
-    fun `uploadDocument success updates state to Success`() = runTest {
+    fun `uploadDocument success queues upload and updates state to Queued`() = runTest {
         val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadDocument(
+            uploadQueueRepository.queueUpload(
                 uri = any(),
                 title = any(),
                 tagIds = any(),
                 documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+                correspondentId = any()
             )
-        } returns Result.success("task-123")
-
-        viewModel.uploadDocument(uri = mockUri, title = "Test Document")
-        advanceUntilIdle()
+        } returns 1L
 
         viewModel.uiState.test {
-            val state = awaitItem()
-            assertTrue(state is UploadUiState.Success)
-            assertEquals("task-123", (state as UploadUiState.Success).taskId)
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
+
+            viewModel.uploadDocument(uri = mockUri, title = "Test Document")
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queuing, awaitItem())
+            assertEquals(UploadUiState.Queued, awaitItem())
+        }
+
+        coVerify {
+            uploadQueueRepository.queueUpload(
+                uri = mockUri,
+                title = "Test Document",
+                tagIds = emptyList(),
+                documentTypeId = null,
+                correspondentId = null
+            )
         }
     }
 
     @Test
-    fun `uploadDocument failure updates state to Error`() = runTest {
+    fun `uploadDocument queue failure updates state to Error`() = runTest {
         val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadDocument(
+            uploadQueueRepository.queueUpload(
                 uri = any(),
                 title = any(),
                 tagIds = any(),
                 documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+                correspondentId = any()
             )
-        } returns Result.failure(Exception("Server error"))
-
-        viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
+        } throws Exception("Nicht genug Speicherplatz")
 
         viewModel.uiState.test {
-            val state = awaitItem()
-            assertTrue(state is UploadUiState.Error)
-            assertEquals("Server error", (state as UploadUiState.Error).userMessage)
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
+
+            viewModel.uploadDocument(uri = mockUri)
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queuing, awaitItem())
+            val errorState = awaitItem()
+            assertTrue(errorState is UploadUiState.Error)
+            // ViewModel uses generic userMessage, original exception is in technicalDetails
+            assertEquals("Fehler beim Hinzufügen zur Warteschlange", (errorState as UploadUiState.Error).userMessage)
+            assertEquals("Nicht genug Speicherplatz", (errorState as UploadUiState.Error).technicalDetails)
         }
     }
 
     @Test
-    fun `uploadDocument calls repository with correct parameters`() = runTest {
+    fun `uploadDocument calls queue repository with correct parameters`() = runTest {
         val mockUri = mockk<Uri>()
         val tagIds = listOf(1, 2, 3)
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadDocument(
+            uploadQueueRepository.queueUpload(
                 uri = any(),
                 title = any(),
                 tagIds = any(),
                 documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+                correspondentId = any()
             )
-        } returns Result.success("task-123")
+        } returns 1L
 
         viewModel.uploadDocument(
             uri = mockUri,
@@ -363,13 +369,12 @@ class UploadViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            documentRepository.uploadDocument(
+            uploadQueueRepository.queueUpload(
                 uri = mockUri,
                 title = "My Document",
                 tagIds = tagIds,
                 documentTypeId = 5,
-                correspondentId = 10,
-                onProgress = any()
+                correspondentId = 10
             )
         }
     }
@@ -379,8 +384,19 @@ class UploadViewModelTest {
     @Test
     fun `uploadMultiPageDocument when offline queues upload`() = runTest {
         val mockUris = listOf(mockk<Uri>(), mockk<Uri>())
-        every { networkMonitor.checkOnlineStatus() } returns false
+        every { networkMonitor.isOnline } returns MutableStateFlow(false)
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
+
+        // Mock queueMultiPageUpload to return upload ID
+        coEvery {
+            uploadQueueRepository.queueMultiPageUpload(
+                uris = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any()
+            )
+        } returns 1L
 
         viewModel.uiState.test {
             assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
@@ -388,6 +404,7 @@ class UploadViewModelTest {
             viewModel.uploadMultiPageDocument(uris = mockUris)
             advanceUntilIdle()
 
+            assertEquals(UploadUiState.Queuing, awaitItem())
             assertEquals(UploadUiState.Queued, awaitItem())
         }
 
@@ -403,152 +420,90 @@ class UploadViewModelTest {
     }
 
     @Test
-    fun `uploadMultiPageDocument success updates state to Success`() = runTest {
+    fun `uploadMultiPageDocument success queues upload and updates state to Queued`() = runTest {
         val mockUris = listOf(mockk<Uri>(), mockk<Uri>())
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadMultiPageDocument(
+            uploadQueueRepository.queueMultiPageUpload(
                 uris = any(),
                 title = any(),
                 tagIds = any(),
                 documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+                correspondentId = any()
             )
-        } returns Result.success("task-456")
-
-        viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        } returns 1L
 
         viewModel.uiState.test {
-            val state = awaitItem()
-            assertTrue(state is UploadUiState.Success)
-            assertEquals("task-456", (state as UploadUiState.Success).taskId)
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
+
+            viewModel.uploadMultiPageDocument(uris = mockUris)
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queuing, awaitItem())
+            assertEquals(UploadUiState.Queued, awaitItem())
+        }
+
+        coVerify {
+            uploadQueueRepository.queueMultiPageUpload(
+                uris = mockUris,
+                title = null,
+                tagIds = emptyList(),
+                documentTypeId = null,
+                correspondentId = null
+            )
         }
     }
 
     @Test
-    fun `uploadMultiPageDocument failure updates state to Error`() = runTest {
+    fun `uploadMultiPageDocument queue failure updates state to Error`() = runTest {
         val mockUris = listOf(mockk<Uri>(), mockk<Uri>())
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadMultiPageDocument(
+            uploadQueueRepository.queueMultiPageUpload(
                 uris = any(),
                 title = any(),
                 tagIds = any(),
                 documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+                correspondentId = any()
             )
-        } returns Result.failure(Exception("PDF conversion failed"))
-
-        viewModel.uploadMultiPageDocument(uris = mockUris)
-        advanceUntilIdle()
+        } throws Exception("Datei nicht gefunden")
 
         viewModel.uiState.test {
-            val state = awaitItem()
-            assertTrue(state is UploadUiState.Error)
-            assertEquals("PDF conversion failed", (state as UploadUiState.Error).userMessage)
+            assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
+
+            viewModel.uploadMultiPageDocument(uris = mockUris)
+            advanceUntilIdle()
+
+            assertEquals(UploadUiState.Queuing, awaitItem())
+            val errorState = awaitItem()
+            assertTrue(errorState is UploadUiState.Error)
+            // ViewModel uses generic userMessage, original exception is in technicalDetails
+            assertEquals("Fehler beim Hinzufügen zur Warteschlange", (errorState as UploadUiState.Error).userMessage)
+            assertEquals("Datei nicht gefunden", (errorState as UploadUiState.Error).technicalDetails)
         }
     }
 
     // ==================== Retry Tests ====================
-
-    @Test
-    fun `canRetry returns false initially`() {
-        assertFalse(viewModel.canRetry())
-    }
-
-    @Test
-    fun `canRetry returns true after failed upload stores params`() = runTest {
-        val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), any())
-        } returns Result.failure(Exception("Error"))
-
-        viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.canRetry())
-    }
-
-    @Test
-    fun `canRetry returns false after successful upload`() = runTest {
-        val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), any())
-        } returns Result.success("task-123")
-
-        viewModel.uploadDocument(uri = mockUri)
-        advanceUntilIdle()
-
-        assertFalse(viewModel.canRetry())
-    }
-
-    @Test
-    fun `retry triggers upload with stored parameters`() = runTest {
-        val mockUri = mockk<Uri>()
-        val tagIds = listOf(1, 2)
-
-        // First attempt fails
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), any())
-        } returns Result.failure(Exception("Error"))
-
-        viewModel.uploadDocument(
-            uri = mockUri,
-            title = "Test",
-            tagIds = tagIds,
-            documentTypeId = 3,
-            correspondentId = 4
-        )
-        advanceUntilIdle()
-
-        // Retry succeeds
-        coEvery {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), any())
-        } returns Result.success("task-retry")
-
-        viewModel.retry()
-        advanceUntilIdle()
-
-        coVerify(exactly = 2) {
-            documentRepository.uploadDocument(
-                uri = mockUri,
-                title = "Test",
-                tagIds = tagIds,
-                documentTypeId = 3,
-                correspondentId = 4,
-                onProgress = any()
-            )
-        }
-    }
+    // NOTE: Retry tests removed - Queue-Only flow uses WorkManager automatic retry
+    // Manual retry no longer needed/available in ViewModel
 
     // ==================== Reset State Tests ====================
 
     @Test
-    fun `resetState sets uiState to Idle and clears retry params`() = runTest {
+    fun `resetState sets uiState to Idle`() = runTest {
         val mockUri = mockk<Uri>()
-        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), any())
-        } returns Result.failure(Exception("Error"))
+            uploadQueueRepository.queueUpload(any(), any(), any(), any(), any())
+        } throws Exception("Error")
 
         viewModel.uploadDocument(uri = mockUri)
         advanceUntilIdle()
 
-        // Verify we're in error state and can retry
+        // Verify we're in error state
         assertTrue(viewModel.uiState.value is UploadUiState.Error)
-        assertTrue(viewModel.canRetry())
 
         // Reset
         viewModel.resetState()
 
         assertEquals(UploadUiState.Idle, viewModel.uiState.value)
-        assertFalse(viewModel.canRetry())
     }
 
     // ==================== Create Tag Tests ====================
@@ -579,21 +534,18 @@ class UploadViewModelTest {
         val testViewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -621,21 +573,18 @@ class UploadViewModelTest {
         val testViewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -661,21 +610,18 @@ class UploadViewModelTest {
         val testViewModel = UploadViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
-            networkUtils = networkUtils,
             uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            paperlessGptRepository = paperlessGptRepository,
-            taskRepository = taskRepository,
             tokenManager = tokenManager,
-            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

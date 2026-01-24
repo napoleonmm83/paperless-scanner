@@ -29,7 +29,6 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -37,14 +36,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import com.paperless.scanner.ui.components.CustomSnackbarHost
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -64,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
+import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
@@ -107,6 +105,8 @@ fun MultiPageUploadScreen(
     val analysisState by viewModel.analysisState.collectAsState()
     val suggestionSource by viewModel.suggestionSource.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
+    val isOnline by viewModel.isOnline.collectAsState()
+    val isServerReachable by viewModel.isServerReachable.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -126,19 +126,20 @@ fun MultiPageUploadScreen(
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
     // Dropdowns automatically populate and update when metadata changes.
 
-    val successMessage = stringResource(R.string.multipage_upload_success, activeDocumentUris.size)
-    val queuedMessage = stringResource(R.string.multipage_upload_queued)
+    // Status-specific queue message based on network and server status
+    val queuedMessage = when {
+        !isOnline -> stringResource(R.string.upload_queued_no_internet)
+        !isServerReachable -> stringResource(R.string.upload_queued_server_offline)
+        else -> stringResource(R.string.upload_queued_processing)
+    }
     val tagCreatedMessage = stringResource(R.string.multipage_upload_tag_created)
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
-            is UploadUiState.Success -> {
-                snackbarHostState.showSnackbar(successMessage)
-                onUploadSuccess()
-            }
             is UploadUiState.Queued -> {
-                snackbarHostState.showSnackbar(queuedMessage)
-                onUploadSuccess() // Navigate back
+                // Non-blocking snackbar: show message in background, navigate immediately
+                launch { snackbarHostState.showSnackbar(queuedMessage) }
+                onUploadSuccess() // Navigate back immediately
             }
             is UploadUiState.Error -> {
                 snackbarHostState.showSnackbar(state.userMessage)
@@ -176,22 +177,22 @@ fun MultiPageUploadScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.multipage_upload_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.multipage_upload_back)
-                        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.multipage_upload_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.multipage_upload_back)
+                            )
+                        }
                     }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
+                )
+            }
+        ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -446,28 +447,15 @@ fun MultiPageUploadScreen(
                             }
                         }
 
-                        // Retry button
-                        if (viewModel.canRetry()) {
-                            OutlinedButton(
-                                onClick = { viewModel.retry() },
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.cd_refresh),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(stringResource(R.string.multipage_upload_retry_button))
-                            }
-                        }
+                        // Note: Retry is handled automatically by WorkManager
+                        // No manual retry button needed
                     }
                 }
             }
 
-            // Retrying State (Auto-Retry in progress)
-            val retryingState = uiState as? UploadUiState.Retrying
-            if (retryingState != null) {
+            // Queuing indicator
+            val queuingState = uiState as? UploadUiState.Queuing
+            if (queuingState != null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -487,42 +475,13 @@ fun MultiPageUploadScreen(
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Wiederhole Upload...",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Text(
-                                text = "Versuch ${retryingState.attempt} von ${retryingState.maxAttempts}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
+                        Text(
+                            text = stringResource(R.string.upload_queuing),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
                     }
                 }
-            }
-
-            // Upload Progress
-            val uploadingState = uiState as? UploadUiState.Uploading
-            if (uploadingState != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    LinearProgressIndicator(
-                        progress = { uploadingState.progress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.multipage_upload_progress, (uploadingState.progress * 100).toInt()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Upload Button
@@ -536,20 +495,20 @@ fun MultiPageUploadScreen(
                         correspondentId = selectedCorrespondentId
                     )
                 },
-                enabled = uiState !is UploadUiState.Uploading,
+                enabled = uiState !is UploadUiState.Queuing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
                     .height(56.dp)
             ) {
-                if (uiState is UploadUiState.Uploading) {
+                if (uiState is UploadUiState.Queuing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = stringResource(R.string.multipage_upload_uploading),
+                        text = stringResource(R.string.upload_queuing),
                         style = MaterialTheme.typography.titleMedium
                     )
                 } else {
@@ -565,5 +524,12 @@ fun MultiPageUploadScreen(
                 }
             }
         }
+    }
+
+        // Custom Snackbar positioned at top (Dark Tech Precision Pro design)
+        CustomSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }

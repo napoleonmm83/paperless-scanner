@@ -3,6 +3,7 @@ package com.paperless.scanner.ui.screens.upload
 import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,14 +29,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import com.paperless.scanner.ui.components.CustomSnackbarHost
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -57,12 +56,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
+import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
-import com.paperless.scanner.ui.components.ServerOfflineBanner
-import com.paperless.scanner.data.health.ServerStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,9 +86,8 @@ fun UploadScreen(
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
-
-    // Server Health Status (Phase 2: Server Offline Detection)
-    val serverStatus by viewModel.serverStatus.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val isServerReachable by viewModel.isServerReachable.collectAsState()
 
     // DEBUG: Log aiNewTagsEnabled value
     Log.d("UploadScreen", "=== UploadScreen Debug ===")
@@ -115,18 +112,20 @@ fun UploadScreen(
     // UploadViewModel observes tags/types/correspondents via reactive Flows.
     // Dropdowns automatically populate and update when metadata changes.
 
-    val queuedMessage = stringResource(R.string.upload_queued)
+    // Status-specific queue message based on network and server status
+    val queuedMessage = when {
+        !isOnline -> stringResource(R.string.upload_queued_no_internet)
+        !isServerReachable -> stringResource(R.string.upload_queued_server_offline)
+        else -> stringResource(R.string.upload_queued_processing)
+    }
     val tagCreatedMessage = stringResource(R.string.upload_tag_created)
 
     LaunchedEffect(uiState) {
         when (val state = uiState) {
-            is UploadUiState.Success -> {
-                // Navigate immediately - don't wait for snackbar
-                onUploadSuccess()
-            }
             is UploadUiState.Queued -> {
-                snackbarHostState.showSnackbar(queuedMessage)
-                onUploadSuccess() // Navigate back
+                // Non-blocking snackbar: show message in background, navigate immediately
+                launch { snackbarHostState.showSnackbar(queuedMessage) }
+                onUploadSuccess() // Navigate back immediately
             }
             is UploadUiState.Error -> {
                 snackbarHostState.showSnackbar(state.userMessage)
@@ -164,22 +163,22 @@ fun UploadScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.upload_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.upload_back)
-                        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.upload_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.upload_back)
+                            )
+                        }
                     }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
+                )
+            }
+        ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -198,17 +197,8 @@ fun UploadScreen(
                     .clip(RoundedCornerShape(12.dp))
             )
 
-            // Server Offline Banner (Phase 2: Server Offline Detection)
-            // Only shown when server is offline - user sees it immediately at the top
-            if (serverStatus is ServerStatus.Offline) {
-                ServerOfflineBanner(
-                    reason = serverStatus as ServerStatus.Offline,
-                    onRetry = { viewModel.checkServerHealth() },
-                    onSettings = onNavigateToSettings,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            // Note: Server status is handled automatically by UploadWorker
+            // Upload always goes to queue, which handles offline scenarios
 
             // Title Input
             OutlinedTextField(
@@ -388,84 +378,14 @@ fun UploadScreen(
                             }
                         }
 
-                        // Retry button
-                        if (viewModel.canRetry()) {
-                            OutlinedButton(
-                                onClick = { viewModel.retry() },
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.cd_refresh),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(stringResource(R.string.upload_retry_button))
-                            }
-                        }
+                        // Note: Retry is handled automatically by WorkManager
+                        // No manual retry button needed
                     }
                 }
             }
 
-            // Retrying State (Auto-Retry in progress)
-            val retryingState = uiState as? UploadUiState.Retrying
-            if (retryingState != null) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Wiederhole Upload...",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                            Text(
-                                text = "Versuch ${retryingState.attempt} von ${retryingState.maxAttempts}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Upload Progress
-            val uploadingState = uiState as? UploadUiState.Uploading
-            if (uploadingState != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                ) {
-                    LinearProgressIndicator(
-                        progress = { uploadingState.progress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.upload_progress, (uploadingState.progress * 100).toInt()),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            // Note: Upload progress is shown in notification (WorkManager)
+            // User can continue working immediately after queueing
 
             // Upload Button
             Button(
@@ -478,20 +398,20 @@ fun UploadScreen(
                         correspondentId = selectedCorrespondentId
                     )
                 },
-                enabled = uiState !is UploadUiState.Uploading,
+                enabled = uiState !is UploadUiState.Queuing,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
                     .height(56.dp)
             ) {
-                if (uiState is UploadUiState.Uploading) {
+                if (uiState is UploadUiState.Queuing) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = stringResource(R.string.upload_uploading),
+                        text = stringResource(R.string.upload_queuing),
                         style = MaterialTheme.typography.titleMedium
                     )
                 } else {
@@ -507,6 +427,13 @@ fun UploadScreen(
                 }
             }
         }
+    }
+
+        // Custom Snackbar positioned at top (Dark Tech Precision Pro design)
+        CustomSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 

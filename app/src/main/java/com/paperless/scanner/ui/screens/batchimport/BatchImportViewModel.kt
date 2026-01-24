@@ -58,6 +58,7 @@ class BatchImportViewModel @Inject constructor(
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     val appLockManager: com.paperless.scanner.util.AppLockManager
 ) : ViewModel() {
 
@@ -142,6 +143,10 @@ class BatchImportViewModel @Inject constructor(
 
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+
+    // Observe network and server status for status-specific queue messages
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
 
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
@@ -308,7 +313,7 @@ class BatchImportViewModel @Inject constructor(
                 }
 
                 val successCount = if (uploadAsSingleDocument) 1 else localUris.size
-                _uiState.update { BatchImportUiState.Success(successCount) }
+                _uiState.update { BatchImportUiState.Queued(successCount) }
                 Log.d(TAG, "Batch import completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Error in queueBatchImport", e)
@@ -516,6 +521,6 @@ sealed class CreateTagState {
 sealed class BatchImportUiState {
     data object Idle : BatchImportUiState()
     data class Queuing(val current: Int, val total: Int) : BatchImportUiState()
-    data class Success(val count: Int) : BatchImportUiState()
+    data class Queued(val count: Int) : BatchImportUiState() // Upload in Queue, wird im Hintergrund verarbeitet
     data class Error(val message: String) : BatchImportUiState()
 }

@@ -43,9 +43,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import com.paperless.scanner.ui.components.CustomSnackbarHost
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,6 +75,7 @@ import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,6 +97,8 @@ fun BatchMetadataScreen(
     val suggestionSource by viewModel.suggestionSource.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val isServerReachable by viewModel.isServerReachable.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
@@ -106,18 +109,20 @@ fun BatchMetadataScreen(
     var selectedCorrespondentId by rememberSaveable { mutableStateOf<Int?>(null) }
     val context = LocalContext.current
 
-    val successSingleMessage = stringResource(R.string.batch_import_success_single)
-    val successMultipleMessage = stringResource(R.string.batch_import_success_multiple)
+    // Status-specific queue messages (Queue-Only Architecture)
+    val queuedMessage = when {
+        !isOnline -> stringResource(R.string.upload_queued_no_internet)
+        !isServerReachable -> stringResource(R.string.upload_queued_server_offline)
+        else -> stringResource(R.string.upload_queued_processing)
+    }
     val tagCreatedMessage = stringResource(R.string.batch_import_tag_created)
 
     LaunchedEffect(uiState) {
         when (uiState) {
-            is BatchImportUiState.Success -> {
-                val count = (uiState as BatchImportUiState.Success).count
-                val message = if (count == 1) successSingleMessage
-                              else successMultipleMessage.format(count)
-                snackbarHostState.showSnackbar(message)
-                onImportSuccess()
+            is BatchImportUiState.Queued -> {
+                // Non-blocking snackbar: show message in background, navigate immediately
+                launch { snackbarHostState.showSnackbar(queuedMessage) }
+                onImportSuccess() // Navigate back immediately
             }
             is BatchImportUiState.Error -> {
                 snackbarHostState.showSnackbar((uiState as BatchImportUiState.Error).message)
@@ -156,22 +161,22 @@ fun BatchMetadataScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.batch_metadata_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.batch_import_back)
-                        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.batch_metadata_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.batch_import_back)
+                            )
+                        }
                     }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
+                )
+            }
+        ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -436,6 +441,13 @@ fun BatchMetadataScreen(
                 }
             }
         }
+    }
+
+        // Custom Snackbar positioned at top (Dark Tech Precision Pro design)
+        CustomSnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
