@@ -19,11 +19,11 @@ on:
       - 'fastlane/Appfile'
       - '.github/workflows/auto-deploy-internal.yml'
       - '.github/actions/**'
+      - 'fastlane/metadata/android/*/changelogs/*.txt'  # Include changelogs for deployment
     paths-ignore:
       # Never deploy for documentation-only changes
       - 'docs/**'
       - '**.md'
-      - 'fastlane/metadata/**'
 
 # Required permissions for pushing version bumps
 permissions:
