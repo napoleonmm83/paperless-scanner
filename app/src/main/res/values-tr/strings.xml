@@ -46,6 +46,7 @@
     <string name="upload_uploading">Yükleniyor...</string>
     <string name="upload_tags_section_title">Etiket seç</string>
     <string name="upload_tag_new">Yeni</string>
+    <string name="upload_ai_tagging">AI Etiketleme</string>
     <string name="upload_tags_show_less">Daha az</string>
     <string name="batch_import_title">Toplu içe aktarma</string>
     <string name="batch_import_back">Geri</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Ad</string>
     <string name="labels_name_placeholder">Etiket adını girin...</string>
     <string name="labels_color_label">Renk</string>
+    <string name="labels_custom_color">Özel Renk</string>
+    <string name="labels_custom_color_title">Renk Seç</string>
+    <string name="labels_hue_label">Ton</string>
+    <string name="labels_saturation_label">Doygunluk</string>
+    <string name="labels_brightness_label">Parlaklık</string>
+    <string name="labels_select_button">Seç</string>
     <string name="labels_preview_label">Önizleme</string>
     <string name="labels_preview_default">Etiket adı</string>
     <string name="labels_save_button">Kaydet</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Belgeler</string>
     <string name="home_stat_this_month">Bu ay</string>
     <string name="home_stat_pending">Bekliyor</string>
+    <string name="home_stat_untagged">Etiketsiz</string>
     <string name="home_new_scan">Yeni tarama</string>
     <string name="home_all_documents">Tüm belgeler</string>
     <string name="home_processing">İşleniyor</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Bağlı değil</string>
     <string name="settings_section_server">Sunucu</string>
     <string name="settings_server_url">Sunucu URL</string>
+    <string name="settings_change_server">Sunucu ayarlarını değiştir</string>
+    <string name="settings_change_server_subtitle">Sunucu URL\'sini, belirteci veya kimlik bilgilerini ayarla</string>
     <string name="settings_not_configured">Yapılandırılmadı</string>
     <string name="settings_section_upload">Yükleme</string>
     <string name="settings_upload_notifications">Yükleme bildirimleri</string>

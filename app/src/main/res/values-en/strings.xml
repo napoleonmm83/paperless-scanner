@@ -56,6 +56,7 @@
     <string name="upload_uploading">Uploading...</string>
     <string name="upload_tags_section_title">Select tags</string>
     <string name="upload_tag_new">New</string>
+    <string name="upload_ai_tagging">AI Tagging</string>
     <string name="upload_tags_show_less">Show less</string>
 
     
@@ -180,6 +181,12 @@
     <string name="labels_name_label">Name</string>
     <string name="labels_name_placeholder">Enter label name...</string>
     <string name="labels_color_label">Color</string>
+    <string name="labels_custom_color">Custom Color</string>
+    <string name="labels_custom_color_title">Choose Custom Color</string>
+    <string name="labels_hue_label">Hue</string>
+    <string name="labels_saturation_label">Saturation</string>
+    <string name="labels_brightness_label">Brightness</string>
+    <string name="labels_select_button">Select</string>
     <string name="labels_preview_label">Preview</string>
     <string name="labels_preview_default">Label Name</string>
     <string name="labels_save_button">Save</string>
@@ -281,6 +288,7 @@
     <string name="home_stat_documents">Documents</string>
     <string name="home_stat_this_month">This month</string>
     <string name="home_stat_pending">Pending</string>
+    <string name="home_stat_untagged">Untagged</string>
     <string name="home_new_scan">New Scan</string>
     <string name="home_all_documents">All Documents</string>
     <string name="home_processing">Processing</string>
@@ -327,6 +335,8 @@
     <string name="settings_not_connected">Not connected</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server URL</string>
+    <string name="settings_change_server">Change server settings</string>
+    <string name="settings_change_server_subtitle">Adjust server URL, token or credentials</string>
     <string name="settings_not_configured">Not configured</string>
     <string name="settings_section_upload">Upload</string>
     <string name="settings_upload_notifications">Upload notifications</string>

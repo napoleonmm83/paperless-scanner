@@ -46,6 +46,7 @@
     <string name="upload_uploading">Se încarcă...</string>
     <string name="upload_tags_section_title">Selectați etichete</string>
     <string name="upload_tag_new">Nou</string>
+    <string name="upload_ai_tagging">Etichetare AI</string>
     <string name="upload_tags_show_less">Mai puțin</string>
     <string name="batch_import_title">Import în masă</string>
     <string name="batch_import_back">Înapoi</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nume</string>
     <string name="labels_name_placeholder">Introdu numele etichetei...</string>
     <string name="labels_color_label">Culoare</string>
+    <string name="labels_custom_color">Culoare Personalizată</string>
+    <string name="labels_custom_color_title">Alege Culoarea</string>
+    <string name="labels_hue_label">Nuanță</string>
+    <string name="labels_saturation_label">Saturație</string>
+    <string name="labels_brightness_label">Luminozitate</string>
+    <string name="labels_select_button">Selectează</string>
     <string name="labels_preview_label">Previzualizare</string>
     <string name="labels_preview_default">Nume etichetă</string>
     <string name="labels_save_button">Salvează</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Documente</string>
     <string name="home_stat_this_month">Luna aceasta</string>
     <string name="home_stat_pending">În așteptare</string>
+    <string name="home_stat_untagged">Fără etichete</string>
     <string name="home_new_scan">Scanare nouă</string>
     <string name="home_all_documents">Toate documentele</string>
     <string name="home_processing">Procesare</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Neconectat</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">URL server</string>
+    <string name="settings_change_server">Schimbă setările serverului</string>
+    <string name="settings_change_server_subtitle">Ajustează URL-ul serverului, tokenul sau datele de autentificare</string>
     <string name="settings_not_configured">Neconfigurat</string>
     <string name="settings_section_upload">Încărcare</string>
     <string name="settings_upload_notifications">Notificări de încărcare</string>

@@ -21,8 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
@@ -47,7 +45,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,9 +66,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
-import com.paperless.scanner.ui.theme.DarkTechPrimary
-import com.paperless.scanner.ui.theme.DarkTechSurfaceVariant
-import com.paperless.scanner.ui.theme.DarkTechOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,31 +102,22 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Counter to trigger delayed refresh after resume
-    val resumeCount = remember { mutableIntStateOf(0) }
-
     // BEST PRACTICE: Refresh dashboard (stats + tasks) when screen becomes visible
     // This catches changes made via web interface or other devices
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshDashboard()  // Refresh stats + tasks from server
-                // Increment counter to trigger delayed refresh
-                resumeCount.intValue++
+                viewModel.refreshDashboard()  // Immediate refresh
+                // Delayed refresh to catch newly created tasks (after uploads/deletes)
+                coroutineScope.launch {
+                    delay(1500)
+                    viewModel.refreshDashboard()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    // Delayed refresh to catch newly created tasks and updated stats
-    // This is important after uploads/deletes when returning to HomeScreen
-    LaunchedEffect(resumeCount.intValue) {
-        if (resumeCount.intValue > 0) {
-            delay(1500) // Wait 1.5 seconds for task to be created on server
-            viewModel.refreshDashboard()  // Refresh stats + tasks
         }
     }
 
@@ -212,13 +197,6 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                icon = Icons.Filled.CalendarMonth,
-                value = "${uiState.stats.thisMonth}",
-                label = stringResource(R.string.home_stat_this_month),
-                isPrimary = false,
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
                 icon = Icons.Filled.Inbox,
                 value = "${uiState.stats.pendingUploads}",
                 label = stringResource(R.string.home_stat_pending),
@@ -226,90 +204,21 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f),
                 onClick = onNavigateToPendingSync
             )
+            StatCard(
+                icon = Icons.Filled.Tag,
+                value = "${uiState.untaggedCount}",
+                label = stringResource(R.string.home_stat_untagged),
+                isPrimary = false,
+                modifier = Modifier.weight(1f),
+                onClick = if (isServerReachable && uiState.untaggedCount > 0) {
+                    onNavigateToSmartTagging
+                } else {
+                    null
+                }
+            )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Quick Actions
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // New Scan Button
-            Card(
-                onClick = onNavigateToScan,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = stringResource(R.string.cd_scan),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.home_new_scan),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // All Documents Button
-            Card(
-                onClick = onNavigateToDocuments,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Description,
-                        contentDescription = stringResource(R.string.home_all_documents),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.home_all_documents),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Processing Tasks Section (only show if there are tasks)
         if (uiState.processingTasks.isNotEmpty()) {
@@ -437,56 +346,6 @@ fun HomeScreen(
                         onClick = { onDocumentClick(doc.id) }
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Activity Hint (if there are untagged documents AND server is reachable)
-        // Hide when server offline because SmartTagging needs to load documents from server
-        if (uiState.untaggedCount > 0 && isServerReachable) {
-            Card(
-                onClick = onNavigateToSmartTagging,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Tag,
-                        contentDescription = stringResource(R.string.cd_filter),
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.home_untagged_documents, uiState.untaggedCount),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = stringResource(R.string.home_assign_tags_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
                 }
             }
         }
@@ -709,75 +568,90 @@ private fun RecentDocumentCard(
     }
 }
 
+// Helper for task styling
+private data class TaskStyle(
+    val backgroundColor: Color,
+    val statusIcon: ImageVector?,
+    val iconColor: Color,
+    val textColor: Color,
+    val statusText: String
+)
+
 @Composable
-private fun ProcessingTaskCard(
+private fun getTaskStyle(
     task: ProcessingTask,
-    onClick: () -> Unit,
-    onDismiss: () -> Unit
-) {
+    isDuplicate: Boolean
+): TaskStyle {
     val statusWaiting = stringResource(R.string.home_task_waiting)
     val statusProcessing = stringResource(R.string.home_task_processing)
     val statusSuccess = stringResource(R.string.home_task_success)
     val statusFailure = stringResource(R.string.home_task_failure)
     val statusDuplicate = stringResource(R.string.home_task_duplicate)
 
+    return when {
+        isDuplicate -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            statusIcon = Icons.Filled.ContentCopy,
+            iconColor = MaterialTheme.colorScheme.primary,
+            textColor = MaterialTheme.colorScheme.primary,
+            statusText = statusDuplicate
+        )
+        task.status == TaskStatus.PENDING -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            statusIcon = null,
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            statusText = statusWaiting
+        )
+        task.status == TaskStatus.PROCESSING -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            statusIcon = null,
+            iconColor = MaterialTheme.colorScheme.primary,
+            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            statusText = statusProcessing
+        )
+        task.status == TaskStatus.SUCCESS -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.primary,
+            statusIcon = Icons.Filled.CheckCircle,
+            iconColor = MaterialTheme.colorScheme.onPrimary,
+            textColor = MaterialTheme.colorScheme.onPrimary,
+            statusText = statusSuccess
+        )
+        task.status == TaskStatus.FAILURE -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.errorContainer,
+            statusIcon = Icons.Filled.Error,
+            iconColor = MaterialTheme.colorScheme.onErrorContainer,
+            textColor = MaterialTheme.colorScheme.onErrorContainer,
+            statusText = statusFailure
+        )
+        else -> TaskStyle(
+            backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            statusIcon = null,
+            iconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            statusText = statusWaiting
+        )
+    }
+}
+
+@Composable
+private fun ProcessingTaskCard(
+    task: ProcessingTask,
+    onClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
     // Detect duplicate error
     val isDuplicate = task.status == TaskStatus.FAILURE &&
             task.resultMessage?.contains("duplicate", ignoreCase = true) == true
 
-    // FIXED: Better contrast in Light Mode for PROCESSING status
-    // Use surfaceVariant instead of primaryContainer to ensure readability
-    val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when {
-        isDuplicate -> Quintuple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            Icons.Filled.ContentCopy,
-            MaterialTheme.colorScheme.primary,
-            MaterialTheme.colorScheme.primary,
-            statusDuplicate
-        )
-        task.status == TaskStatus.PENDING -> Quintuple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            null,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            statusWaiting
-        )
-        task.status == TaskStatus.PROCESSING -> Quintuple(
-            MaterialTheme.colorScheme.surfaceVariant,  // Better contrast in both themes
-            null,
-            MaterialTheme.colorScheme.primary,          // Primary color for progress indicator
-            MaterialTheme.colorScheme.onSurfaceVariant, // Readable text in both themes
-            statusProcessing
-        )
-        task.status == TaskStatus.SUCCESS -> Quintuple(
-            MaterialTheme.colorScheme.primary,
-            Icons.Filled.CheckCircle,
-            MaterialTheme.colorScheme.onPrimary,
-            MaterialTheme.colorScheme.onPrimary,
-            statusSuccess
-        )
-        task.status == TaskStatus.FAILURE -> Quintuple(
-            MaterialTheme.colorScheme.errorContainer,
-            Icons.Filled.Error,
-            MaterialTheme.colorScheme.onErrorContainer,
-            MaterialTheme.colorScheme.onErrorContainer,
-            statusFailure
-        )
-        else -> Quintuple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            null,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
-            statusWaiting
-        )
-    }
+    val style = getTaskStyle(task, isDuplicate)
 
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
+            containerColor = style.backgroundColor
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
@@ -797,18 +671,18 @@ private fun ProcessingTaskCard(
                     modifier = Modifier.size(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (statusIcon != null) {
+                    if (style.statusIcon != null) {
                         Icon(
-                            imageVector = statusIcon,
-                            contentDescription = statusText,
+                            imageVector = style.statusIcon,
+                            contentDescription = style.statusText,
                             modifier = Modifier.size(24.dp),
-                            tint = iconColor
+                            tint = style.iconColor
                         )
                     } else {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = iconColor
+                            color = style.iconColor
                         )
                     }
                 }
@@ -832,19 +706,19 @@ private fun ProcessingTaskCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = statusText,
+                            text = style.statusText,
                             style = MaterialTheme.typography.labelSmall,
-                            color = textColor
+                            color = style.textColor
                         )
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.labelSmall,
-                            color = textColor.copy(alpha = 0.7f)
+                            color = style.textColor.copy(alpha = 0.7f)
                         )
                         Text(
                             text = task.timeAgo,
                             style = MaterialTheme.typography.labelSmall,
-                            color = textColor.copy(alpha = 0.7f)
+                            color = style.textColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -859,7 +733,7 @@ private fun ProcessingTaskCard(
                             imageVector = Icons.Filled.Close,
                             contentDescription = stringResource(R.string.home_dismiss),
                             modifier = Modifier.size(16.dp),
-                            tint = textColor.copy(alpha = 0.7f)
+                            tint = style.textColor.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -889,12 +763,3 @@ private fun ProcessingTaskCard(
         }
     }
 }
-
-// Helper class for multiple return values
-private data class Quintuple<A, B, C, D, E>(
-    val first: A,
-    val second: B,
-    val third: C,
-    val fourth: D,
-    val fifth: E
-)

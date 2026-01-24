@@ -46,6 +46,7 @@
     <string name="upload_uploading">A carregar...</string>
     <string name="upload_tags_section_title">Selecionar tags</string>
     <string name="upload_tag_new">Novo</string>
+    <string name="upload_ai_tagging">Marcação IA</string>
     <string name="upload_tags_show_less">Menos</string>
     <string name="batch_import_title">Importação em lote</string>
     <string name="batch_import_back">Voltar</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nome</string>
     <string name="labels_name_placeholder">Introduzir nome da etiqueta...</string>
     <string name="labels_color_label">Cor</string>
+    <string name="labels_custom_color">Cor Personalizada</string>
+    <string name="labels_custom_color_title">Escolher Cor</string>
+    <string name="labels_hue_label">Matiz</string>
+    <string name="labels_saturation_label">Saturação</string>
+    <string name="labels_brightness_label">Brilho</string>
+    <string name="labels_select_button">Selecionar</string>
     <string name="labels_preview_label">Pré-visualização</string>
     <string name="labels_preview_default">Nome da etiqueta</string>
     <string name="labels_save_button">Guardar</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Documentos</string>
     <string name="home_stat_this_month">Este mês</string>
     <string name="home_stat_pending">Pendente</string>
+    <string name="home_stat_untagged">Sem tags</string>
     <string name="home_new_scan">Nova digitalização</string>
     <string name="home_all_documents">Todos os documentos</string>
     <string name="home_processing">A processar</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Não ligado</string>
     <string name="settings_section_server">Servidor</string>
     <string name="settings_server_url">URL do servidor</string>
+    <string name="settings_change_server">Alterar configurações do servidor</string>
+    <string name="settings_change_server_subtitle">Ajustar URL do servidor, token ou credenciais</string>
     <string name="settings_not_configured">Não configurado</string>
     <string name="settings_section_upload">Carregamento</string>
     <string name="settings_upload_notifications">Notificações de carregamento</string>

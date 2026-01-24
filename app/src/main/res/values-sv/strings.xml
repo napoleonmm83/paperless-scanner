@@ -46,6 +46,7 @@
     <string name="upload_uploading">Laddar upp...</string>
     <string name="upload_tags_section_title">Välj taggar</string>
     <string name="upload_tag_new">Ny</string>
+    <string name="upload_ai_tagging">AI-taggning</string>
     <string name="upload_tags_show_less">Mindre</string>
     <string name="batch_import_title">Massimport</string>
     <string name="batch_import_back">Tillbaka</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Namn</string>
     <string name="labels_name_placeholder">Ange etikettnamn...</string>
     <string name="labels_color_label">Färg</string>
+    <string name="labels_custom_color">Anpassad Färg</string>
+    <string name="labels_custom_color_title">Välj Färg</string>
+    <string name="labels_hue_label">Nyans</string>
+    <string name="labels_saturation_label">Mättnad</string>
+    <string name="labels_brightness_label">Ljusstyrka</string>
+    <string name="labels_select_button">Välj</string>
     <string name="labels_preview_label">Förhandsvisning</string>
     <string name="labels_preview_default">Etikettnamn</string>
     <string name="labels_save_button">Spara</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokument</string>
     <string name="home_stat_this_month">Denna månad</string>
     <string name="home_stat_pending">Väntande</string>
+    <string name="home_stat_untagged">Utan taggar</string>
     <string name="home_new_scan">Ny skanning</string>
     <string name="home_all_documents">Alla dokument</string>
     <string name="home_processing">Bearbetar</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Ej ansluten</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_change_server">Ändra serverinställningar</string>
+    <string name="settings_change_server_subtitle">Justera server-URL, token eller inloggningsuppgifter</string>
     <string name="settings_not_configured">Ej konfigurerad</string>
     <string name="settings_section_upload">Uppladdning</string>
     <string name="settings_upload_notifications">Uppladdningsnotiser</string>

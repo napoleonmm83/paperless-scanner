@@ -57,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
 import kotlinx.coroutines.launch
+import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
@@ -92,6 +93,10 @@ fun UploadScreen(
     // DEBUG: Log aiNewTagsEnabled value
     Log.d("UploadScreen", "=== UploadScreen Debug ===")
     Log.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+
+    // Premium state
+    val isPremiumActive by viewModel.isPremiumActive.collectAsState()
+    var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
@@ -159,6 +164,21 @@ fun UploadScreen(
             },
             onCreate = { name, color ->
                 viewModel.createTag(name, color)
+            }
+        )
+    }
+
+    // Premium Upgrade Sheet
+    if (showPremiumUpgradeSheet) {
+        PremiumUpgradeSheet(
+            onDismiss = { showPremiumUpgradeSheet = false },
+            onSubscribe = { productId ->
+                // Handle subscription - implementation would need Activity context
+                showPremiumUpgradeSheet = false
+            },
+            onRestore = {
+                // Handle restore - implementation would need coroutine scope
+                showPremiumUpgradeSheet = false
             }
         )
     }
@@ -297,7 +317,9 @@ fun UploadScreen(
                         selectedTagIds.add(tagId)
                     }
                 },
-                onCreateNew = { showCreateTagDialog = true }
+                onCreateNew = { showCreateTagDialog = true },
+                isPremiumActive = isPremiumActive,
+                onUpgradeToPremium = { showPremiumUpgradeSheet = true }
             )
 
             Spacer(modifier = Modifier.weight(1f))

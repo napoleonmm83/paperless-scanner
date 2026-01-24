@@ -2,8 +2,11 @@ package com.paperless.scanner.ui.screens.labels
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +54,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,12 +64,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import kotlinx.coroutines.delay
@@ -730,6 +739,7 @@ private fun CreateLabelSheet(
 ) {
     var name by remember { mutableStateOf(existingLabel?.name ?: "") }
     var selectedColor by remember { mutableStateOf(existingLabel?.color ?: labelColorOptions[0]) }
+    var showCustomColorPicker by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -775,31 +785,67 @@ private fun CreateLabelSheet(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             labelColorOptions.forEach { color ->
-                Box(
+                Card(
+                    onClick = { selectedColor = color },
                     modifier = Modifier
                         .weight(1f)
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(color)
-                        .clickable { selectedColor = color }
-                        .then(
-                            if (selectedColor == color) {
-                                Modifier.background(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            } else Modifier
-                        ),
+                        .aspectRatio(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = color
+                    ),
+                    border = BorderStroke(
+                        width = if (selectedColor == color) 3.dp else 1.dp,
+                        color = if (selectedColor == color) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.outline
+                        }
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedColor == color) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Custom Color Picker Button
+            Card(
+                onClick = { showCustomColorPicker = true },
+                modifier = Modifier
+                    .weight(1f)
+                    .aspectRatio(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selectedColor == color) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = stringResource(R.string.labels_custom_color),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -901,6 +947,295 @@ private fun CreateLabelSheet(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Custom Color Picker Dialog
+    if (showCustomColorPicker) {
+        CustomColorPickerDialog(
+            initialColor = selectedColor,
+            onColorSelected = { color ->
+                selectedColor = color
+                showCustomColorPicker = false
+            },
+            onDismiss = { showCustomColorPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun CustomColorPickerDialog(
+    initialColor: Color,
+    onColorSelected: (Color) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var hue by remember { mutableStateOf(0f) }
+    var saturation by remember { mutableStateOf(1f) }
+    var value by remember { mutableStateOf(1f) }
+
+    // Convert initial color to HSV
+    val hsv = remember {
+        val rgb = android.graphics.Color.rgb(
+            (initialColor.red * 255).toInt(),
+            (initialColor.green * 255).toInt(),
+            (initialColor.blue * 255).toInt()
+        )
+        FloatArray(3).apply {
+            android.graphics.Color.colorToHSV(rgb, this)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        hue = hsv[0]
+        saturation = hsv[1]
+        value = hsv[2]
+    }
+
+    // Convert HSV to Color
+    val currentColor = remember(hue, saturation, value) {
+        val rgb = android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, value))
+        Color(rgb)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.labels_custom_color_title)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Color Preview
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(currentColor)
+                        .then(
+                            Modifier.border(
+                                width = 2.dp,
+                                color = MaterialTheme.colorScheme.outline,
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Hue Slider
+                Text(
+                    text = stringResource(R.string.labels_hue_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HueSlider(
+                    hue = hue,
+                    onHueChange = { hue = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Saturation Slider
+                Text(
+                    text = stringResource(R.string.labels_saturation_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                SaturationSlider(
+                    hue = hue,
+                    saturation = saturation,
+                    onSaturationChange = { saturation = it }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Brightness Slider
+                Text(
+                    text = stringResource(R.string.labels_brightness_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                BrightnessSlider(
+                    hue = hue,
+                    saturation = saturation,
+                    value = value,
+                    onValueChange = { value = it }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onColorSelected(currentColor) }) {
+                Text(stringResource(R.string.labels_select_button))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.labels_cancel_button))
+            }
+        }
+    )
+}
+
+@Composable
+private fun HueSlider(
+    hue: Float,
+    onHueChange: (Float) -> Unit
+) {
+    var sliderPosition by remember { mutableStateOf(hue / 360f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val newPosition = (offset.x / size.width).coerceIn(0f, 1f)
+                        sliderPosition = newPosition
+                        onHueChange(newPosition * 360f)
+                    }
+                }
+        ) {
+            val gradient = Brush.horizontalGradient(
+                colors = listOf(
+                    Color.Red,
+                    Color.Yellow,
+                    Color.Green,
+                    Color.Cyan,
+                    Color.Blue,
+                    Color.Magenta,
+                    Color.Red
+                )
+            )
+            drawRect(brush = gradient)
+
+            // Indicator
+            val indicatorX = size.width * sliderPosition
+            drawCircle(
+                color = Color.White,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 3f)
+            )
+            drawCircle(
+                color = Color.Black,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SaturationSlider(
+    hue: Float,
+    saturation: Float,
+    onSaturationChange: (Float) -> Unit
+) {
+    var sliderPosition by remember(saturation) { mutableStateOf(saturation) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val newPosition = (offset.x / size.width).coerceIn(0f, 1f)
+                        sliderPosition = newPosition
+                        onSaturationChange(newPosition)
+                    }
+                }
+        ) {
+            val startColor = Color.White
+            val endColor = Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, 1f, 1f)))
+
+            val gradient = Brush.horizontalGradient(
+                colors = listOf(startColor, endColor)
+            )
+            drawRect(brush = gradient)
+
+            // Indicator
+            val indicatorX = size.width * sliderPosition
+            drawCircle(
+                color = Color.White,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 3f)
+            )
+            drawCircle(
+                color = Color.Black,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BrightnessSlider(
+    hue: Float,
+    saturation: Float,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
+    var sliderPosition by remember(value) { mutableStateOf(value) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .clip(RoundedCornerShape(8.dp))
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { offset ->
+                        val newPosition = (offset.x / size.width).coerceIn(0f, 1f)
+                        sliderPosition = newPosition
+                        onValueChange(newPosition)
+                    }
+                }
+        ) {
+            val startColor = Color.Black
+            val endColor = Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, 1f)))
+
+            val gradient = Brush.horizontalGradient(
+                colors = listOf(startColor, endColor)
+            )
+            drawRect(brush = gradient)
+
+            // Indicator
+            val indicatorX = size.width * sliderPosition
+            drawCircle(
+                color = Color.White,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 3f)
+            )
+            drawCircle(
+                color = Color.Black,
+                radius = 12f,
+                center = Offset(indicatorX, size.height / 2),
+                style = Stroke(width = 1f)
+            )
+        }
     }
 }
 

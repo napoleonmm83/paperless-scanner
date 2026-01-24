@@ -89,6 +89,17 @@ fun PaperlessNavGraph(
             )
         }
 
+        // Edit Server Settings - SimplifiedSetup in Edit Mode
+        composable(route = Screen.EditServerSettings.route) {
+            SimplifiedSetupScreen(
+                isEditMode = true,
+                onSuccess = {
+                    // Navigate back to Settings after successful update
+                    navController.popBackStack()
+                }
+            )
+        }
+
         // Main screens with bottom navigation
         mainScreenRoutes.forEach { route ->
             // Scan screen needs special handling for optional pageUris parameter

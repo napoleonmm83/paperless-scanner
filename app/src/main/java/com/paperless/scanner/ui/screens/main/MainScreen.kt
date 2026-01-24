@@ -80,6 +80,9 @@ fun MainScreen(
                         // Ensure Settings is on the back stack for proper back navigation
                         launchSingleTop = true
                     }
+                },
+                onNavigateToEditServer = {
+                    navController.navigate(Screen.EditServerSettings.route)
                 }
             )
         }

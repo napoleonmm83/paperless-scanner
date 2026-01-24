@@ -46,6 +46,7 @@
     <string name="upload_uploading">Caricamento...</string>
     <string name="upload_tags_section_title">Seleziona tag</string>
     <string name="upload_tag_new">Nuovo</string>
+    <string name="upload_ai_tagging">Tagging AI</string>
     <string name="upload_tags_show_less">Meno</string>
     <string name="batch_import_title">Importazione batch</string>
     <string name="batch_import_back">Indietro</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nome</string>
     <string name="labels_name_placeholder">Inserisci nome etichetta...</string>
     <string name="labels_color_label">Colore</string>
+    <string name="labels_custom_color">Colore Personalizzato</string>
+    <string name="labels_custom_color_title">Scegli Colore</string>
+    <string name="labels_hue_label">Tonalità</string>
+    <string name="labels_saturation_label">Saturazione</string>
+    <string name="labels_brightness_label">Luminosità</string>
+    <string name="labels_select_button">Seleziona</string>
     <string name="labels_preview_label">Anteprima</string>
     <string name="labels_preview_default">Nome etichetta</string>
     <string name="labels_save_button">Salva</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Documenti</string>
     <string name="home_stat_this_month">Questo mese</string>
     <string name="home_stat_pending">In attesa</string>
+    <string name="home_stat_untagged">Senza tag</string>
     <string name="home_new_scan">Nuova scansione</string>
     <string name="home_all_documents">Tutti i documenti</string>
     <string name="home_processing">Elaborazione</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Non connesso</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">URL del server</string>
+    <string name="settings_change_server">Modifica impostazioni server</string>
+    <string name="settings_change_server_subtitle">Modifica URL server, token o credenziali</string>
     <string name="settings_not_configured">Non configurato</string>
     <string name="settings_section_upload">Caricamento</string>
     <string name="settings_upload_notifications">Notifiche di caricamento</string>

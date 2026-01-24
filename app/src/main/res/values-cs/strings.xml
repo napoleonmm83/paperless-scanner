@@ -46,6 +46,7 @@
     <string name="upload_uploading">Nahrávání...</string>
     <string name="upload_tags_section_title">Vybrat štítky</string>
     <string name="upload_tag_new">Nový</string>
+    <string name="upload_ai_tagging">AI štítkování</string>
     <string name="upload_tags_show_less">Méně</string>
     <string name="batch_import_title">Hromadný import</string>
     <string name="batch_import_back">Zpět</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Název</string>
     <string name="labels_name_placeholder">Zadejte název štítku...</string>
     <string name="labels_color_label">Barva</string>
+    <string name="labels_custom_color">Vlastní Barva</string>
+    <string name="labels_custom_color_title">Vybrat Barvu</string>
+    <string name="labels_hue_label">Odstín</string>
+    <string name="labels_saturation_label">Sytost</string>
+    <string name="labels_brightness_label">Jas</string>
+    <string name="labels_select_button">Vybrat</string>
     <string name="labels_preview_label">Náhled</string>
     <string name="labels_preview_default">Název štítku</string>
     <string name="labels_save_button">Uložit</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokumenty</string>
     <string name="home_stat_this_month">Tento měsíc</string>
     <string name="home_stat_pending">Čekající</string>
+    <string name="home_stat_untagged">Bez štítků</string>
     <string name="home_new_scan">Nové skenování</string>
     <string name="home_all_documents">Všechny dokumenty</string>
     <string name="home_processing">Zpracování</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Nepřipojeno</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">URL serveru</string>
+    <string name="settings_change_server">Změnit nastavení serveru</string>
+    <string name="settings_change_server_subtitle">Upravte URL serveru, token nebo přihlašovací údaje</string>
     <string name="settings_not_configured">Nenakonfigurováno</string>
     <string name="settings_section_upload">Nahrávání</string>
     <string name="settings_upload_notifications">Upozornění na nahrávání</string>

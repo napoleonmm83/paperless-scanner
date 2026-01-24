@@ -46,6 +46,7 @@
     <string name="upload_uploading">Laster opp...</string>
     <string name="upload_tags_section_title">Velg tagger</string>
     <string name="upload_tag_new">Ny</string>
+    <string name="upload_ai_tagging">AI-tagging</string>
     <string name="upload_tags_show_less">Mindre</string>
     <string name="batch_import_title">Masseimport</string>
     <string name="batch_import_back">Tilbake</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Navn</string>
     <string name="labels_name_placeholder">Skriv inn etikettnavn...</string>
     <string name="labels_color_label">Farge</string>
+    <string name="labels_custom_color">Egendefinert Farge</string>
+    <string name="labels_custom_color_title">Velg Farge</string>
+    <string name="labels_hue_label">Fargetone</string>
+    <string name="labels_saturation_label">Metning</string>
+    <string name="labels_brightness_label">Lysstyrke</string>
+    <string name="labels_select_button">Velg</string>
     <string name="labels_preview_label">Forhåndsvisning</string>
     <string name="labels_preview_default">Etikettnavn</string>
     <string name="labels_save_button">Lagre</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokumenter</string>
     <string name="home_stat_this_month">Denne måneden</string>
     <string name="home_stat_pending">Venter</string>
+    <string name="home_stat_untagged">Uten tagger</string>
     <string name="home_new_scan">Ny skanning</string>
     <string name="home_all_documents">Alle dokumenter</string>
     <string name="home_processing">Behandler</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Ikke tilkoblet</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_change_server">Endre serverinnstillinger</string>
+    <string name="settings_change_server_subtitle">Juster server-URL, token eller påloggingsopplysninger</string>
     <string name="settings_not_configured">Ikke konfigurert</string>
     <string name="settings_section_upload">Opplasting</string>
     <string name="settings_upload_notifications">Opplastingsvarsler</string>

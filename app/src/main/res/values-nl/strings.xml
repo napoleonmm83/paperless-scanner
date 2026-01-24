@@ -46,6 +46,7 @@
     <string name="upload_uploading">Uploaden...</string>
     <string name="upload_tags_section_title">Tags selecteren</string>
     <string name="upload_tag_new">Nieuw</string>
+    <string name="upload_ai_tagging">AI Taggen</string>
     <string name="upload_tags_show_less">Minder</string>
     <string name="batch_import_title">Batch import</string>
     <string name="batch_import_back">Terug</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Naam</string>
     <string name="labels_name_placeholder">Voer labelnaam in...</string>
     <string name="labels_color_label">Kleur</string>
+    <string name="labels_custom_color">Aangepaste Kleur</string>
+    <string name="labels_custom_color_title">Kies Kleur</string>
+    <string name="labels_hue_label">Tint</string>
+    <string name="labels_saturation_label">Verzadiging</string>
+    <string name="labels_brightness_label">Helderheid</string>
+    <string name="labels_select_button">Selecteren</string>
     <string name="labels_preview_label">Voorbeeld</string>
     <string name="labels_preview_default">Labelnaam</string>
     <string name="labels_save_button">Opslaan</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Documenten</string>
     <string name="home_stat_this_month">Deze maand</string>
     <string name="home_stat_pending">In behandeling</string>
+    <string name="home_stat_untagged">Zonder tags</string>
     <string name="home_new_scan">Nieuwe scan</string>
     <string name="home_all_documents">Alle documenten</string>
     <string name="home_processing">Verwerken</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Niet verbonden</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_change_server">Serverinstellingen wijzigen</string>
+    <string name="settings_change_server_subtitle">Pas server-URL, token of inloggegevens aan</string>
     <string name="settings_not_configured">Niet geconfigureerd</string>
     <string name="settings_section_upload">Upload</string>
     <string name="settings_upload_notifications">Upload meldingen</string>

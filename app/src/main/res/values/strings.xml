@@ -56,6 +56,7 @@
     <string name="upload_uploading">Wird hochgeladen...</string>
     <string name="upload_tags_section_title">Tags auswählen</string>
     <string name="upload_tag_new">Neu</string>
+    <string name="upload_ai_tagging">AI Tagging</string>
     <string name="upload_tags_show_less">Weniger</string>
 
     
@@ -180,6 +181,12 @@
     <string name="labels_name_label">Name</string>
     <string name="labels_name_placeholder">Label-Name eingeben...</string>
     <string name="labels_color_label">Farbe</string>
+    <string name="labels_custom_color">Eigene Farbe</string>
+    <string name="labels_custom_color_title">Eigene Farbe wählen</string>
+    <string name="labels_hue_label">Farbton</string>
+    <string name="labels_saturation_label">Sättigung</string>
+    <string name="labels_brightness_label">Helligkeit</string>
+    <string name="labels_select_button">Auswählen</string>
     <string name="labels_preview_label">Vorschau</string>
     <string name="labels_preview_default">Label-Name</string>
     <string name="labels_save_button">Speichern</string>
@@ -281,6 +288,7 @@
     <string name="home_stat_documents">Dokumente</string>
     <string name="home_stat_this_month">Diesen Monat</string>
     <string name="home_stat_pending">Ausstehend</string>
+    <string name="home_stat_untagged">Ohne Tags</string>
     <string name="home_new_scan">Neuer Scan</string>
     <string name="home_all_documents">Alle Dokumente</string>
     <string name="home_processing">Verarbeitung</string>
@@ -327,6 +335,8 @@
     <string name="settings_not_connected">Nicht verbunden</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_change_server">Server-Einstellungen ändern</string>
+    <string name="settings_change_server_subtitle">Server-URL, Token oder Anmeldedaten anpassen</string>
     <string name="settings_not_configured">Nicht konfiguriert</string>
     <string name="settings_section_security">Sicherheit</string>
     <string name="settings_section_upload">Upload</string>

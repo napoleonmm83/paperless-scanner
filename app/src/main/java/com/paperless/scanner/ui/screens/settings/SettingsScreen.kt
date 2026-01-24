@@ -21,17 +21,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -75,6 +79,7 @@ import com.paperless.scanner.ui.theme.ThemeMode
 fun SettingsScreen(
     onLogout: () -> Unit,
     onNavigateToSetupAppLock: (isChangingPassword: Boolean) -> Unit = { },
+    onNavigateToEditServer: () -> Unit = { },
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -301,7 +306,7 @@ fun SettingsScreen(
                 )
 
                 SettingsClickableItem(
-                    icon = Icons.Filled.Settings,
+                    icon = Icons.Filled.CardMembership,
                     title = stringResource(R.string.premium_settings_manage_subscription),
                     value = "",
                     onClick = {
@@ -318,6 +323,18 @@ fun SettingsScreen(
                 icon = Icons.Filled.Cloud,
                 title = stringResource(R.string.settings_server_url),
                 value = uiState.serverUrl.ifEmpty { stringResource(R.string.settings_not_configured) }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingsClickableItem(
+                icon = Icons.Filled.Settings,
+                title = stringResource(R.string.settings_change_server),
+                value = stringResource(R.string.settings_change_server_subtitle),
+                onClick = onNavigateToEditServer
             )
         }
 
@@ -349,7 +366,7 @@ fun SettingsScreen(
 
                 // Biometric Unlock Toggle
                 SettingsToggleItem(
-                    icon = Icons.Filled.Lock,
+                    icon = Icons.Filled.Fingerprint,
                     title = stringResource(R.string.app_lock_biometric_unlock),
                     subtitle = stringResource(R.string.app_lock_biometric_unlock_subtitle),
                     checked = uiState.appLockBiometricEnabled,
@@ -363,7 +380,7 @@ fun SettingsScreen(
 
                 // Timeout Selection
                 SettingsClickableItem(
-                    icon = Icons.Filled.Settings,
+                    icon = Icons.Filled.Schedule,
                     title = stringResource(R.string.app_lock_timeout),
                     value = uiState.appLockTimeout.displayName,
                     onClick = { showAppLockTimeoutDialog = true }
@@ -376,7 +393,7 @@ fun SettingsScreen(
 
                 // Change Password
                 SettingsClickableItem(
-                    icon = Icons.Filled.Lock,
+                    icon = Icons.Filled.VpnKey,
                     title = stringResource(R.string.app_lock_change_password),
                     value = stringResource(R.string.app_lock_change_password_subtitle),
                     onClick = { onNavigateToSetupAppLock(true) }

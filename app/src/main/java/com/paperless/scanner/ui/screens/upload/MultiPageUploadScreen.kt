@@ -62,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
 import kotlinx.coroutines.launch
+import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
@@ -109,6 +110,10 @@ fun MultiPageUploadScreen(
     val isServerReachable by viewModel.isServerReachable.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
+
+    // Premium state
+    val isPremiumActive by viewModel.isPremiumActive.collectAsState()
+    var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     var title by rememberSaveable { mutableStateOf(preTitle ?: "") }
     val selectedTagIds = remember { mutableStateListOf<Int>() }
@@ -366,7 +371,9 @@ fun MultiPageUploadScreen(
                         selectedTagIds.add(tagId)
                     }
                 },
-                onCreateNew = { showCreateTagDialog = true }
+                onCreateNew = { showCreateTagDialog = true },
+                isPremiumActive = isPremiumActive,
+                onUpgradeToPremium = { showPremiumUpgradeSheet = true }
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -530,6 +537,19 @@ fun MultiPageUploadScreen(
         CustomSnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.TopCenter)
+        )
+    }
+
+    // Premium Upgrade Sheet
+    if (showPremiumUpgradeSheet) {
+        PremiumUpgradeSheet(
+            onDismiss = { showPremiumUpgradeSheet = false },
+            onSubscribe = { productId ->
+                showPremiumUpgradeSheet = false
+            },
+            onRestore = {
+                showPremiumUpgradeSheet = false
+            }
         )
     }
 }

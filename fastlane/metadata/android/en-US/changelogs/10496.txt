@@ -1,0 +1,13 @@
+Version 1.4.96:
+
+✨ New Features:
+- HomeScreen: "Untagged" tile for Smart Tagging
+- Edit server settings from Settings screen
+- AI Tagging PRO promotion in upload screens
+
+🔧 Improvements:
+- HomeScreen cleanup and better spacing
+- Better icons in Settings (Fingerprint, Schedule, Key)
+
+🐛 Bug Fixes:
+- Fixed premium status crash

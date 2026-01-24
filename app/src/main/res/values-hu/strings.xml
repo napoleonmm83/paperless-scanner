@@ -46,6 +46,7 @@
     <string name="upload_uploading">Feltöltés...</string>
     <string name="upload_tags_section_title">Címkék kiválasztása</string>
     <string name="upload_tag_new">Új</string>
+    <string name="upload_ai_tagging">AI címkézés</string>
     <string name="upload_tags_show_less">Kevesebb</string>
     <string name="batch_import_title">Tömeges importálás</string>
     <string name="batch_import_back">Vissza</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Név</string>
     <string name="labels_name_placeholder">Címke nevének megadása...</string>
     <string name="labels_color_label">Szín</string>
+    <string name="labels_custom_color">Egyéni Szín</string>
+    <string name="labels_custom_color_title">Válassz Színt</string>
+    <string name="labels_hue_label">Árnyalat</string>
+    <string name="labels_saturation_label">Telítettség</string>
+    <string name="labels_brightness_label">Fényerő</string>
+    <string name="labels_select_button">Kiválaszt</string>
     <string name="labels_preview_label">Előnézet</string>
     <string name="labels_preview_default">Címke neve</string>
     <string name="labels_save_button">Mentés</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokumentumok</string>
     <string name="home_stat_this_month">Ez a hónap</string>
     <string name="home_stat_pending">Függőben</string>
+    <string name="home_stat_untagged">Címke nélkül</string>
     <string name="home_new_scan">Új beolvasás</string>
     <string name="home_all_documents">Összes dokumentum</string>
     <string name="home_processing">Feldolgozás</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Nincs csatlakozva</string>
     <string name="settings_section_server">Szerver</string>
     <string name="settings_server_url">Szerver URL</string>
+    <string name="settings_change_server">Szerver beállítások módosítása</string>
+    <string name="settings_change_server_subtitle">Szerver URL, token vagy bejelentkezési adatok módosítása</string>
     <string name="settings_not_configured">Nincs konfigurálva</string>
     <string name="settings_section_upload">Feltöltés</string>
     <string name="settings_upload_notifications">Feltöltési értesítések</string>

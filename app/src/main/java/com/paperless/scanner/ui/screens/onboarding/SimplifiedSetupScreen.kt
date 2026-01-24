@@ -81,6 +81,7 @@ sealed class SetupState {
 @Composable
 fun SimplifiedSetupScreen(
     onSuccess: () -> Unit,
+    isEditMode: Boolean = false,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     var authMethod by remember { mutableStateOf(AuthMethod.TOKEN) }
@@ -135,7 +136,7 @@ fun SimplifiedSetupScreen(
         ) {
             // Title
             Text(
-                text = "Connect to Paperless",
+                text = if (isEditMode) "Server-Einstellungen ändern" else "Connect to Paperless",
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold
                 ),
@@ -146,7 +147,10 @@ fun SimplifiedSetupScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Enter your server details to get started",
+                text = if (isEditMode)
+                    "Server-URL, Token oder Anmeldedaten anpassen"
+                else
+                    "Enter your server details to get started",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center

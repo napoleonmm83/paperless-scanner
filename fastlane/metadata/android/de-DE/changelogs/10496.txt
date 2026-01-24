@@ -1,0 +1,13 @@
+Version 1.4.96:
+
+✨ Neue Features:
+- HomeScreen: "Ohne Tags" Kachel für Smart Tagging
+- Server-Einstellungen aus Einstellungen änderbar
+- AI Tagging PRO Promotion in Upload-Screens
+
+🔧 Verbesserungen:
+- HomeScreen aufgeräumt und übersichtlicher
+- Bessere Icons in Einstellungen (Fingerabdruck, Zeitplan, Schlüssel)
+
+🐛 Fehlerbehebungen:
+- Premium-Status Crash behoben

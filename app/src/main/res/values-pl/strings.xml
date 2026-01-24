@@ -46,6 +46,7 @@
     <string name="upload_uploading">Przesyłanie...</string>
     <string name="upload_tags_section_title">Wybierz tagi</string>
     <string name="upload_tag_new">Nowy</string>
+    <string name="upload_ai_tagging">Tagowanie AI</string>
     <string name="upload_tags_show_less">Mniej</string>
     <string name="batch_import_title">Import zbiorczy</string>
     <string name="batch_import_back">Wstecz</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nazwa</string>
     <string name="labels_name_placeholder">Wprowadź nazwę etykiety...</string>
     <string name="labels_color_label">Kolor</string>
+    <string name="labels_custom_color">Własny Kolor</string>
+    <string name="labels_custom_color_title">Wybierz Kolor</string>
+    <string name="labels_hue_label">Odcień</string>
+    <string name="labels_saturation_label">Nasycenie</string>
+    <string name="labels_brightness_label">Jasność</string>
+    <string name="labels_select_button">Wybierz</string>
     <string name="labels_preview_label">Podgląd</string>
     <string name="labels_preview_default">Nazwa etykiety</string>
     <string name="labels_save_button">Zapisz</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokumenty</string>
     <string name="home_stat_this_month">Ten miesiąc</string>
     <string name="home_stat_pending">Oczekujące</string>
+    <string name="home_stat_untagged">Bez tagów</string>
     <string name="home_new_scan">Nowy skan</string>
     <string name="home_all_documents">Wszystkie dokumenty</string>
     <string name="home_processing">Przetwarzanie</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Nie połączono</string>
     <string name="settings_section_server">Serwer</string>
     <string name="settings_server_url">URL serwera</string>
+    <string name="settings_change_server">Zmień ustawienia serwera</string>
+    <string name="settings_change_server_subtitle">Dostosuj URL serwera, token lub dane logowania</string>
     <string name="settings_not_configured">Nie skonfigurowano</string>
     <string name="settings_section_upload">Przesyłanie</string>
     <string name="settings_upload_notifications">Powiadomienia o przesyłaniu</string>

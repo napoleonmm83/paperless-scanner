@@ -46,6 +46,7 @@
     <string name="upload_uploading">Uploader...</string>
     <string name="upload_tags_section_title">Vælg tags</string>
     <string name="upload_tag_new">Ny</string>
+    <string name="upload_ai_tagging">AI-tagging</string>
     <string name="upload_tags_show_less">Færre</string>
     <string name="batch_import_title">Batch-import</string>
     <string name="batch_import_back">Tilbage</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Navn</string>
     <string name="labels_name_placeholder">Indtast labelnavn...</string>
     <string name="labels_color_label">Farve</string>
+    <string name="labels_custom_color">Brugerdefineret Farve</string>
+    <string name="labels_custom_color_title">Vælg Farve</string>
+    <string name="labels_hue_label">Nuance</string>
+    <string name="labels_saturation_label">Mætning</string>
+    <string name="labels_brightness_label">Lysstyrke</string>
+    <string name="labels_select_button">Vælg</string>
     <string name="labels_preview_label">Forhåndsvisning</string>
     <string name="labels_preview_default">Labelnavn</string>
     <string name="labels_save_button">Gem</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Dokumenter</string>
     <string name="home_stat_this_month">Denne måned</string>
     <string name="home_stat_pending">Afventer</string>
+    <string name="home_stat_untagged">Uden tags</string>
     <string name="home_new_scan">Ny scanning</string>
     <string name="home_all_documents">Alle dokumenter</string>
     <string name="home_processing">Behandler</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Ikke forbundet</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_change_server">Skift serverindstillinger</string>
+    <string name="settings_change_server_subtitle">Juster server-URL, token eller loginoplysninger</string>
     <string name="settings_not_configured">Ikke konfigureret</string>
     <string name="settings_section_upload">Upload</string>
     <string name="settings_upload_notifications">Upload-notifikationer</string>

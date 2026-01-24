@@ -46,6 +46,7 @@
     <string name="upload_uploading">Téléchargement...</string>
     <string name="upload_tags_section_title">Sélectionner des tags</string>
     <string name="upload_tag_new">Nouveau</string>
+    <string name="upload_ai_tagging">Marquage IA</string>
     <string name="upload_tags_show_less">Moins</string>
     <string name="batch_import_title">Import par lot</string>
     <string name="batch_import_back">Retour</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nom</string>
     <string name="labels_name_placeholder">Entrez le nom de l\'étiquette...</string>
     <string name="labels_color_label">Couleur</string>
+    <string name="labels_custom_color">Couleur Personnalisée</string>
+    <string name="labels_custom_color_title">Choisir Couleur</string>
+    <string name="labels_hue_label">Teinte</string>
+    <string name="labels_saturation_label">Saturation</string>
+    <string name="labels_brightness_label">Luminosité</string>
+    <string name="labels_select_button">Sélectionner</string>
     <string name="labels_preview_label">Aperçu</string>
     <string name="labels_preview_default">Nom de l\'étiquette</string>
     <string name="labels_save_button">Enregistrer</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Documents</string>
     <string name="home_stat_this_month">Ce mois</string>
     <string name="home_stat_pending">En attente</string>
+    <string name="home_stat_untagged">Sans tags</string>
     <string name="home_new_scan">Nouvelle numérisation</string>
     <string name="home_all_documents">Tous les documents</string>
     <string name="home_processing">Traitement</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Non connecté</string>
     <string name="settings_section_server">Serveur</string>
     <string name="settings_server_url">URL du serveur</string>
+    <string name="settings_change_server">Modifier les paramètres du serveur</string>
+    <string name="settings_change_server_subtitle">Ajuster l\'URL du serveur, le token ou les identifiants</string>
     <string name="settings_not_configured">Non configuré</string>
     <string name="settings_section_upload">Téléchargement</string>
     <string name="settings_upload_notifications">Notifications de téléchargement</string>

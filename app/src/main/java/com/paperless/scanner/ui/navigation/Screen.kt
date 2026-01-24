@@ -14,6 +14,7 @@ sealed class Screen(val route: String) {
     // Onboarding flow
     data object OnboardingWelcome : Screen("onboarding-welcome")
     data object SimplifiedSetup : Screen("simplified-setup")
+    data object EditServerSettings : Screen("edit-server-settings")
     data object Welcome : Screen("welcome")
     data object ServerSetup : Screen("server-setup")
     data object Login : Screen("login/{serverUrl}") {

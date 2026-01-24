@@ -148,6 +148,14 @@ class UploadViewModel @Inject constructor(
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
     val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
 
+    // Premium status for AI Tagging PRO badge
+    val isPremiumActive: StateFlow<Boolean> = premiumFeatureManager.isPremiumAccessEnabled
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
+        )
+
     // Observe AI new tags setting
     val aiNewTagsEnabled: Flow<Boolean> = tokenManager.aiNewTagsEnabled
 

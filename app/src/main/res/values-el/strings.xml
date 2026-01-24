@@ -46,6 +46,7 @@
     <string name="upload_uploading">Μεταφόρτωση...</string>
     <string name="upload_tags_section_title">Επιλογή ετικετών</string>
     <string name="upload_tag_new">Νέο</string>
+    <string name="upload_ai_tagging">Επισήμανση AI</string>
     <string name="upload_tags_show_less">Λιγότερα</string>
     <string name="batch_import_title">Μαζική εισαγωγή</string>
     <string name="batch_import_back">Πίσω</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Όνομα</string>
     <string name="labels_name_placeholder">Εισαγωγή ονόματος ετικέτας...</string>
     <string name="labels_color_label">Χρώμα</string>
+    <string name="labels_custom_color">Προσαρμοσμένο Χρώμα</string>
+    <string name="labels_custom_color_title">Επιλογή Χρώματος</string>
+    <string name="labels_hue_label">Απόχρωση</string>
+    <string name="labels_saturation_label">Κορεσμός</string>
+    <string name="labels_brightness_label">Φωτεινότητα</string>
+    <string name="labels_select_button">Επιλογή</string>
     <string name="labels_preview_label">Προεπισκόπηση</string>
     <string name="labels_preview_default">Όνομα ετικέτας</string>
     <string name="labels_save_button">Αποθήκευση</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Έγγραφα</string>
     <string name="home_stat_this_month">Αυτόν τον μήνα</string>
     <string name="home_stat_pending">Σε αναμονή</string>
+    <string name="home_stat_untagged">Χωρίς ετικέτες</string>
     <string name="home_new_scan">Νέα σάρωση</string>
     <string name="home_all_documents">Όλα τα έγγραφα</string>
     <string name="home_processing">Επεξεργασία</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Μη συνδεδεμένο</string>
     <string name="settings_section_server">Διακομιστής</string>
     <string name="settings_server_url">URL διακομιστή</string>
+    <string name="settings_change_server">Αλλαγή ρυθμίσεων διακομιστή</string>
+    <string name="settings_change_server_subtitle">Προσαρμογή URL διακομιστή, token ή διαπιστευτηρίων</string>
     <string name="settings_not_configured">Δεν έχει ρυθμιστεί</string>
     <string name="settings_section_upload">Μεταφόρτωση</string>
     <string name="settings_upload_notifications">Ειδοποιήσεις μεταφόρτωσης</string>

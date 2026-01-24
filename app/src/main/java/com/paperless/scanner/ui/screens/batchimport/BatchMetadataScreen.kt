@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
@@ -101,6 +102,10 @@ fun BatchMetadataScreen(
     val isServerReachable by viewModel.isServerReachable.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateTagDialog by remember { mutableStateOf(false) }
+
+    // Premium state
+    val isPremiumActive by viewModel.isPremiumActive.collectAsState()
+    var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     // Only show title for single document mode
     var title by rememberSaveable { mutableStateOf("") }
@@ -325,7 +330,9 @@ fun BatchMetadataScreen(
                         selectedTagIds.add(tagId)
                     }
                 },
-                onCreateNew = { showCreateTagDialog = true }
+                onCreateNew = { showCreateTagDialog = true },
+                isPremiumActive = isPremiumActive,
+                onUpgradeToPremium = { showPremiumUpgradeSheet = true }
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -447,6 +454,19 @@ fun BatchMetadataScreen(
         CustomSnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.TopCenter)
+        )
+    }
+
+    // Premium Upgrade Sheet
+    if (showPremiumUpgradeSheet) {
+        PremiumUpgradeSheet(
+            onDismiss = { showPremiumUpgradeSheet = false },
+            onSubscribe = { productId ->
+                showPremiumUpgradeSheet = false
+            },
+            onRestore = {
+                showPremiumUpgradeSheet = false
+            }
         )
     }
 }

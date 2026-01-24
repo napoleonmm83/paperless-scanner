@@ -46,6 +46,7 @@
     <string name="upload_uploading">Ladataan...</string>
     <string name="upload_tags_section_title">Valitse tunnisteet</string>
     <string name="upload_tag_new">Uusi</string>
+    <string name="upload_ai_tagging">AI-tunnisteet</string>
     <string name="upload_tags_show_less">Vähemmän</string>
     <string name="batch_import_title">Massatuonti</string>
     <string name="batch_import_back">Takaisin</string>
@@ -156,6 +157,12 @@
     <string name="labels_name_label">Nimi</string>
     <string name="labels_name_placeholder">Syötä tunnisteen nimi...</string>
     <string name="labels_color_label">Väri</string>
+    <string name="labels_custom_color">Oma Väri</string>
+    <string name="labels_custom_color_title">Valitse Väri</string>
+    <string name="labels_hue_label">Sävy</string>
+    <string name="labels_saturation_label">Kylläisyys</string>
+    <string name="labels_brightness_label">Kirkkaus</string>
+    <string name="labels_select_button">Valitse</string>
     <string name="labels_preview_label">Esikatselu</string>
     <string name="labels_preview_default">Tunnisteen nimi</string>
     <string name="labels_save_button">Tallenna</string>
@@ -245,6 +252,7 @@
     <string name="home_stat_documents">Asiakirjat</string>
     <string name="home_stat_this_month">Tässä kuussa</string>
     <string name="home_stat_pending">Odottaa</string>
+    <string name="home_stat_untagged">Ei tageja</string>
     <string name="home_new_scan">Uusi skannaus</string>
     <string name="home_all_documents">Kaikki asiakirjat</string>
     <string name="home_processing">Käsitellään</string>
@@ -287,6 +295,8 @@
     <string name="settings_not_connected">Ei yhdistetty</string>
     <string name="settings_section_server">Palvelin</string>
     <string name="settings_server_url">Palvelimen URL</string>
+    <string name="settings_change_server">Muuta palvelinasetuksia</string>
+    <string name="settings_change_server_subtitle">Muokkaa palvelimen URL-osoitetta, tunnusta tai kirjautumistietoja</string>
     <string name="settings_not_configured">Ei määritetty</string>
     <string name="settings_section_upload">Lataus</string>
     <string name="settings_upload_notifications">Latausilmoitukset</string>
