@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      # Only deploy when app-relevant files change
+      # Deploy when app code or build config changes
       - 'app/**'
       - 'gradle/**'
       - '*.gradle'
@@ -15,15 +15,9 @@ on:
       - 'version.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'fastlane/Fastfile'
-      - 'fastlane/Appfile'
+      - 'fastlane/**'  # Includes Fastfile, Appfile, and metadata/changelogs
       - '.github/workflows/auto-deploy-internal.yml'
       - '.github/actions/**'
-      - 'fastlane/metadata/android/*/changelogs/*.txt'  # Include changelogs for deployment
-    paths-ignore:
-      # Never deploy for documentation-only changes
-      - 'docs/**'
-      - '**.md'
 
 # Required permissions for pushing version bumps
 permissions:
