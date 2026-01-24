@@ -51,7 +51,7 @@ class ServerHealthMonitorTest {
     private lateinit var networkMonitor: NetworkMonitor
 
     private val testDispatcher = StandardTestDispatcher()
-    private val isOnlineFlow = MutableStateFlow(true)
+    private lateinit var isOnlineFlow: MutableStateFlow<Boolean>
 
     @Before
     fun setup() {
@@ -70,8 +70,16 @@ class ServerHealthMonitorTest {
         tokenManager = mockk()
         networkMonitor = mockk()
 
-        // Setup NetworkMonitor - Start with offline to prevent auto health check in init
-        isOnlineFlow.value = false
+        // Default mock for api.getTags to prevent uncaught exceptions from init{} block
+        // The init{} block's Flow collector runs on Dispatchers.IO (async!) and can trigger
+        // checkServerHealth() which calls api.getTags(). Without this default mock, tests
+        // can have race conditions where async IO coroutines from previous tests throw exceptions.
+        val defaultResponse = mockk<TagsResponse>(relaxed = true)
+        coEvery { api.getTags(any(), any()) } returns defaultResponse
+
+        // Setup NetworkMonitor - Create fresh flow for each test to prevent cross-test contamination
+        // Start with offline to prevent auto health check in init
+        isOnlineFlow = MutableStateFlow(false)
         every { networkMonitor.isOnline } returns isOnlineFlow
         every { networkMonitor.checkOnlineStatus() } returns true
 
@@ -81,6 +89,12 @@ class ServerHealthMonitorTest {
 
     @After
     fun tearDown() {
+        // Wait for async IO coroutines from ServerHealthMonitor.init{} to complete
+        // The init{} block starts a Flow collector on Dispatchers.IO which can run
+        // asynchronously between tests. Without this delay, uncaught exceptions from
+        // previous tests can leak into subsequent tests.
+        Thread.sleep(200)
+
         Dispatchers.resetMain()
         unmockkStatic(Log::class)
     }
