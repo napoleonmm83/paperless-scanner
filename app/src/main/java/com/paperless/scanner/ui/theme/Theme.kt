@@ -7,6 +7,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -146,12 +147,17 @@ fun PaperlessScannerTheme(
 
     val colorScheme = if (useDarkTheme) DarkTechColorScheme else LightTechColorScheme
 
-    // Configure status bar icons based on theme
+    // Configure status bar and navigation bar to match theme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             val insetsController = WindowCompat.getInsetsController(window, view)
+
+            // Set status bar and navigation bar colors to match app theme
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+
             // Use LIGHT icons on dark background, DARK icons on light background
             insetsController.isAppearanceLightStatusBars = !useDarkTheme
             insetsController.isAppearanceLightNavigationBars = !useDarkTheme
