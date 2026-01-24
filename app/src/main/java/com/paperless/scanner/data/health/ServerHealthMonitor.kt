@@ -6,16 +6,20 @@ import com.paperless.scanner.data.api.ServerOfflineReason
 import com.paperless.scanner.data.network.NetworkMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlin.math.min
 import retrofit2.HttpException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -89,6 +93,8 @@ sealed class ServerHealthResult {
  * - Lightweight health checks using existing API endpoints
  * - Reactive server status updates via StateFlow
  * - Automatic health check on network reconnect
+ * - Intelligent polling: 30s foreground, 5min background
+ * - Exponential backoff on repeated failures
  * - 5-second timeout for health checks
  * - Distinguishes between network issues and actual server offline
  *
@@ -102,7 +108,19 @@ class ServerHealthMonitor @Inject constructor(
     private val tokenManager: TokenManager,
     private val networkMonitor: NetworkMonitor
 ) {
+    companion object {
+        private const val FOREGROUND_POLL_INTERVAL_MS = 30_000L // 30 seconds
+        private const val BACKGROUND_POLL_INTERVAL_MS = 300_000L // 5 minutes
+        private const val MAX_BACKOFF_INTERVAL_MS = 600_000L // 10 minutes max backoff
+        private const val BACKOFF_MULTIPLIER = 2 // Double interval on each failure
+        private const val MAX_CONSECUTIVE_FAILURES = 5 // Stop polling after 5 failures
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private var pollingJob: Job? = null
+    private var isInForeground = false
+    private var consecutiveFailures = 0
 
     /**
      * Current server status.
@@ -128,9 +146,100 @@ class ServerHealthMonitor @Inject constructor(
             networkMonitor.isOnline.collect { isOnline ->
                 if (isOnline) {
                     checkServerHealth()
+                    // Restart polling when network reconnects
+                    if (isInForeground) {
+                        startPolling(inForeground = true)
+                    }
+                } else {
+                    // Stop polling when no internet
+                    stopPolling()
                 }
             }
         }
+    }
+
+    /**
+     * Start server health polling.
+     *
+     * Call this when app enters foreground or when you want to begin monitoring.
+     *
+     * @param inForeground True if app is in foreground (30s interval), false for background (5min interval)
+     */
+    fun startPolling(inForeground: Boolean = true) {
+        isInForeground = inForeground
+        consecutiveFailures = 0
+
+        // Cancel existing polling job
+        pollingJob?.cancel()
+
+        pollingJob = scope.launch {
+            while (isActive) {
+                // Check server health
+                val result = checkServerHealth()
+
+                // Update failure counter
+                when (result) {
+                    is ServerHealthResult.Success -> {
+                        consecutiveFailures = 0 // Reset on success
+                    }
+                    else -> {
+                        consecutiveFailures++
+                    }
+                }
+
+                // Stop polling after too many consecutive failures
+                if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    break
+                }
+
+                // Calculate delay with exponential backoff
+                val baseInterval = if (inForeground) {
+                    FOREGROUND_POLL_INTERVAL_MS
+                } else {
+                    BACKGROUND_POLL_INTERVAL_MS
+                }
+
+                val backoffMultiplier = if (consecutiveFailures > 0) {
+                    // Exponential backoff: 2^failures
+                    min(
+                        BACKOFF_MULTIPLIER.toLong().shl(consecutiveFailures - 1),
+                        MAX_BACKOFF_INTERVAL_MS / baseInterval
+                    )
+                } else {
+                    1L
+                }
+
+                val delayMs = min(baseInterval * backoffMultiplier, MAX_BACKOFF_INTERVAL_MS)
+
+                delay(delayMs)
+            }
+        }
+    }
+
+    /**
+     * Stop server health polling.
+     *
+     * Call this when app goes to background or you want to pause monitoring.
+     */
+    fun stopPolling() {
+        pollingJob?.cancel()
+        pollingJob = null
+    }
+
+    /**
+     * Notify that app entered foreground.
+     * Switches to foreground polling interval (30s).
+     */
+    fun onForeground() {
+        startPolling(inForeground = true)
+    }
+
+    /**
+     * Notify that app entered background.
+     * Switches to background polling interval (5min).
+     */
+    fun onBackground() {
+        startPolling(inForeground = false)
     }
 
     /**
