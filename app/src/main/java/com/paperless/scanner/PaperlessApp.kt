@@ -7,13 +7,20 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
+import com.paperless.scanner.worker.UploadWorker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,6 +39,8 @@ class PaperlessApp : Application(), Configuration.Provider {
     @Inject
     lateinit var billingManager: BillingManager
 
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     override fun onCreate() {
         super.onCreate()
 
@@ -40,6 +49,9 @@ class PaperlessApp : Application(), Configuration.Provider {
 
         // Initialize server health monitoring with lifecycle awareness
         initializeServerHealthMonitoring()
+
+        // Observe server reachability and trigger upload queue when server comes online
+        observeServerReachability()
 
         cleanupOldCacheFiles()
 
@@ -80,6 +92,54 @@ class PaperlessApp : Application(), Configuration.Provider {
             Log.d(TAG, "Server health monitoring initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize server health monitoring", e)
+        }
+    }
+
+    /**
+     * Observe server reachability and automatically trigger upload queue when server becomes reachable.
+     * This handles the case where internet is available but Paperless server was offline.
+     */
+    private fun observeServerReachability() {
+        appScope.launch {
+            var wasReachable = false
+            serverHealthMonitor.isServerReachable.collect { isReachable ->
+                Log.d(TAG, "Server reachability changed: wasReachable=$wasReachable, isReachable=$isReachable")
+
+                // Trigger upload queue when server transitions from offline to online
+                if (!wasReachable && isReachable) {
+                    Log.d(TAG, "Server became reachable - triggering upload queue worker")
+                    triggerUploadWorker()
+                }
+
+                wasReachable = isReachable
+            }
+        }
+    }
+
+    /**
+     * Trigger UploadWorker to process pending uploads.
+     * Called when server becomes reachable.
+     */
+    private fun triggerUploadWorker() {
+        try {
+            val workManager = WorkManager.getInstance(this)
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
+            val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
+                .setConstraints(constraints)
+                .build()
+
+            workManager.enqueueUniqueWork(
+                "upload_on_server_reconnect",
+                ExistingWorkPolicy.REPLACE,
+                uploadRequest
+            )
+
+            Log.d(TAG, "UploadWorker enqueued after server reconnect")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to trigger UploadWorker", e)
         }
     }
 

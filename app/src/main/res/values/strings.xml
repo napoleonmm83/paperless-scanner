@@ -42,7 +42,10 @@
 
     
     <string name="upload_back">Zurück</string>
-    <string name="upload_queued">Upload wird synchronisiert, sobald Verbindung besteht</string>
+    <string name="upload_queuing">Wird zur Warteschlange hinzugefügt...</string>
+    <string name="upload_queued_processing">Dokument wird im Hintergrund hochgeladen</string>
+    <string name="upload_queued_server_offline">Upload startet, sobald Server erreichbar ist</string>
+    <string name="upload_queued_no_internet">Upload startet, sobald Internetverbindung besteht</string>
     <string name="upload_tag_created">Tag \"%1$s\" erstellt</string>
     <string name="upload_document_preview">Document Preview</string>
     <string name="upload_title_label">Titel (optional)</string>

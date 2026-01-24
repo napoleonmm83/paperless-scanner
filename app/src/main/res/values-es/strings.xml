@@ -32,7 +32,10 @@
     <string name="upload_success">Documento subido correctamente</string>
     <string name="upload_error">Error al subir: %1$s</string>
     <string name="upload_back">Atrás</string>
-    <string name="upload_queued">La subida se sincronizará cuando haya conexión</string>
+    <string name="upload_queuing">Añadiendo a la cola...</string>
+    <string name="upload_queued_processing">Documento subiendo en segundo plano</string>
+    <string name="upload_queued_server_offline">La subida empezará cuando el servidor esté disponible</string>
+    <string name="upload_queued_no_internet">La subida empezará cuando haya conexión a internet</string>
     <string name="upload_tag_created">Etiqueta « %1$s » creada</string>
     <string name="upload_document_preview">Vista previa del documento</string>
     <string name="upload_title_label">Título (opcional)</string>

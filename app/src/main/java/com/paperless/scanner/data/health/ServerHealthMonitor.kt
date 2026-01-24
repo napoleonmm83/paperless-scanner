@@ -109,6 +109,7 @@ class ServerHealthMonitor @Inject constructor(
     private val networkMonitor: NetworkMonitor
 ) {
     companion object {
+        private const val TAG = "ServerHealthMonitor"
         private const val FOREGROUND_POLL_INTERVAL_MS = 30_000L // 30 seconds
         private const val BACKGROUND_POLL_INTERVAL_MS = 300_000L // 5 minutes
         private const val MAX_BACKOFF_INTERVAL_MS = 600_000L // 10 minutes max backoff
@@ -144,16 +145,24 @@ class ServerHealthMonitor @Inject constructor(
         // Auto-check server health when network reconnects
         scope.launch {
             networkMonitor.isOnline.collect { isOnline ->
+                android.util.Log.d(TAG, "=== NETWORK STATE CHANGE ===")
+                android.util.Log.d(TAG, "NetworkMonitor.isOnline changed to: $isOnline")
+                android.util.Log.d(TAG, "Current serverStatus: ${_serverStatus.value}")
+                android.util.Log.d(TAG, "Current isServerReachable: ${isServerReachable.value}")
+
                 if (isOnline) {
+                    android.util.Log.d(TAG, "Network is online - checking server health")
                     checkServerHealth()
                     // Restart polling when network reconnects
                     if (isInForeground) {
                         startPolling(inForeground = true)
                     }
                 } else {
+                    android.util.Log.d(TAG, "Network is offline - stopping polling")
                     // Stop polling when no internet
                     stopPolling()
                 }
+                android.util.Log.d(TAG, "============================")
             }
         }
     }
@@ -293,16 +302,31 @@ class ServerHealthMonitor @Inject constructor(
             ServerHealthResult.Timeout
 
         } catch (e: Exception) {
-            // HTTP errors (401, 403, 500, etc.) mean server IS reachable
-            // Only connection errors mean server is offline
+            // HTTP errors need careful handling:
+            // - 404: Likely reverse proxy responding, but Paperless not running → OFFLINE
+            // - 401/403: Server running, but authentication issue → ONLINE
+            // - 500+: Server running, but internal error → ONLINE
             when (e) {
                 is HttpException -> {
-                    // Server responded with HTTP error - server is online
-                    _serverStatus.value = ServerStatus.Online(System.currentTimeMillis())
-                    ServerHealthResult.Success
+                    val statusCode = e.code()
+                    android.util.Log.d(TAG, "Health check HTTP error: $statusCode ${e.message}")
+
+                    if (statusCode == 404) {
+                        // HTTP 404 on /api/tags/ means Paperless is not running
+                        // (Reverse proxy/CDN responds, but backend is offline)
+                        android.util.Log.w(TAG, "HTTP 404 on health check - treating as server offline")
+                        _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.UNKNOWN)
+                        ServerHealthResult.Error("Server returned 404 - Paperless may be offline")
+                    } else {
+                        // Other HTTP errors (401, 403, 500, etc.) mean server IS reachable
+                        android.util.Log.d(TAG, "HTTP $statusCode - server is online but returned error")
+                        _serverStatus.value = ServerStatus.Online(System.currentTimeMillis())
+                        ServerHealthResult.Success
+                    }
                 }
                 else -> {
                     // Unknown error - treat as offline
+                    android.util.Log.e(TAG, "Health check unknown error: ${e.message}", e)
                     _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.UNKNOWN)
                     ServerHealthResult.Error(e.message ?: "Unknown error")
                 }

@@ -32,7 +32,10 @@
     <string name="upload_success">Belge yüklendi</string>
     <string name="upload_error">Yükleme başarısız: %1$s</string>
     <string name="upload_back">Geri</string>
-    <string name="upload_queued">Bağlantı olduğunda yükleme senkronize edilecek</string>
+    <string name="upload_queuing">Kuyruğa ekleniyor...</string>
+    <string name="upload_queued_processing">Belge arka planda yükleniyor</string>
+    <string name="upload_queued_server_offline">Sunucu erişilebilir olduğunda yükleme başlayacak</string>
+    <string name="upload_queued_no_internet">İnternet bağlantısı olduğunda yükleme başlayacak</string>
     <string name="upload_tag_created">\"%1$s\" etiketi oluşturuldu</string>
     <string name="upload_document_preview">Belge önizleme</string>
     <string name="upload_title_label">Başlık (isteğe bağlı)</string>

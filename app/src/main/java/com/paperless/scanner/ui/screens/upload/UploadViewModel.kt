@@ -8,9 +8,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
-import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.isRetryable
-import com.paperless.scanner.data.api.userMessage
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
@@ -24,14 +21,11 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.util.FileUtils
-import com.paperless.scanner.util.NetworkUtils
-import com.paperless.scanner.utils.RetryUtil
 import com.paperless.scanner.utils.StorageUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,21 +47,18 @@ import javax.inject.Inject
 class UploadViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
-    private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
     private val correspondentRepository: CorrespondentRepository,
-    private val networkUtils: NetworkUtils,
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
+    private val uploadWorkManager: com.paperless.scanner.worker.UploadWorkManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val analyticsService: AnalyticsService,
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
-    private val paperlessGptRepository: com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository,
-    private val taskRepository: com.paperless.scanner.data.repository.TaskRepository,
     private val tokenManager: TokenManager,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -153,8 +144,8 @@ class UploadViewModel @Inject constructor(
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
 
-    // Server Health Status (Phase 2: Server Offline Detection)
-    val serverStatus: StateFlow<com.paperless.scanner.data.health.ServerStatus> = serverHealthMonitor.serverStatus
+    // Observe network and server status for status-specific queue messages
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
     val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
 
     // Observe AI new tags setting
@@ -175,9 +166,6 @@ class UploadViewModel @Inject constructor(
 
     private val _remainingCalls = MutableStateFlow<Int>(300)
     val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
-
-    // Store last upload params for retry
-    private var lastUploadParams: UploadParams? = null
 
     init {
         observeTagsReactively()
@@ -251,17 +239,6 @@ class UploadViewModel @Inject constructor(
     // and observeCorrespondentsReactively() in init{}
 
     /**
-     * Check Paperless server health status.
-     * Delegates to ServerHealthMonitor for proactive server reachability check.
-     * Used by UI to trigger manual health check (e.g., retry button).
-     */
-    fun checkServerHealth() {
-        viewModelScope.launch {
-            serverHealthMonitor.checkServerHealth()
-        }
-    }
-
-    /**
      * Checks storage space before upload and returns error if insufficient.
      *
      * @return null if storage check passed, Error state otherwise
@@ -297,29 +274,6 @@ class UploadViewModel @Inject constructor(
         return null  // Storage check passed
     }
 
-    /**
-     * Converts exception to user-friendly error message with technical details.
-     * Uses PaperlessException sealed class for better error categorization.
-     *
-     * @param exception The exception that occurred
-     * @return UploadUiState.Error with user message and details
-     */
-    private fun createErrorState(exception: Throwable): UploadUiState.Error {
-        // Convert to PaperlessException if not already
-        val paperlessException = if (exception is PaperlessException) {
-            exception
-        } else {
-            PaperlessException.from(exception)
-        }
-
-        // Use extension properties for user message and retryability
-        return UploadUiState.Error(
-            userMessage = paperlessException.userMessage,
-            technicalDetails = "${paperlessException::class.simpleName}: ${paperlessException.message}",
-            isRetryable = paperlessException.isRetryable
-        )
-    }
-
     fun uploadDocument(
         uri: Uri,
         title: String? = null,
@@ -327,32 +281,29 @@ class UploadViewModel @Inject constructor(
         documentTypeId: Int? = null,
         correspondentId: Int? = null
     ) {
-        // Store params for potential retry
-        lastUploadParams = UploadParams.Single(uri, title, tagIds, documentTypeId, correspondentId)
-
         viewModelScope.launch(ioDispatcher) {
-            val startTime = System.currentTimeMillis()
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = 1, isMultiPage = false))
 
-            // Check storage BEFORE attempting upload
+            // Check storage BEFORE queueing
             checkStorage(listOf(uri))?.let { error ->
                 _uiState.update { error }
                 return@launch
             }
 
-            // Check server availability - if offline or unreachable, queue the upload
-            if (!serverHealthMonitor.isServerReachable.value) {
-                Log.d(TAG, "Server not reachable - queueing upload for later sync")
+            _uiState.update { UploadUiState.Queuing }
+
+            try {
                 // Copy file to local storage to ensure WorkManager can access it later
+                // Content URIs from SAF lose permissions when passed to WorkManager
                 val localUri = if (FileUtils.isLocalFileUri(uri)) {
                     Log.d(TAG, "URI is already local file: $uri")
                     uri
                 } else {
                     Log.d(TAG, "Copying content URI to persistent storage: $uri")
                     FileUtils.copyToLocalStorage(context, uri) ?: run {
-                        Log.e(TAG, "Failed to copy file for offline queue: $uri")
+                        Log.e(TAG, "Failed to copy file for queue: $uri")
                         _uiState.update { UploadUiState.Error(
-                            userMessage = "Fehler beim Speichern für Offline-Warteschlange",
+                            userMessage = "Fehler beim Speichern",
                             technicalDetails = context.getString(R.string.error_queue_add),
                             isRetryable = false
                         ) }
@@ -374,6 +325,7 @@ class UploadViewModel @Inject constructor(
                 val fileSize = FileUtils.getFileSize(localUri)
                 Log.d(TAG, "Queueing upload: $localUri ($fileSize bytes)")
 
+                // Queue the upload - WorkManager will handle retry, network checks, etc.
                 val queueId = uploadQueueRepository.queueUpload(
                     uri = localUri,
                     title = title,
@@ -382,51 +334,21 @@ class UploadViewModel @Inject constructor(
                     correspondentId = correspondentId
                 )
                 Log.d(TAG, "Upload queued with ID: $queueId")
-                lastUploadParams = null
-                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
+
+                // Trigger immediate upload processing
+                uploadWorkManager.scheduleImmediateUpload()
+
+                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
                 _uiState.update { UploadUiState.Queued }
-                return@launch
+            } catch (e: Exception) {
+                Log.e(TAG, "Error queueing upload", e)
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
+                _uiState.update { UploadUiState.Error(
+                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
+                    technicalDetails = e.message ?: "Unknown error",
+                    isRetryable = false
+                ) }
             }
-
-            _uiState.update { UploadUiState.Uploading(0f) }
-
-            // Use RetryUtil for automatic retry with exponential backoff
-            val result = RetryUtil.retryWithExponentialBackoff(
-                maxAttempts = 3,
-                initialDelay = 2000L,
-                onRetry = { attempt, delay, error ->
-                    Log.d(TAG, "Retrying upload (attempt $attempt/${3}, delay=${delay}ms): ${error.message}")
-                    _uiState.update { UploadUiState.Retrying(attempt, 3, delay) }
-                    delay(delay)  // Wait before retry
-                    _uiState.update { UploadUiState.Uploading(0f) }  // Reset to uploading
-                }
-            ) {
-                documentRepository.uploadDocument(
-                    uri = uri,
-                    title = title,
-                    tagIds = tagIds,
-                    documentTypeId = documentTypeId,
-                    correspondentId = correspondentId,
-                    onProgress = { progress ->
-                        _uiState.update { UploadUiState.Uploading(progress) }
-                    }
-                ).getOrThrow()  // Convert Result to exception for retry logic
-            }
-
-            result
-                .onSuccess { taskId ->
-                    val durationMs = System.currentTimeMillis() - startTime
-                    analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = 1, durationMs = durationMs))
-                    lastUploadParams = null
-                    _uiState.update { UploadUiState.Success(taskId) }
-
-                    // Auto-trigger OCR improvement if needed (background, non-blocking)
-                    autoTriggerOcrIfNeeded(taskId)
-                }
-                .onFailure { exception ->
-                    analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "upload_error"))
-                    _uiState.update { createErrorState(exception) }
-                }
         }
     }
 
@@ -437,24 +359,23 @@ class UploadViewModel @Inject constructor(
         documentTypeId: Int? = null,
         correspondentId: Int? = null
     ) {
-        // Store params for potential retry
-        lastUploadParams = UploadParams.MultiPage(uris, title, tagIds, documentTypeId, correspondentId)
-
         viewModelScope.launch(ioDispatcher) {
-            val startTime = System.currentTimeMillis()
             val pageCount = uris.size
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
 
-            // Check storage BEFORE attempting upload
+            // Check storage BEFORE queueing
             checkStorage(uris)?.let { error ->
                 _uiState.update { error }
                 return@launch
             }
 
-            // Check server availability - if offline or unreachable, queue the upload
-            if (!serverHealthMonitor.isServerReachable.value) {
-                Log.d(TAG, "Server not reachable - queueing multi-page upload (${uris.size} pages) for later sync")
+            _uiState.update { UploadUiState.Queuing }
+
+            try {
+                Log.d(TAG, "Queueing multi-page upload (${uris.size} pages)")
+
                 // Copy files to local storage to ensure WorkManager can access them later
+                // Content URIs from SAF lose permissions when passed to WorkManager
                 val localUris = uris.mapIndexedNotNull { index, uri ->
                     if (FileUtils.isLocalFileUri(uri)) {
                         Log.d(TAG, "  Page ${index + 1}: Already local file: $uri")
@@ -470,9 +391,9 @@ class UploadViewModel @Inject constructor(
                 }
 
                 if (localUris.isEmpty()) {
-                    Log.e(TAG, "Failed to copy any files for offline queue (0/${uris.size} succeeded)")
+                    Log.e(TAG, "Failed to copy any files for queue (0/${uris.size} succeeded)")
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Fehler beim Speichern für Offline-Warteschlange",
+                        userMessage = "Fehler beim Speichern",
                         technicalDetails = context.getString(R.string.error_queue_add),
                         isRetryable = false
                     ) }
@@ -480,7 +401,7 @@ class UploadViewModel @Inject constructor(
                 }
 
                 if (localUris.size < uris.size) {
-                    Log.w(TAG, "Only ${localUris.size}/${uris.size} files copied successfully for offline queue")
+                    Log.w(TAG, "Only ${localUris.size}/${uris.size} files copied successfully")
                 }
 
                 // Verify all files exist before queueing
@@ -501,6 +422,7 @@ class UploadViewModel @Inject constructor(
                 val totalSize = localUris.sumOf { FileUtils.getFileSize(it) }
                 Log.d(TAG, "Queueing multi-page upload: ${localUris.size} files ($totalSize bytes total)")
 
+                // Queue the upload - WorkManager will handle retry, network checks, etc.
                 val queueId = uploadQueueRepository.queueMultiPageUpload(
                     uris = localUris,
                     title = title,
@@ -509,93 +431,32 @@ class UploadViewModel @Inject constructor(
                     correspondentId = correspondentId
                 )
                 Log.d(TAG, "Multi-page upload queued with ID: $queueId")
-                lastUploadParams = null
-                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = true))
+
+                // Trigger immediate upload processing
+                uploadWorkManager.scheduleImmediateUpload()
+
+                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
                 _uiState.update { UploadUiState.Queued }
-                return@launch
-            }
-
-            _uiState.update { UploadUiState.Uploading(0f) }
-
-            // Use RetryUtil for automatic retry with exponential backoff
-            val result = RetryUtil.retryWithExponentialBackoff(
-                maxAttempts = 3,
-                initialDelay = 2000L,
-                onRetry = { attempt, delay, error ->
-                    Log.d(TAG, "Retrying multi-page upload (attempt $attempt/${3}, delay=${delay}ms): ${error.message}")
-                    _uiState.update { UploadUiState.Retrying(attempt, 3, delay) }
-                    delay(delay)  // Wait before retry
-                    _uiState.update { UploadUiState.Uploading(0f) }  // Reset to uploading
-                }
-            ) {
-                documentRepository.uploadMultiPageDocument(
-                    uris = uris,
-                    title = title,
-                    tagIds = tagIds,
-                    documentTypeId = documentTypeId,
-                    correspondentId = correspondentId,
-                    onProgress = { progress ->
-                        _uiState.update { UploadUiState.Uploading(progress) }
-                    }
-                ).getOrThrow()  // Convert Result to exception for retry logic
-            }
-
-            result
-                .onSuccess { taskId ->
-                    val durationMs = System.currentTimeMillis() - startTime
-                    analyticsService.trackEvent(AnalyticsEvent.UploadSuccess(pageCount = pageCount, durationMs = durationMs))
-                    lastUploadParams = null
-                    _uiState.update { UploadUiState.Success(taskId) }
-
-                    // Auto-trigger OCR improvement if needed (background, non-blocking)
-                    autoTriggerOcrIfNeeded(taskId)
-                }
-                .onFailure { exception ->
-                    analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "multi_page_upload_error"))
-                    _uiState.update { createErrorState(exception) }
-                }
-        }
-    }
-
-    fun retry() {
-        analyticsService.trackEvent(AnalyticsEvent.UploadRetried)
-        when (val params = lastUploadParams) {
-            is UploadParams.Single -> uploadDocument(
-                uri = params.uri,
-                title = params.title,
-                tagIds = params.tagIds,
-                documentTypeId = params.documentTypeId,
-                correspondentId = params.correspondentId
-            )
-            is UploadParams.MultiPage -> uploadMultiPageDocument(
-                uris = params.uris,
-                title = params.title,
-                tagIds = params.tagIds,
-                documentTypeId = params.documentTypeId,
-                correspondentId = params.correspondentId
-            )
-            null -> {
-                Log.w(TAG, "No upload params to retry")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error queueing multi-page upload", e)
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
+                _uiState.update { UploadUiState.Error(
+                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
+                    technicalDetails = e.message ?: "Unknown error",
+                    isRetryable = false
+                ) }
             }
         }
     }
-
-    fun canRetry(): Boolean = lastUploadParams != null
 
     fun resetState() {
         _uiState.update { UploadUiState.Idle }
-        lastUploadParams = null
     }
 
     fun clearError() {
         if (_uiState.value is UploadUiState.Error) {
             _uiState.update { UploadUiState.Idle }
         }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        lastUploadParams = null
     }
 
     fun createTag(name: String, color: String? = null) {
@@ -785,146 +646,9 @@ class UploadViewModel @Inject constructor(
         // This provides explicit control and avoids unexpected data usage
     }
 
-    /**
-     * Automatically trigger Paperless-GPT OCR job if document has low OCR confidence.
-     *
-     * **Workflow** (runs in background, non-blocking):
-     * 1. Poll task until completion (max 2 minutes)
-     * 2. Extract document ID from task
-     * 3. Fetch document details to get OCR confidence
-     * 4. If confidence < 0.8 AND Paperless-GPT enabled → trigger OCR job
-     * 5. Poll OCR job status until completion
-     *
-     * **Note:** This runs in background coroutine - user can navigate away during processing.
-     *
-     * @param taskId Task ID from document upload
-     */
-    private fun autoTriggerOcrIfNeeded(taskId: String) {
-        viewModelScope.launch(ioDispatcher) {
-            try {
-                // Check if Paperless-GPT is enabled
-                if (!paperlessGptRepository.isEnabled()) {
-                    Log.d(TAG, "Paperless-GPT disabled, skipping OCR auto-trigger")
-                    return@launch
-                }
-
-                Log.d(TAG, "OCR Auto-Trigger: Polling task $taskId for completion")
-
-                // Step 1: Poll task until completion (max 2 minutes = 60 iterations @ 2s each)
-                var documentId: Int? = null
-                repeat(60) { iteration ->
-                    delay(2000) // 2 seconds
-
-                    taskRepository.getTask(taskId).fold(
-                        onSuccess = { task ->
-                            if (task == null) {
-                                Log.w(TAG, "Task $taskId not found")
-                                return@launch
-                            }
-
-                            when (task.status) {
-                                "SUCCESS" -> {
-                                    // Extract document ID from relatedDocument field
-                                    // Format can be: "123" (plain ID) or "/api/documents/123/" (URL)
-                                    documentId = task.relatedDocument?.let { relDoc ->
-                                        // Try to parse as Int first
-                                        relDoc.toIntOrNull()
-                                            // If that fails, extract from URL pattern
-                                            ?: Regex("""/api/documents/(\d+)""").find(relDoc)?.groupValues?.get(1)?.toIntOrNull()
-                                            // If that fails, try just extracting digits
-                                            ?: relDoc.filter { it.isDigit() }.toIntOrNull()
-                                    }
-
-                                    if (documentId != null) {
-                                        Log.d(TAG, "OCR Auto-Trigger: Task completed, document ID = $documentId")
-                                        return@repeat // Exit polling loop
-                                    } else {
-                                        Log.w(TAG, "OCR Auto-Trigger: Task completed but no document ID found: ${task.relatedDocument}")
-                                        return@launch
-                                    }
-                                }
-                                "FAILURE" -> {
-                                    Log.w(TAG, "OCR Auto-Trigger: Task failed, skipping OCR")
-                                    return@launch
-                                }
-                                "PENDING", "STARTED" -> {
-                                    Log.d(TAG, "OCR Auto-Trigger: Task still processing (${task.status})")
-                                    // Continue polling
-                                }
-                            }
-                        },
-                        onFailure = { error ->
-                            Log.e(TAG, "OCR Auto-Trigger: Failed to get task status", error)
-                            return@launch
-                        }
-                    )
-
-                    // Timeout check
-                    if (iteration == 59) {
-                        Log.w(TAG, "OCR Auto-Trigger: Task polling timeout (2 minutes)")
-                        return@launch
-                    }
-                }
-
-                // Step 2: Fetch document details to get OCR confidence
-                if (documentId == null) {
-                    Log.w(TAG, "OCR Auto-Trigger: Document ID is null after polling")
-                    return@launch
-                }
-
-                Log.d(TAG, "OCR Auto-Trigger: Fetching document $documentId details")
-                documentRepository.getDocument(documentId!!).fold(
-                    onSuccess = { document ->
-                        val confidence = document.ocrConfidence
-                        Log.d(TAG, "OCR Auto-Trigger: Document OCR confidence = $confidence")
-
-                        // Step 3: Check confidence threshold and trigger OCR if needed
-                        if (confidence == null) {
-                            Log.d(TAG, "OCR Auto-Trigger: No OCR confidence available, skipping")
-                            return@launch
-                        }
-
-                        if (confidence >= 0.8) {
-                            Log.d(TAG, "OCR Auto-Trigger: Confidence ${confidence} >= 0.8, skipping OCR")
-                            return@launch
-                        }
-
-                        // Trigger OCR improvement
-                        Log.d(TAG, "OCR Auto-Trigger: Triggering OCR job for document $documentId (confidence: $confidence)")
-                        paperlessGptRepository.autoTriggerOcrIfNeeded(
-                            documentId = documentId!!,
-                            ocrConfidence = confidence
-                        ).fold(
-                            onSuccess = {
-                                Log.d(TAG, "OCR Auto-Trigger: OCR job completed successfully for document $documentId")
-                                analyticsService.trackEvent(
-                                    AnalyticsEvent.PaperlessGptOcrAutoSuccess(
-                                        documentId = documentId!!,
-                                        originalConfidence = confidence
-                                    )
-                                )
-                            },
-                            onFailure = { error ->
-                                Log.e(TAG, "OCR Auto-Trigger: OCR job failed for document $documentId", error)
-                                analyticsService.trackEvent(
-                                    AnalyticsEvent.PaperlessGptOcrAutoFailed(
-                                        documentId = documentId!!,
-                                        error = error.message ?: "unknown"
-                                    )
-                                )
-                            }
-                        )
-                    },
-                    onFailure = { error ->
-                        Log.e(TAG, "OCR Auto-Trigger: Failed to fetch document $documentId", error)
-                    }
-                )
-
-            } catch (e: Exception) {
-                Log.e(TAG, "OCR Auto-Trigger: Unexpected error", e)
-            }
-        }
-    }
+    // REMOVED: autoTriggerOcrIfNeeded()
+    // This function is no longer compatible with the queue-based upload system.
+    // OCR auto-trigger should be implemented in UploadWorker in the future.
 
     /**
      * Enable or disable AI new tags feature.
@@ -937,35 +661,15 @@ class UploadViewModel @Inject constructor(
     }
 }
 
-sealed class UploadParams {
-    data class Single(
-        val uri: Uri,
-        val title: String?,
-        val tagIds: List<Int>,
-        val documentTypeId: Int?,
-        val correspondentId: Int?
-    ) : UploadParams()
-
-    data class MultiPage(
-        val uris: List<Uri>,
-        val title: String?,
-        val tagIds: List<Int>,
-        val documentTypeId: Int?,
-        val correspondentId: Int?
-    ) : UploadParams()
-}
-
 sealed class UploadUiState {
     data object Idle : UploadUiState()
-    data class Uploading(val progress: Float = 0f) : UploadUiState()
-    data class Retrying(val attempt: Int, val maxAttempts: Int, val nextDelay: Long) : UploadUiState()
-    data class Success(val taskId: String) : UploadUiState()
+    data object Queuing : UploadUiState() // Adding to queue (copying files, etc.)
+    data object Queued : UploadUiState() // Upload in Queue, wird im Hintergrund verarbeitet
     data class Error(
         val userMessage: String,           // Benutzerfreundliche Nachricht
         val technicalDetails: String? = null,  // Technische Details (ausklappbar)
         val isRetryable: Boolean = false   // Kann automatisch retried werden
     ) : UploadUiState()
-    data object Queued : UploadUiState() // Upload in Queue, wird später synchronisiert
 }
 
 sealed class CreateTagState {

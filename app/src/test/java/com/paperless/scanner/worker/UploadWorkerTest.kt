@@ -8,10 +8,13 @@ import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
+import com.paperless.scanner.data.health.ServerHealthMonitor
+import com.paperless.scanner.data.health.ServerStatus
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
+import kotlinx.coroutines.flow.MutableStateFlow
 import com.google.common.util.concurrent.ListenableFuture
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -55,6 +58,7 @@ class UploadWorkerTest {
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var serverHealthMonitor: ServerHealthMonitor
 
     @Before
     fun setup() {
@@ -62,9 +66,15 @@ class UploadWorkerTest {
         uploadQueueRepository = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        serverHealthMonitor = mockk(relaxed = true)
 
         // Default: hasValidatedInternet returns true
         every { networkMonitor.hasValidatedInternet() } returns true
+
+        // Default: Server is reachable
+        every { serverHealthMonitor.serverStatus } returns MutableStateFlow<ServerStatus>(ServerStatus.Online(System.currentTimeMillis()))
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
+        coEvery { serverHealthMonitor.checkServerHealth() } returns com.paperless.scanner.data.health.ServerHealthResult.Success
 
         // Mock Android Log class to avoid "Method not mocked" errors
         mockkStatic(Log::class)
@@ -94,7 +104,8 @@ class UploadWorkerTest {
                 workerParams = mockk(relaxed = true),
                 uploadQueueRepository = uploadQueueRepository,
                 documentRepository = documentRepository,
-                networkMonitor = networkMonitor
+                networkMonitor = networkMonitor,
+                serverHealthMonitor = serverHealthMonitor
             )
         )
         // Mock suspend function setForeground to avoid WorkManager context issues
@@ -105,6 +116,24 @@ class UploadWorkerTest {
             every { get() } returns null
         }
         return worker
+    }
+
+    // ==================== Pre-Check Tests ====================
+
+    @Test
+    fun `doWork retries when server is not reachable`() = runBlocking {
+        // Given: Server is not reachable
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
+        every { serverHealthMonitor.serverStatus } returns MutableStateFlow(ServerStatus.Offline(com.paperless.scanner.data.api.ServerOfflineReason.UNKNOWN))
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        // Then: Worker returns retry
+        assertEquals(ListenableWorker.Result.retry(), result)
+
+        // And: No uploads were attempted
+        coVerify(exactly = 0) { uploadQueueRepository.getNextPendingUpload() }
     }
 
     // ==================== No Pending Uploads Tests ====================

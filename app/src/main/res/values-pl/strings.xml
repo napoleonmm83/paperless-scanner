@@ -32,7 +32,10 @@
     <string name="upload_success">Dokument przesłany pomyślnie</string>
     <string name="upload_error">Przesyłanie nie powiodło się: %1$s</string>
     <string name="upload_back">Wstecz</string>
-    <string name="upload_queued">Przesyłanie zsynchronizuje się po połączeniu</string>
+    <string name="upload_queuing">Dodawanie do kolejki...</string>
+    <string name="upload_queued_processing">Dokument przesyłany w tle</string>
+    <string name="upload_queued_server_offline">Przesyłanie rozpocznie się, gdy serwer będzie dostępny</string>
+    <string name="upload_queued_no_internet">Przesyłanie rozpocznie się, gdy połączenie internetowe będzie dostępne</string>
     <string name="upload_tag_created">Tag \"%1$s\" utworzony</string>
     <string name="upload_document_preview">Podgląd dokumentu</string>
     <string name="upload_title_label">Tytuł (opcjonalnie)</string>

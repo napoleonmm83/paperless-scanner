@@ -32,7 +32,10 @@
     <string name="upload_success">Document succesvol geüpload</string>
     <string name="upload_error">Upload mislukt: %1$s</string>
     <string name="upload_back">Terug</string>
-    <string name="upload_queued">Upload wordt gesynchroniseerd wanneer verbinding beschikbaar is</string>
+    <string name="upload_queuing">Toevoegen aan wachtrij...</string>
+    <string name="upload_queued_processing">Document wordt op de achtergrond geüpload</string>
+    <string name="upload_queued_server_offline">Upload start zodra server bereikbaar is</string>
+    <string name="upload_queued_no_internet">Upload start zodra internetverbinding beschikbaar is</string>
     <string name="upload_tag_created">Tag \"%1$s\" aangemaakt</string>
     <string name="upload_document_preview">Documentvoorbeeld</string>
     <string name="upload_title_label">Titel (optioneel)</string>

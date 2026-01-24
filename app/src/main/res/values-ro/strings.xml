@@ -32,7 +32,10 @@
     <string name="upload_success">Document încărcat</string>
     <string name="upload_error">Încărcare eșuată: %1$s</string>
     <string name="upload_back">Înapoi</string>
-    <string name="upload_queued">Încărcarea se va sincroniza când conexiunea este disponibilă</string>
+    <string name="upload_queuing">Adăugare la coadă...</string>
+    <string name="upload_queued_processing">Documentul este încărcat în fundal</string>
+    <string name="upload_queued_server_offline">Încărcarea va începe când serverul va fi accesibil</string>
+    <string name="upload_queued_no_internet">Încărcarea va începe când conexiunea la internet va fi disponibilă</string>
     <string name="upload_tag_created">Eticheta \"%1$s\" creată</string>
     <string name="upload_document_preview">Previzualizare document</string>
     <string name="upload_title_label">Titlu (opțional)</string>

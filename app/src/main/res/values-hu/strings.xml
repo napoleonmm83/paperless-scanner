@@ -32,7 +32,10 @@
     <string name="upload_success">Dokumentum feltöltve</string>
     <string name="upload_error">Feltöltés sikertelen: %1$s</string>
     <string name="upload_back">Vissza</string>
-    <string name="upload_queued">A feltöltés szinkronizálódik, ha kapcsolat elérhető</string>
+    <string name="upload_queuing">Hozzáadás a sorhoz...</string>
+    <string name="upload_queued_processing">Dokumentum feltöltése a háttérben</string>
+    <string name="upload_queued_server_offline">A feltöltés elindul, ha a szerver elérhető lesz</string>
+    <string name="upload_queued_no_internet">A feltöltés elindul, ha internetkapcsolat elérhető lesz</string>
     <string name="upload_tag_created">„%1$s" címke létrehozva</string>
     <string name="upload_document_preview">Dokumentum előnézet</string>
     <string name="upload_title_label">Cím (opcionális)</string>

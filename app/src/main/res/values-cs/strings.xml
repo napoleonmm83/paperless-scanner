@@ -32,7 +32,10 @@
     <string name="upload_success">Dokument nahrán</string>
     <string name="upload_error">Nahrávání selhalo: %1$s</string>
     <string name="upload_back">Zpět</string>
-    <string name="upload_queued">Nahrávání se synchronizuje, jakmile bude dostupné připojení</string>
+    <string name="upload_queuing">Přidávání do fronty...</string>
+    <string name="upload_queued_processing">Dokument se nahrává na pozadí</string>
+    <string name="upload_queued_server_offline">Nahrávání začne, jakmile bude server dostupný</string>
+    <string name="upload_queued_no_internet">Nahrávání začne, jakmile bude dostupné připojení k internetu</string>
     <string name="upload_tag_created">Štítek \"%1$s\" vytvořen</string>
     <string name="upload_document_preview">Náhled dokumentu</string>
     <string name="upload_title_label">Název (volitelné)</string>

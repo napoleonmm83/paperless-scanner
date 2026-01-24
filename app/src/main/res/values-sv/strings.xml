@@ -32,7 +32,10 @@
     <string name="upload_success">Dokument uppladdat</string>
     <string name="upload_error">Uppladdning misslyckades: %1$s</string>
     <string name="upload_back">Tillbaka</string>
-    <string name="upload_queued">Uppladdningen synkroniseras när anslutning finns</string>
+    <string name="upload_queuing">Lägger till i kö...</string>
+    <string name="upload_queued_processing">Dokument laddas upp i bakgrunden</string>
+    <string name="upload_queued_server_offline">Uppladdningen startar när servern är nåbar</string>
+    <string name="upload_queued_no_internet">Uppladdningen startar när internetanslutning finns</string>
     <string name="upload_tag_created">Tagg \"%1$s\" skapad</string>
     <string name="upload_document_preview">Dokumentförhandsvisning</string>
     <string name="upload_title_label">Titel (valfritt)</string>

@@ -32,7 +32,10 @@
     <string name="upload_success">Asiakirja ladattu</string>
     <string name="upload_error">Lataus epäonnistui: %1$s</string>
     <string name="upload_back">Takaisin</string>
-    <string name="upload_queued">Lataus synkronoidaan kun yhteys on saatavilla</string>
+    <string name="upload_queuing">Lisätään jonoon...</string>
+    <string name="upload_queued_processing">Asiakirja ladataan taustalla</string>
+    <string name="upload_queued_server_offline">Lataus alkaa kun palvelin on tavoitettavissa</string>
+    <string name="upload_queued_no_internet">Lataus alkaa kun internetyhteys on saatavilla</string>
     <string name="upload_tag_created">Tunniste \"%1$s\" luotu</string>
     <string name="upload_document_preview">Asiakirjan esikatselu</string>
     <string name="upload_title_label">Otsikko (valinnainen)</string>

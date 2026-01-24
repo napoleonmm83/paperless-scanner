@@ -196,9 +196,34 @@ class ServerHealthMonitorTest {
     }
 
     @Test
-    fun `checkServerHealth treats HTTP errors as server online`() = runTest {
+    fun `checkServerHealth treats HTTP 404 as server offline`() = runTest {
+        // Given: API returns HTTP 404 (likely reverse proxy responding, but Paperless offline)
+        val mockResponse = mockk<Response<TagsResponse>>()
+        every { mockResponse.code() } returns 404
+        every { mockResponse.message() } returns "Not Found"
+        coEvery { api.getTags(page = 1, pageSize = 1) } throws HttpException(mockResponse)
+
+        // When: checkServerHealth is called
+        val result = serverHealthMonitor.checkServerHealth()
+
+        // Then: Result is Error (server offline)
+        assertTrue("Expected ServerHealthResult.Error", result is ServerHealthResult.Error)
+
+        // And: serverStatus is Offline
+        serverHealthMonitor.serverStatus.test {
+            val status = awaitItem()
+            assertTrue("Expected ServerStatus.Offline", status is ServerStatus.Offline)
+            assertEquals(
+                ServerOfflineReason.UNKNOWN,
+                (status as ServerStatus.Offline).reason
+            )
+        }
+    }
+
+    @Test
+    fun `checkServerHealth treats other HTTP errors as server online`() = runTest {
         // Given: API returns HTTP error (e.g., 401 Unauthorized)
-        // HTTP errors mean server IS reachable, just auth/permission issue
+        // HTTP errors (except 404) mean server IS reachable, just auth/permission issue
         val mockResponse = mockk<Response<TagsResponse>>()
         every { mockResponse.code() } returns 401
         every { mockResponse.message() } returns "Unauthorized"

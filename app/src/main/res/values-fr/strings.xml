@@ -32,7 +32,10 @@
     <string name="upload_success">Document téléchargé avec succès</string>
     <string name="upload_error">Échec du téléchargement : %1$s</string>
     <string name="upload_back">Retour</string>
-    <string name="upload_queued">Le téléchargement sera synchronisé lorsque la connexion sera disponible</string>
+    <string name="upload_queuing">Ajout à la file d\'attente...</string>
+    <string name="upload_queued_processing">Document en cours de téléchargement en arrière-plan</string>
+    <string name="upload_queued_server_offline">Le téléchargement démarrera dès que le serveur sera accessible</string>
+    <string name="upload_queued_no_internet">Le téléchargement démarrera dès qu\'une connexion internet sera disponible</string>
     <string name="upload_tag_created">Tag « %1$s » créé</string>
     <string name="upload_document_preview">Aperçu du document</string>
     <string name="upload_title_label">Titre (optionnel)</string>

@@ -32,7 +32,10 @@
     <string name="upload_success">Το έγγραφο μεταφορτώθηκε</string>
     <string name="upload_error">Η μεταφόρτωση απέτυχε: %1$s</string>
     <string name="upload_back">Πίσω</string>
-    <string name="upload_queued">Η μεταφόρτωση θα συγχρονιστεί όταν υπάρχει σύνδεση</string>
+    <string name="upload_queuing">Προσθήκη στην ουρά...</string>
+    <string name="upload_queued_processing">Το έγγραφο μεταφορτώνεται στο παρασκήνιο</string>
+    <string name="upload_queued_server_offline">Η μεταφόρτωση θα ξεκινήσει όταν ο διακομιστής είναι προσβάσιμος</string>
+    <string name="upload_queued_no_internet">Η μεταφόρτωση θα ξεκινήσει όταν υπάρχει σύνδεση στο διαδίκτυο</string>
     <string name="upload_tag_created">Η ετικέτα \"%1$s\" δημιουργήθηκε</string>
     <string name="upload_document_preview">Προεπισκόπηση εγγράφου</string>
     <string name="upload_title_label">Τίτλος (προαιρετικό)</string>

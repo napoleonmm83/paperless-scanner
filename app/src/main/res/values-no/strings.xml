@@ -32,7 +32,10 @@
     <string name="upload_success">Dokument lastet opp</string>
     <string name="upload_error">Opplasting mislyktes: %1$s</string>
     <string name="upload_back">Tilbake</string>
-    <string name="upload_queued">Opplasting synkroniseres når tilkobling er tilgjengelig</string>
+    <string name="upload_queuing">Legger til i kø...</string>
+    <string name="upload_queued_processing">Dokument lastes opp i bakgrunnen</string>
+    <string name="upload_queued_server_offline">Opplasting starter når serveren er tilgjengelig</string>
+    <string name="upload_queued_no_internet">Opplasting starter når internettilkobling er tilgjengelig</string>
     <string name="upload_tag_created">Tag \"%1$s\" opprettet</string>
     <string name="upload_document_preview">Dokumentforhåndsvisning</string>
     <string name="upload_title_label">Tittel (valgfritt)</string>

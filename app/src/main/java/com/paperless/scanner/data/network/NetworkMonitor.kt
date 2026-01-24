@@ -107,9 +107,12 @@ class NetworkMonitor @Inject constructor(
         }
 
         override fun onLost(network: Network) {
-            Log.d(TAG, "Network lost")
+            Log.d(TAG, "=== NETWORK LOST ===")
+            Log.d(TAG, "Network lost - setting isOnline=false, isWifiConnected=false")
             _isOnline.value = false
             _isWifiConnected.value = false
+            Log.d(TAG, "NetworkMonitor state updated: isOnline=${_isOnline.value}, isWifi=${_isWifiConnected.value}")
+            Log.d(TAG, "====================")
         }
     }
 

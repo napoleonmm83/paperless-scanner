@@ -32,7 +32,10 @@
     <string name="upload_success">Documento carregado com sucesso</string>
     <string name="upload_error">Falha no carregamento: %1$s</string>
     <string name="upload_back">Voltar</string>
-    <string name="upload_queued">O carregamento será sincronizado quando houver conexão</string>
+    <string name="upload_queuing">Adicionando à fila...</string>
+    <string name="upload_queued_processing">Documento sendo carregado em segundo plano</string>
+    <string name="upload_queued_server_offline">O carregamento começará quando o servidor estiver acessível</string>
+    <string name="upload_queued_no_internet">O carregamento começará quando houver conexão à internet</string>
     <string name="upload_tag_created">Etiqueta « %1$s » criada</string>
     <string name="upload_document_preview">Pré-visualização do documento</string>
     <string name="upload_title_label">Título (opcional)</string>

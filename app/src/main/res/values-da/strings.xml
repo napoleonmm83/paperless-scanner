@@ -32,7 +32,10 @@
     <string name="upload_success">Dokument uploadet</string>
     <string name="upload_error">Upload mislykkedes: %1$s</string>
     <string name="upload_back">Tilbage</string>
-    <string name="upload_queued">Upload synkroniseres når forbindelse er tilgængelig</string>
+    <string name="upload_queuing">Tilføjer til kø...</string>
+    <string name="upload_queued_processing">Dokument uploades i baggrunden</string>
+    <string name="upload_queued_server_offline">Upload starter når serveren er tilgængelig</string>
+    <string name="upload_queued_no_internet">Upload starter når internetforbindelse er tilgængelig</string>
     <string name="upload_tag_created">Tag \"%1$s\" oprettet</string>
     <string name="upload_document_preview">Dokumentforhåndsvisning</string>
     <string name="upload_title_label">Titel (valgfri)</string>
