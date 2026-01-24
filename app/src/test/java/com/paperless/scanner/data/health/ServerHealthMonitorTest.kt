@@ -257,23 +257,24 @@ class ServerHealthMonitorTest {
 
         // Set network online for checkOnlineStatus
         every { networkMonitor.checkOnlineStatus() } returns true
-        isOnlineFlow.value = true
 
-        // When: checkServerHealth is called
-        serverHealthMonitor.checkServerHealth()
-        advanceUntilIdle()
-
-        // Then: isServerReachable is true
+        // Collect isServerReachable flow and verify state changes
         serverHealthMonitor.isServerReachable.test {
-            assertTrue("Server should be reachable", awaitItem())
-        }
+            // Initial state should be false (offline)
+            assertFalse("Should start offline", awaitItem())
 
-        // When: Network goes offline
-        isOnlineFlow.value = false
-        advanceUntilIdle()
+            // When: Network comes online (triggers init{} block auto health check)
+            isOnlineFlow.value = true
+            advanceUntilIdle()
 
-        // Then: isServerReachable is false (even if serverStatus is Online)
-        serverHealthMonitor.isServerReachable.test {
+            // Then: isServerReachable becomes true
+            assertTrue("Server should be reachable after network online", awaitItem())
+
+            // When: Network goes offline
+            isOnlineFlow.value = false
+            advanceUntilIdle()
+
+            // Then: isServerReachable becomes false (even if serverStatus is Online)
             assertFalse("Server should NOT be reachable when offline", awaitItem())
         }
     }
