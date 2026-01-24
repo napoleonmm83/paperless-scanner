@@ -438,7 +438,16 @@
     <string name="error_ssl_certificate">SSL certificate invalid</string>
     <string name="error_server_unreachable">Server unreachable</string>
 
-    
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server unreachable</string>
+    <string name="server_offline_no_internet">No internet connection available</string>
+    <string name="server_offline_dns">Server address could not be resolved. Please check server URL in settings.</string>
+    <string name="server_offline_connection_refused">Server is not reachable. Please check if the server is running.</string>
+    <string name="server_offline_timeout">Server not responding. Please try again later.</string>
+    <string name="server_offline_vpn_required">VPN connection required. Please activate VPN and try again.</string>
+    <string name="server_offline_unknown">Server connection failed. Please check settings.</string>
+    <string name="check_server_settings">Check server settings</string>
+
     <string name="token_scanner_title">Scan Token</string>
     <string name="token_scanner_capturing">Capturing high-resolution photo...</string>
     <string name="token_scanner_found">Token found!</string>

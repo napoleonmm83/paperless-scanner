@@ -11,6 +11,7 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
@@ -48,6 +49,7 @@ class HomeViewModelTest {
     private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var syncManager: SyncManager
     private lateinit var analyticsService: AnalyticsService
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
@@ -65,6 +67,7 @@ class HomeViewModelTest {
         taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        serverHealthMonitor = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
         suggestionOrchestrator = mockk(relaxed = true)
@@ -73,6 +76,7 @@ class HomeViewModelTest {
 
         // Default mock responses
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
@@ -100,6 +104,7 @@ class HomeViewModelTest {
             taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
             networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
             syncManager = syncManager,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,

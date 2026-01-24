@@ -8,6 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.isRetryable
+import com.paperless.scanner.data.api.userMessage
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
@@ -64,6 +67,7 @@ class UploadViewModel @Inject constructor(
     private val paperlessGptRepository: com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository,
     private val taskRepository: com.paperless.scanner.data.repository.TaskRepository,
     private val tokenManager: TokenManager,
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -148,6 +152,10 @@ class UploadViewModel @Inject constructor(
 
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+
+    // Server Health Status (Phase 2: Server Offline Detection)
+    val serverStatus: StateFlow<com.paperless.scanner.data.health.ServerStatus> = serverHealthMonitor.serverStatus
+    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
 
     // Observe AI new tags setting
     val aiNewTagsEnabled: Flow<Boolean> = tokenManager.aiNewTagsEnabled
@@ -243,6 +251,17 @@ class UploadViewModel @Inject constructor(
     // and observeCorrespondentsReactively() in init{}
 
     /**
+     * Check Paperless server health status.
+     * Delegates to ServerHealthMonitor for proactive server reachability check.
+     * Used by UI to trigger manual health check (e.g., retry button).
+     */
+    fun checkServerHealth() {
+        viewModelScope.launch {
+            serverHealthMonitor.checkServerHealth()
+        }
+    }
+
+    /**
      * Checks storage space before upload and returns error if insufficient.
      *
      * @return null if storage check passed, Error state otherwise
@@ -280,60 +299,24 @@ class UploadViewModel @Inject constructor(
 
     /**
      * Converts exception to user-friendly error message with technical details.
+     * Uses PaperlessException sealed class for better error categorization.
      *
      * @param exception The exception that occurred
      * @return UploadUiState.Error with user message and details
      */
     private fun createErrorState(exception: Throwable): UploadUiState.Error {
-        val errorInfo: Pair<String, Boolean> = when {
-            // Network errors - retryable
-            exception is java.net.SocketTimeoutException -> {
-                "Zeitüberschreitung. Server antwortet nicht." to true
-            }
-            exception is java.net.UnknownHostException -> {
-                "Server nicht erreichbar. Prüfe deine Internetverbindung." to true
-            }
-            exception is java.net.ConnectException -> {
-                "Verbindung zum Server fehlgeschlagen. Ist der Server online?" to true
-            }
-            exception is java.io.IOException -> {
-                "Netzwerkfehler. Prüfe deine Verbindung." to true
-            }
-
-            // HTTP errors
-            exception is retrofit2.HttpException -> {
-                when (exception.code()) {
-                    401 -> "Nicht autorisiert. Prüfe deinen Zugangsschlüssel." to false
-                    403 -> "Zugriff verweigert. Keine Berechtigung zum Hochladen." to false
-                    413 -> "Datei zu groß für Server." to false
-                    500, 502, 503, 504 -> "Server-Fehler. Versuche es später erneut." to true
-                    else -> "Upload fehlgeschlagen (HTTP ${exception.code()})." to false
-                }
-            }
-
-            // Storage errors
-            exception.message?.contains("Speicher", ignoreCase = true) == true ||
-            exception.message?.contains("storage", ignoreCase = true) == true -> {
-                "Nicht genug Speicherplatz verfügbar." to false
-            }
-
-            // File errors
-            exception is IllegalArgumentException -> {
-                "Datei konnte nicht gelesen werden." to false
-            }
-
-            // Generic fallback
-            else -> {
-                (exception.message ?: "Upload fehlgeschlagen.") to false
-            }
+        // Convert to PaperlessException if not already
+        val paperlessException = if (exception is PaperlessException) {
+            exception
+        } else {
+            PaperlessException.from(exception)
         }
 
-        val (userMessage, isRetryable) = errorInfo
-
+        // Use extension properties for user message and retryability
         return UploadUiState.Error(
-            userMessage = userMessage,
-            technicalDetails = "${exception::class.simpleName}: ${exception.message}",
-            isRetryable = isRetryable
+            userMessage = paperlessException.userMessage,
+            technicalDetails = "${paperlessException::class.simpleName}: ${paperlessException.message}",
+            isRetryable = paperlessException.isRetryable
         )
     }
 
@@ -357,9 +340,9 @@ class UploadViewModel @Inject constructor(
                 return@launch
             }
 
-            // Check network availability - if offline, queue the upload
-            if (!networkMonitor.checkOnlineStatus()) {
-                Log.d(TAG, "Offline detected - queueing upload for later sync")
+            // Check server availability - if offline or unreachable, queue the upload
+            if (!serverHealthMonitor.isServerReachable.value) {
+                Log.d(TAG, "Server not reachable - queueing upload for later sync")
                 // Copy file to local storage to ensure WorkManager can access it later
                 val localUri = if (FileUtils.isLocalFileUri(uri)) {
                     uri
@@ -450,9 +433,9 @@ class UploadViewModel @Inject constructor(
                 return@launch
             }
 
-            // Check network availability - if offline, queue the upload
-            if (!networkMonitor.checkOnlineStatus()) {
-                Log.d(TAG, "Offline detected - queueing multi-page upload for later sync")
+            // Check server availability - if offline or unreachable, queue the upload
+            if (!serverHealthMonitor.isServerReachable.value) {
+                Log.d(TAG, "Server not reachable - queueing multi-page upload for later sync")
                 // Copy files to local storage to ensure WorkManager can access them later
                 val localUris = uris.mapNotNull { uri ->
                     if (FileUtils.isLocalFileUri(uri)) {

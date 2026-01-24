@@ -36,6 +36,7 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncManager
 import dagger.Module
@@ -251,8 +252,9 @@ object AppModule {
         cachedDocumentDao: CachedDocumentDao,
         cachedTagDao: CachedTagDao,
         pendingChangeDao: PendingChangeDao,
-        networkMonitor: NetworkMonitor
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao, networkMonitor)
+        networkMonitor: NetworkMonitor,
+        serverHealthMonitor: ServerHealthMonitor
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao, networkMonitor, serverHealthMonitor)
 
     @Provides
     @Singleton
@@ -398,6 +400,14 @@ object AppModule {
         @ApplicationContext context: Context,
         syncManager: SyncManager
     ): NetworkMonitor = NetworkMonitor(context, syncManager)
+
+    @Provides
+    @Singleton
+    fun provideServerHealthMonitor(
+        api: PaperlessApi,
+        tokenManager: TokenManager,
+        networkMonitor: NetworkMonitor
+    ): ServerHealthMonitor = ServerHealthMonitor(api, tokenManager, networkMonitor)
 
     @Provides
     fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO

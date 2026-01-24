@@ -375,6 +375,17 @@
     <string name="error_login_failed">Giriş başarısız</string>
     <string name="error_token_invalid">Geçersiz token</string>
     <string name="error_server_unreachable">Sunucuya ulaşılamıyor</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Sunucuya ulaşılamıyor</string>
+    <string name="server_offline_no_internet">İnternet bağlantısı yok</string>
+    <string name="server_offline_dns">Sunucu adresi çözümlenemedi. Lütfen ayarlarda sunucu URL\'sini kontrol edin.</string>
+    <string name="server_offline_connection_refused">Sunucuya erişilemiyor. Lütfen sunucunun çalıştığını kontrol edin.</string>
+    <string name="server_offline_timeout">Sunucu yanıt vermiyor. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="server_offline_vpn_required">VPN bağlantısı gerekli. Lütfen VPN\'i etkinleştirin ve tekrar deneyin.</string>
+    <string name="server_offline_unknown">Sunucu bağlantısı başarısız oldu. Lütfen ayarları kontrol edin.</string>
+    <string name="check_server_settings">Sunucu ayarlarını kontrol et</string>
+
     <string name="error_analyze_document">Belge analiz edilemedi</string>
     <string name="token_scanner_title">Anahtarı tara</string>
     <string name="token_scanner_capturing">Yüksek çözünürlüklü fotoğraf çekiliyor...</string>

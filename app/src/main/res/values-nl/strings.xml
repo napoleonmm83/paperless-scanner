@@ -376,6 +376,17 @@
     <string name="error_login_failed">Inloggen mislukt</string>
     <string name="error_token_invalid">Ongeldige token</string>
     <string name="error_server_unreachable">Server onbereikbaar</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server onbereikbaar</string>
+    <string name="server_offline_no_internet">Geen internetverbinding beschikbaar</string>
+    <string name="server_offline_dns">Serveradres kon niet worden opgelost. Controleer de server-URL in instellingen.</string>
+    <string name="server_offline_connection_refused">Server is niet bereikbaar. Controleer of de server actief is.</string>
+    <string name="server_offline_timeout">Server reageert niet. Probeer het later opnieuw.</string>
+    <string name="server_offline_vpn_required">VPN-verbinding vereist. Activeer VPN en probeer opnieuw.</string>
+    <string name="server_offline_unknown">Serververbinding mislukt. Controleer de instellingen.</string>
+    <string name="check_server_settings">Serverinstellingen controleren</string>
+
     <string name="token_scanner_title">Token scannen</string>
     <string name="token_scanner_capturing">Hoge resolutie foto vastleggen...</string>
     <string name="token_scanner_found">Token gevonden!</string>

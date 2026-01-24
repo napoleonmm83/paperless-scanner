@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.userMessage
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
@@ -122,7 +124,8 @@ class DocumentDetailViewModel @Inject constructor(
     private val suggestionOrchestrator: SuggestionOrchestrator,
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor
+    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
 ) : ViewModel() {
 
     companion object {
@@ -166,6 +169,10 @@ class DocumentDetailViewModel @Inject constructor(
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
 
+    // Server Health Status (Phase 2: Server Offline Detection)
+    val serverStatus: StateFlow<com.paperless.scanner.data.health.ServerStatus> = serverHealthMonitor.serverStatus
+    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
+
     // Observe AI new tags setting
     val aiNewTagsEnabled: Flow<Boolean> = tokenManager.aiNewTagsEnabled
 
@@ -206,6 +213,17 @@ class DocumentDetailViewModel @Inject constructor(
                 documentTypeMap = types.associateBy { it.id }
                 _uiState.update { it.copy(availableDocumentTypes = types) }
             }
+        }
+    }
+
+    /**
+     * Check Paperless server health status.
+     * Delegates to ServerHealthMonitor for proactive server reachability check.
+     * Used by UI to trigger manual health check (e.g., retry button).
+     */
+    fun checkServerHealth() {
+        viewModelScope.launch {
+            serverHealthMonitor.checkServerHealth()
         }
     }
 
@@ -352,10 +370,11 @@ class DocumentDetailViewModel @Inject constructor(
                     )
                 }
             }.onFailure { error ->
+                val paperlessException = PaperlessException.from(error)
                 _uiState.update {
                     it.copy(
                         isDeleting = false,
-                        deleteError = error.message ?: context.getString(R.string.error_deleting)
+                        deleteError = paperlessException.userMessage
                     )
                 }
             }
@@ -400,10 +419,11 @@ class DocumentDetailViewModel @Inject constructor(
                 // Reload document to show updated values
                 refresh()
             }.onFailure { error ->
+                val paperlessException = PaperlessException.from(error)
                 _uiState.update {
                     it.copy(
                         isUpdating = false,
-                        updateError = error.message ?: context.getString(R.string.error_updating)
+                        updateError = paperlessException.userMessage
                     )
                 }
             }
@@ -443,10 +463,11 @@ class DocumentDetailViewModel @Inject constructor(
                 // This ensures DB is updated before reactive Flow can overwrite UI
                 triggerBackgroundRefresh(documentId)
             }.onFailure { error ->
+                val paperlessException = PaperlessException.from(error)
                 _uiState.update {
                     it.copy(
                         isAddingNote = false,
-                        addNoteError = error.message ?: context.getString(R.string.error_add_note)
+                        addNoteError = paperlessException.userMessage
                     )
                 }
             }
@@ -473,10 +494,11 @@ class DocumentDetailViewModel @Inject constructor(
                 // This ensures DB is updated before reactive Flow can overwrite UI
                 triggerBackgroundRefresh(documentId)
             }.onFailure { error ->
+                val paperlessException = PaperlessException.from(error)
                 _uiState.update {
                     it.copy(
                         isDeletingNoteId = null,
-                        deleteNoteError = error.message ?: context.getString(R.string.error_delete_note)
+                        deleteNoteError = paperlessException.userMessage
                     )
                 }
             }
@@ -553,10 +575,11 @@ class DocumentDetailViewModel @Inject constructor(
                     triggerBackgroundRefresh(documentId)
                 }
             }.onFailure { error ->
+                val paperlessException = PaperlessException.from(error)
                 _uiState.update {
                     it.copy(
                         isUpdatingPermissions = false,
-                        updatePermissionsError = error.message ?: context.getString(R.string.error_updating)
+                        updatePermissionsError = paperlessException.userMessage
                     )
                 }
             }
@@ -586,8 +609,9 @@ class DocumentDetailViewModel @Inject constructor(
                     _createTagState.update { CreateTagState.Success(tag) }
                 },
                 onFailure = { error ->
+                    val paperlessException = PaperlessException.from(error)
                     _createTagState.update {
-                        CreateTagState.Error(error.message ?: context.getString(R.string.error_create_tag))
+                        CreateTagState.Error(paperlessException.userMessage)
                     }
                 }
             )
@@ -711,7 +735,8 @@ class DocumentDetailViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 Log.e(TAG, "Document analysis failed", e)
-                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+                val paperlessException = PaperlessException.from(e)
+                _analysisState.update { AnalysisState.Error(paperlessException.userMessage) }
             }
         }
     }

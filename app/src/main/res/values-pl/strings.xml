@@ -376,6 +376,17 @@
     <string name="error_login_failed">Logowanie nie powiodło się</string>
     <string name="error_token_invalid">Nieprawidłowy token</string>
     <string name="error_server_unreachable">Serwer niedostępny</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Serwer niedostępny</string>
+    <string name="server_offline_no_internet">Brak połączenia z internetem</string>
+    <string name="server_offline_dns">Nie można rozwiązać adresu serwera. Sprawdź URL serwera w ustawieniach.</string>
+    <string name="server_offline_connection_refused">Serwer jest niedostępny. Sprawdź czy serwer działa.</string>
+    <string name="server_offline_timeout">Serwer nie odpowiada. Spróbuj ponownie później.</string>
+    <string name="server_offline_vpn_required">Wymagane połączenie VPN. Aktywuj VPN i spróbuj ponownie.</string>
+    <string name="server_offline_unknown">Połączenie z serwerem nie powiodło się. Sprawdź ustawienia.</string>
+    <string name="check_server_settings">Sprawdź ustawienia serwera</string>
+
     <string name="token_scanner_title">Zeskanuj token</string>
     <string name="token_scanner_capturing">Przechwytywanie zdjęcia...</string>
     <string name="token_scanner_found">Token znaleziony!</string>

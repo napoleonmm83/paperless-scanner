@@ -86,6 +86,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isOnline by viewModel.isOnline.collectAsState()
+    val isServerReachable by viewModel.isServerReachable.collectAsState()
     val pendingChanges by viewModel.pendingChangesCount.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -442,8 +443,9 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Activity Hint (if there are untagged documents) - Smart Tag Suggestions Card
-        if (uiState.untaggedCount > 0) {
+        // Activity Hint (if there are untagged documents AND server is reachable)
+        // Hide when server offline because SmartTagging needs to load documents from server
+        if (uiState.untaggedCount > 0 && isServerReachable) {
             Card(
                 onClick = onNavigateToSmartTagging,
                 modifier = Modifier

@@ -376,6 +376,17 @@
     <string name="error_login_failed">Accesso fallito</string>
     <string name="error_token_invalid">Token non valido</string>
     <string name="error_server_unreachable">Server non raggiungibile</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server non raggiungibile</string>
+    <string name="server_offline_no_internet">Nessuna connessione internet disponibile</string>
+    <string name="server_offline_dns">Indirizzo del server non risolto. Controlla l\'URL del server nelle impostazioni.</string>
+    <string name="server_offline_connection_refused">Server non raggiungibile. Verifica se il server è in esecuzione.</string>
+    <string name="server_offline_timeout">Il server non risponde. Riprova più tardi.</string>
+    <string name="server_offline_vpn_required">Connessione VPN richiesta. Attiva VPN e riprova.</string>
+    <string name="server_offline_unknown">Connessione al server fallita. Controlla le impostazioni.</string>
+    <string name="check_server_settings">Controlla impostazioni server</string>
+
     <string name="token_scanner_title">Scansiona token</string>
     <string name="token_scanner_capturing">Acquisizione foto ad alta risoluzione...</string>
     <string name="token_scanner_found">Token trovato!</string>

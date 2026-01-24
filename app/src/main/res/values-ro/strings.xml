@@ -375,6 +375,17 @@
     <string name="error_login_failed">Autentificare eșuată</string>
     <string name="error_token_invalid">Token invalid</string>
     <string name="error_server_unreachable">Serverul nu este accesibil</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Serverul nu este accesibil</string>
+    <string name="server_offline_no_internet">Nicio conexiune la internet disponibilă</string>
+    <string name="server_offline_dns">Adresa serverului nu a putut fi rezolvată. Verificați URL-ul serverului în setări.</string>
+    <string name="server_offline_connection_refused">Serverul nu este accesibil. Verificați dacă serverul rulează.</string>
+    <string name="server_offline_timeout">Serverul nu răspunde. Încercați din nou mai târziu.</string>
+    <string name="server_offline_vpn_required">Conexiune VPN necesară. Activați VPN și încercați din nou.</string>
+    <string name="server_offline_unknown">Conexiunea la server a eșuat. Verificați setările.</string>
+    <string name="check_server_settings">Verificați setările serverului</string>
+
     <string name="error_analyze_document">Documentul nu a putut fi analizat</string>
     <string name="token_scanner_title">Scanează cheia</string>
     <string name="token_scanner_capturing">Se capturează fotografie de înaltă rezoluție...</string>

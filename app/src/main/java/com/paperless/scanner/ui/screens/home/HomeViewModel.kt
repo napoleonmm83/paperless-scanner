@@ -99,6 +99,7 @@ class HomeViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
     private val suggestionOrchestrator: SuggestionOrchestrator,
@@ -117,6 +118,9 @@ class HomeViewModel @Inject constructor(
 
     // Live network status from NetworkMonitor
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+
+    // Server reachability status (internet + server online)
+    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
 
     // Combined pending changes: Upload Queue + Sync Pending Changes
     val pendingChangesCount: StateFlow<Int> = kotlinx.coroutines.flow.combine(

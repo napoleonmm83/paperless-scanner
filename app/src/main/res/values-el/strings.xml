@@ -375,6 +375,17 @@
     <string name="error_login_failed">Η σύνδεση απέτυχε</string>
     <string name="error_token_invalid">Μη έγκυρο token</string>
     <string name="error_server_unreachable">Ο διακομιστής δεν είναι προσβάσιμος</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Ο διακομιστής δεν είναι προσβάσιμος</string>
+    <string name="server_offline_no_internet">Δεν υπάρχει σύνδεση στο διαδίκτυο</string>
+    <string name="server_offline_dns">Η διεύθυνση του διακομιστή δεν μπόρεσε να επιλυθεί. Ελέγξτε τη διεύθυνση URL στις ρυθμίσεις.</string>
+    <string name="server_offline_connection_refused">Ο διακομιστής δεν είναι προσβάσιμος. Ελέγξτε αν λειτουργεί ο διακομιστής.</string>
+    <string name="server_offline_timeout">Ο διακομιστής δεν αποκρίνεται. Δοκιμάστε ξανά αργότερα.</string>
+    <string name="server_offline_vpn_required">Απαιτείται σύνδεση VPN. Ενεργοποιήστε το VPN και δοκιμάστε ξανά.</string>
+    <string name="server_offline_unknown">Η σύνδεση με τον διακομιστή απέτυχε. Ελέγξτε τις ρυθμίσεις.</string>
+    <string name="check_server_settings">Έλεγχος ρυθμίσεων διακομιστή</string>
+
     <string name="error_analyze_document">Αδυναμία ανάλυσης του εγγράφου</string>
     <string name="token_scanner_title">Σάρωση κλειδιού</string>
     <string name="token_scanner_capturing">Λήψη φωτογραφίας υψηλής ανάλυσης...</string>

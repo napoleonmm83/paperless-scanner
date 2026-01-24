@@ -376,6 +376,17 @@
     <string name="error_login_failed">Échec de connexion</string>
     <string name="error_token_invalid">Jeton invalide</string>
     <string name="error_server_unreachable">Serveur inaccessible</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Serveur inaccessible</string>
+    <string name="server_offline_no_internet">Pas de connexion internet disponible</string>
+    <string name="server_offline_dns">Adresse du serveur introuvable. Vérifiez l\'URL du serveur dans les paramètres.</string>
+    <string name="server_offline_connection_refused">Serveur inaccessible. Vérifiez si le serveur fonctionne.</string>
+    <string name="server_offline_timeout">Le serveur ne répond pas. Réessayez plus tard.</string>
+    <string name="server_offline_vpn_required">Connexion VPN requise. Activez le VPN et réessayez.</string>
+    <string name="server_offline_unknown">Échec de connexion au serveur. Vérifiez les paramètres.</string>
+    <string name="check_server_settings">Vérifier les paramètres du serveur</string>
+
     <string name="token_scanner_title">Scanner le jeton</string>
     <string name="token_scanner_capturing">Capture de la photo haute résolution...</string>
     <string name="token_scanner_found">Jeton trouvé !</string>

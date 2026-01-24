@@ -376,6 +376,17 @@
     <string name="error_login_failed">Inloggning misslyckades</string>
     <string name="error_token_invalid">Ogiltig token</string>
     <string name="error_server_unreachable">Server ej nåbar</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server ej nåbar</string>
+    <string name="server_offline_no_internet">Ingen internetanslutning tillgänglig</string>
+    <string name="server_offline_dns">Serveradressen kunde inte lösas. Kontrollera server-URL i inställningar.</string>
+    <string name="server_offline_connection_refused">Servern är inte nåbar. Kontrollera om servern körs.</string>
+    <string name="server_offline_timeout">Servern svarar inte. Försök igen senare.</string>
+    <string name="server_offline_vpn_required">VPN-anslutning krävs. Aktivera VPN och försök igen.</string>
+    <string name="server_offline_unknown">Serveranslutning misslyckades. Kontrollera inställningarna.</string>
+    <string name="check_server_settings">Kontrollera serverinställningar</string>
+
     <string name="token_scanner_title">Skanna token</string>
     <string name="token_scanner_capturing">Tar högupplöst foto...</string>
     <string name="token_scanner_found">Token hittad!</string>

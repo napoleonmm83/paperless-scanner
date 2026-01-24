@@ -33,6 +33,7 @@ import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -76,6 +77,7 @@ class UploadViewModelTest {
     private lateinit var paperlessGptRepository: PaperlessGptRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var tokenManager: TokenManager
+    private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
     private lateinit var savedStateHandle: androidx.lifecycle.SavedStateHandle
 
     private val testDispatcher = StandardTestDispatcher()
@@ -128,6 +130,7 @@ class UploadViewModelTest {
         paperlessGptRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
+        serverHealthMonitor = mockk(relaxed = true)
 
         // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -139,6 +142,9 @@ class UploadViewModelTest {
 
         // Mock TokenManager aiNewTagsEnabled Flow
         every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
+
+        // Mock ServerHealthMonitor isServerReachable StateFlow
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
 
         every { networkMonitor.checkOnlineStatus() } returns true
 
@@ -159,6 +165,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
     }
@@ -198,6 +205,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -236,6 +244,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -254,6 +263,7 @@ class UploadViewModelTest {
     fun `uploadDocument when offline queues upload`() = runTest {
         val mockUri = mockk<Uri>()
         every { networkMonitor.checkOnlineStatus() } returns false
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
 
         viewModel.uiState.test {
             assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
@@ -368,6 +378,7 @@ class UploadViewModelTest {
     fun `uploadMultiPageDocument when offline queues upload`() = runTest {
         val mockUris = listOf(mockk<Uri>(), mockk<Uri>())
         every { networkMonitor.checkOnlineStatus() } returns false
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
 
         viewModel.uiState.test {
             assertEquals(UploadUiState.Idle, awaitItem()) // Initial state
@@ -580,6 +591,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -621,6 +633,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -660,6 +673,7 @@ class UploadViewModelTest {
             paperlessGptRepository = paperlessGptRepository,
             taskRepository = taskRepository,
             tokenManager = tokenManager,
+            serverHealthMonitor = serverHealthMonitor,
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

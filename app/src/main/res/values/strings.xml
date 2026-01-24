@@ -456,7 +456,17 @@
     <string name="error_ssl_certificate">SSL-Zertifikat ungültig</string>
     <string name="error_server_unreachable">Server nicht erreichbar</string>
 
-    
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server nicht erreichbar</string>
+    <string name="server_offline_no_internet">Keine Internetverbindung verfügbar</string>
+    <string name="server_offline_dns">Server-Adresse konnte nicht aufgelöst werden. Bitte Server-URL in Einstellungen prüfen.</string>
+    <string name="server_offline_connection_refused">Server ist nicht erreichbar. Bitte prüfen ob der Server läuft.</string>
+    <string name="server_offline_timeout">Server antwortet nicht. Bitte später erneut versuchen.</string>
+    <string name="server_offline_vpn_required">VPN-Verbindung erforderlich. Bitte VPN aktivieren und erneut versuchen.</string>
+    <string name="server_offline_unknown">Server-Verbindung fehlgeschlagen. Bitte Einstellungen prüfen.</string>
+    <string name="check_server_settings">Server-Einstellungen prüfen</string>
+
+
     <string name="token_scanner_title">Schlüssel scannen</string>
     <string name="token_scanner_capturing">Erfasse hochauflösendes Foto...</string>
     <string name="token_scanner_found">Schlüssel gefunden!</string>

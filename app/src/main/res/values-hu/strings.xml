@@ -375,6 +375,17 @@
     <string name="error_login_failed">Bejelentkezés sikertelen</string>
     <string name="error_token_invalid">Érvénytelen token</string>
     <string name="error_server_unreachable">Szerver nem elérhető</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Szerver nem elérhető</string>
+    <string name="server_offline_no_internet">Nincs internet kapcsolat</string>
+    <string name="server_offline_dns">A szerver címe nem oldható fel. Ellenőrizd a szerver URL-t a beállításokban.</string>
+    <string name="server_offline_connection_refused">A szerver nem elérhető. Ellenőrizd, hogy a szerver fut-e.</string>
+    <string name="server_offline_timeout">A szerver nem válaszol. Próbáld meg később.</string>
+    <string name="server_offline_vpn_required">VPN kapcsolat szükséges. Aktiváld a VPN-t és próbáld újra.</string>
+    <string name="server_offline_unknown">Szerverkapcsolat sikertelen. Ellenőrizd a beállításokat.</string>
+    <string name="check_server_settings">Szerver beállítások ellenőrzése</string>
+
     <string name="error_analyze_document">A dokumentum nem elemezhető</string>
     <string name="token_scanner_title">Kulcs beolvasása</string>
     <string name="token_scanner_capturing">Nagy felbontású kép készítése...</string>

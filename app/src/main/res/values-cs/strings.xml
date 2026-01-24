@@ -375,6 +375,17 @@
     <string name="error_login_failed">Přihlášení selhalo</string>
     <string name="error_token_invalid">Neplatný token</string>
     <string name="error_server_unreachable">Server nedostupný</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server nedostupný</string>
+    <string name="server_offline_no_internet">Žádné připojení k internetu</string>
+    <string name="server_offline_dns">Adresu serveru nelze vyřešit. Zkontrolujte URL serveru v nastavení.</string>
+    <string name="server_offline_connection_refused">Server není dostupný. Zkontrolujte, zda server běží.</string>
+    <string name="server_offline_timeout">Server neodpovídá. Zkuste to později.</string>
+    <string name="server_offline_vpn_required">Vyžadováno připojení VPN. Aktivujte VPN a zkuste to znovu.</string>
+    <string name="server_offline_unknown">Připojení k serveru se nezdařilo. Zkontrolujte nastavení.</string>
+    <string name="check_server_settings">Zkontrolovat nastavení serveru</string>
+
     <string name="error_analyze_document">Dokument nelze analyzovat</string>
     <string name="token_scanner_title">Naskenovat klíč</string>
     <string name="token_scanner_capturing">Pořizování fotografie ve vysokém rozlišení...</string>

@@ -26,6 +26,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
+import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
@@ -49,7 +50,8 @@ class DocumentRepository @Inject constructor(
     private val cachedDocumentDao: CachedDocumentDao,
     private val cachedTagDao: CachedTagDao,
     private val pendingChangeDao: PendingChangeDao,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val serverHealthMonitor: ServerHealthMonitor
 ) {
     private val gson = Gson()
     suspend fun uploadDocument(
@@ -623,7 +625,8 @@ class DocumentRepository @Inject constructor(
         created: String? = null
     ): Result<Document> {
         return try {
-            if (networkMonitor.checkOnlineStatus()) {
+            // Check if server is reachable (internet + server online)
+            if (serverHealthMonitor.isServerReachable.value) {
                 // Get old tags before update (for document count adjustment)
                 val oldTagIds = if (tags != null) {
                     getOldTagIds(documentId)

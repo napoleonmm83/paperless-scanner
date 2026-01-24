@@ -53,6 +53,7 @@ class DocumentDetailViewModelTest {
     private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -70,6 +71,7 @@ class DocumentDetailViewModelTest {
         aiUsageRepository = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        serverHealthMonitor = mockk(relaxed = true)
 
         // Default mock responses
         every { savedStateHandle.get<String>("documentId") } returns "123"
@@ -102,7 +104,8 @@ class DocumentDetailViewModelTest {
             suggestionOrchestrator = suggestionOrchestrator,
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
-            networkMonitor = networkMonitor
+            networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor
         )
     }
 

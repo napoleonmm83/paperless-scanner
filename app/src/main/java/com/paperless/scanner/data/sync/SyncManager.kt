@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.Document
+import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
@@ -310,12 +311,33 @@ class SyncManager @Inject constructor(
     private suspend fun pushDocumentChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
         when (change.changeType) {
             "update" -> {
-                // Parse the change data and call API
-                // Note: You'll need to define a proper request model based on your API
-                val data = gson.fromJson(change.changeData, Map::class.java)
-                // api.updateDocument(change.entityId!!, data)
-                // For now, just log
-                Log.d(TAG, "Would update document ${change.entityId} with data: $data")
+                // Parse the change data from JSON
+                val data = gson.fromJson(change.changeData, Map::class.java) as Map<String, Any?>
+
+                // Extract fields and convert to correct types
+                val title = data["title"] as? String
+                val tags = (data["tags"] as? List<*>)?.mapNotNull { (it as? Double)?.toInt() }
+                val correspondent = (data["correspondent"] as? Double)?.toInt()
+                val documentType = (data["documentType"] as? Double)?.toInt()
+                val archiveSerialNumber = (data["archiveSerialNumber"] as? Double)?.toInt()
+                val created = data["created"] as? String
+
+                // Create request and call API
+                val request = UpdateDocumentRequest(
+                    title = title,
+                    tags = tags,
+                    correspondent = correspondent,
+                    documentType = documentType,
+                    archiveSerialNumber = archiveSerialNumber,
+                    created = created
+                )
+
+                val updatedDocument = api.updateDocument(change.entityId!!, request)
+
+                // Update cache with response
+                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+
+                Log.d(TAG, "Successfully pushed document update ${change.entityId}")
             }
             "delete" -> {
                 api.deleteDocument(change.entityId!!)

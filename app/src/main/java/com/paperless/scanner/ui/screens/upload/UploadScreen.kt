@@ -61,6 +61,8 @@ import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
+import com.paperless.scanner.ui.components.ServerOfflineBanner
+import com.paperless.scanner.data.health.ServerStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +74,7 @@ fun UploadScreen(
     preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: UploadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -85,6 +88,9 @@ fun UploadScreen(
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
+
+    // Server Health Status (Phase 2: Server Offline Detection)
+    val serverStatus by viewModel.serverStatus.collectAsState()
 
     // DEBUG: Log aiNewTagsEnabled value
     Log.d("UploadScreen", "=== UploadScreen Debug ===")
@@ -192,6 +198,18 @@ fun UploadScreen(
                     .clip(RoundedCornerShape(12.dp))
             )
 
+            // Server Offline Banner (Phase 2: Server Offline Detection)
+            // Only shown when server is offline - user sees it immediately at the top
+            if (serverStatus is ServerStatus.Offline) {
+                ServerOfflineBanner(
+                    reason = serverStatus as ServerStatus.Offline,
+                    onRetry = { viewModel.checkServerHealth() },
+                    onSettings = onNavigateToSettings,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Title Input
             OutlinedTextField(
                 value = title,
@@ -251,15 +269,19 @@ fun UploadScreen(
                         viewModel.setAiNewTagsEnabled(enabled)
                     },
                     onApplyTagSuggestion = { tagSuggestion ->
-                        // Use tagId from AI if available, otherwise search in local tags
-                        val tagId = tagSuggestion.tagId ?: tags.find {
+                        // CRITICAL: Always verify tag exists in local list, even if tagId is provided
+                        // AI might return invalid tagIds that don't exist on the server
+                        val existingTag = tags.find {
+                            // Match by ID if provided AND exists in local list
+                            (tagSuggestion.tagId != null && it.id == tagSuggestion.tagId) ||
+                            // Otherwise match by name (case-insensitive)
                             it.name.equals(tagSuggestion.tagName, ignoreCase = true)
-                        }?.id
+                        }
 
-                        if (tagId != null) {
+                        if (existingTag != null) {
                             // Existing tag - add directly to selection
-                            if (!selectedTagIds.contains(tagId)) {
-                                selectedTagIds.add(tagId)
+                            if (!selectedTagIds.contains(existingTag.id)) {
+                                selectedTagIds.add(existingTag.id)
                             }
                         } else {
                             // New tag suggestion - create it

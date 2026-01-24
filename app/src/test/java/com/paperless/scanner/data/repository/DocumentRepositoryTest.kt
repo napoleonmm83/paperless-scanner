@@ -44,6 +44,7 @@ class DocumentRepositoryTest {
     private lateinit var cachedTagDao: CachedTagDao
     private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -56,6 +57,7 @@ class DocumentRepositoryTest {
         cachedTagDao = mockk(relaxed = true)
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        serverHealthMonitor = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
         every { context.contentResolver } returns contentResolver
@@ -67,7 +69,8 @@ class DocumentRepositoryTest {
             cachedDocumentDao,
             cachedTagDao,
             pendingChangeDao,
-            networkMonitor
+            networkMonitor,
+            serverHealthMonitor
         )
     }
 

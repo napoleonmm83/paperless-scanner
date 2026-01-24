@@ -11,6 +11,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.userMessage
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
@@ -377,8 +379,9 @@ class ScanViewModel @Inject constructor(
                     _createTagState.update { CreateTagState.Success(tag) }
                 },
                 onFailure = { error ->
+                    val paperlessException = PaperlessException.from(error)
                     _createTagState.update {
-                        CreateTagState.Error(error.message ?: context.getString(R.string.error_create_tag))
+                        CreateTagState.Error(paperlessException.userMessage)
                     }
                 }
             )
@@ -670,7 +673,8 @@ class ScanViewModel @Inject constructor(
 
             } catch (e: Exception) {
                 Log.e(TAG, "Document analysis failed", e)
-                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+                val paperlessException = PaperlessException.from(e)
+                _analysisState.update { AnalysisState.Error(paperlessException.userMessage) }
             }
         }
     }

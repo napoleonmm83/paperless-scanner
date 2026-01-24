@@ -78,6 +78,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
+import com.paperless.scanner.ui.components.ServerOfflineBanner
+import com.paperless.scanner.data.health.ServerStatus
 
 enum class DocumentTab {
     DETAILS,
@@ -93,6 +95,7 @@ enum class DocumentTab {
 fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onOpenPdf: (Int, String) -> Unit,
+    onNavigateToSettings: () -> Unit = {},
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -103,6 +106,9 @@ fun DocumentDetailScreen(
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val aiNewTagsEnabled by viewModel.aiNewTagsEnabled.collectAsState(initial = true)
+
+    // Server Health Status (Phase 2: Server Offline Detection)
+    val serverStatus by viewModel.serverStatus.collectAsState()
 
     // DEBUG: Log aiNewTagsEnabled value
     Log.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
@@ -285,6 +291,17 @@ fun DocumentDetailScreen(
                         )
                     }
 
+                    // Server Offline Banner (Phase 2: Server Offline Detection)
+                    // Only shown when server is offline - user sees it between tabs and content
+                    if (serverStatus is ServerStatus.Offline) {
+                        ServerOfflineBanner(
+                            reason = serverStatus as ServerStatus.Offline,
+                            onRetry = { viewModel.checkServerHealth() },
+                            onSettings = onNavigateToSettings,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+
                     // Tab Content
                     when (selectedTab) {
                         DocumentTab.DETAILS -> DetailsTabContent(
@@ -358,6 +375,7 @@ fun DocumentDetailScreen(
                     onOverrideWifiOnly = { viewModel.overrideWifiOnlyForSession() },
                     onApplyTagSuggestion = { tagSuggestion ->
                         // Create new tag if it doesn't exist
+                        // The EditDocumentSheet will handle adding it to the selection
                         viewModel.createTag(tagSuggestion.tagName)
                     },
                     onAiNewTagsEnabledChange = { enabled ->

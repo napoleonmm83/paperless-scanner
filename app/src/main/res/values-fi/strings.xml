@@ -375,6 +375,17 @@
     <string name="error_login_failed">Kirjautuminen epäonnistui</string>
     <string name="error_token_invalid">Virheellinen token</string>
     <string name="error_server_unreachable">Palvelimeen ei saada yhteyttä</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Palvelimeen ei saada yhteyttä</string>
+    <string name="server_offline_no_internet">Ei internet-yhteyttä</string>
+    <string name="server_offline_dns">Palvelimen osoitetta ei voitu selvittää. Tarkista palvelimen URL asetuksista.</string>
+    <string name="server_offline_connection_refused">Palvelimeen ei saada yhteyttä. Tarkista, että palvelin on käynnissä.</string>
+    <string name="server_offline_timeout">Palvelin ei vastaa. Yritä myöhemmin uudelleen.</string>
+    <string name="server_offline_vpn_required">VPN-yhteys vaaditaan. Aktivoi VPN ja yritä uudelleen.</string>
+    <string name="server_offline_unknown">Palvelinyhteys epäonnistui. Tarkista asetukset.</string>
+    <string name="check_server_settings">Tarkista palvelinasetukset</string>
+
     <string name="error_analyze_document">Asiakirjaa ei voitu analysoida</string>
     <string name="token_scanner_title">Skannaa avain</string>
     <string name="token_scanner_capturing">Otetaan korkearesoluutioista kuvaa...</string>

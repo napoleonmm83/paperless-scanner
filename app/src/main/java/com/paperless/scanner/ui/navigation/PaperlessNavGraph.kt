@@ -182,6 +182,9 @@ fun PaperlessNavGraph(
                 },
                 onOpenPdf = { documentId, documentTitle ->
                     navController.navigate(Screen.PdfViewer.createRoute(documentId, documentTitle))
+                },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -261,6 +264,9 @@ fun PaperlessNavGraph(
                     },
                     onNavigateBack = {
                         navController.popBackStack()
+                    },
+                    onNavigateToSettings = {
+                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }

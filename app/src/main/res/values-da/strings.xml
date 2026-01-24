@@ -375,6 +375,17 @@
     <string name="error_login_failed">Login mislykkedes</string>
     <string name="error_token_invalid">Token ugyldig</string>
     <string name="error_server_unreachable">Server ikke tilgængelig</string>
+
+    <!-- Server Offline Detection Error Messages -->
+    <string name="server_offline_title">Server ikke tilgængelig</string>
+    <string name="server_offline_no_internet">Ingen internetforbindelse tilgængelig</string>
+    <string name="server_offline_dns">Serveradressen kunne ikke løses. Kontroller server-URL i indstillinger.</string>
+    <string name="server_offline_connection_refused">Serveren er ikke tilgængelig. Kontroller om serveren kører.</string>
+    <string name="server_offline_timeout">Serveren svarer ikke. Prøv igen senere.</string>
+    <string name="server_offline_vpn_required">VPN-forbindelse påkrævet. Aktiver VPN og prøv igen.</string>
+    <string name="server_offline_unknown">Serverforbindelse mislykkedes. Kontroller indstillingerne.</string>
+    <string name="check_server_settings">Kontroller serverindstillinger</string>
+
     <string name="error_analyze_document">Dokumentet kunne ikke analyseres</string>
     <string name="token_scanner_title">Scan nøgle</string>
     <string name="token_scanner_capturing">Optager foto i høj opløsning...</string>

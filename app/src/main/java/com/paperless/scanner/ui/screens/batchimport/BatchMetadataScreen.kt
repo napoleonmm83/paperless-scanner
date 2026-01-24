@@ -282,13 +282,18 @@ fun BatchMetadataScreen(
                         viewModel.analyzeDocument(imageUris.first())
                     },
                     onApplyTagSuggestion = { tagSuggestion ->
-                        val tagId = tagSuggestion.tagId ?: tags.find {
+                        // CRITICAL: Always verify tag exists in local list, even if tagId is provided
+                        // AI might return invalid tagIds that don't exist on the server
+                        val existingTag = tags.find {
+                            // Match by ID if provided AND exists in local list
+                            (tagSuggestion.tagId != null && it.id == tagSuggestion.tagId) ||
+                            // Otherwise match by name (case-insensitive)
                             it.name.equals(tagSuggestion.tagName, ignoreCase = true)
-                        }?.id
+                        }
 
-                        if (tagId != null) {
-                            if (!selectedTagIds.contains(tagId)) {
-                                selectedTagIds.add(tagId)
+                        if (existingTag != null) {
+                            if (!selectedTagIds.contains(existingTag.id)) {
+                                selectedTagIds.add(existingTag.id)
                             }
                         } else {
                             viewModel.createTag(tagSuggestion.tagName)

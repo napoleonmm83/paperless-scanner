@@ -1,6 +1,21 @@
 package com.paperless.scanner.data.api
 
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+
+/**
+ * Reasons why the Paperless server is unreachable.
+ */
+enum class ServerOfflineReason {
+    NO_INTERNET,        // No internet connection available
+    DNS_FAILURE,        // Server hostname could not be resolved
+    CONNECTION_REFUSED, // Server port not reachable
+    TIMEOUT,            // Request timeout
+    VPN_REQUIRED,       // Server requires VPN (detected via specific patterns)
+    UNKNOWN             // Unknown offline reason
+}
 
 /**
  * Custom exception hierarchy for Paperless-ngx API errors.
@@ -11,6 +26,28 @@ sealed class PaperlessException(
     override val message: String,
     override val cause: Throwable? = null
 ) : Exception(message, cause) {
+
+    /**
+     * Server is unreachable (DNS failure, connection refused, timeout, etc.)
+     * Distinguishes server-offline from general network errors.
+     */
+    data class ServerUnreachable(
+        val reason: ServerOfflineReason,
+        override val message: String = when (reason) {
+            ServerOfflineReason.NO_INTERNET ->
+                "Keine Internetverbindung - bitte Netzwerk prüfen"
+            ServerOfflineReason.DNS_FAILURE ->
+                "Server-Adresse konnte nicht aufgelöst werden. Bitte Server-URL in Einstellungen prüfen."
+            ServerOfflineReason.CONNECTION_REFUSED ->
+                "Server ist nicht erreichbar. Bitte prüfen ob der Server läuft."
+            ServerOfflineReason.TIMEOUT ->
+                "Server antwortet nicht. Bitte später erneut versuchen."
+            ServerOfflineReason.VPN_REQUIRED ->
+                "VPN-Verbindung erforderlich. Bitte VPN aktivieren und erneut versuchen."
+            ServerOfflineReason.UNKNOWN ->
+                "Server nicht erreichbar - bitte Verbindung prüfen"
+        }
+    ) : PaperlessException(message)
 
     /**
      * Network-related errors (no connection, DNS failure, timeout, etc.)
@@ -114,16 +151,34 @@ sealed class PaperlessException(
 
         /**
          * Creates appropriate PaperlessException from any throwable.
+         *
+         * Distinguishes between server-offline (UnknownHostException, ConnectException, etc.)
+         * and general network errors.
          */
         fun from(throwable: Throwable): PaperlessException {
             return when (throwable) {
                 is PaperlessException -> throwable
+
+                // Server-specific offline errors
+                is UnknownHostException ->
+                    ServerUnreachable(ServerOfflineReason.DNS_FAILURE)
+
+                is ConnectException ->
+                    ServerUnreachable(ServerOfflineReason.CONNECTION_REFUSED)
+
+                is SocketTimeoutException ->
+                    ServerUnreachable(ServerOfflineReason.TIMEOUT)
+
+                // General network errors (keep existing behavior)
                 is IOException -> NetworkError(throwable)
+
+                // HTTP errors mean server IS reachable (even if 4xx/5xx)
                 is retrofit2.HttpException -> {
                     val code = throwable.code()
                     val errorBody = throwable.response()?.errorBody()?.string()
                     fromHttpCode(code, errorBody)
                 }
+
                 else -> UnknownError(throwable)
             }
         }
@@ -141,6 +196,7 @@ val PaperlessException.userMessage: String
  */
 val PaperlessException.isRetryable: Boolean
     get() = when (this) {
+        is PaperlessException.ServerUnreachable -> true // Server might come back online
         is PaperlessException.NetworkError -> true
         is PaperlessException.ServerError -> code in listOf(500, 502, 503, 504)
         is PaperlessException.RateLimitError -> true
