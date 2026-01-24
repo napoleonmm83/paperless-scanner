@@ -15,8 +15,15 @@ on:
       - 'version.properties'
       - 'gradlew'
       - 'gradlew.bat'
-      - 'fastlane/**'
+      - 'fastlane/Fastfile'
+      - 'fastlane/Appfile'
       - '.github/workflows/auto-deploy-internal.yml'
+      - '.github/actions/**'
+    paths-ignore:
+      # Never deploy for documentation-only changes
+      - 'docs/**'
+      - '**.md'
+      - 'fastlane/metadata/**'
 
 # Required permissions for pushing version bumps
 permissions:

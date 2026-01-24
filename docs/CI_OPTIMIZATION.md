@@ -109,6 +109,25 @@ code-quality:
 
 ---
 
+### 7. **Smart Path Filtering** (~100% auf Docs-Commits)
+
+```yaml
+on:
+  push:
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      # ... nur app-relevante Dateien
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'fastlane/metadata/**'
+```
+
+**Benefit:** Dokumentations-Commits triggern KEINEN Build/Deploy, sparen Build-Zeit und kosten.
+
+---
+
 ## 📊 Performance Vergleich
 
 | Metric | Vorher | Nachher | Improvement |
@@ -119,6 +138,7 @@ code-quality:
 | **Validate Job** | 10s | 8s | 20% schneller |
 | **Parallel Execution** | ❌ Sequential | ✅ Parallel | N/A |
 | **Build Cache Hits** | ~30% | ~80% | +167% |
+| **Docs-only Commits** | ~150s Build | **0s (skipped)** | **100% gespart** |
 
 ---
 

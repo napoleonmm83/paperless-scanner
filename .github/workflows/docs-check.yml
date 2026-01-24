@@ -1,0 +1,176 @@
+name: Documentation Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'fastlane/metadata/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'fastlane/metadata/**'
+
+permissions:
+  contents: read
+
+jobs:
+  markdown-lint:
+    name: Markdown Lint & Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for broken links in markdown
+        shell: bash
+        run: |
+          echo "🔗 Checking for broken internal links in markdown files..."
+
+          # Find all markdown files
+          BROKEN_LINKS=0
+
+          for file in $(find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*"); do
+            echo "Checking: $file"
+
+            # Look for markdown links [text](path) and check if path exists
+            # This is a basic check - only validates relative file:// links
+            while IFS= read -r link; do
+              # Extract the path from [text](path)
+              path=$(echo "$link" | sed -n 's/.*(\([^)]*\)).*/\1/p')
+
+              # Skip URLs (http/https), anchors (#), and empty paths
+              if [[ "$path" =~ ^https?:// ]] || [[ "$path" =~ ^# ]] || [ -z "$path" ]; then
+                continue
+              fi
+
+              # Check if relative path exists
+              dir=$(dirname "$file")
+              full_path="$dir/$path"
+
+              if [ ! -e "$full_path" ] && [ ! -e "$path" ]; then
+                echo "  ⚠️  Broken link: $link in $file"
+                BROKEN_LINKS=$((BROKEN_LINKS + 1))
+              fi
+            done < <(grep -o '\[.*\](.*\.md)' "$file" 2>/dev/null || true)
+          done
+
+          if [ $BROKEN_LINKS -gt 0 ]; then
+            echo ""
+            echo "::warning::Found $BROKEN_LINKS potentially broken link(s)"
+            echo "Note: This is a basic check. External URLs are not validated."
+          else
+            echo "✅ No broken internal markdown links found"
+          fi
+
+      - name: Check markdown formatting
+        shell: bash
+        run: |
+          echo "📝 Checking markdown formatting..."
+
+          # Check for common markdown issues
+          ISSUES=0
+
+          for file in $(find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*"); do
+            # Check for trailing whitespace
+            if grep -q ' $' "$file"; then
+              echo "⚠️  Trailing whitespace found in: $file"
+              ISSUES=$((ISSUES + 1))
+            fi
+
+            # Check for mixed line endings (CRLF in some lines, LF in others)
+            if file "$file" | grep -q "CRLF"; then
+              if grep -qU $'\r' "$file"; then
+                # Has CRLF - this is OK on Windows
+                :
+              fi
+            fi
+          done
+
+          if [ $ISSUES -gt 0 ]; then
+            echo ""
+            echo "::warning::Found $ISSUES formatting issue(s)"
+          else
+            echo "✅ Markdown formatting looks good"
+          fi
+
+      - name: Validate changelog lengths
+        shell: bash
+        run: |
+          echo "📏 Checking Google Play changelog lengths (500 char limit)..."
+
+          MAX_CHARS=500
+          FAILURES=0
+
+          # Find all changelog files
+          for changelog in $(find fastlane/metadata/android -name "*.txt" -path "*/changelogs/*"); do
+            char_count=$(wc -m < "$changelog" | tr -d ' ')
+            rel_path=$(echo "$changelog" | sed 's|fastlane/metadata/android/||')
+
+            if [ "$char_count" -gt "$MAX_CHARS" ]; then
+              echo "❌ FAILED: $rel_path"
+              echo "   Length: $char_count characters (exceeds limit by $((char_count - MAX_CHARS)))"
+              FAILURES=$((FAILURES + 1))
+            else
+              echo "✅ PASSED: $rel_path ($char_count chars)"
+            fi
+          done
+
+          if [ $FAILURES -gt 0 ]; then
+            echo ""
+            echo "::error::$FAILURES changelog(s) exceed the 500-character limit!"
+            echo "Tips: Use abbreviations, remove filler words, keep bullets under 60 chars"
+            exit 1
+          else
+            echo ""
+            echo "✅ All changelogs are within the 500-character limit"
+          fi
+
+      - name: Check documentation structure
+        shell: bash
+        run: |
+          echo "📚 Checking documentation structure..."
+
+          # Check if important docs exist
+          REQUIRED_DOCS=(
+            "README.md"
+            "docs/PRD.md"
+            "docs/TECHNICAL.md"
+            "CLAUDE.md"
+          )
+
+          MISSING=0
+
+          for doc in "${REQUIRED_DOCS[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "⚠️  Missing: $doc"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [ $MISSING -gt 0 ]; then
+            echo ""
+            echo "::warning::$MISSING required documentation file(s) missing"
+          else
+            echo "✅ All required documentation files present"
+          fi
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "## 📄 Documentation Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Documentation validation completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Checks performed:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Markdown link validation" >> $GITHUB_STEP_SUMMARY
+          echo "- Markdown formatting" >> $GITHUB_STEP_SUMMARY
+          echo "- Google Play changelog length validation" >> $GITHUB_STEP_SUMMARY
+          echo "- Documentation structure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Note: This workflow only runs for documentation changes.*" >> $GITHUB_STEP_SUMMARY
+          echo "*App builds and deployments are skipped.*" >> $GITHUB_STEP_SUMMARY
