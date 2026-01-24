@@ -725,6 +725,8 @@ private fun ProcessingTaskCard(
     val isDuplicate = task.status == TaskStatus.FAILURE &&
             task.resultMessage?.contains("duplicate", ignoreCase = true) == true
 
+    // FIXED: Better contrast in Light Mode for PROCESSING status
+    // Use surfaceVariant instead of primaryContainer to ensure readability
     val (backgroundColor, statusIcon, iconColor, textColor, statusText) = when {
         isDuplicate -> Quintuple(
             MaterialTheme.colorScheme.surfaceVariant,
@@ -741,10 +743,10 @@ private fun ProcessingTaskCard(
             statusWaiting
         )
         task.status == TaskStatus.PROCESSING -> Quintuple(
-            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.surfaceVariant,  // Better contrast in both themes
             null,
-            MaterialTheme.colorScheme.onPrimaryContainer,
-            MaterialTheme.colorScheme.onPrimaryContainer,
+            MaterialTheme.colorScheme.primary,          // Primary color for progress indicator
+            MaterialTheme.colorScheme.onSurfaceVariant, // Readable text in both themes
             statusProcessing
         )
         task.status == TaskStatus.SUCCESS -> Quintuple(
