@@ -29,8 +29,36 @@
 -keep class dagger.hilt.** { *; }
 -keep class javax.inject.** { *; }
 
-# iText PDF - ignore optional BouncyCastle dependencies
+# iText PDF - ignore optional dependencies not used in Android
+# BouncyCastle (encryption/signing - not used)
 -dontwarn com.itextpdf.bouncycastle.**
 -dontwarn com.itextpdf.bouncycastlefips.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.spongycastle.**
+
+# Jackson JSON (optional JSON utilities - not used)
+-dontwarn com.fasterxml.jackson.**
+
+# Java AWT/ImageIO (desktop image processing - not used, we use Android Bitmap)
+-dontwarn java.awt.**
+-dontwarn javax.imageio.**
+
+# iText PDF - Keep rules for core functionality
+# Keep all iText classes to prevent obfuscation issues
+-keep class com.itextpdf.** { *; }
+
+# Keep all iText interfaces and abstract classes
+-keep interface com.itextpdf.** { *; }
+-keep abstract class com.itextpdf.** { *; }
+
+# Keep event handler classes (fixes AbstractTextEvent errors)
+-keep class com.itextpdf.kernel.events.** { *; }
+-keep class com.itextpdf.layout.** { *; }
+
+# Keep classes used via reflection
+-keepclassmembers class * extends com.itextpdf.kernel.pdf.PdfObject {
+    <init>(...);
+}
+
+# Preserve line numbers for better crash reports
+-keepattributes SourceFile,LineNumberTable
