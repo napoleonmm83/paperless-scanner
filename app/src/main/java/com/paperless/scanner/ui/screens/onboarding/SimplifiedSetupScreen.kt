@@ -537,7 +537,7 @@ fun SimplifiedSetupScreen(
                     AuthMethod.CREDENTIALS -> "Use your Paperless-ngx username and password"
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
         }
