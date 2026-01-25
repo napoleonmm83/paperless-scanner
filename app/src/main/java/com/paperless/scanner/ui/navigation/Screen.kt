@@ -2,14 +2,6 @@ package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
 
-/**
- * Source type for batch import - determines which picker to use when adding more files
- */
-enum class BatchSourceType {
-    GALLERY,  // Photo picker (PickMultipleVisualMedia)
-    FILES     // File picker (OpenMultipleDocuments)
-}
-
 sealed class Screen(val route: String) {
     // Onboarding flow
     data object OnboardingWelcome : Screen("onboarding-welcome")
@@ -77,22 +69,10 @@ sealed class Screen(val route: String) {
             return "upload/${Uri.encode(documentUri.toString())}"
         }
     }
-    data object MultiPageUpload : Screen("upload-multi/{documentUris}") {
-        fun createRoute(documentUris: List<Uri>): String {
+    data object MultiPageUpload : Screen("upload-multi/{documentUris}/{uploadAsSingleDocument}") {
+        fun createRoute(documentUris: List<Uri>, uploadAsSingleDocument: Boolean = true): String {
             val encodedUris = documentUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "upload-multi/$encodedUris"
-        }
-    }
-    data object BatchImport : Screen("batch-import/{imageUris}/{sourceType}") {
-        fun createRoute(imageUris: List<Uri>, sourceType: BatchSourceType = BatchSourceType.GALLERY): String {
-            val encodedUris = imageUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "batch-import/$encodedUris/${sourceType.name}"
-        }
-    }
-    data object BatchMetadata : Screen("batch-metadata/{documentUris}/{uploadAsSingleDocument}") {
-        fun createRoute(documentUris: List<Uri>, uploadAsSingleDocument: Boolean): String {
-            val encodedUris = documentUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "batch-metadata/$encodedUris/$uploadAsSingleDocument"
+            return "upload-multi/$encodedUris/$uploadAsSingleDocument"
         }
     }
 }

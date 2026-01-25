@@ -42,7 +42,6 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,7 +49,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -287,27 +285,15 @@ fun TagSelectionSection(
             }
 
             // Visible tags
-            val isDarkTheme = isSystemInDarkTheme()
-            val neonYellow = Color(0xFFE1FF8D)
-
             visibleTags.forEach { tag ->
                 val isSelected = selectedTagIds.contains(tag.id)
                 FilterChip(
                     selected = isSelected,
                     onClick = { onToggleTag(tag.id) },
-                    label = {
-                        Text(
-                            text = tag.name,
-                            color = if (isSelected) {
-                                if (isDarkTheme) Color.Black else neonYellow
-                            } else {
-                                Color.Unspecified
-                            }
-                        )
-                    },
+                    label = { Text(tag.name) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = if (isDarkTheme) neonYellow else Color.Black,
-                        selectedLabelColor = if (isDarkTheme) Color.Black else neonYellow
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
                     )
                 )
             }

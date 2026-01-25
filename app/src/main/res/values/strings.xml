@@ -776,4 +776,12 @@
     <!-- AI Suggestions: No matches with new tags disabled -->
     <string name="suggestions_no_matches_new_tags_disabled">Keine passenden Tags gefunden</string>
     <string name="suggestions_no_matches_new_tags_disabled_hint">Die Einstellung „Neue Tags vorschlagen" ist deaktiviert. Aktiviere sie in den Einstellungen, um neue Tag-Vorschläge zu erhalten.</string>
+
+    <!-- Add More Source Dialog -->
+    <string name="add_more_dialog_title">Weitere Seiten hinzufügen</string>
+    <string name="add_more_dialog_subtitle">Wähle eine Quelle:</string>
+    <string name="add_more_dialog_scanner_desc">Neues Dokument scannen</string>
+    <string name="add_more_dialog_gallery_desc">Fotos aus Galerie wählen</string>
+    <string name="add_more_dialog_files_desc">Dateien oder PDFs auswählen</string>
+    <string name="add_more_dialog_cancel">Abbrechen</string>
 </resources>

@@ -362,6 +362,7 @@ class UploadViewModel @Inject constructor(
 
     fun uploadMultiPageDocument(
         uris: List<Uri>,
+        uploadAsSingleDocument: Boolean = true,
         title: String? = null,
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
@@ -431,14 +432,38 @@ class UploadViewModel @Inject constructor(
                 Log.d(TAG, "Queueing multi-page upload: ${localUris.size} files ($totalSize bytes total)")
 
                 // Queue the upload - WorkManager will handle retry, network checks, etc.
-                val queueId = uploadQueueRepository.queueMultiPageUpload(
-                    uris = localUris,
-                    title = title,
-                    tagIds = tagIds,
-                    documentTypeId = documentTypeId,
-                    correspondentId = correspondentId
-                )
-                Log.d(TAG, "Multi-page upload queued with ID: $queueId")
+                if (uploadAsSingleDocument) {
+                    // Combined: Merge all pages into a single PDF document
+                    val queueId = uploadQueueRepository.queueMultiPageUpload(
+                        uris = localUris,
+                        title = title,
+                        tagIds = tagIds,
+                        documentTypeId = documentTypeId,
+                        correspondentId = correspondentId
+                    )
+                    Log.d(TAG, "Multi-page upload queued as single document with ID: $queueId")
+                } else {
+                    // Individual: Queue each page as a separate document
+                    Log.d(TAG, "Queueing ${localUris.size} individual documents")
+                    localUris.forEachIndexed { index, uri ->
+                        val individualTitle = if (title.isNullOrBlank()) {
+                            null
+                        } else if (localUris.size > 1) {
+                            "$title (${index + 1}/${localUris.size})"
+                        } else {
+                            title
+                        }
+                        val queueId = uploadQueueRepository.queueUpload(
+                            uri = uri,
+                            title = individualTitle,
+                            tagIds = tagIds,
+                            documentTypeId = documentTypeId,
+                            correspondentId = correspondentId
+                        )
+                        Log.d(TAG, "  Document ${index + 1}/${localUris.size} queued with ID: $queueId")
+                    }
+                    Log.d(TAG, "All ${localUris.size} individual documents queued successfully")
+                }
 
                 // Trigger immediate upload processing
                 uploadWorkManager.scheduleImmediateUpload()

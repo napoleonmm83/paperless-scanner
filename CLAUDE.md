@@ -823,11 +823,16 @@ Bei JEDER Implementierung:
 - **Room Flow für Datenbank-Beobachtung verwenden**
 - **GitHub Releases MÜSSEN strukturiert sein** (siehe "GitHub Release Dokumentation")
 
-### 🌍 AUTOMATISCHE ÜBERSETZUNG (ZWINGEND!)
+### 🌍 AUTOMATISCHE ÜBERSETZUNG MIT GEMINI
 
-**Bei JEDER Änderung an `values/strings.xml` MÜSSEN alle Übersetzungen aktualisiert werden!**
+**Übersetzungen werden automatisch durch Google Play Console's Gemini generiert - KEINE manuellen Übersetzungsdateien mehr!**
 
-#### Unterstützte Sprachen (16 Sprachen)
+#### System
+- **Basis-Sprache:** Deutsch (`app/src/main/res/values/strings.xml`)
+- **Übersetzungen:** Automatisch durch Gemini in 16 Sprachen generiert
+- **Ort:** Im Play Console, automatisch in App-Bundle integriert beim Upload
+
+#### Unterstützte Sprachen (16 Sprachen via Gemini)
 | Code | Sprache | Code | Sprache |
 |------|---------|------|---------|
 | en | Englisch | da | Dänisch |
@@ -841,33 +846,41 @@ Bei JEDER Implementierung:
 
 #### Workflow bei neuen/geänderten Strings
 
-1. **Neue Strings in `values/strings.xml` hinzufügen** (Deutsch als Basis)
-2. **SOFORT alle 16 Übersetzungsdateien aktualisieren:**
-   ```
-   app/src/main/res/values-{code}/strings.xml
-   ```
-3. **Gleiche String-Keys verwenden** in allen Dateien
-4. **Qualitätsprüfung:** Übersetzungen müssen natürlich klingen, nicht wörtlich
+1. **Strings in `values/strings.xml` hinzufügen/ändern** (Deutsch als Basis)
+2. **Commit und Push auf `main`**
+3. **Gemini übersetzt automatisch** beim nächsten App-Bundle Upload
+4. **Preview in Play Console** möglich vor Release
 
-#### Beispiel
-```xml
-<!-- values/strings.xml (Deutsch - Basis) -->
-<string name="new_feature_title">Neue Funktion</string>
+#### Gemini Aktivierung (einmalig, manuell im Play Console)
 
-<!-- values-en/strings.xml -->
-<string name="new_feature_title">New Feature</string>
+1. **Play Console öffnen** → App auswählen
+2. **Navigation:** Grow users → Translations → App strings
+3. **"Get started" klicken** → "Add languages"
+4. **Alle 16 Sprachen aktivieren** (siehe Tabelle oben)
+5. **Fertig!** Ab jetzt automatisch bei jedem Bundle-Upload
 
-<!-- values-fr/strings.xml -->
-<string name="new_feature_title">Nouvelle fonctionnalité</string>
+#### Besonderheiten
 
-<!-- ... alle anderen Sprachen -->
-```
+**Override-Verhalten:**
+- Gemini überschreibt ALLE Übersetzungen für aktivierte Sprachen
+- Keine `values-*/` Verzeichnisse mehr im Projekt
+- Übersetzungen werden "nahtlos in das App-Bundle integriert"
+
+**Kontrolle behalten:**
+- Preview mit Built-in Emulator
+- Einzelne Strings editierbar oder von Übersetzung ausschließbar
+- Jederzeit deaktivierbar
+
+**Wichtig:**
+- APK-Größe wird NICHT beeinflusst
+- Übersetzungen konsistent über alle Versionen
+- Ändern sich nur bei geändertem Source-Text
 
 #### WICHTIG
-- **NIEMALS** neue Strings nur in Deutsch hinzufügen
-- **NIEMALS** Übersetzungen vergessen oder aufschieben
-- **IMMER** alle 16 Dateien im gleichen Commit aktualisieren
-- Bei Unsicherheit: User fragen, ob Übersetzungen korrekt sind
+- **NIEMALS** `values-*` Verzeichnisse manuell erstellen
+- **ALLE** Übersetzungen kommen von Gemini
+- **NUR** `values/strings.xml` (Deutsch) pflegen
+- Bei Problemen: User informieren, Gemini-Status in Play Console prüfen
 
 ---
 
@@ -940,7 +953,7 @@ Für manuelle Checks vor dem Commit/Push:
 # ALLE diese Checks müssen 100% erfolgreich sein:
 
 # Phase 1: Validation (wie GitHub Actions "validate" job)
-./scripts/check-translations.sh   # Translation Completeness
+# Note: Translation checks removed - now using Gemini automatic translation
 # + Duplicate String IDs Check
 # + Empty Strings Check
 

@@ -50,6 +50,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -88,7 +91,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
-import com.paperless.scanner.ui.navigation.BatchSourceType
+import com.paperless.scanner.ui.screens.scan.AddMoreSourceDialog
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import coil.compose.AsyncImage
@@ -111,8 +114,7 @@ fun ScanScreen(
     initialPageUris: List<Uri> = emptyList(),
     navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
-    onMultipleDocumentsScanned: (List<Uri>) -> Unit,
-    onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
+    onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
     viewModel: ScanViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -121,6 +123,8 @@ fun ScanScreen(
     val uiState by viewModel.uiState.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+    val uploadAsSingleDocument by viewModel.uploadAsSingleDocument.collectAsState()
+    var showAddMoreDialog by remember { mutableStateOf(false) }
 
     // Initialize ViewModel with route arguments (survives AppLock unlock)
     // CRITICAL: Only initialize from route args if ViewModel doesn't already have pages
@@ -173,7 +177,7 @@ fun ScanScreen(
             val scanningResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
             val pageUris = scanningResult?.pages?.mapNotNull { it.imageUri } ?: emptyList()
             if (pageUris.isNotEmpty()) {
-                viewModel.addPages(pageUris)
+                viewModel.addPages(pageUris, PageSource.SCANNER)
             }
         }
     }
@@ -193,7 +197,7 @@ fun ScanScreen(
                 }
                 if (localUris.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
-                        onBatchImport(localUris, BatchSourceType.GALLERY)
+                        viewModel.addPages(localUris, PageSource.GALLERY)
                     }
                 }
             }
@@ -215,7 +219,7 @@ fun ScanScreen(
                 }
                 if (localUris.isNotEmpty()) {
                     withContext(Dispatchers.Main) {
-                        onBatchImport(localUris, BatchSourceType.FILES)
+                        viewModel.addPages(localUris, PageSource.FILES)
                     }
                 }
             }
@@ -273,8 +277,10 @@ fun ScanScreen(
                     uiState = uiState,
                     wifiRequired = wifiRequired,
                     isWifiConnected = isWifiConnected,
+                    uploadAsSingleDocument = uploadAsSingleDocument,
+                    onUploadModeChange = { viewModel.setUploadAsSingleDocument(it) },
                     onUseAnywayClick = { viewModel.overrideWifiOnlyForSession() },
-                    onAddMore = { startScanner() },
+                    onAddMore = { showAddMoreDialog = true },
                     onRemovePage = { viewModel.removePage(it) },
                     onRotatePage = { viewModel.rotatePage(it) },
                     onMovePage = { from, to -> viewModel.movePage(from, to) },
@@ -283,12 +289,12 @@ fun ScanScreen(
                         // Get rotated URIs in coroutine scope
                         scope.launch {
                             val uris = viewModel.getRotatedPageUris()
-                            // Clear pages before navigating to metadata screen
-                            viewModel.clearPages()
+                            // DO NOT clear pages here - pages should persist until upload succeeds
+                            // This allows user to navigate back and add more pages or make changes
                             if (uris.size == 1) {
                                 onDocumentScanned(uris.first())
                             } else {
-                                onMultipleDocumentsScanned(uris)
+                                onMultipleDocumentsScanned(uris, uploadAsSingleDocument)
                             }
                         }
                     }
@@ -322,6 +328,35 @@ fun ScanScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        // Add More Source Dialog
+        if (showAddMoreDialog) {
+            AddMoreSourceDialog(
+                onDismiss = { showAddMoreDialog = false },
+                onScannerSelected = {
+                    showAddMoreDialog = false
+                    startScanner()
+                },
+                onGallerySelected = {
+                    showAddMoreDialog = false
+                    // CRITICAL: Suspend timeout BEFORE opening picker
+                    viewModel.appLockManager.suspendForFilePicker()
+                    photoPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                },
+                onFilesSelected = {
+                    showAddMoreDialog = false
+                    // CRITICAL: Suspend timeout BEFORE opening picker
+                    viewModel.appLockManager.suspendForFilePicker()
+                    filePickerLauncher.launch(
+                        arrayOf("application/pdf", "image/*")
+                    )
+                }
+            )
+        }
     }
 
 }
@@ -454,6 +489,8 @@ private fun MultiPageContent(
     uiState: ScanUiState,
     wifiRequired: Boolean,
     isWifiConnected: Boolean,
+    uploadAsSingleDocument: Boolean,
+    onUploadModeChange: (Boolean) -> Unit,
     onUseAnywayClick: () -> Unit,
     onAddMore: () -> Unit,
     onRemovePage: (String) -> Unit,
@@ -565,6 +602,32 @@ private fun MultiPageContent(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Upload Mode Selection
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            SegmentedButton(
+                selected = !uploadAsSingleDocument,
+                onClick = { onUploadModeChange(false) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+            ) {
+                Text(stringResource(R.string.batch_import_button_individual))
+            }
+            SegmentedButton(
+                selected = uploadAsSingleDocument,
+                onClick = { onUploadModeChange(true) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+            ) {
+                Text(stringResource(R.string.batch_import_button_single))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         LazyRow(
             state = lazyRowState,
@@ -797,6 +860,35 @@ private fun PageThumbnail(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            // Source badge (bottom left)
+            val sourceIcon = when (page.source) {
+                PageSource.SCANNER -> Icons.Filled.CameraAlt
+                PageSource.GALLERY -> Icons.Filled.PhotoLibrary
+                PageSource.FILES -> Icons.Filled.FolderOpen
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+                    .size(24.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = sourceIcon,
+                    contentDescription = when (page.source) {
+                        PageSource.SCANNER -> stringResource(R.string.scan_option_scan)
+                        PageSource.GALLERY -> stringResource(R.string.scan_option_gallery)
+                        PageSource.FILES -> stringResource(R.string.scan_option_files)
+                    },
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                )
             }
         }
     }

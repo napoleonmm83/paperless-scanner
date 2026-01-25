@@ -5,7 +5,6 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.paperless.scanner.ui.components.AdaptiveNavigation
-import com.paperless.scanner.ui.navigation.BatchSourceType
 import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.screens.documents.DocumentsScreen
 import com.paperless.scanner.ui.screens.home.HomeScreen
@@ -20,8 +19,7 @@ fun MainScreen(
     scanPageUris: List<Uri> = emptyList(),
     scanBackStackEntry: NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
-    onMultipleDocumentsScanned: (List<Uri>) -> Unit,
-    onBatchImport: (List<Uri>, BatchSourceType) -> Unit,
+    onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
     onDocumentClick: (Int) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -67,8 +65,7 @@ fun MainScreen(
                 initialPageUris = scanPageUris,
                 navBackStackEntry = scanBackStackEntry,
                 onDocumentScanned = onDocumentScanned,
-                onMultipleDocumentsScanned = onMultipleDocumentsScanned,
-                onBatchImport = onBatchImport
+                onMultipleDocumentsScanned = onMultipleDocumentsScanned
             )
             Screen.Labels.route -> LabelsScreen(
                 onDocumentClick = onDocumentClick

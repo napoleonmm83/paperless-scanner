@@ -202,8 +202,9 @@ jobs:
       - name: Grant execute permission for scripts
         run: chmod +x scripts/*.sh
 
-      - name: Check translation completeness
-        run: ./scripts/check-translations.sh
+      # Translation check removed - now using Gemini automatic translation in Play Console
+      # - name: Check translation completeness
+      #   run: ./scripts/check-translations.sh
 
       - name: Check for hardcoded strings
         run: |

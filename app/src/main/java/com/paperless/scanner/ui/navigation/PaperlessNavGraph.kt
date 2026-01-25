@@ -12,9 +12,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.ui.screens.batchimport.BatchImportScreen
-import com.paperless.scanner.ui.screens.batchimport.BatchImportViewModel
-import com.paperless.scanner.ui.screens.batchimport.BatchMetadataScreen
 import com.paperless.scanner.ui.theme.PaperlessAnimations
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,11 +50,11 @@ fun PaperlessNavGraph(
         appLockManager = appLockManager
     )
 
-    // Handle navigation to BatchImport when shared URIs are present
+    // Handle navigation to Scan when shared URIs are present
     LaunchedEffect(sharedUris, startDestination) {
         if (sharedUris.isNotEmpty() && startDestination == Screen.Home.route) {
-            // User is logged in and has shared content - navigate to BatchImport
-            navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
+            // User is logged in and has shared content - navigate to Scan with shared URIs
+            navController.navigate(Screen.Scan.createRoute(sharedUris)) {
                 popUpTo(Screen.Home.route) { inclusive = false }
             }
         }
@@ -77,7 +74,7 @@ fun PaperlessNavGraph(
                     }
 
                     if (sharedUris.isNotEmpty()) {
-                        navController.navigate(Screen.BatchImport.createRoute(sharedUris)) {
+                        navController.navigate(Screen.Scan.createRoute(sharedUris)) {
                             popUpTo(Screen.Welcome.route) { inclusive = true }
                         }
                     } else {
@@ -131,11 +128,8 @@ fun PaperlessNavGraph(
                         onDocumentScanned = { uri ->
                             navController.navigate(Screen.Upload.createRoute(uri))
                         },
-                        onMultipleDocumentsScanned = { uris ->
-                            navController.navigate(Screen.MultiPageUpload.createRoute(uris))
-                        },
-                        onBatchImport = { uris, sourceType ->
-                            navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
+                        onMultipleDocumentsScanned = { uris, uploadAsSingleDocument ->
+                            navController.navigate(Screen.MultiPageUpload.createRoute(uris, uploadAsSingleDocument))
                         },
                         onDocumentClick = { documentId ->
                             navController.navigate(Screen.DocumentDetail.createRoute(documentId))
@@ -155,11 +149,8 @@ fun PaperlessNavGraph(
                         onDocumentScanned = { uri ->
                             navController.navigate(Screen.Upload.createRoute(uri))
                         },
-                        onMultipleDocumentsScanned = { uris ->
-                            navController.navigate(Screen.MultiPageUpload.createRoute(uris))
-                        },
-                        onBatchImport = { uris, sourceType ->
-                            navController.navigate(Screen.BatchImport.createRoute(uris, sourceType))
+                        onMultipleDocumentsScanned = { uris, uploadAsSingleDocument ->
+                            navController.navigate(Screen.MultiPageUpload.createRoute(uris, uploadAsSingleDocument))
                         },
                         onDocumentClick = { documentId ->
                             navController.navigate(Screen.DocumentDetail.createRoute(documentId))
@@ -288,90 +279,6 @@ fun PaperlessNavGraph(
             arguments = listOf(
                 navArgument("documentUris") {
                     type = NavType.StringType
-                }
-            ),
-            enterTransition = { PaperlessAnimations.verticalEnterTransition },
-            exitTransition = { PaperlessAnimations.verticalExitTransition },
-            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
-            popExitTransition = { PaperlessAnimations.verticalExitTransition }
-        ) { backStackEntry ->
-            val documentUrisString = backStackEntry.arguments?.getString("documentUris")
-            val documentUris = documentUrisString?.split("|")?.mapNotNull { encodedUri ->
-                try {
-                    Uri.parse(Uri.decode(encodedUri))
-                } catch (e: Exception) {
-                    null
-                }
-            } ?: emptyList()
-
-            if (documentUris.isNotEmpty()) {
-                MultiPageUploadScreen(
-                    documentUris = documentUris,
-                    onUploadSuccess = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Home.route) { inclusive = true }
-                        }
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-        }
-
-        composable(
-            route = Screen.BatchImport.route,
-            arguments = listOf(
-                navArgument("imageUris") {
-                    type = NavType.StringType
-                },
-                navArgument("sourceType") {
-                    type = NavType.StringType
-                }
-            ),
-            enterTransition = { PaperlessAnimations.verticalEnterTransition },
-            exitTransition = { PaperlessAnimations.verticalExitTransition },
-            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
-            popExitTransition = { PaperlessAnimations.verticalExitTransition }
-        ) { backStackEntry ->
-            val imageUrisString = backStackEntry.arguments?.getString("imageUris")
-            val imageUris = imageUrisString?.split("|")?.mapNotNull { encodedUri ->
-                try {
-                    Uri.parse(Uri.decode(encodedUri))
-                } catch (e: Exception) {
-                    null
-                }
-            } ?: emptyList()
-            val sourceTypeString = backStackEntry.arguments?.getString("sourceType")
-            val sourceType = try {
-                BatchSourceType.valueOf(sourceTypeString ?: "GALLERY")
-            } catch (e: Exception) {
-                BatchSourceType.GALLERY
-            }
-
-            if (imageUris.isNotEmpty()) {
-                val viewModel: BatchImportViewModel = hiltViewModel()
-
-                BatchImportScreen(
-                    imageUris = imageUris,
-                    sourceType = sourceType,
-                    viewModel = viewModel,
-                    navBackStackEntry = backStackEntry,
-                    onContinueToMetadata = { selectedUris, uploadAsSingleDocument ->
-                        navController.navigate(Screen.BatchMetadata.createRoute(selectedUris, uploadAsSingleDocument))
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
-            }
-        }
-
-        composable(
-            route = Screen.BatchMetadata.route,
-            arguments = listOf(
-                navArgument("documentUris") {
-                    type = NavType.StringType
                 },
                 navArgument("uploadAsSingleDocument") {
                     type = NavType.BoolType
@@ -390,13 +297,13 @@ fun PaperlessNavGraph(
                     null
                 }
             } ?: emptyList()
-            val uploadAsSingleDocument = backStackEntry.arguments?.getBoolean("uploadAsSingleDocument") ?: false
+            val uploadAsSingleDocument = backStackEntry.arguments?.getBoolean("uploadAsSingleDocument") ?: true
 
             if (documentUris.isNotEmpty()) {
-                BatchMetadataScreen(
-                    imageUris = documentUris,
+                MultiPageUploadScreen(
+                    documentUris = documentUris,
                     uploadAsSingleDocument = uploadAsSingleDocument,
-                    onImportSuccess = {
+                    onUploadSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Home.route) { inclusive = true }
                         }

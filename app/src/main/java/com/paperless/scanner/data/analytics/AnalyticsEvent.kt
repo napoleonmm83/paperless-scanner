@@ -114,12 +114,6 @@ sealed class AnalyticsEvent(
 
     // ==================== Feature Usage Events ====================
 
-    /** Batch import feature used */
-    data class BatchImportUsed(val documentCount: Int) : AnalyticsEvent(
-        "batch_import_used",
-        mapOf("document_count" to documentCount)
-    )
-
     /** Offline mode activated */
     data object OfflineModeUsed : AnalyticsEvent("offline_mode_used")
 

@@ -44,11 +44,21 @@ import java.io.File
 import java.io.FileOutputStream
 import javax.inject.Inject
 
+/**
+ * Source type for scanned pages - determines origin for UI badges
+ */
+enum class PageSource {
+    SCANNER,  // MLKit Document Scanner
+    GALLERY,  // Photo picker (PickMultipleVisualMedia)
+    FILES     // File picker (OpenMultipleDocuments)
+}
+
 data class ScannedPage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val uri: Uri,
     val pageNumber: Int,
-    val rotation: Int = 0  // 0, 90, 180, 270
+    val rotation: Int = 0,  // 0, 90, 180, 270
+    val source: PageSource = PageSource.SCANNER  // Default to scanner for backward compatibility
 )
 
 data class RemovedPageInfo(
@@ -95,6 +105,7 @@ class ScanViewModel @Inject constructor(
         private const val KEY_PAGE_URIS = "pageUris"
         private const val KEY_PAGE_IDS = "pageIds"
         private const val KEY_PAGE_ROTATIONS = "pageRotations"
+        private const val KEY_UPLOAD_AS_SINGLE = "uploadAsSingleDocument"
     }
 
     // Reactive page URIs from SavedStateHandle (survives process death)
@@ -159,6 +170,10 @@ class ScanViewModel @Inject constructor(
                 started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
                 initialValue = emptyMap()
             )
+
+    // Upload mode: true = Single PDF, false = Individual Documents
+    val uploadAsSingleDocument: StateFlow<Boolean> =
+        savedStateHandle.getStateFlow(KEY_UPLOAD_AS_SINGLE, false)
 
     private val _uiState = MutableStateFlow(ScanUiState())
     val uiState: StateFlow<ScanUiState> = _uiState.asStateFlow()
@@ -398,13 +413,14 @@ class ScanViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTagIds = emptyList()) }
     }
 
-    fun addPages(uris: List<Uri>) {
+    fun addPages(uris: List<Uri>, source: PageSource = PageSource.SCANNER) {
         _uiState.update { state ->
             val startIndex = state.pageCount
             val newPages = uris.mapIndexed { index, uri ->
                 ScannedPage(
                     uri = uri,
-                    pageNumber = startIndex + index + 1
+                    pageNumber = startIndex + index + 1,
+                    source = source
                 )
             }
             val newTotalPages = state.pageCount + uris.size
@@ -494,6 +510,10 @@ class ScanViewModel @Inject constructor(
     fun clearPages() {
         _uiState.update { it.copy(pages = emptyList()) }
         syncPagesToSavedState(emptyList())
+    }
+
+    fun setUploadAsSingleDocument(value: Boolean) {
+        savedStateHandle[KEY_UPLOAD_AS_SINGLE] = value
     }
 
     fun getPageUris(): List<Uri> = _uiState.value.pages.map { it.uri }

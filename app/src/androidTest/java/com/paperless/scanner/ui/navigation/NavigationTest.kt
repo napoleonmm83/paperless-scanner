@@ -81,6 +81,5 @@ class NavigationTest {
         assert(Screen.Scan.route == "scan")
         assert(Screen.Upload.route == "upload/{documentUri}")
         assert(Screen.MultiPageUpload.route == "upload-multi/{documentUris}")
-        assert(Screen.BatchImport.route == "batch-import/{imageUris}")
     }
 }

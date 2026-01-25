@@ -72,6 +72,7 @@ import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 @Composable
 fun MultiPageUploadScreen(
     documentUris: List<Uri>,
+    uploadAsSingleDocument: Boolean = true,
     preSelectedTagIds: List<Int> = emptyList(),
     preTitle: String? = null,
     preDocumentTypeId: Int? = null,
@@ -496,6 +497,7 @@ fun MultiPageUploadScreen(
                 onClick = {
                     viewModel.uploadMultiPageDocument(
                         uris = activeDocumentUris,
+                        uploadAsSingleDocument = uploadAsSingleDocument,
                         title = title.ifBlank { null },
                         tagIds = selectedTagIds.toList(),
                         documentTypeId = selectedDocumentTypeId,

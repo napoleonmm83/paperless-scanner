@@ -16,7 +16,7 @@ import com.paperless.scanner.util.AppLockState
 /**
  * Reconstructs the full route with actual argument values.
  *
- * IMPORTANT: For screens that dynamically update URIs (BatchImport, MultiPageUpload),
+ * IMPORTANT: For screens that dynamically update URIs (MultiPageUpload, Scan),
  * we read the CURRENT URIs from SavedStateHandle, not the stale navigation arguments!
  *
  * Example:
@@ -32,23 +32,9 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
 
     var reconstructed = routeTemplate
 
-    // Special handling for BatchImport/MultiPageUpload/Scan: Use current URIs from SavedStateHandle
+    // Special handling for MultiPageUpload/Scan: Use current URIs from SavedStateHandle
     // instead of stale navigation arguments (user may have added/removed images)
     when {
-        routeTemplate.startsWith("batch-import/") -> {
-            // Read current URIs from SavedStateHandle (where BatchImportViewModel stores them)
-            val currentUris = backStackEntry.savedStateHandle.get<String>("imageUris")
-            if (currentUris != null) {
-                Log.d("AppLockInterceptor", "BatchImport: Using CURRENT URIs from SavedStateHandle: $currentUris")
-                // Encode the entire pipe-separated URI string
-                val encodedUris = android.net.Uri.encode(currentUris)
-                reconstructed = reconstructed.replace("{imageUris}", encodedUris)
-                // Replace sourceType normally
-                val sourceType = args.getString("sourceType") ?: "GALLERY"
-                reconstructed = reconstructed.replace("{sourceType}", sourceType)
-                return reconstructed
-            }
-        }
         routeTemplate.startsWith("multi-page-upload/") -> {
             // Read current URIs from SavedStateHandle (where UploadViewModel stores them)
             val currentUris = backStackEntry.savedStateHandle.get<String>("documentUris")
@@ -191,7 +177,7 @@ fun AppLockNavigationInterceptor(
 
                     try {
                         // IMPORTANT: restoreState = false to avoid restoring entire back stack
-                        // ViewModels already persist state via SavedStateHandle (ScanViewModel, BatchImportViewModel)
+                        // ViewModels already persist state via SavedStateHandle (ScanViewModel)
                         // restoreState = true would reactivate ALL screens in back stack, not just target
                         navController.navigate(targetRoute) {
                             // Only remove AppLock screen from back stack

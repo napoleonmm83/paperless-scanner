@@ -31,9 +31,9 @@ val DarkTechOnBackground = Color(0xFFFFFFFF)
 val DarkTechOnSurface = Color(0xFFFFFFFF)
 val DarkTechOnSurfaceMuted = Color(0xFFA1A1AA)
 
-// Outline/Border Colors
-val DarkTechOutline = Color(0xFF27272A)
-val DarkTechOutlineVariant = Color(0xFF3F3F46)
+// Outline/Border Colors - Improved contrast for visibility
+val DarkTechOutline = Color(0xFF3F3F46)        // Lightened from #27272A for better visibility
+val DarkTechOutlineVariant = Color(0xFF52525B) // Slightly lighter for variant borders
 
 // Accent Color
 val DarkTechAccentBlue = Color(0xFF2E3A59)
@@ -95,10 +95,10 @@ val md_theme_dark_scrim = Color(0xFF000000)
 val LightTechPrimary = DarkTechBackground  // Deep black for accents
 val LightTechOnPrimary = DarkTechPrimary   // Neon yellow text on primary
 
-// Background Colors - Neon Yellow/Green tones
+// Background Colors - Neon Yellow/Green tones with improved contrast
 val LightTechBackground = DarkTechPrimary  // #E1FF8D - Main background
-val LightTechSurface = Color(0xFFD4F27D)   // Slightly darker surface
-val LightTechSurfaceVariant = Color(0xFFC7E56E) // Even more contrast
+val LightTechSurface = Color(0xFFC7E56E)   // Darker surface for better distinction from background
+val LightTechSurfaceVariant = Color(0xFFB8D85E) // Even darker for clear hierarchy
 
 // Text Colors - Dark for readability
 val LightTechOnBackground = Color(0xFF0A0A0A)
