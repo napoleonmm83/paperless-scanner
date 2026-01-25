@@ -1259,25 +1259,133 @@ Comprehensive manual testing checklists und guides wurden erstellt:
 
 ---
 
-## 8. Next Steps
+## 8. Camera UI Testing Phase (P0 Priority #2)
 
-### Immediate (AFTER Manual Testing):
-1. **Review Manual Testing Results** - Verify all components WCAG AA compliant
-2. **Fix Critical Issues** (if any found during manual testing)
-3. **Start P0 Task #2:** Kamera-UI Kontrast-Validierung gegen Dokumentenhintergründe
+### Status: Preparation Complete ✅ - Awaiting User Execution
+
+**Created:** 2026-01-25
+**Archon Task ID:** 23b82bcc-c512-45f7-b7dd-d62c35bcad5f
+**Task Priority:** P0 (task_order: 106)
+
+### Testing Documentation
+
+Comprehensive camera UI testing checklists und guides wurden erstellt:
+
+- **📋 Testing Checklist:** `docs/CAMERA_UI_TESTING_CHECKLIST.md`
+  - 4 Scan-Szenarien: Weiß, Schwarz, Farbig, Neon
+  - Alle Button-Typen: Scan Options, Viewer Buttons, Source Badges
+  - Edge Cases: Glanzpapier, Wasserzeichen, Reflexionen
+
+- **📘 Testing Guide:** `docs/CAMERA_UI_TESTING_GUIDE.md`
+  - Schritt-für-Schritt für jedes Szenario
+  - Problem-Identifikation Guidelines
+  - Fix-Strategien (Button Outlines, Dynamic Background, Overlay-Bar)
+
+### Components to Test
+
+| Button | Color | Background | Critical Test |
+|--------|-------|------------|---------------|
+| **Camera Scan FAB** | Primary (#E1FF8D neon-gelb) | `primary` | ⚠️ Neon-Yellow Collision |
+| **Gallery Import Card** | Hellblau (#8DD7FF) | Custom | ⚠️ Neon-Blue Collision |
+| **Files Import Card** | Hellviolett (#D7B3FF) | Custom | ⚠️ Neon-Pink Collision |
+| **Fullscreen Close** | surfaceVariant | `surfaceVariant` | White/Black Test |
+| **Fullscreen Rotate** | surfaceVariant | `surfaceVariant` | White/Black Test |
+| **Fullscreen Delete** | errorContainer (rot) | `errorContainer` | White/Black Test |
+| **Source Badges** | tertiaryContainer | `tertiaryContainer` | All Documents |
+
+### Test Coverage Goals
+
+- [ ] **4 Scan-Szenarien** (Weiß, Schwarz, Farbig, Neon)
+- [ ] **15+ Screenshots** dokumentiert
+- [ ] **Kritische Farb-Kollisionen identifiziert** (Neon-Gelb vs. Primary FAB)
+- [ ] **Edge Cases getestet** (Glanzpapier, Reflexionen)
+- [ ] **Findings in diesem Dokument** übertragen
+
+### ByteRover Context Analysis Results
+
+**ScanScreen Design Pattern (aus ByteRover):**
+- **Design System:** "Dark Tech Precision Pro" - Optimiert für Scanning-Umgebungen
+- **Dark Mode Background:** #0A0A0A (tiefes Schwarz)
+- **Primary Color:** #E1FF8D (neon-gelb) - **CRITICAL: Kann mit neon-gelben Dokumenten kollidieren!**
+- **Button Pattern:** Borders statt Elevation, keine Alpha-Transparenz
+- **Theme-Aware:** Alle Buttons nutzen `MaterialTheme.colorScheme.*` für Light/Dark Modeadaptation
+
+**Code-Fixes bereits implementiert (Critical #9, #10):**
+- ✅ Gallery Card: `Color.Black` (ohne alpha) - Line 416
+- ✅ Files Card: `Color.Black` (ohne alpha) - Line 426
+- ✅ Fullscreen Close/Rotate: `surfaceVariant` / `onSurfaceVariant` - Lines 991, 1031
+- ✅ Delete Button: `errorContainer` (ohne alpha) - Line 1065
+
+**Erwartete Probleme:**
+
+| Problem | Severity | Beschreibung | Likelihood |
+|---------|----------|--------------|------------|
+| **Neon-Yellow Collision** | 🔴 CRITICAL | Primary FAB (#E1FF8D) verschwindet auf neon-gelben Dokumenten | HIGH |
+| **Neon-Blue Collision** | 🟡 MODERATE | Gallery Card (#8DD7FF) kollidiert mit neon-blauen Dokumenten | MEDIUM |
+| **Neon-Pink Collision** | 🟡 MODERATE | Files Card (#D7B3FF) kollidiert mit neon-pinken Dokumenten | MEDIUM |
+| **White Doc Low Contrast** | 🟢 LOW | surfaceVariant Buttons schwach sichtbar auf weißem Dokument | LOW |
+
+**Fix-Strategie (falls Kollisionen bestätigt):**
+
+1. **Option 1: Button Outlines** (Empfohlen)
+   ```kotlin
+   FloatingActionButton(
+       containerColor = MaterialTheme.colorScheme.primary,
+       modifier = Modifier.border(
+           width = 2.dp,
+           color = MaterialTheme.colorScheme.outline,
+           shape = CircleShape
+       )
+   )
+   ```
+   - Folgt "Dark Tech Precision Pro" Design (Borders statt Elevation)
+   - Garantiert Sichtbarkeit gegen ALLE Hintergründe
+
+2. **Option 2: Dynamischer Background**
+   - Analysiere Dokument-Helligkeit (Bitmap Histogram)
+   - Helles Dokument → Dunkle Buttons
+   - Dunkles Dokument → Helle Buttons
+
+3. **Option 3: Semi-Transparent Overlay-Bar**
+   - Buttons auf semi-transparentem Overlay (#000000 alpha 0.5f)
+   - Garantiert dunkler Hintergrund für Buttons
+   - ABER: Kann gegen "No Elevation" Design verstoßen
+
+### Next Actions (User)
+
+1. **Install Debug Build** auf Test-Gerät mit funktionierender Kamera
+2. **Prepare Test Documents:**
+   - ✅ Weißes Papier (blanko)
+   - ✅ Schwarzer Vertrag
+   - ✅ Buntes Magazin
+   - ⚠️ **Neon-Poster** (kritisch - neon-gelb, neon-blau, neon-pink)
+   - ✅ Glanzpapier
+3. **Execute Tests** gemäß `CAMERA_UI_TESTING_GUIDE.md`
+4. **Document Results** in `CAMERA_UI_TESTING_CHECKLIST.md`
+5. **Update Archon Task** und **commit findings**
+
+---
+
+## 9. Next Steps
+
+### Immediate (AFTER Camera UI Testing):
+1. **Review Camera UI Testing Results** - Verify buttons visible on all document types
+2. **Fix Neon-Color Collisions** (if confirmed during testing)
+3. **Implement Button Outlines** (if needed for visibility)
 
 ### Short-Term:
-1. Fix all High-priority issues
-2. Update this documentation with new fixes
+1. Fix all High-priority issues from both P0 tests
+2. Update this documentation with final fixes
 3. Automated Screenshot Tests (Paparazzi) - P2 Task
 
 ### Long-Term:
 1. Complete all Medium/Low priority fixes (borders, dividers)
 2. Create contrast testing automation
 3. Establish contrast review process for new features
+4. Consider dynamic button backgrounds for extreme document colors
 
 ---
 
 **Last Updated:** 2026-01-25
 **Author:** Claude Sonnet 4.5 (Archon)
-**Version:** 1.2 (Manual Testing Phase Added)
+**Version:** 1.3 (Camera UI Testing Phase Added)
