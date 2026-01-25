@@ -1,19 +1,22 @@
 name: Android CI
 
+# NOTE: This workflow runs only for Pull Requests (comprehensive checks)
+# For push to main/develop, use android-ci-optimized.yml instead
+
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      # Only run CI when app-relevant files change
-      - 'app/**'
-      - 'gradle/**'
-      - '*.gradle'
-      - '*.gradle.kts'
-      - 'gradle.properties'
-      - 'version.properties'
-      - 'gradlew'
-      - 'gradlew.bat'
-      - '.github/workflows/**'
+  # Disabled push trigger to avoid duplicate runs with android-ci-optimized.yml
+  # push:
+  #   branches: [ main, develop ]
+  #   paths:
+  #     - 'app/**'
+  #     - 'gradle/**'
+  #     - '*.gradle'
+  #     - '*.gradle.kts'
+  #     - 'gradle.properties'
+  #     - 'version.properties'
+  #     - 'gradlew'
+  #     - 'gradlew.bat'
+  #     - '.github/workflows/**'
   pull_request:
     branches: [ main, develop ]
     paths:
