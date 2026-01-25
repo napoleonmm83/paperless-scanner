@@ -263,7 +263,7 @@ fun SettingsScreen(
             if (uiState.isPremiumActive) {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 SettingsToggleItem(
@@ -276,7 +276,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 SettingsToggleItem(
@@ -289,7 +289,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 SettingsToggleItem(
@@ -302,7 +302,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 SettingsClickableItem(
@@ -361,7 +361,7 @@ fun SettingsScreen(
             if (uiState.appLockEnabled) {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 // Biometric Unlock Toggle
@@ -375,7 +375,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 // Timeout Selection
@@ -388,7 +388,7 @@ fun SettingsScreen(
 
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    color = MaterialTheme.colorScheme.outlineVariant
                 )
 
                 // Change Password
@@ -488,9 +488,9 @@ fun SettingsScreen(
                 .padding(horizontal = 24.dp),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                containerColor = MaterialTheme.colorScheme.errorContainer
             ),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             onClick = { showLogoutDialog = true }
         ) {
@@ -1104,9 +1104,9 @@ private fun SubscriptionManagementSheet(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
                         ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(

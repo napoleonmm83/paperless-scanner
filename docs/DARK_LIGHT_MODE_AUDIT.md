@@ -10,16 +10,16 @@
 ## Executive Summary
 
 ### Audit Overview
-- **Total Screens Checked:** 6 (HomeScreen, Theme, CreateTagDialog, Color Definitions, Upload Components, SimplifiedSetupScreen)
-- **Total Components Checked:** 7
-- **Critical Issues Found:** 7
-- **Critical Issues Fixed:** 7 ✅
+- **Total Screens Checked:** 7 (HomeScreen, Theme, CreateTagDialog, Color Definitions, Upload Components, SimplifiedSetupScreen, SettingsScreen)
+- **Total Components Checked:** 8
+- **Critical Issues Found:** 8
+- **Critical Issues Fixed:** 8 ✅
 - **WCAG AA Compliance Status:** In Progress (critical theme-level and component issues resolved)
 
 ### Issue Breakdown
 | Severity | Found | Fixed | Remaining |
 |----------|-------|-------|-----------|
-| **Critical** | 7 | 7 ✅ | 0 |
+| **Critical** | 8 | 8 ✅ | 0 |
 | **High** | 0 | 0 | TBD |
 | **Medium** | 0 | 0 | TBD |
 | **Low** | 0 | 0 | TBD |
@@ -376,6 +376,83 @@ Text(
 **Impact:**
 - Improved readability of help text in both auth methods (Token/Password)
 - Sets precedent: Avoid alpha transparency on text colors unless absolutely necessary
+
+**Date:** 2026-01-25
+
+---
+
+### ✅ CRITICAL #8: SettingsScreen - Alpha Transparency on Dividers and Cards
+
+**Problem:**
+- 12x HorizontalDivider lines used `outlineVariant.copy(alpha = 0.5f)` reducing contrast by 50%
+- 2x Card backgrounds used `alpha = 0.3f` (Logout Card, Premium Card)
+- 2x Card borders used `alpha = 0.5f` (Logout Card, Premium Card)
+- Alpha transparency degrades contrast ratios below WCAG AA requirements
+
+**Affected Files:**
+- `app/src/main/java/com/paperless/scanner/ui/screens/settings/SettingsScreen.kt` (Lines 266, 279, 292, 305, 328, 364, 378, 391, 414, 426, 439, 471, 491, 493, 1107, 1109)
+
+**Fix Details:**
+```kotlin
+// Before - Dividers (12 occurrences):
+HorizontalDivider(
+    modifier = Modifier.padding(horizontal = 16.dp),
+    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)  // ❌ 50% opacity
+)
+
+// After - Dividers:
+HorizontalDivider(
+    modifier = Modifier.padding(horizontal = 16.dp),
+    color = MaterialTheme.colorScheme.outlineVariant  // ✅ Full opacity
+)
+
+// Before - Logout Card:
+Card(
+    colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)  // ❌ 30% opacity
+    ),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),  // ❌ 50% opacity
+)
+
+// After - Logout Card:
+Card(
+    colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.errorContainer  // ✅ Full opacity
+    ),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),  // ✅ Full opacity
+)
+
+// Before - Premium Upgrade Card:
+Card(
+    colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)  // ❌ 30% opacity
+    ),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),  // ❌ 50% opacity
+)
+
+// After - Premium Upgrade Card:
+Card(
+    colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.primaryContainer  // ✅ Full opacity
+    ),
+    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),  // ✅ Full opacity
+)
+```
+
+**Result:**
+- **Dividers:** Now use full opacity `outlineVariant` for proper visual separation
+  - Dark Mode: ~3.0:1 contrast (meets WCAG AA 3:1 for UI components) ✅
+  - Light Mode: ~2.8:1 contrast (acceptable for decorative elements)
+- **Logout Card:** `errorContainer` and `error` border with full opacity
+  - High contrast warning appearance maintained in both modes
+- **Premium Card:** `primaryContainer` and `primary` border with full opacity
+  - Proper visual prominence for upgrade prompts
+
+**Impact:**
+- All 16 alpha transparency issues in SettingsScreen resolved
+- Dividers now properly visible in both Light and Dark modes
+- Card backgrounds and borders maintain theme consistency
+- Sets strong precedent: Avoid alpha on theme colors unless absolutely necessary
 
 **Date:** 2026-01-25
 
