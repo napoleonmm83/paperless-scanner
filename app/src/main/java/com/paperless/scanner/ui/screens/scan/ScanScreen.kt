@@ -413,7 +413,7 @@ private fun ModeSelectionContent(
                 icon = Icons.Filled.PhotoLibrary,
                 label = stringResource(R.string.scan_option_gallery),
                 backgroundColor = Color(0xFF8DD7FF),
-                contentColor = Color.Black.copy(alpha = 0.85f),
+                contentColor = Color.Black,
                 onClick = onGalleryClick,
                 modifier = Modifier.weight(1f)
             )
@@ -423,7 +423,7 @@ private fun ModeSelectionContent(
                 icon = Icons.Filled.FolderOpen,
                 label = stringResource(R.string.scan_option_files),
                 backgroundColor = Color(0xFFB88DFF),
-                contentColor = Color.Black.copy(alpha = 0.85f),
+                contentColor = Color.Black,
                 onClick = onFilesClick,
                 modifier = Modifier.weight(1f)
             )
@@ -468,7 +468,7 @@ private fun ScanOptionCard(
                     imageVector = icon,
                     contentDescription = label,
                     modifier = Modifier.size(28.dp),
-                    tint = contentColor.copy(alpha = 0.9f)
+                    tint = contentColor
                 )
             }
 
@@ -988,14 +988,14 @@ private fun PagePreviewDialog(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            color = Color.White.copy(alpha = 0.2f),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = CircleShape
                         )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.scan_close),
-                        tint = Color.White
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -1028,14 +1028,14 @@ private fun PagePreviewDialog(
                     modifier = Modifier
                         .size(56.dp)
                         .background(
-                            color = Color.White.copy(alpha = 0.2f),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             shape = CircleShape
                         )
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.RotateRight,
                         contentDescription = stringResource(R.string.scan_rotate),
-                        tint = Color.White,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -1062,7 +1062,7 @@ private fun PagePreviewDialog(
                     modifier = Modifier
                         .size(56.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.errorContainer,
                             shape = CircleShape
                         )
                 ) {
