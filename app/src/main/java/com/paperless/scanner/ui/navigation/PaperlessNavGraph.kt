@@ -354,14 +354,18 @@ fun PaperlessNavGraph(
                     )
                 }
 
+                // Get UploadViewModel to handle per-page metadata uploads
+                val uploadViewModel: com.paperless.scanner.ui.screens.upload.UploadViewModel = hiltViewModel()
+
                 com.paperless.scanner.ui.screens.scan.StepByStepMetadataScreen(
                     pages = pages,
                     onFinish = { pagesWithMetadata ->
-                        // Group pages by metadata to create separate uploads
-                        // For now, navigate to MultiPageUploadScreen with individual documents mode
-                        // TODO: Implement proper grouping logic in Upload task
-                        navController.navigate(Screen.MultiPageUpload.createRoute(pageUris, false)) {
-                            popUpTo(Screen.Scan.routeBase) { inclusive = false }
+                        // Upload pages with per-page metadata (grouped by metadata)
+                        uploadViewModel.uploadPagesWithMetadata(pagesWithMetadata)
+
+                        // Navigate to Home (upload is queued in background)
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
                     },
                     onNavigateBack = {

@@ -482,6 +482,135 @@ class UploadViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Upload pages with per-page metadata.
+     * Groups pages by identical metadata and creates separate uploads for each group.
+     *
+     * @param pages List of ScannedPage objects with customMetadata
+     */
+    fun uploadPagesWithMetadata(pages: List<com.paperless.scanner.ui.screens.scan.ScannedPage>) {
+        viewModelScope.launch(ioDispatcher) {
+            val pageCount = pages.size
+            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
+
+            val uris = pages.map { it.uri }
+
+            // Check storage BEFORE queueing
+            checkStorage(uris)?.let { error ->
+                _uiState.update { error }
+                return@launch
+            }
+
+            _uiState.update { UploadUiState.Queuing }
+
+            try {
+                Log.d(TAG, "Queueing pages with per-page metadata (${pages.size} pages)")
+
+                // Copy files to local storage
+                val localPages = pages.mapNotNull { page ->
+                    val localUri = if (FileUtils.isLocalFileUri(page.uri)) {
+                        Log.d(TAG, "  Page ${page.pageNumber}: Already local file: ${page.uri}")
+                        page.uri
+                    } else {
+                        Log.d(TAG, "  Page ${page.pageNumber}: Copying content URI to persistent storage: ${page.uri}")
+                        val copiedUri = FileUtils.copyToLocalStorage(context, page.uri)
+                        if (copiedUri == null) {
+                            Log.e(TAG, "  Page ${page.pageNumber}: Failed to copy: ${page.uri}")
+                        }
+                        copiedUri
+                    }
+
+                    if (localUri != null) {
+                        page.copy(uri = localUri)
+                    } else {
+                        null
+                    }
+                }
+
+                if (localPages.isEmpty()) {
+                    Log.e(TAG, "Failed to copy any files for queue (0/${pages.size} succeeded)")
+                    _uiState.update { UploadUiState.Error(
+                        userMessage = "Fehler beim Speichern",
+                        technicalDetails = context.getString(R.string.error_queue_add),
+                        isRetryable = false
+                    ) }
+                    return@launch
+                }
+
+                if (localPages.size < pages.size) {
+                    Log.w(TAG, "Only ${localPages.size}/${pages.size} files copied successfully")
+                }
+
+                // Verify all files exist before queueing
+                val missingFiles = localPages.filterNot { FileUtils.fileExists(it.uri) }
+                if (missingFiles.isNotEmpty()) {
+                    Log.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
+                    _uiState.update { UploadUiState.Error(
+                        userMessage = "Einige Dateien konnten nicht gespeichert werden",
+                        technicalDetails = "${missingFiles.size}/${localPages.size} files not accessible",
+                        isRetryable = false
+                    ) }
+                    return@launch
+                }
+
+                // Group pages by metadata
+                val groups = localPages.groupBy { it.customMetadata }
+
+                Log.d(TAG, "Grouped ${localPages.size} pages into ${groups.size} upload groups")
+
+                // Create uploads for each group
+                var uploadCount = 0
+                groups.forEach { (metadata, groupPages) ->
+                    val groupUris = groupPages.map { it.uri }
+                    val title = metadata?.title
+                    val tagIds = metadata?.tags ?: emptyList()
+                    val documentTypeId = metadata?.documentType
+                    val correspondentId = metadata?.correspondent
+
+                    if (groupPages.size == 1) {
+                        // Single page with unique metadata -> Individual upload
+                        val queueId = uploadQueueRepository.queueUpload(
+                            uri = groupUris.first(),
+                            title = title,
+                            tagIds = tagIds,
+                            documentTypeId = documentTypeId,
+                            correspondentId = correspondentId
+                        )
+                        uploadCount++
+                        Log.d(TAG, "  Group ${uploadCount}: 1 page queued as single document (ID: $queueId)")
+                    } else {
+                        // Multiple pages with same metadata -> Multi-page upload
+                        val queueId = uploadQueueRepository.queueMultiPageUpload(
+                            uris = groupUris,
+                            title = title,
+                            tagIds = tagIds,
+                            documentTypeId = documentTypeId,
+                            correspondentId = correspondentId
+                        )
+                        uploadCount++
+                        Log.d(TAG, "  Group ${uploadCount}: ${groupPages.size} pages queued as multi-page document (ID: $queueId)")
+                    }
+                }
+
+                Log.d(TAG, "All ${uploadCount} upload groups queued successfully")
+
+                // Trigger immediate upload processing
+                uploadWorkManager.scheduleImmediateUpload()
+
+                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
+                _uiState.update { UploadUiState.Queued }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error queueing pages with metadata", e)
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
+                _uiState.update { UploadUiState.Error(
+                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
+                    technicalDetails = e.message ?: "Unknown error",
+                    isRetryable = false
+                ) }
+            }
+        }
+    }
+
     fun resetState() {
         _uiState.update { UploadUiState.Idle }
     }
