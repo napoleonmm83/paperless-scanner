@@ -177,11 +177,32 @@ class DocumentRepository @Inject constructor(
             android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: $errorBody")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
-            Result.failure(PaperlessException.ContentError(e.message ?: "PDF konnte nicht erstellt werden"))
+            // Safe error message extraction (prevent secondary exceptions)
+            val safeMessage = try {
+                e.message ?: "PDF konnte nicht erstellt werden"
+            } catch (_: Exception) {
+                "PDF konnte nicht erstellt werden"
+            }
+            android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
+            Result.failure(PaperlessException.ContentError(safeMessage))
         } catch (e: IllegalStateException) {
-            Result.failure(PaperlessException.ContentError(e.message ?: "Bild konnte nicht verarbeitet werden"))
+            // Safe error message extraction (prevent secondary exceptions)
+            val safeMessage = try {
+                e.message ?: "Bild konnte nicht verarbeitet werden"
+            } catch (_: Exception) {
+                "Bild konnte nicht verarbeitet werden"
+            }
+            android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
+            Result.failure(PaperlessException.ContentError(safeMessage))
         } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
+            // Catch-all for any unexpected exceptions (including iText7 internal errors)
+            val safeMessage = try {
+                e.message?.takeIf { it.isNotBlank() } ?: "Unbekannter Fehler bei PDF-Erstellung"
+            } catch (_: Exception) {
+                "Unbekannter Fehler bei PDF-Erstellung"
+            }
+            android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
+            Result.failure(PaperlessException.ContentError(safeMessage))
         }
     }
 
@@ -189,33 +210,65 @@ class DocumentRepository @Inject constructor(
         val fileName = "document_${System.currentTimeMillis()}.pdf"
         val pdfFile = File(context.cacheDir, fileName)
 
-        PdfWriter(pdfFile).use { writer ->
-            PdfDocument(writer).use { pdfDoc ->
-                ITextDocument(pdfDoc).use { document ->
-                    uris.forEachIndexed { index, uri ->
-                        val imageBytes = getImageBytesFromUri(uri)
-                        val imageData = ImageDataFactory.create(imageBytes)
-                        val image = Image(imageData)
+        try {
+            PdfWriter(pdfFile).use { writer ->
+                PdfDocument(writer).use { pdfDoc ->
+                    ITextDocument(pdfDoc).use { document ->
+                        uris.forEachIndexed { index, uri ->
+                            try {
+                                val imageBytes = getImageBytesFromUri(uri)
+                                val imageData = ImageDataFactory.create(imageBytes)
+                                val image = Image(imageData)
 
-                        // Calculate page size based on image dimensions
-                        val pageWidth = image.imageWidth
-                        val pageHeight = image.imageHeight
-                        val pageSize = PageSize(pageWidth, pageHeight)
+                                // Calculate page size based on image dimensions
+                                val pageWidth = image.imageWidth
+                                val pageHeight = image.imageHeight
+                                val pageSize = PageSize(pageWidth, pageHeight)
 
-                        // Add new page with image dimensions
-                        pdfDoc.addNewPage(pageSize)
+                                // Add new page with image dimensions
+                                pdfDoc.addNewPage(pageSize)
 
-                        // Scale image to fit page
-                        image.setFixedPosition(index + 1, 0f, 0f)
-                        image.scaleToFit(pageWidth, pageHeight)
+                                // Scale image to fit page
+                                image.setFixedPosition(index + 1, 0f, 0f)
+                                image.scaleToFit(pageWidth, pageHeight)
 
-                        document.add(image)
+                                document.add(image)
+                            } catch (e: Exception) {
+                                // Log but continue with next image (partial PDF better than none)
+                                android.util.Log.e("DocumentRepository", "Failed to add image ${index + 1}/${uris.size} to PDF: ${e.message}", e)
+                                // If first image fails, rethrow (can't create empty PDF)
+                                if (index == 0) {
+                                    throw IllegalStateException("Erstes Bild konnte nicht verarbeitet werden", e)
+                                }
+                            }
+                        }
+
+                        // Verify we have at least one page
+                        if (pdfDoc.numberOfPages == 0) {
+                            throw IllegalStateException("PDF konnte nicht erstellt werden - keine Seiten hinzugefügt")
+                        }
                     }
                 }
             }
-        }
 
-        return pdfFile
+            // Verify PDF file was created and is not empty
+            if (!pdfFile.exists() || pdfFile.length() == 0L) {
+                throw IllegalStateException("PDF-Datei wurde nicht korrekt erstellt")
+            }
+
+            return pdfFile
+        } catch (e: Exception) {
+            // Clean up partial file on error
+            if (pdfFile.exists()) {
+                pdfFile.delete()
+            }
+            // Re-throw with more context
+            throw when (e) {
+                is IllegalStateException -> e
+                is IllegalArgumentException -> e
+                else -> IllegalStateException("PDF-Erstellung fehlgeschlagen: ${e.message}", e)
+            }
+        }
     }
 
     private fun getImageBytesFromUri(uri: Uri): ByteArray {

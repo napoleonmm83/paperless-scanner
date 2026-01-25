@@ -214,8 +214,14 @@ class UploadWorker @AssistedInject constructor(
                         FileUtils.deleteLocalCopy(uri)
                     }
                 }.onFailure { e ->
-                    Log.e(TAG, "Upload failed: ${pendingUpload.id}", e)
-                    uploadQueueRepository.markAsFailed(pendingUpload.id, e.message)
+                    // Safe error message extraction (prevent secondary exceptions)
+                    val safeErrorMessage = try {
+                        e.message?.takeIf { it.isNotBlank() } ?: "Upload fehlgeschlagen"
+                    } catch (_: Exception) {
+                        "Upload fehlgeschlagen"
+                    }
+                    Log.e(TAG, "Upload failed: ${pendingUpload.id} - $safeErrorMessage", e)
+                    uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                     failCount++
 
                     if (pendingUpload.retryCount >= MAX_RETRIES) {
@@ -233,8 +239,14 @@ class UploadWorker @AssistedInject constructor(
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error during upload: ${pendingUpload.id}", e)
-                uploadQueueRepository.markAsFailed(pendingUpload.id, e.message)
+                // Safe error message extraction (prevent secondary exceptions)
+                val safeErrorMessage = try {
+                    e.message?.takeIf { it.isNotBlank() } ?: "Unerwarteter Fehler"
+                } catch (_: Exception) {
+                    "Unerwarteter Fehler"
+                }
+                Log.e(TAG, "Unexpected error during upload: ${pendingUpload.id} - $safeErrorMessage", e)
+                uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                 failCount++
             }
         }
