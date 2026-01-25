@@ -516,64 +516,78 @@ class ScanViewModel @Inject constructor(
      */
     fun cropPage(pageId: String, cropRect: com.paperless.scanner.ui.screens.scan.CropRect) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Find the page to crop
+            val page = _uiState.value.pages.find { it.id == pageId } ?: return@launch
+
+            // Perform heavy I/O operation OUTSIDE the state update block
+            val croppedUri = cropAndSaveImage(page.uri, cropRect) ?: page.uri
+
+            // Only update state with the result (fast operation)
             _uiState.update { state ->
-                val updatedPages = state.pages.map { page ->
-                    if (page.id == pageId) {
-                        val croppedUri = cropAndSaveImage(page.uri, cropRect)
-                        page.copy(uri = croppedUri)
-                    } else {
-                        page
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    syncPagesToSavedState(updatedPages)
+                val updatedPages = state.pages.map { p ->
+                    if (p.id == pageId) p.copy(uri = croppedUri) else p
                 }
                 state.copy(pages = updatedPages)
+            }
+
+            // Sync to SavedStateHandle on Main thread
+            withContext(Dispatchers.Main) {
+                syncPagesToSavedState(_uiState.value.pages)
             }
         }
     }
 
-    private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri {
-        // Load bitmap
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: return uri
-        val originalBitmap = BitmapFactory.decodeStream(inputStream)
-        inputStream.close()
+    private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri? {
+        return try {
+            // Load bitmap
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return null
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream.close()
 
-        // Calculate crop rectangle in pixel coordinates
-        val left = (originalBitmap.width * cropRect.left).toInt().coerceIn(0, originalBitmap.width)
-        val top = (originalBitmap.height * cropRect.top).toInt().coerceIn(0, originalBitmap.height)
-        val width = (originalBitmap.width * (cropRect.right - cropRect.left)).toInt()
-            .coerceIn(1, originalBitmap.width - left)
-        val height = (originalBitmap.height * (cropRect.bottom - cropRect.top)).toInt()
-            .coerceIn(1, originalBitmap.height - top)
+            // Check if bitmap loaded successfully
+            if (originalBitmap == null) {
+                return null
+            }
 
-        // Crop bitmap
-        val croppedBitmap = Bitmap.createBitmap(
-            originalBitmap,
-            left,
-            top,
-            width,
-            height
-        )
+            // Calculate crop rectangle in pixel coordinates
+            val left = (originalBitmap.width * cropRect.left).toInt().coerceIn(0, originalBitmap.width)
+            val top = (originalBitmap.height * cropRect.top).toInt().coerceIn(0, originalBitmap.height)
+            val width = (originalBitmap.width * (cropRect.right - cropRect.left)).toInt()
+                .coerceIn(1, originalBitmap.width - left)
+            val height = (originalBitmap.height * (cropRect.bottom - cropRect.top)).toInt()
+                .coerceIn(1, originalBitmap.height - top)
 
-        // Save to cache
-        val croppedFile = File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg")
-        FileOutputStream(croppedFile).use { out ->
-            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            // Crop bitmap
+            val croppedBitmap = Bitmap.createBitmap(
+                originalBitmap,
+                left,
+                top,
+                width,
+                height
+            )
+
+            // Save to cache
+            val croppedFile = File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(croppedFile).use { out ->
+                croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+
+            // Cleanup
+            if (croppedBitmap != originalBitmap) {
+                originalBitmap.recycle()
+            }
+            croppedBitmap.recycle()
+
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.provider",
+                croppedFile
+            )
+        } catch (e: Exception) {
+            Log.e("ScanViewModel", "Failed to crop image", e)
+            null
         }
-
-        // Cleanup
-        if (croppedBitmap != originalBitmap) {
-            originalBitmap.recycle()
-        }
-        croppedBitmap.recycle()
-
-        return FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            croppedFile
-        )
     }
 
     fun clearPages() {
