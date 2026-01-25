@@ -75,4 +75,10 @@ sealed class Screen(val route: String) {
             return "upload-multi/$encodedUris/$uploadAsSingleDocument"
         }
     }
+    data object StepByStepMetadata : Screen("step-by-step-metadata/{pageUris}") {
+        fun createRoute(pageUris: List<Uri>): String {
+            val encodedUris = pageUris.joinToString("|") { Uri.encode(it.toString()) }
+            return "step-by-step-metadata/$encodedUris"
+        }
+    }
 }

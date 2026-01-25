@@ -20,6 +20,7 @@ fun MainScreen(
     scanBackStackEntry: NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
+    onStepByStepMetadata: (List<Uri>) -> Unit,
     onDocumentClick: (Int) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -65,7 +66,8 @@ fun MainScreen(
                 initialPageUris = scanPageUris,
                 navBackStackEntry = scanBackStackEntry,
                 onDocumentScanned = onDocumentScanned,
-                onMultipleDocumentsScanned = onMultipleDocumentsScanned
+                onMultipleDocumentsScanned = onMultipleDocumentsScanned,
+                onStepByStepMetadata = onStepByStepMetadata
             )
             Screen.Labels.route -> LabelsScreen(
                 onDocumentClick = onDocumentClick

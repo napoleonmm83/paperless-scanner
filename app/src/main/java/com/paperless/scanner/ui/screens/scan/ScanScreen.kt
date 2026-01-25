@@ -118,6 +118,7 @@ fun ScanScreen(
     navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
+    onStepByStepMetadata: (List<Uri>) -> Unit,
     viewModel: ScanViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -381,11 +382,10 @@ fun ScanScreen(
                 },
                 onIndividual = {
                     showMetadataChoiceDialog = false
-                    // TODO: Navigate to StepByStepMetadataScreen (Task #3: 38c06cec-e0aa-449c-8723-039a48c29628)
-                    // For now, fallback to same flow
+                    // Navigate to StepByStepMetadataScreen for per-page metadata editing
                     scope.launch {
                         val uris = viewModel.getRotatedPageUris()
-                        onMultipleDocumentsScanned(uris, false)
+                        onStepByStepMetadata(uris)
                     }
                 }
             )

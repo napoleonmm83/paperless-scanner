@@ -131,6 +131,9 @@ fun PaperlessNavGraph(
                         onMultipleDocumentsScanned = { uris, uploadAsSingleDocument ->
                             navController.navigate(Screen.MultiPageUpload.createRoute(uris, uploadAsSingleDocument))
                         },
+                        onStepByStepMetadata = { uris ->
+                            navController.navigate(Screen.StepByStepMetadata.createRoute(uris))
+                        },
                         onDocumentClick = { documentId ->
                             navController.navigate(Screen.DocumentDetail.createRoute(documentId))
                         },
@@ -151,6 +154,9 @@ fun PaperlessNavGraph(
                         },
                         onMultipleDocumentsScanned = { uris, uploadAsSingleDocument ->
                             navController.navigate(Screen.MultiPageUpload.createRoute(uris, uploadAsSingleDocument))
+                        },
+                        onStepByStepMetadata = { uris ->
+                            navController.navigate(Screen.StepByStepMetadata.createRoute(uris))
                         },
                         onDocumentClick = { documentId ->
                             navController.navigate(Screen.DocumentDetail.createRoute(documentId))
@@ -306,6 +312,56 @@ fun PaperlessNavGraph(
                     onUploadSuccess = {
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Home.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+        }
+
+        // Step-by-Step Metadata Screen (Per-Page Metadata Editing)
+        composable(
+            route = Screen.StepByStepMetadata.route,
+            arguments = listOf(
+                navArgument("pageUris") {
+                    type = NavType.StringType
+                }
+            ),
+            enterTransition = { PaperlessAnimations.verticalEnterTransition },
+            exitTransition = { PaperlessAnimations.verticalExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.verticalExitTransition }
+        ) { backStackEntry ->
+            val pageUrisString = backStackEntry.arguments?.getString("pageUris")
+            val pageUris = pageUrisString?.split("|")?.mapNotNull { encodedUri ->
+                try {
+                    Uri.parse(Uri.decode(encodedUri))
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+
+            if (pageUris.isNotEmpty()) {
+                // Convert URIs to ScannedPage objects
+                val pages = pageUris.mapIndexed { index, uri ->
+                    com.paperless.scanner.ui.screens.scan.ScannedPage(
+                        id = uri.toString(),  // Use URI as unique ID
+                        uri = uri,
+                        pageNumber = index + 1,
+                        customMetadata = null  // Will be filled by user in this screen
+                    )
+                }
+
+                com.paperless.scanner.ui.screens.scan.StepByStepMetadataScreen(
+                    pages = pages,
+                    onFinish = { pagesWithMetadata ->
+                        // Group pages by metadata to create separate uploads
+                        // For now, navigate to MultiPageUploadScreen with individual documents mode
+                        // TODO: Implement proper grouping logic in Upload task
+                        navController.navigate(Screen.MultiPageUpload.createRoute(pageUris, false)) {
+                            popUpTo(Screen.Scan.routeBase) { inclusive = false }
                         }
                     },
                     onNavigateBack = {
