@@ -9,6 +9,7 @@ data class CachedDocumentType(
     val name: String,
     val match: String?,
     val matchingAlgorithm: Int?,
+    val documentCount: Int?,
 
     val lastSyncedAt: Long = System.currentTimeMillis(),
     val isDeleted: Boolean = false

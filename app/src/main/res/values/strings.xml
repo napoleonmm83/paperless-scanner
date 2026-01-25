@@ -400,6 +400,17 @@
     <string name="upload_error_generic">Upload fehlgeschlagen</string>
     <string name="error_queue_add">Fehler beim Hinzufügen zur Warteschlange</string>
     <string name="error_create_tag">Tag konnte nicht erstellt werden</string>
+    <string name="error_create_correspondent">Korrespondent konnte nicht erstellt werden</string>
+    <string name="error_create_document_type">Dokumenttyp konnte nicht erstellt werden</string>
+    <string name="error_create_custom_field">Feld konnte nicht erstellt werden</string>
+    <string name="error_update_tag">Tag konnte nicht aktualisiert werden</string>
+    <string name="error_update_correspondent">Korrespondent konnte nicht aktualisiert werden</string>
+    <string name="error_update_document_type">Dokumenttyp konnte nicht aktualisiert werden</string>
+    <string name="error_update_custom_field">Feld konnte nicht aktualisiert werden</string>
+    <string name="error_delete_tag">Tag konnte nicht gelöscht werden</string>
+    <string name="error_delete_correspondent">Korrespondent konnte nicht gelöscht werden</string>
+    <string name="error_delete_document_type">Dokumenttyp konnte nicht gelöscht werden</string>
+    <string name="error_delete_custom_field">Feld konnte nicht gelöscht werden</string>
     <string name="error_analyze_document">Dokument konnte nicht analysiert werden</string>
     <string name="pdf_viewer_default_title">Dokument</string>
 
@@ -798,4 +809,34 @@
     <string name="add_more_dialog_gallery_desc">Fotos aus Galerie wählen</string>
     <string name="add_more_dialog_files_desc">Dateien oder PDFs auswählen</string>
     <string name="add_more_dialog_cancel">Abbrechen</string>
+
+    <!-- Multi-Entity Labels Screen -->
+    <string name="entity_type_tags">Tags</string>
+    <string name="entity_type_correspondents">Korrespondenten</string>
+    <string name="entity_type_document_types">Dokumenttypen</string>
+    <string name="entity_type_custom_fields">Benutzerdefinierte Felder</string>
+
+    <!-- Create/Edit Entity Dialog -->
+    <string name="entity_create_correspondent">Korrespondent erstellen</string>
+    <string name="entity_create_document_type">Dokumenttyp erstellen</string>
+    <string name="entity_create_custom_field">Feld erstellen</string>
+    <string name="entity_edit_correspondent">Korrespondent bearbeiten</string>
+    <string name="entity_edit_document_type">Dokumenttyp bearbeiten</string>
+    <string name="entity_edit_custom_field">Feld bearbeiten</string>
+    <string name="entity_correspondent_placeholder">z.B. Telekom</string>
+    <string name="entity_document_type_placeholder">z.B. Rechnung</string>
+    <string name="entity_custom_field_placeholder">z.B. Betrag</string>
+    <string name="entity_data_type_label">Datentyp</string>
+    <string name="entity_data_type_string">Text</string>
+    <string name="entity_data_type_integer">Ganzzahl</string>
+    <string name="entity_data_type_float">Dezimalzahl</string>
+    <string name="entity_data_type_monetary">Währung</string>
+    <string name="entity_data_type_date">Datum</string>
+    <string name="entity_data_type_boolean">Ja/Nein</string>
+
+    <!-- Entity Empty States -->
+    <string name="empty_tags">Noch keine Tags erstellt.\nTippe oben auf \"Neues Label\" um zu starten.</string>
+    <string name="empty_correspondents">Noch keine Korrespondenten erstellt.\nTippe oben auf \"Korrespondent erstellen\" um zu starten.</string>
+    <string name="empty_document_types">Noch keine Dokumenttypen erstellt.\nTippe oben auf \"Dokumenttyp erstellen\" um zu starten.</string>
+    <string name="empty_custom_fields">Noch keine benutzerdefinierten Felder erstellt.\nTippe oben auf \"Feld erstellen\" um zu starten.</string>
 </resources>

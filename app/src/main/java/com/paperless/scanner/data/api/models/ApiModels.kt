@@ -54,7 +54,9 @@ data class DocumentType(
     @SerializedName("match")
     val match: String? = null,
     @SerializedName("matching_algorithm")
-    val matchingAlgorithm: Int? = null
+    val matchingAlgorithm: Int? = null,
+    @SerializedName("document_count")
+    val documentCount: Int? = null
 )
 
 data class DocumentTypesResponse(
@@ -81,7 +83,9 @@ data class Correspondent(
     @SerializedName("match")
     val match: String? = null,
     @SerializedName("matching_algorithm")
-    val matchingAlgorithm: Int? = null
+    val matchingAlgorithm: Int? = null,
+    @SerializedName("document_count")
+    val documentCount: Int? = null
 )
 
 data class CorrespondentsResponse(
@@ -197,6 +201,64 @@ data class UpdateTagRequest(
     val name: String,
     @SerializedName("color")
     val color: String? = null
+)
+
+// Correspondent Create/Update Requests
+data class CreateCorrespondentRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("match")
+    val match: String? = null,
+    @SerializedName("matching_algorithm")
+    val matchingAlgorithm: Int? = null
+)
+
+data class UpdateCorrespondentRequest(
+    @SerializedName("name")
+    val name: String
+)
+
+// Document Type Create/Update Requests
+data class CreateDocumentTypeRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("match")
+    val match: String? = null,
+    @SerializedName("matching_algorithm")
+    val matchingAlgorithm: Int? = null
+)
+
+data class UpdateDocumentTypeRequest(
+    @SerializedName("name")
+    val name: String
+)
+
+// Custom Field Models
+data class CustomField(
+    @SerializedName("id")
+    val id: Int,
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("data_type")
+    val dataType: String? = null  // "string", "integer", "monetary", "date", etc.
+)
+
+data class CustomFieldsResponse(
+    @SerializedName("count")
+    val count: Int,
+    @SerializedName("next")
+    val next: String? = null,
+    @SerializedName("previous")
+    val previous: String? = null,
+    @SerializedName("results")
+    val results: List<CustomField>
+)
+
+data class CreateCustomFieldRequest(
+    @SerializedName("name")
+    val name: String,
+    @SerializedName("data_type")
+    val dataType: String = "string"
 )
 
 // Task Models for tracking document processing

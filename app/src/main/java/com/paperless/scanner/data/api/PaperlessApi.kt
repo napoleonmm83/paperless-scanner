@@ -2,10 +2,17 @@ package com.paperless.scanner.data.api
 
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.models.AuditLogEntry
+import com.paperless.scanner.data.api.models.Correspondent
 import com.paperless.scanner.data.api.models.CorrespondentsResponse
+import com.paperless.scanner.data.api.models.CreateCorrespondentRequest
+import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
+import com.paperless.scanner.data.api.models.CreateDocumentTypeRequest
 import com.paperless.scanner.data.api.models.CreateNoteRequest
 import com.paperless.scanner.data.api.models.CreateTagRequest
+import com.paperless.scanner.data.api.models.CustomField
+import com.paperless.scanner.data.api.models.CustomFieldsResponse
 import com.paperless.scanner.data.api.models.Document
+import com.paperless.scanner.data.api.models.DocumentType
 import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.DocumentsResponse
 import com.paperless.scanner.data.api.models.GroupsResponse
@@ -14,7 +21,9 @@ import com.paperless.scanner.data.api.models.SuggestionsResponse
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.api.models.TokenResponse
+import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
+import com.paperless.scanner.data.api.models.UpdateDocumentTypeRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import com.paperless.scanner.data.api.models.UsersResponse
@@ -62,11 +71,33 @@ interface PaperlessApi {
         @Query("page_size") pageSize: Int = 25
     ): DocumentTypesResponse
 
+    @POST("api/document_types/")
+    suspend fun createDocumentType(
+        @Body documentType: CreateDocumentTypeRequest
+    ): DocumentType
+
+    @PUT("api/document_types/{id}/")
+    suspend fun updateDocumentType(
+        @Path("id") id: Int,
+        @Body documentType: UpdateDocumentTypeRequest
+    ): DocumentType
+
     @GET("api/correspondents/")
     suspend fun getCorrespondents(
         @Query("page") page: Int = 1,
         @Query("page_size") pageSize: Int = 25
     ): CorrespondentsResponse
+
+    @POST("api/correspondents/")
+    suspend fun createCorrespondent(
+        @Body correspondent: CreateCorrespondentRequest
+    ): Correspondent
+
+    @PUT("api/correspondents/{id}/")
+    suspend fun updateCorrespondent(
+        @Path("id") id: Int,
+        @Body correspondent: UpdateCorrespondentRequest
+    ): Correspondent
 
     @Multipart
     @POST("api/documents/post_document/")
@@ -151,6 +182,21 @@ interface PaperlessApi {
     // DocumentType delete
     @DELETE("api/document_types/{id}/")
     suspend fun deleteDocumentType(@Path("id") id: Int): Response<Unit>
+
+    // Custom Fields endpoints
+    @GET("api/custom_fields/")
+    suspend fun getCustomFields(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 100
+    ): CustomFieldsResponse
+
+    @POST("api/custom_fields/")
+    suspend fun createCustomField(
+        @Body customField: CreateCustomFieldRequest
+    ): CustomField
+
+    @DELETE("api/custom_fields/{id}/")
+    suspend fun deleteCustomField(@Path("id") id: Int): Response<Unit>
 
     // Task tracking endpoints
     @GET("api/tasks/")

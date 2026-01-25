@@ -8,5 +8,6 @@ data class Correspondent(
     val id: Int,
     val name: String,
     val match: String? = null,
-    val matchingAlgorithm: Int? = null
+    val matchingAlgorithm: Int? = null,
+    val documentCount: Int? = null
 )

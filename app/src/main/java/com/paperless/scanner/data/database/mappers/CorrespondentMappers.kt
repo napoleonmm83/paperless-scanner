@@ -10,6 +10,7 @@ fun ApiCorrespondent.toCachedEntity(): CachedCorrespondent {
         name = name,
         match = match,
         matchingAlgorithm = matchingAlgorithm,
+        documentCount = documentCount,
         lastSyncedAt = System.currentTimeMillis(),
         isDeleted = false
     )
@@ -20,6 +21,7 @@ fun CachedCorrespondent.toDomain(): DomainCorrespondent {
         id = id,
         name = name,
         match = match,
-        matchingAlgorithm = matchingAlgorithm
+        matchingAlgorithm = matchingAlgorithm,
+        documentCount = documentCount
     )
 }

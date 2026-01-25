@@ -31,10 +31,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DataObject
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -71,6 +74,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -121,17 +125,25 @@ fun LabelsScreen(
     val scope = rememberCoroutineScope()
 
     // Handle back press in detail view
-    BackHandler(enabled = uiState.selectedLabel != null) {
-        viewModel.clearSelectedLabel()
+    BackHandler(enabled = uiState.selectedEntity != null) {
+        viewModel.clearSelectedEntity()
     }
 
     // Label detail view
-    if (uiState.selectedLabel != null) {
+    if (uiState.selectedEntity != null) {
+        // Convert EntityItem to LabelItem for detail view
+        val selectedEntity = uiState.selectedEntity!!
+        val labelItem = LabelItem(
+            id = selectedEntity.id,
+            name = selectedEntity.name,
+            color = selectedEntity.color ?: Color(0xFFE1FF8D), // Default neon yellow
+            documentCount = selectedEntity.documentCount
+        )
         LabelDetailView(
-            label = uiState.selectedLabel!!,
-            documents = uiState.documentsForLabel,
+            label = labelItem,
+            documents = uiState.documentsForEntity,
             onBack = {
-                viewModel.clearSelectedLabel()
+                viewModel.clearSelectedEntity()
             },
             onDocumentClick = onDocumentClick
         )
@@ -177,7 +189,7 @@ fun LabelsScreen(
                 )
             }
 
-            // Add Label Button - always visible
+            // Add Entity Button - label changes based on currentEntityType
             Card(
                 onClick = {
                     editingLabel = null
@@ -201,7 +213,12 @@ fun LabelsScreen(
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                     Text(
-                        text = stringResource(R.string.labels_add_new),
+                        text = when (uiState.currentEntityType) {
+                            EntityType.TAG -> stringResource(R.string.labels_add_new)
+                            EntityType.CORRESPONDENT -> stringResource(R.string.entity_create_correspondent)
+                            EntityType.DOCUMENT_TYPE -> stringResource(R.string.entity_create_document_type)
+                            EntityType.CUSTOM_FIELD -> stringResource(R.string.entity_create_custom_field)
+                        },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onPrimary
@@ -209,6 +226,31 @@ fun LabelsScreen(
                 }
             }
         }
+
+        // Dynamic Entity Type Title
+        Text(
+            text = when (uiState.currentEntityType) {
+                EntityType.TAG -> stringResource(R.string.entity_type_tags)
+                EntityType.CORRESPONDENT -> stringResource(R.string.entity_type_correspondents)
+                EntityType.DOCUMENT_TYPE -> stringResource(R.string.entity_type_document_types)
+                EntityType.CUSTOM_FIELD -> stringResource(R.string.entity_type_custom_fields)
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 8.dp),
+            textAlign = TextAlign.Center
+        )
+
+        // Entity Type Tabs (Icon-only)
+        EntityTypeTabs(
+            selectedType = uiState.currentEntityType,
+            customFieldsAvailable = uiState.customFieldsAvailable,
+            onTypeSelected = viewModel::setEntityType
+        )
 
         // Search Bar with Sort/Filter Button
         Row(
@@ -295,57 +337,68 @@ fun LabelsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(uiState.labels, key = { it.id }) { label ->
-                LabelCard(
-                    label = label,
+            // Empty State
+            if (uiState.entities.isEmpty() && !uiState.isLoading) {
+                item {
+                    EntityEmptyState(entityType = uiState.currentEntityType)
+                }
+            }
+
+            items(uiState.entities, key = { it.id }) { entity ->
+                EntityCard(
+                    entity = entity,
                     onClick = {
                         // BEST PRACTICE: Use ViewModel state to survive navigation
-                        viewModel.selectLabel(label)
+                        viewModel.selectEntity(entity)
                     },
                     onEdit = {
-                        editingLabel = label
+                        // Convert EntityItem to LabelItem for editing (temporary)
+                        editingLabel = LabelItem(
+                            id = entity.id,
+                            name = entity.name,
+                            color = entity.color ?: Color(0xFFE1FF8D),
+                            documentCount = entity.documentCount
+                        )
                         showCreateSheet = true
                     },
-                    onDelete = { viewModel.prepareDeleteLabel(label.id) }
+                    onDelete = { viewModel.prepareDeleteEntity(entity.id) }
                 )
             }
         }
         }
     }
 
-    // Create/Edit Label Bottom Sheet
+    // Create/Edit Entity Dialog
     if (showCreateSheet) {
-        ModalBottomSheet(
-            onDismissRequest = {
+        // Convert editingLabel to EntityItem if editing
+        val editingEntity = editingLabel?.let {
+            EntityItem(
+                id = it.id,
+                name = it.name,
+                color = it.color,
+                documentCount = it.documentCount,
+                entityType = EntityType.TAG
+            )
+        }
+
+        CreateEntityDialog(
+            entityType = uiState.currentEntityType,
+            existingEntity = editingEntity,
+            isCreating = false, // TODO: Add isCreating state to ViewModel
+            onDismiss = {
                 showCreateSheet = false
                 editingLabel = null
             },
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.background
-        ) {
-            CreateLabelSheet(
-                existingLabel = editingLabel,
-                onSave = { name, color ->
-                    if (editingLabel != null) {
-                        viewModel.updateLabel(editingLabel!!.id, name, color)
-                    } else {
-                        viewModel.createLabel(name, color)
-                    }
-                    scope.launch {
-                        sheetState.hide()
-                        showCreateSheet = false
-                        editingLabel = null
-                    }
-                },
-                onDismiss = {
-                    scope.launch {
-                        sheetState.hide()
-                        showCreateSheet = false
-                        editingLabel = null
-                    }
+            onCreate = { name, color, dataType ->
+                if (editingEntity != null) {
+                    viewModel.updateEntity(editingEntity.id, name, color, dataType)
+                } else {
+                    viewModel.createEntity(name, color, dataType)
                 }
-            )
-        }
+                showCreateSheet = false
+                editingLabel = null
+            }
+        )
     }
 
     // Sort/Filter Bottom Sheet
@@ -383,11 +436,11 @@ fun LabelsScreen(
     }
 
     // Delete Confirmation Dialog
-    uiState.pendingDeleteLabel?.let { pendingDelete ->
+    uiState.pendingDeleteEntity?.let { pendingDelete ->
         DeleteConfirmationDialog(
             pendingDelete = pendingDelete,
             isDeleting = uiState.isDeleting,
-            onConfirm = { viewModel.confirmDeleteLabel() },
+            onConfirm = { viewModel.confirmDeleteEntity() },
             onDismiss = { viewModel.clearPendingDelete() }
         )
     }
@@ -478,7 +531,7 @@ private fun LabelCard(
  */
 @Composable
 private fun DeleteConfirmationDialog(
-    pendingDelete: PendingDeleteLabel,
+    pendingDelete: PendingDeleteEntity,
     isDeleting: Boolean,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -1404,6 +1457,47 @@ private fun LabelDetailView(
                 }
             }
         }
+    }
+}
+
+/**
+ * Empty state composable with entity-type-specific messages and icons.
+ */
+@Composable
+private fun EntityEmptyState(entityType: EntityType) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Entity-specific icon
+        Icon(
+            imageVector = when (entityType) {
+                EntityType.TAG -> Icons.Default.Label
+                EntityType.CORRESPONDENT -> Icons.Default.Person
+                EntityType.DOCUMENT_TYPE -> Icons.Default.Description
+                EntityType.CUSTOM_FIELD -> Icons.Default.DataObject
+            },
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Entity-specific message
+        Text(
+            text = when (entityType) {
+                EntityType.TAG -> stringResource(R.string.empty_tags)
+                EntityType.CORRESPONDENT -> stringResource(R.string.empty_correspondents)
+                EntityType.DOCUMENT_TYPE -> stringResource(R.string.empty_document_types)
+                EntityType.CUSTOM_FIELD -> stringResource(R.string.empty_custom_fields)
+            },
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

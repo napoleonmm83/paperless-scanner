@@ -10,6 +10,7 @@ fun ApiDocumentType.toCachedEntity(): CachedDocumentType {
         name = name,
         match = match,
         matchingAlgorithm = matchingAlgorithm,
+        documentCount = documentCount,
         lastSyncedAt = System.currentTimeMillis(),
         isDeleted = false
     )
@@ -20,6 +21,7 @@ fun CachedDocumentType.toDomain(): DomainDocumentType {
         id = id,
         name = name,
         match = match,
-        matchingAlgorithm = matchingAlgorithm
+        matchingAlgorithm = matchingAlgorithm,
+        documentCount = documentCount
     )
 }

@@ -5,10 +5,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.repository.CorrespondentRepository
+import com.paperless.scanner.data.repository.CustomFieldRepository
+import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,8 +37,44 @@ enum class LabelFilterOption {
 }
 
 /**
- * State for pending label deletion with document count info.
+ * Entity types supported in the Labels Screen.
+ * Determines which entities are shown in the active tab.
  */
+enum class EntityType {
+    TAG,
+    CORRESPONDENT,
+    DOCUMENT_TYPE,
+    CUSTOM_FIELD
+}
+
+/**
+ * Unified entity item for multi-entity support.
+ * Represents Tags, Correspondents, Document Types, and Custom Fields.
+ */
+data class EntityItem(
+    val id: Int,
+    val name: String,
+    val color: Color? = null,  // Only for Tags
+    val documentCount: Int = 0,
+    val entityType: EntityType,
+    val dataType: String? = null  // Only for Custom Fields (e.g., "string", "integer", "monetary")
+)
+
+/**
+ * State for pending entity deletion with document count info.
+ */
+data class PendingDeleteEntity(
+    val id: Int,
+    val name: String,
+    val documentCount: Int,
+    val entityType: EntityType
+)
+
+/**
+ * Legacy: State for pending label deletion with document count info.
+ * @deprecated Use PendingDeleteEntity instead for multi-entity support.
+ */
+@Deprecated("Use PendingDeleteEntity instead", ReplaceWith("PendingDeleteEntity"))
 data class PendingDeleteLabel(
     val id: Int,
     val name: String,
@@ -42,69 +82,333 @@ data class PendingDeleteLabel(
 )
 
 data class LabelsUiState(
-    val labels: List<LabelItem> = emptyList(),
-    val documentsForLabel: List<LabelDocument> = emptyList(),
-    val selectedLabel: LabelItem? = null,  // BEST PRACTICE: Navigation state in ViewModel survives navigation
+    val currentEntityType: EntityType = EntityType.TAG,  // NEW: Active tab
+    val entities: List<EntityItem> = emptyList(),  // RENAMED from labels
+    val documentsForEntity: List<LabelDocument> = emptyList(),  // RENAMED from documentsForLabel
+    val selectedEntity: EntityItem? = null,  // RENAMED from selectedLabel - BEST PRACTICE: Navigation state in ViewModel survives navigation
     val isLoading: Boolean = true,
     val isLoadingDocuments: Boolean = false,
     val isDeleting: Boolean = false,
-    val pendingDeleteLabel: PendingDeleteLabel? = null,
+    val pendingDeleteEntity: PendingDeleteEntity? = null,  // RENAMED from pendingDeleteLabel
     val isLoadingDeleteInfo: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
     val sortOption: LabelSortOption = LabelSortOption.NAME_ASC,
-    val filterOption: LabelFilterOption = LabelFilterOption.ALL
+    val filterOption: LabelFilterOption = LabelFilterOption.ALL,
+    val customFieldsAvailable: Boolean = false  // NEW: Feature flag for custom fields API
 )
+
+// Legacy type alias for backward compatibility during migration
+@Deprecated("Use entities instead", ReplaceWith("entities"))
+val LabelsUiState.labels: List<LabelItem>
+    get() = entities.filter { it.entityType == EntityType.TAG }.map {
+        LabelItem(
+            id = it.id,
+            name = it.name,
+            color = it.color ?: Color.Unspecified,
+            documentCount = it.documentCount
+        )
+    }
 
 @HiltViewModel
 class LabelsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val correspondentRepository: CorrespondentRepository,
+    private val documentTypeRepository: DocumentTypeRepository,
+    private val customFieldRepository: CustomFieldRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LabelsUiState())
     val uiState: StateFlow<LabelsUiState> = _uiState.asStateFlow()
 
-    private var allLabels: List<LabelItem> = emptyList()
+    // Separate collections for each entity type (all as EntityItem)
+    private var allTags: List<EntityItem> = emptyList()
+    private var allCorrespondents: List<EntityItem> = emptyList()
+    private var allDocumentTypes: List<EntityItem> = emptyList()
+    private var allCustomFields: List<EntityItem> = emptyList()
+
+    // Legacy collection for backward compatibility during migration
+    @Deprecated("Use allTags instead", ReplaceWith("allTags"))
+    private var allLabels: List<LabelItem>
+        get() = allTags.map {
+            LabelItem(
+                id = it.id,
+                name = it.name,
+                color = it.color ?: Color.Unspecified,
+                documentCount = it.documentCount
+            )
+        }
+        set(_) {} // No-op setter for compatibility
 
     init {
         // BEST PRACTICE: Start Flow observer FIRST, then trigger API refresh
         observeTagsReactively()
+        observeCorrespondentsReactively()
+        observeDocumentTypesReactively()
+        observeCustomFieldsReactively()
+        detectCustomFieldsAvailability()
         refresh()
+    }
+
+    /**
+     * Detects if Custom Fields API is available on the server.
+     * Updates customFieldsAvailable in UiState to show/hide the tab.
+     */
+    private fun detectCustomFieldsAvailability() {
+        viewModelScope.launch {
+            val isAvailable = customFieldRepository.isCustomFieldsApiAvailable()
+            _uiState.update { it.copy(customFieldsAvailable = isAvailable) }
+        }
+    }
+
+    /**
+     * Returns entity-type-specific error message for CRUD operations.
+     *
+     * @param operation "create", "update", or "delete"
+     * @param entityType The entity type that failed
+     * @return Localized error message string
+     */
+    private fun getEntityErrorMessage(operation: String, entityType: EntityType): String {
+        return when (operation) {
+            "create" -> when (entityType) {
+                EntityType.TAG -> context.getString(R.string.error_create_tag)
+                EntityType.CORRESPONDENT -> context.getString(R.string.error_create_correspondent)
+                EntityType.DOCUMENT_TYPE -> context.getString(R.string.error_create_document_type)
+                EntityType.CUSTOM_FIELD -> context.getString(R.string.error_create_custom_field)
+            }
+            "update" -> when (entityType) {
+                EntityType.TAG -> context.getString(R.string.error_update_tag)
+                EntityType.CORRESPONDENT -> context.getString(R.string.error_update_correspondent)
+                EntityType.DOCUMENT_TYPE -> context.getString(R.string.error_update_document_type)
+                EntityType.CUSTOM_FIELD -> context.getString(R.string.error_update_custom_field)
+            }
+            "delete" -> when (entityType) {
+                EntityType.TAG -> context.getString(R.string.error_delete_tag)
+                EntityType.CORRESPONDENT -> context.getString(R.string.error_delete_correspondent)
+                EntityType.DOCUMENT_TYPE -> context.getString(R.string.error_delete_document_type)
+                EntityType.CUSTOM_FIELD -> context.getString(R.string.error_delete_custom_field)
+            }
+            else -> context.getString(R.string.error_unknown)
+        }
+    }
+
+    /**
+     * Helper method to get active entities based on current entity type.
+     */
+    private fun getActiveEntities(): List<EntityItem> {
+        return when (_uiState.value.currentEntityType) {
+            EntityType.TAG -> allTags
+            EntityType.CORRESPONDENT -> allCorrespondents
+            EntityType.DOCUMENT_TYPE -> allDocumentTypes
+            EntityType.CUSTOM_FIELD -> allCustomFields
+        }
+    }
+
+    /**
+     * Switches the active entity type (tab change).
+     * Clears selection and reapplies current search/filter/sort to new entity type.
+     *
+     * @param type The entity type to switch to (TAG, CORRESPONDENT, DOCUMENT_TYPE, CUSTOM_FIELD)
+     */
+    fun setEntityType(type: EntityType) {
+        _uiState.update {
+            it.copy(
+                currentEntityType = type,
+                selectedEntity = null,
+                documentsForEntity = emptyList()
+            )
+        }
+
+        // Reapply current filters to the new entity type
+        applyCurrentFilters()
+    }
+
+    /**
+     * Applies current search, filter, and sort settings to the active entity type.
+     * Updates the UI state with processed entities.
+     */
+    private fun applyCurrentFilters() {
+        val activeEntities = getActiveEntities()
+        val processed = applySearchFilterSortEntities(activeEntities, _uiState.value)
+
+        _uiState.update {
+            it.copy(
+                entities = processed,
+                isLoading = false
+            )
+        }
     }
 
     /**
      * BEST PRACTICE (Google Architecture Sample):
      * Reactive Flow for tags - SINGLE SOURCE OF TRUTH for UI state.
-     * This is the ONLY place that updates _uiState.labels.
      * Automatically updates when Room database changes.
      */
     private fun observeTagsReactively() {
         viewModelScope.launch {
             tagRepository.observeTags().collect { tags ->
-                allLabels = tags.map { tag ->
-                    LabelItem(
+                // Convert to EntityItem
+                allTags = tags.map { tag ->
+                    EntityItem(
                         id = tag.id,
                         name = tag.name,
                         color = parseColor(tag.color),
-                        documentCount = tag.documentCount ?: 0
+                        documentCount = tag.documentCount ?: 0,
+                        entityType = EntityType.TAG
                     )
                 }
 
-                // Apply current search, filter, and sort
-                val processed = applySearchFilterSort(allLabels, _uiState.value)
-
-                _uiState.update {
-                    it.copy(
-                        labels = processed,
-                        isLoading = false,
-                        error = null
-                    )
+                // If Tags is the active entity type, update UI state
+                if (_uiState.value.currentEntityType == EntityType.TAG) {
+                    val processed = applySearchFilterSortEntities(allTags, _uiState.value)
+                    _uiState.update {
+                        it.copy(
+                            entities = processed,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
                 }
             }
         }
     }
 
+    /**
+     * Reactive Flow for correspondents - updates UI when database changes.
+     */
+    private fun observeCorrespondentsReactively() {
+        viewModelScope.launch {
+            correspondentRepository.observeCorrespondents().collect { correspondents ->
+                // Convert to EntityItem
+                allCorrespondents = correspondents.map { correspondent ->
+                    EntityItem(
+                        id = correspondent.id,
+                        name = correspondent.name,
+                        documentCount = correspondent.documentCount ?: 0,
+                        entityType = EntityType.CORRESPONDENT
+                    )
+                }
+
+                // If Correspondents is the active entity type, update UI state
+                if (_uiState.value.currentEntityType == EntityType.CORRESPONDENT) {
+                    val processed = applySearchFilterSortEntities(allCorrespondents, _uiState.value)
+                    _uiState.update {
+                        it.copy(
+                            entities = processed,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Reactive Flow for document types - updates UI when database changes.
+     */
+    private fun observeDocumentTypesReactively() {
+        viewModelScope.launch {
+            documentTypeRepository.observeDocumentTypes().collect { documentTypes ->
+                // Convert to EntityItem
+                allDocumentTypes = documentTypes.map { documentType ->
+                    EntityItem(
+                        id = documentType.id,
+                        name = documentType.name,
+                        documentCount = documentType.documentCount ?: 0,
+                        entityType = EntityType.DOCUMENT_TYPE
+                    )
+                }
+
+                // If Document Types is the active entity type, update UI state
+                if (_uiState.value.currentEntityType == EntityType.DOCUMENT_TYPE) {
+                    val processed = applySearchFilterSortEntities(allDocumentTypes, _uiState.value)
+                    _uiState.update {
+                        it.copy(
+                            entities = processed,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Reactive Flow for custom fields - updates UI when database changes.
+     */
+    private fun observeCustomFieldsReactively() {
+        viewModelScope.launch {
+            customFieldRepository.observeCustomFields().collect { customFields ->
+                // Convert to EntityItem
+                allCustomFields = customFields.map { customField ->
+                    EntityItem(
+                        id = customField.id,
+                        name = customField.name,
+                        documentCount = 0, // Custom fields don't have document count
+                        entityType = EntityType.CUSTOM_FIELD,
+                        dataType = customField.dataType
+                    )
+                }
+
+                // If Custom Fields is the active entity type, update UI state
+                if (_uiState.value.currentEntityType == EntityType.CUSTOM_FIELD) {
+                    val processed = applySearchFilterSortEntities(allCustomFields, _uiState.value)
+                    _uiState.update {
+                        it.copy(
+                            entities = processed,
+                            isLoading = false,
+                            error = null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * NEW: Apply search, filter, and sort to EntityItem collections.
+     * Works with unified entity model for multi-entity support.
+     */
+    private fun applySearchFilterSortEntities(
+        entities: List<EntityItem>,
+        state: LabelsUiState
+    ): List<EntityItem> {
+        // 1. Apply search
+        var result = if (state.searchQuery.isBlank()) {
+            entities
+        } else {
+            entities.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
+        }
+
+        // 2. Apply filter
+        result = when (state.filterOption) {
+            LabelFilterOption.ALL -> result
+            LabelFilterOption.WITH_DOCUMENTS -> result.filter { it.documentCount > 0 }
+            LabelFilterOption.EMPTY -> result.filter { it.documentCount == 0 }
+            LabelFilterOption.MANY_DOCUMENTS -> result.filter { it.documentCount > 5 }
+        }
+
+        // 3. Apply sort
+        result = when (state.sortOption) {
+            LabelSortOption.NAME_ASC -> result.sortedBy { it.name.lowercase() }
+            LabelSortOption.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
+            LabelSortOption.COUNT_DESC -> result.sortedByDescending { it.documentCount }
+            LabelSortOption.COUNT_ASC -> result.sortedBy { it.documentCount }
+            LabelSortOption.NEWEST -> result.sortedByDescending { it.id } // ID as proxy for creation time
+            LabelSortOption.OLDEST -> result.sortedBy { it.id }
+        }
+
+        return result
+    }
+
+    /**
+     * LEGACY: Apply search, filter, and sort to LabelItem collections.
+     * @deprecated Use applySearchFilterSortEntities for new code.
+     */
+    @Deprecated("Use applySearchFilterSortEntities instead", ReplaceWith("applySearchFilterSortEntities(entities, state)"))
     private fun applySearchFilterSort(
         labels: List<LabelItem>,
         state: LabelsUiState
@@ -139,111 +443,197 @@ class LabelsViewModel @Inject constructor(
 
     /**
      * BEST PRACTICE (Google Architecture Sample):
-     * refresh() only triggers API fetch and updates Room cache.
-     * It does NOT update _uiState.labels - that's done by observeTagsReactively().
+     * refresh() triggers API fetch for ALL entity types and updates Room caches.
+     * It does NOT update _uiState.entities directly - that's done by reactive observers.
      * This ensures single source of truth: Room → Flow → UI.
+     *
+     * Loads all entity types in parallel for efficiency.
      */
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            tagRepository.getTags(forceRefresh = true)
-                .onSuccess {
-                    // BEST PRACTICE: Do NOT update labels here!
-                    // Room cache was updated by repository.
-                    // observeTagsReactively() will pick up changes automatically.
-                    _uiState.update { it.copy(isLoading = false) }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: context.getString(R.string.error_loading)
-                        )
-                    }
-                }
-        }
-    }
+            // Load all entity types in parallel
+            val tagsDeferred = async { tagRepository.getTags(forceRefresh = true) }
+            val correspondentsDeferred = async { correspondentRepository.getCorrespondents(forceRefresh = true) }
+            val documentTypesDeferred = async { documentTypeRepository.getDocumentTypes(forceRefresh = true) }
+            val customFieldsDeferred = async { customFieldRepository.getCustomFields(forceRefresh = true) }
 
-    fun search(query: String) {
-        val newState = _uiState.value.copy(searchQuery = query)
-        val processed = applySearchFilterSort(allLabels, newState)
-        _uiState.update { newState.copy(labels = processed) }
-    }
+            // Wait for all to complete
+            val tagsResult = tagsDeferred.await()
+            val correspondentsResult = correspondentsDeferred.await()
+            val documentTypesResult = documentTypesDeferred.await()
+            val customFieldsResult = customFieldsDeferred.await()
 
-    fun setSortOption(option: LabelSortOption) {
-        val newState = _uiState.value.copy(sortOption = option)
-        val processed = applySearchFilterSort(allLabels, newState)
-        _uiState.update { newState.copy(labels = processed) }
-    }
-
-    fun setFilterOption(option: LabelFilterOption) {
-        val newState = _uiState.value.copy(filterOption = option)
-        val processed = applySearchFilterSort(allLabels, newState)
-        _uiState.update { newState.copy(labels = processed) }
-    }
-
-    fun setSortAndFilter(sort: LabelSortOption, filter: LabelFilterOption) {
-        val newState = _uiState.value.copy(sortOption = sort, filterOption = filter)
-        val processed = applySearchFilterSort(allLabels, newState)
-        _uiState.update { newState.copy(labels = processed) }
-    }
-
-    fun resetSortAndFilter() {
-        val newState = _uiState.value.copy(
-            sortOption = LabelSortOption.NAME_ASC,
-            filterOption = LabelFilterOption.ALL
-        )
-        val processed = applySearchFilterSort(allLabels, newState)
-        _uiState.update { newState.copy(labels = processed) }
-    }
-
-    fun createLabel(name: String, color: Color) {
-        viewModelScope.launch {
-            val colorHex = colorToHex(color)
-            tagRepository.createTag(name, colorHex).onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // observeTagsReactively() automatically updates UI.
-            }.onFailure { error ->
+            // Check for errors (prioritize tag errors since that's the default tab)
+            if (tagsResult.isFailure) {
                 _uiState.update {
-                    it.copy(error = error.message ?: context.getString(R.string.error_creating))
+                    it.copy(
+                        isLoading = false,
+                        error = tagsResult.exceptionOrNull()?.message
+                            ?: context.getString(R.string.error_loading)
+                    )
                 }
+            } else {
+                // Success - reactive observers will update UI automatically
+                _uiState.update { it.copy(isLoading = false) }
+            }
+
+            // Set custom fields availability flag based on API response
+            customFieldsResult.onSuccess { fields ->
+                _uiState.update { it.copy(customFieldsAvailable = fields.isNotEmpty()) }
+            }.onFailure {
+                // If custom fields API fails (404), hide the tab
+                _uiState.update { it.copy(customFieldsAvailable = false) }
             }
         }
     }
 
-    fun updateLabel(id: Int, name: String, color: Color) {
+    fun search(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+        applyCurrentFilters()
+    }
+
+    fun setSortOption(option: LabelSortOption) {
+        _uiState.update { it.copy(sortOption = option) }
+        applyCurrentFilters()
+    }
+
+    fun setFilterOption(option: LabelFilterOption) {
+        _uiState.update { it.copy(filterOption = option) }
+        applyCurrentFilters()
+    }
+
+    fun setSortAndFilter(sort: LabelSortOption, filter: LabelFilterOption) {
+        _uiState.update { it.copy(sortOption = sort, filterOption = filter) }
+        applyCurrentFilters()
+    }
+
+    fun resetSortAndFilter() {
+        _uiState.update {
+            it.copy(
+                sortOption = LabelSortOption.NAME_ASC,
+                filterOption = LabelFilterOption.ALL
+            )
+        }
+        applyCurrentFilters()
+    }
+
+    /**
+     * NEW: Unified create method for all entity types.
+     * Creates entity based on currentEntityType.
+     *
+     * @param name Entity name (required for all types)
+     * @param color Color (only used for Tags, ignored for others)
+     * @param dataType Data type (only used for Custom Fields, ignored for others)
+     */
+    fun createEntity(name: String, color: Color? = null, dataType: String? = null) {
         viewModelScope.launch {
-            val colorHex = colorToHex(color)
-            tagRepository.updateTag(id, name, colorHex).onSuccess {
+            val result = when (_uiState.value.currentEntityType) {
+                EntityType.TAG -> {
+                    val colorHex = colorToHex(color ?: labelColorOptions.first())
+                    tagRepository.createTag(name, colorHex)
+                }
+                EntityType.CORRESPONDENT -> {
+                    correspondentRepository.createCorrespondent(name)
+                }
+                EntityType.DOCUMENT_TYPE -> {
+                    documentTypeRepository.createDocumentType(name)
+                }
+                EntityType.CUSTOM_FIELD -> {
+                    customFieldRepository.createCustomField(name, dataType ?: "string")
+                }
+            }
+
+            result.onSuccess {
                 // BEST PRACTICE: No manual refresh needed!
-                // observeTagsReactively() automatically updates UI.
+                // Reactive observers automatically update UI.
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = error.message ?: context.getString(R.string.error_updating))
+                    it.copy(error = getEntityErrorMessage("create", _uiState.value.currentEntityType))
                 }
             }
         }
     }
 
     /**
-     * Prepares label deletion by loading the document count first.
-     * Shows confirmation dialog with info about affected documents.
+     * LEGACY: Tag-specific create method for backward compatibility.
+     * @deprecated Use createEntity instead for multi-entity support.
      */
-    fun prepareDeleteLabel(labelId: Int) {
-        val label = allLabels.find { it.id == labelId } ?: return
+    @Deprecated("Use createEntity instead", ReplaceWith("createEntity(name, color)"))
+    fun createLabel(name: String, color: Color) {
+        createEntity(name, color)
+    }
+
+    /**
+     * NEW: Unified update method for all entity types.
+     * Updates entity based on currentEntityType.
+     *
+     * @param id Entity ID to update
+     * @param name New entity name (required for all types)
+     * @param color New color (only used for Tags, ignored for others)
+     * @param dataType New data type (only used for Custom Fields, ignored for others)
+     */
+    fun updateEntity(id: Int, name: String, color: Color? = null, dataType: String? = null) {
+        viewModelScope.launch {
+            val result = when (_uiState.value.currentEntityType) {
+                EntityType.TAG -> {
+                    val colorHex = colorToHex(color ?: labelColorOptions.first())
+                    tagRepository.updateTag(id, name, colorHex)
+                }
+                EntityType.CORRESPONDENT -> {
+                    correspondentRepository.updateCorrespondent(id, name)
+                }
+                EntityType.DOCUMENT_TYPE -> {
+                    documentTypeRepository.updateDocumentType(id, name)
+                }
+                EntityType.CUSTOM_FIELD -> {
+                    // Custom fields don't support update in Phase 1
+                    // Would require PUT endpoint and repository method
+                    Result.failure(Exception("Custom field update not yet implemented"))
+                }
+            }
+
+            result.onSuccess {
+                // BEST PRACTICE: No manual refresh needed!
+                // Reactive observers automatically update UI.
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(error = getEntityErrorMessage("update", _uiState.value.currentEntityType))
+                }
+            }
+        }
+    }
+
+    /**
+     * LEGACY: Tag-specific update method for backward compatibility.
+     * @deprecated Use updateEntity instead for multi-entity support.
+     */
+    @Deprecated("Use updateEntity instead", ReplaceWith("updateEntity(id, name, color)"))
+    fun updateLabel(id: Int, name: String, color: Color) {
+        updateEntity(id, name, color)
+    }
+
+    /**
+     * NEW: Prepares entity deletion by loading the document count.
+     * Shows confirmation dialog with info about affected documents.
+     * Works for all entity types based on currentEntityType.
+     */
+    fun prepareDeleteEntity(entityId: Int) {
+        val entity = getActiveEntities().find { it.id == entityId } ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingDeleteInfo = true) }
 
-            // Use the documentCount from the label directly (already available)
+            // Use the documentCount from the entity directly (already available)
             // This avoids an extra API call since we have the count cached
             _uiState.update {
                 it.copy(
-                    pendingDeleteLabel = PendingDeleteLabel(
-                        id = label.id,
-                        name = label.name,
-                        documentCount = label.documentCount
+                    pendingDeleteEntity = PendingDeleteEntity(
+                        id = entity.id,
+                        name = entity.name,
+                        documentCount = entity.documentCount,
+                        entityType = entity.entityType
                     ),
                     isLoadingDeleteInfo = false
                 )
@@ -252,27 +642,35 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * Confirms and executes the pending label deletion.
+     * NEW: Confirms and executes the pending entity deletion.
+     * Deletes based on the entityType stored in pendingDeleteEntity.
      */
-    fun confirmDeleteLabel() {
-        val pending = _uiState.value.pendingDeleteLabel ?: return
+    fun confirmDeleteEntity() {
+        val pending = _uiState.value.pendingDeleteEntity ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true) }
 
-            tagRepository.deleteTag(pending.id).onSuccess {
+            val result = when (pending.entityType) {
+                EntityType.TAG -> tagRepository.deleteTag(pending.id)
+                EntityType.CORRESPONDENT -> correspondentRepository.deleteCorrespondent(pending.id)
+                EntityType.DOCUMENT_TYPE -> documentTypeRepository.deleteDocumentType(pending.id)
+                EntityType.CUSTOM_FIELD -> customFieldRepository.deleteCustomField(pending.id)
+            }
+
+            result.onSuccess {
                 // BEST PRACTICE: No manual refresh needed!
-                // observeTagsReactively() automatically updates UI.
+                // Reactive observers automatically update UI.
                 _uiState.update {
                     it.copy(
-                        pendingDeleteLabel = null,
+                        pendingDeleteEntity = null,
                         isDeleting = false
                     )
                 }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
-                        error = error.message ?: context.getString(R.string.error_deleting),
+                        error = getEntityErrorMessage("delete", pending.entityType),
                         isDeleting = false
                     )
                 }
@@ -281,10 +679,28 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
+     * LEGACY: Tag-specific prepare delete method.
+     * @deprecated Use prepareDeleteEntity instead for multi-entity support.
+     */
+    @Deprecated("Use prepareDeleteEntity instead", ReplaceWith("prepareDeleteEntity(labelId)"))
+    fun prepareDeleteLabel(labelId: Int) {
+        prepareDeleteEntity(labelId)
+    }
+
+    /**
+     * LEGACY: Tag-specific confirm delete method.
+     * @deprecated Use confirmDeleteEntity instead for multi-entity support.
+     */
+    @Deprecated("Use confirmDeleteEntity instead", ReplaceWith("confirmDeleteEntity()"))
+    fun confirmDeleteLabel() {
+        confirmDeleteEntity()
+    }
+
+    /**
      * Clears the pending delete state (cancel deletion).
      */
     fun clearPendingDelete() {
-        _uiState.update { it.copy(pendingDeleteLabel = null) }
+        _uiState.update { it.copy(pendingDeleteEntity = null) }
     }
 
     @Deprecated("Use prepareDeleteLabel + confirmDeleteLabel instead")
@@ -301,12 +717,28 @@ class LabelsViewModel @Inject constructor(
         }
     }
 
-    fun loadDocumentsForLabel(labelId: Int) {
+    /**
+     * NEW: Loads documents for a specific entity.
+     * Works for all entity types based on currentEntityType.
+     *
+     * @param entityId The ID of the entity to load documents for
+     */
+    fun loadDocumentsForEntity(entityId: Int) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingDocuments = true) }
 
-            tagRepository.getDocumentsForTag(labelId).onSuccess { documents ->
-                val labelDocs = documents.map { doc ->
+            val result = when (_uiState.value.currentEntityType) {
+                EntityType.TAG -> tagRepository.getDocumentsForTag(entityId)
+                EntityType.CORRESPONDENT -> correspondentRepository.getDocumentsForCorrespondent(entityId)
+                EntityType.DOCUMENT_TYPE -> documentTypeRepository.getDocumentsForDocumentType(entityId)
+                EntityType.CUSTOM_FIELD -> {
+                    // Custom fields don't have associated documents
+                    Result.success(emptyList())
+                }
+            }
+
+            result.onSuccess { documents ->
+                val entityDocs = documents.map { doc ->
                     LabelDocument(
                         id = doc.id,
                         title = doc.title,
@@ -316,19 +748,28 @@ class LabelsViewModel @Inject constructor(
                 }
                 _uiState.update {
                     it.copy(
-                        documentsForLabel = labelDocs,
+                        documentsForEntity = entityDocs,
                         isLoadingDocuments = false
                     )
                 }
             }.onFailure {
                 _uiState.update {
                     it.copy(
-                        documentsForLabel = emptyList(),
+                        documentsForEntity = emptyList(),
                         isLoadingDocuments = false
                     )
                 }
             }
         }
+    }
+
+    /**
+     * LEGACY: Tag-specific load documents method.
+     * @deprecated Use loadDocumentsForEntity instead for multi-entity support.
+     */
+    @Deprecated("Use loadDocumentsForEntity instead", ReplaceWith("loadDocumentsForEntity(labelId)"))
+    fun loadDocumentsForLabel(labelId: Int) {
+        loadDocumentsForEntity(labelId)
     }
 
 
@@ -354,25 +795,62 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
+     * NEW: Selects an entity and loads its documents.
      * BEST PRACTICE: Navigation state in ViewModel survives navigation.
-     * When user selects a label and navigates to DocumentDetail and back,
-     * the selected label is preserved.
+     * When user navigates to DocumentDetail and back, selection is preserved.
+     *
+     * @param entity The entity to select (can be any type)
      */
+    fun selectEntity(entity: EntityItem) {
+        _uiState.update { it.copy(selectedEntity = entity) }
+        loadDocumentsForEntity(entity.id)
+    }
+
+    /**
+     * LEGACY: Tag-specific select method.
+     * @deprecated Use selectEntity instead for multi-entity support.
+     */
+    @Deprecated("Use selectEntity instead", ReplaceWith("selectEntity(EntityItem(label.id, label.name, label.color, label.documentCount, EntityType.TAG))"))
     fun selectLabel(label: LabelItem) {
-        _uiState.update { it.copy(selectedLabel = label) }
-        loadDocumentsForLabel(label.id)
+        val entity = EntityItem(label.id, label.name, label.color, label.documentCount, EntityType.TAG)
+        selectEntity(entity)
     }
 
+    /**
+     * Clears the selected entity and its documents list.
+     */
+    fun clearSelectedEntity() {
+        _uiState.update { it.copy(selectedEntity = null, documentsForEntity = emptyList()) }
+    }
+
+    /**
+     * LEGACY: Clear selected label method.
+     * @deprecated Use clearSelectedEntity instead.
+     */
+    @Deprecated("Use clearSelectedEntity instead", ReplaceWith("clearSelectedEntity()"))
     fun clearSelectedLabel() {
-        _uiState.update { it.copy(selectedLabel = null, documentsForLabel = emptyList()) }
+        clearSelectedEntity()
     }
 
+    /**
+     * Clears only the documents list, keeping the entity selected.
+     */
+    fun clearDocumentsForEntity() {
+        _uiState.update { it.copy(documentsForEntity = emptyList()) }
+    }
+
+    /**
+     * LEGACY: Clear documents for label method.
+     * @deprecated Use clearDocumentsForEntity instead.
+     */
+    @Deprecated("Use clearDocumentsForEntity instead", ReplaceWith("clearDocumentsForEntity()"))
     fun clearDocumentsForLabel() {
-        _uiState.update { it.copy(documentsForLabel = emptyList()) }
+        clearDocumentsForEntity()
     }
 
     fun clearSearch() {
-        _uiState.update { it.copy(searchQuery = "", labels = allLabels) }
+        _uiState.update { it.copy(searchQuery = "") }
+        applyCurrentFilters()
     }
 
     fun clearError() {

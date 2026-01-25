@@ -32,7 +32,7 @@ import com.paperless.scanner.data.database.entities.SyncMetadata
         SyncMetadata::class,
         AiUsageLog::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

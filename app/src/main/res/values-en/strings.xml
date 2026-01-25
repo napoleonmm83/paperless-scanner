@@ -397,11 +397,22 @@
     <string name="pdf_viewer_retry">Erneut versuchen</string>
 
     
-    <string name="upload_error_generic">Upload fehlgeschlagen</string>
-    <string name="error_queue_add">Fehler beim Hinzufügen zur Warteschlange</string>
-    <string name="error_create_tag">Tag konnte nicht erstellt werden</string>
-    <string name="error_analyze_document">Dokument konnte nicht analysiert werden</string>
-    <string name="pdf_viewer_default_title">Dokument</string>
+    <string name="upload_error_generic">Upload failed</string>
+    <string name="error_queue_add">Failed to add to queue</string>
+    <string name="error_create_tag">Failed to create tag</string>
+    <string name="error_create_correspondent">Failed to create correspondent</string>
+    <string name="error_create_document_type">Failed to create document type</string>
+    <string name="error_create_custom_field">Failed to create custom field</string>
+    <string name="error_update_tag">Failed to update tag</string>
+    <string name="error_update_correspondent">Failed to update correspondent</string>
+    <string name="error_update_document_type">Failed to update document type</string>
+    <string name="error_update_custom_field">Failed to update custom field</string>
+    <string name="error_delete_tag">Failed to delete tag</string>
+    <string name="error_delete_correspondent">Failed to delete correspondent</string>
+    <string name="error_delete_document_type">Failed to delete document type</string>
+    <string name="error_delete_custom_field">Failed to delete custom field</string>
+    <string name="error_analyze_document">Failed to analyze document</string>
+    <string name="pdf_viewer_default_title">Document</string>
 
     
     <string name="loading">Laden...</string>
@@ -798,4 +809,34 @@
     <string name="add_more_dialog_gallery_desc">Fotos aus Galerie wählen</string>
     <string name="add_more_dialog_files_desc">Dateien oder PDFs auswählen</string>
     <string name="add_more_dialog_cancel">Abbrechen</string>
+
+    <!-- Multi-Entity Labels Screen -->
+    <string name="entity_type_tags">Tags</string>
+    <string name="entity_type_correspondents">Correspondents</string>
+    <string name="entity_type_document_types">Document Types</string>
+    <string name="entity_type_custom_fields">Custom Fields</string>
+
+    <!-- Create/Edit Entity Dialog -->
+    <string name="entity_create_correspondent">Create Correspondent</string>
+    <string name="entity_create_document_type">Create Document Type</string>
+    <string name="entity_create_custom_field">Create Field</string>
+    <string name="entity_edit_correspondent">Edit Correspondent</string>
+    <string name="entity_edit_document_type">Edit Document Type</string>
+    <string name="entity_edit_custom_field">Edit Field</string>
+    <string name="entity_correspondent_placeholder">e.g. Telekom</string>
+    <string name="entity_document_type_placeholder">e.g. Invoice</string>
+    <string name="entity_custom_field_placeholder">e.g. Amount</string>
+    <string name="entity_data_type_label">Data Type</string>
+    <string name="entity_data_type_string">Text</string>
+    <string name="entity_data_type_integer">Integer</string>
+    <string name="entity_data_type_float">Decimal</string>
+    <string name="entity_data_type_monetary">Currency</string>
+    <string name="entity_data_type_date">Date</string>
+    <string name="entity_data_type_boolean">Yes/No</string>
+
+    <!-- Entity Empty States -->
+    <string name="empty_tags">No tags created yet.\nTap \"New Label\" above to get started.</string>
+    <string name="empty_correspondents">No correspondents created yet.\nTap \"Create Correspondent\" above to get started.</string>
+    <string name="empty_document_types">No document types created yet.\nTap \"Create Document Type\" above to get started.</string>
+    <string name="empty_custom_fields">No custom fields created yet.\nTap \"Create Field\" above to get started.</string>
 </resources>

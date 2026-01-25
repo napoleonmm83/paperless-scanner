@@ -31,6 +31,9 @@ class LabelsViewModelTest {
 
     private lateinit var context: Context
     private lateinit var tagRepository: TagRepository
+    private lateinit var correspondentRepository: com.paperless.scanner.data.repository.CorrespondentRepository
+    private lateinit var documentTypeRepository: com.paperless.scanner.data.repository.DocumentTypeRepository
+    private lateinit var customFieldRepository: com.paperless.scanner.data.repository.CustomFieldRepository
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -38,11 +41,31 @@ class LabelsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
-        tagRepository = mockk(relaxed = true)
 
-        // Default mock responses
+        // Mock string resources for error messages
+        every { context.getString(any()) } returns "Test error message"
+
+        tagRepository = mockk(relaxed = true)
+        correspondentRepository = mockk(relaxed = true)
+        documentTypeRepository = mockk(relaxed = true)
+        customFieldRepository = mockk(relaxed = true)
+
+        // Default mock responses for tags
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
         every { tagRepository.observeTags() } returns flowOf(emptyList())
+
+        // Default mock responses for correspondents
+        coEvery { correspondentRepository.getCorrespondents(any()) } returns Result.success(emptyList())
+        every { correspondentRepository.observeCorrespondents() } returns flowOf(emptyList())
+
+        // Default mock responses for document types
+        coEvery { documentTypeRepository.getDocumentTypes(any()) } returns Result.success(emptyList())
+        every { documentTypeRepository.observeDocumentTypes() } returns flowOf(emptyList())
+
+        // Default mock responses for custom fields
+        coEvery { customFieldRepository.getCustomFields(any()) } returns Result.success(emptyList())
+        coEvery { customFieldRepository.isCustomFieldsApiAvailable() } returns false
+        every { customFieldRepository.observeCustomFields() } returns flowOf(emptyList())
     }
 
     @After
@@ -53,7 +76,10 @@ class LabelsViewModelTest {
     private fun createViewModel(): LabelsViewModel {
         return LabelsViewModel(
             context = context,
-            tagRepository = tagRepository
+            tagRepository = tagRepository,
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            customFieldRepository = customFieldRepository
         )
     }
 
@@ -296,10 +322,10 @@ class LabelsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertNotNull(state.pendingDeleteLabel)
-        assertEquals(1, state.pendingDeleteLabel?.id)
-        assertEquals("Empty Tag", state.pendingDeleteLabel?.name)
-        assertEquals(0, state.pendingDeleteLabel?.documentCount)
+        assertNotNull(state.pendingDeleteEntity)
+        assertEquals(1, state.pendingDeleteEntity?.id)
+        assertEquals("Empty Tag", state.pendingDeleteEntity?.name)
+        assertEquals(0, state.pendingDeleteEntity?.documentCount)
         assertFalse(state.isLoadingDeleteInfo)
     }
 
@@ -318,10 +344,10 @@ class LabelsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertNotNull(state.pendingDeleteLabel)
-        assertEquals(2, state.pendingDeleteLabel?.id)
-        assertEquals("Single Doc Tag", state.pendingDeleteLabel?.name)
-        assertEquals(1, state.pendingDeleteLabel?.documentCount)
+        assertNotNull(state.pendingDeleteEntity)
+        assertEquals(2, state.pendingDeleteEntity?.id)
+        assertEquals("Single Doc Tag", state.pendingDeleteEntity?.name)
+        assertEquals(1, state.pendingDeleteEntity?.documentCount)
     }
 
     @Test
@@ -339,10 +365,10 @@ class LabelsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertNotNull(state.pendingDeleteLabel)
-        assertEquals(3, state.pendingDeleteLabel?.id)
-        assertEquals("Popular Tag", state.pendingDeleteLabel?.name)
-        assertEquals(15, state.pendingDeleteLabel?.documentCount)
+        assertNotNull(state.pendingDeleteEntity)
+        assertEquals(3, state.pendingDeleteEntity?.id)
+        assertEquals("Popular Tag", state.pendingDeleteEntity?.name)
+        assertEquals(15, state.pendingDeleteEntity?.documentCount)
     }
 
     @Test
@@ -360,7 +386,7 @@ class LabelsViewModelTest {
         // First prepare deletion
         viewModel.prepareDeleteLabel(1)
         advanceUntilIdle()
-        assertNotNull(viewModel.uiState.value.pendingDeleteLabel)
+        assertNotNull(viewModel.uiState.value.pendingDeleteEntity)
 
         // Then confirm
         viewModel.confirmDeleteLabel()
@@ -371,7 +397,7 @@ class LabelsViewModelTest {
 
         // Verify state was cleared
         val state = viewModel.uiState.value
-        assertNull(state.pendingDeleteLabel)
+        assertNull(state.pendingDeleteEntity)
         assertFalse(state.isDeleting)
     }
 
@@ -394,16 +420,16 @@ class LabelsViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        // Dialog should still be open (pendingDeleteLabel not cleared)
-        assertNotNull(state.pendingDeleteLabel)
+        // Dialog should still be open (pendingDeleteEntity not cleared)
+        assertNotNull(state.pendingDeleteEntity)
         // Error should be set
         assertNotNull(state.error)
-        assertTrue(state.error!!.contains("failed") || state.error!!.isNotEmpty())
+        assertTrue(state.error!!.isNotEmpty())
         assertFalse(state.isDeleting)
     }
 
     @Test
-    fun `clearPendingDelete removes pendingDeleteLabel state`() = runTest {
+    fun `clearPendingDelete removes pendingDeleteEntity state`() = runTest {
         val mockTags = listOf(
             Tag(id = 1, name = "Test Tag", documentCount = 3)
         )
@@ -416,13 +442,13 @@ class LabelsViewModelTest {
         // Prepare deletion
         viewModel.prepareDeleteLabel(1)
         advanceUntilIdle()
-        assertNotNull(viewModel.uiState.value.pendingDeleteLabel)
+        assertNotNull(viewModel.uiState.value.pendingDeleteEntity)
 
         // Cancel/clear
         viewModel.clearPendingDelete()
 
         val state = viewModel.uiState.value
-        assertNull(state.pendingDeleteLabel)
+        assertNull(state.pendingDeleteEntity)
     }
 
     @Test
@@ -456,8 +482,8 @@ class LabelsViewModelTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoadingDocuments)
-        assertEquals(2, state.documentsForLabel.size)
-        assertEquals("Doc 1", state.documentsForLabel[0].title)
+        assertEquals(2, state.documentsForEntity.size)
+        assertEquals("Doc 1", state.documentsForEntity[0].title)
     }
 
     @Test
@@ -472,7 +498,7 @@ class LabelsViewModelTest {
 
         val state = viewModel.uiState.value
         assertFalse(state.isLoadingDocuments)
-        assertTrue(state.documentsForLabel.isEmpty())
+        assertTrue(state.documentsForEntity.isEmpty())
     }
 
     @Test
@@ -485,11 +511,11 @@ class LabelsViewModelTest {
 
         viewModel.loadDocumentsForLabel(1)
         advanceUntilIdle()
-        assertEquals(1, viewModel.uiState.value.documentsForLabel.size)
+        assertEquals(1, viewModel.uiState.value.documentsForEntity.size)
 
         viewModel.clearDocumentsForLabel()
 
-        assertTrue(viewModel.uiState.value.documentsForLabel.isEmpty())
+        assertTrue(viewModel.uiState.value.documentsForEntity.isEmpty())
     }
 
     // ==================== Error Handling Tests ====================
