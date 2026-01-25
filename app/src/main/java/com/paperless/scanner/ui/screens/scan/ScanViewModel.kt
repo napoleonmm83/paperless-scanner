@@ -507,6 +507,75 @@ class ScanViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Crop a page and replace its URI with the cropped version.
+     * Unlike rotation (which is deferred), cropping is applied immediately.
+     *
+     * @param pageId Page ID to crop
+     * @param cropRect Crop rectangle (normalized 0-1)
+     */
+    fun cropPage(pageId: String, cropRect: com.paperless.scanner.ui.screens.scan.CropRect) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { state ->
+                val updatedPages = state.pages.map { page ->
+                    if (page.id == pageId) {
+                        val croppedUri = cropAndSaveImage(page.uri, cropRect)
+                        page.copy(uri = croppedUri)
+                    } else {
+                        page
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    syncPagesToSavedState(updatedPages)
+                }
+                state.copy(pages = updatedPages)
+            }
+        }
+    }
+
+    private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri {
+        // Load bitmap
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: return uri
+        val originalBitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream.close()
+
+        // Calculate crop rectangle in pixel coordinates
+        val left = (originalBitmap.width * cropRect.left).toInt().coerceIn(0, originalBitmap.width)
+        val top = (originalBitmap.height * cropRect.top).toInt().coerceIn(0, originalBitmap.height)
+        val width = (originalBitmap.width * (cropRect.right - cropRect.left)).toInt()
+            .coerceIn(1, originalBitmap.width - left)
+        val height = (originalBitmap.height * (cropRect.bottom - cropRect.top)).toInt()
+            .coerceIn(1, originalBitmap.height - top)
+
+        // Crop bitmap
+        val croppedBitmap = Bitmap.createBitmap(
+            originalBitmap,
+            left,
+            top,
+            width,
+            height
+        )
+
+        // Save to cache
+        val croppedFile = File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg")
+        FileOutputStream(croppedFile).use { out ->
+            croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+        }
+
+        // Cleanup
+        if (croppedBitmap != originalBitmap) {
+            originalBitmap.recycle()
+        }
+        croppedBitmap.recycle()
+
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            croppedFile
+        )
+    }
+
     fun clearPages() {
         _uiState.update { it.copy(pages = emptyList()) }
         syncPagesToSavedState(emptyList())

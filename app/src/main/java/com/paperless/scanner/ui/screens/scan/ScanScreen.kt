@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FolderOpen
@@ -283,6 +284,7 @@ fun ScanScreen(
                     onAddMore = { showAddMoreDialog = true },
                     onRemovePage = { viewModel.removePage(it) },
                     onRotatePage = { viewModel.rotatePage(it) },
+                    onCropPage = { pageId, cropRect -> viewModel.cropPage(pageId, cropRect) },
                     onMovePage = { from, to -> viewModel.movePage(from, to) },
                     onClear = { viewModel.clearPages() },
                     onContinue = {
@@ -495,6 +497,7 @@ private fun MultiPageContent(
     onAddMore: () -> Unit,
     onRemovePage: (String) -> Unit,
     onRotatePage: (String) -> Unit,
+    onCropPage: (String, CropRect) -> Unit,
     onMovePage: (Int, Int) -> Unit,
     onClear: () -> Unit,
     onContinue: () -> Unit
@@ -540,7 +543,8 @@ private fun MultiPageContent(
                 if (uiState.pageCount <= 1) {
                     previewPageIndex = null
                 }
-            }
+            },
+            onCrop = onCropPage
         )
     }
 
@@ -939,13 +943,15 @@ private fun PagePreviewDialog(
     initialPageIndex: Int,
     onDismiss: () -> Unit,
     onRotate: (String) -> Unit,
-    onRemove: (String) -> Unit
+    onRemove: (String) -> Unit,
+    onCrop: (String, CropRect) -> Unit = { _, _ -> }
 ) {
     val pagerState = rememberPagerState(
         initialPage = initialPageIndex,
         pageCount = { pages.size }
     )
     val scope = rememberCoroutineScope()
+    var showCropScreen by remember { mutableStateOf<ScannedPage?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1040,6 +1046,27 @@ private fun PagePreviewDialog(
                     )
                 }
 
+                // Crop button
+                IconButton(
+                    onClick = {
+                        val currentPage = pages[pagerState.currentPage]
+                        showCropScreen = currentPage
+                    },
+                    modifier = Modifier
+                        .size(56.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Crop,
+                        contentDescription = stringResource(R.string.scan_crop),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
                 // Delete button
                 IconButton(
                     onClick = {
@@ -1074,6 +1101,19 @@ private fun PagePreviewDialog(
                     )
                 }
             }
+        }
+
+        // Show CropScreen when crop button is clicked
+        showCropScreen?.let { page ->
+            CropScreen(
+                uri = page.uri,
+                rotation = page.rotation,
+                onDismiss = { showCropScreen = null },
+                onCropApply = { cropRect ->
+                    onCrop(page.id, cropRect)
+                    showCropScreen = null
+                }
+            )
         }
     }
 }

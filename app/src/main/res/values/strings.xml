@@ -281,8 +281,14 @@
     <string name="scan_add_page">Weitere Seite</string>
     <string name="scan_close">Schließen</string>
     <string name="scan_delete">Löschen</string>
+    <string name="scan_crop">Zuschneiden</string>
+    <string name="scan_crop_title">Bild zuschneiden</string>
+    <string name="scan_crop_apply">Übernehmen</string>
+    <string name="scan_crop_cancel">Abbrechen</string>
+    <string name="scan_crop_reset">Zurücksetzen</string>
+    <string name="scan_crop_hint">Ziehe die Ecken, um den Bereich auszuwählen</string>
 
-    
+
     <string name="home_welcome_back">WILLKOMMEN ZURÜCK</string>
     <string name="home_your_archive">DEIN ARCHIV</string>
     <string name="home_stat_documents">Dokumente</string>
