@@ -3,7 +3,9 @@ package com.paperless.scanner.ui.screens.scan
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +53,17 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
 import kotlin.math.abs
+
+enum class DragHandle {
+    TOP_LEFT,
+    TOP_RIGHT,
+    BOTTOM_LEFT,
+    BOTTOM_RIGHT,
+    LEFT_EDGE,
+    RIGHT_EDGE,
+    TOP_EDGE,
+    BOTTOM_EDGE
+}
 
 data class CropRect(
     val left: Float,
@@ -288,89 +301,73 @@ private fun CropImageWithOverlay(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-
-                        val touchX = change.position.x
-                        val touchY = change.position.y
-
-                        // Determine which handle/edge was touched
+                .pointerInput(cropRect, containerSize) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        val touchX = down.position.x
+                        val touchY = down.position.y
                         val rect = cropRect
 
-                        // Corner handles (priority)
-                        val isTopLeft = abs(touchX - rect.left) < touchRadius &&
-                                       abs(touchY - rect.top) < touchRadius
-                        val isTopRight = abs(touchX - rect.right) < touchRadius &&
-                                        abs(touchY - rect.top) < touchRadius
-                        val isBottomLeft = abs(touchX - rect.left) < touchRadius &&
-                                          abs(touchY - rect.bottom) < touchRadius
-                        val isBottomRight = abs(touchX - rect.right) < touchRadius &&
-                                           abs(touchY - rect.bottom) < touchRadius
-
-                        // Edge handles
-                        val isLeftEdge = abs(touchX - rect.left) < touchRadius &&
-                                        touchY > rect.top && touchY < rect.bottom
-                        val isRightEdge = abs(touchX - rect.right) < touchRadius &&
-                                         touchY > rect.top && touchY < rect.bottom
-                        val isTopEdge = abs(touchY - rect.top) < touchRadius &&
-                                       touchX > rect.left && touchX < rect.right
-                        val isBottomEdge = abs(touchY - rect.bottom) < touchRadius &&
-                                          touchX > rect.left && touchX < rect.right
-
-                        var newRect = rect
-                        val minSize = 100f // Minimum crop size
-                        val width = containerSize.width.toFloat()
-                        val height = containerSize.height.toFloat()
-
-                        when {
-                            isTopLeft -> {
-                                newRect = rect.copy(
-                                    left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize),
-                                    top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
-                                )
-                            }
-                            isTopRight -> {
-                                newRect = rect.copy(
-                                    right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width),
-                                    top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
-                                )
-                            }
-                            isBottomLeft -> {
-                                newRect = rect.copy(
-                                    left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize),
-                                    bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
-                                )
-                            }
-                            isBottomRight -> {
-                                newRect = rect.copy(
-                                    right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width),
-                                    bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
-                                )
-                            }
-                            isLeftEdge -> {
-                                newRect = rect.copy(
-                                    left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize)
-                                )
-                            }
-                            isRightEdge -> {
-                                newRect = rect.copy(
-                                    right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width)
-                                )
-                            }
-                            isTopEdge -> {
-                                newRect = rect.copy(
-                                    top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
-                                )
-                            }
-                            isBottomEdge -> {
-                                newRect = rect.copy(
-                                    bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
-                                )
-                            }
+                        // Determine which handle/edge was touched ONCE at start
+                        val draggedHandle = when {
+                            // Corner handles (priority)
+                            abs(touchX - rect.left) < touchRadius && abs(touchY - rect.top) < touchRadius -> DragHandle.TOP_LEFT
+                            abs(touchX - rect.right) < touchRadius && abs(touchY - rect.top) < touchRadius -> DragHandle.TOP_RIGHT
+                            abs(touchX - rect.left) < touchRadius && abs(touchY - rect.bottom) < touchRadius -> DragHandle.BOTTOM_LEFT
+                            abs(touchX - rect.right) < touchRadius && abs(touchY - rect.bottom) < touchRadius -> DragHandle.BOTTOM_RIGHT
+                            // Edge handles
+                            abs(touchX - rect.left) < touchRadius && touchY > rect.top && touchY < rect.bottom -> DragHandle.LEFT_EDGE
+                            abs(touchX - rect.right) < touchRadius && touchY > rect.top && touchY < rect.bottom -> DragHandle.RIGHT_EDGE
+                            abs(touchY - rect.top) < touchRadius && touchX > rect.left && touchX < rect.right -> DragHandle.TOP_EDGE
+                            abs(touchY - rect.bottom) < touchRadius && touchX > rect.left && touchX < rect.right -> DragHandle.BOTTOM_EDGE
+                            else -> null
                         }
 
-                        onCropRectChange(newRect)
+                        if (draggedHandle != null) {
+                            down.consume()
+                            drag(down.id) { change ->
+                                change.consume()
+                                val dragAmount = change.position - change.previousPosition
+
+                                val currentRect = cropRect
+                                val minSize = 100f
+                                val width = containerSize.width.toFloat()
+                                val height = containerSize.height.toFloat()
+
+                                val newRect = when (draggedHandle) {
+                                    DragHandle.TOP_LEFT -> currentRect.copy(
+                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize),
+                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    )
+                                    DragHandle.TOP_RIGHT -> currentRect.copy(
+                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width),
+                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    )
+                                    DragHandle.BOTTOM_LEFT -> currentRect.copy(
+                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize),
+                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    )
+                                    DragHandle.BOTTOM_RIGHT -> currentRect.copy(
+                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width),
+                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    )
+                                    DragHandle.LEFT_EDGE -> currentRect.copy(
+                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
+                                    )
+                                    DragHandle.RIGHT_EDGE -> currentRect.copy(
+                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width)
+                                    )
+                                    DragHandle.TOP_EDGE -> currentRect.copy(
+                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    )
+                                    DragHandle.BOTTOM_EDGE -> currentRect.copy(
+                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    )
+                                }
+
+                                onCropRectChange(newRect)
+                            }
+                        }
                     }
                 }
         ) {
