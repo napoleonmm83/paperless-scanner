@@ -128,6 +128,7 @@ fun ScanScreen(
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val uploadAsSingleDocument by viewModel.uploadAsSingleDocument.collectAsState()
     var showAddMoreDialog by remember { mutableStateOf(false) }
+    var showMetadataChoiceDialog by remember { mutableStateOf(false) }
 
     // Initialize ViewModel with route arguments (survives AppLock unlock)
     // CRITICAL: Only initialize from route args if ViewModel doesn't already have pages
@@ -297,8 +298,12 @@ fun ScanScreen(
                             // This allows user to navigate back and add more pages or make changes
                             if (uris.size == 1) {
                                 onDocumentScanned(uris.first())
+                            } else if (uploadAsSingleDocument) {
+                                // Single PDF: Direct to MultiPageUploadScreen
+                                onMultipleDocumentsScanned(uris, true)
                             } else {
-                                onMultipleDocumentsScanned(uris, uploadAsSingleDocument)
+                                // Individual Documents: Show metadata choice dialog
+                                showMetadataChoiceDialog = true
                             }
                         }
                     }
@@ -358,6 +363,30 @@ fun ScanScreen(
                     filePickerLauncher.launch(
                         arrayOf("application/pdf", "image/*")
                     )
+                }
+            )
+        }
+
+        // Metadata Choice Dialog (Individual Documents only)
+        if (showMetadataChoiceDialog) {
+            MetadataChoiceDialog(
+                onDismiss = { showMetadataChoiceDialog = false },
+                onSameForAll = {
+                    showMetadataChoiceDialog = false
+                    // Navigate to MultiPageUploadScreen with same metadata for all
+                    scope.launch {
+                        val uris = viewModel.getRotatedPageUris()
+                        onMultipleDocumentsScanned(uris, false)  // Individual documents mode
+                    }
+                },
+                onIndividual = {
+                    showMetadataChoiceDialog = false
+                    // TODO: Navigate to StepByStepMetadataScreen (Task #3: 38c06cec-e0aa-449c-8723-039a48c29628)
+                    // For now, fallback to same flow
+                    scope.launch {
+                        val uris = viewModel.getRotatedPageUris()
+                        onMultipleDocumentsScanned(uris, false)
+                    }
                 }
             )
         }
