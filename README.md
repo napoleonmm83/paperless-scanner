@@ -4,7 +4,7 @@
 
 **Native Android App for Paperless-ngx with AI-Powered Document Processing**
 
-[![Version](https://img.shields.io/badge/version-1.4.57-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
 [![Android](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://www.android.com)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.0-purple.svg)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
@@ -41,6 +41,8 @@
 | **⬆️ Direct Upload** | Upload directly to your Paperless-ngx instance |
 | **🏷️ Tag Management** | Select from existing tags, correspondents, and document types |
 | **📄 Multi-Page Docs** | Combine multiple scans into a single PDF document |
+| **📝 Per-Page Metadata** | Assign individual metadata (tags, title, type) to each scanned page |
+| **🎯 Smart Grouping** | Pages with identical metadata are automatically merged into single uploads |
 | **📚 Batch Import** | Upload multiple documents in one go |
 | **🌙 Dark Mode** | Automatic dark/light theme following system settings |
 | **📴 Offline Mode** | Queue uploads when offline, auto-sync when connected |
