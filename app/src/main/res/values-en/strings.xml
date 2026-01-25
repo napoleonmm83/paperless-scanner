@@ -287,12 +287,17 @@
     <string name="scan_crop_cancel">Abbrechen</string>
     <string name="scan_crop_reset">Zurücksetzen</string>
     <string name="scan_crop_hint">Ziehe die Ecken, um den Bereich auszuwählen</string>
-    <string name="scan_metadata_choice_title">Gleiche Metadaten für alle Dokumente?</string>
-    <string name="scan_metadata_choice_same">Für alle gleich</string>
-    <string name="scan_metadata_choice_individual">Individuell bearbeiten</string>
+    <string name="scan_metadata_choice_title">Same metadata for all documents?</string>
+    <string name="scan_metadata_choice_same">Same for all</string>
+    <string name="scan_metadata_choice_individual">Edit individually</string>
+    <string name="scan_step_metadata_title">Edit Metadata</string>
+    <string name="scan_step_metadata_page_progress">Page %1$d of %2$d</string>
+    <string name="scan_step_metadata_back">Back</string>
+    <string name="scan_step_metadata_next">Next</string>
+    <string name="scan_step_metadata_finish">Finish</string>
 
 
-    <string name="home_welcome_back">WILLKOMMEN ZURÜCK</string>
+    <string name="home_welcome_back">WELCOME BACK</string>
     <string name="home_your_archive">DEIN ARCHIV</string>
     <string name="home_stat_documents">Dokumente</string>
     <string name="home_stat_this_month">Diesen Monat</string>

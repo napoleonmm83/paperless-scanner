@@ -290,6 +290,11 @@
     <string name="scan_metadata_choice_title">Gleiche Metadaten für alle Dokumente?</string>
     <string name="scan_metadata_choice_same">Für alle gleich</string>
     <string name="scan_metadata_choice_individual">Individuell bearbeiten</string>
+    <string name="scan_step_metadata_title">Metadaten bearbeiten</string>
+    <string name="scan_step_metadata_page_progress">Seite %1$d von %2$d</string>
+    <string name="scan_step_metadata_back">Zurück</string>
+    <string name="scan_step_metadata_next">Weiter</string>
+    <string name="scan_step_metadata_finish">Abschließen</string>
 
 
     <string name="home_welcome_back">WILLKOMMEN ZURÜCK</string>
