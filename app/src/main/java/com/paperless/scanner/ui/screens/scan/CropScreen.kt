@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -279,6 +280,9 @@ private fun CropImageWithOverlay(
     val handleRadius = with(LocalDensity.current) { 12.dp.toPx() }
     val touchRadius = with(LocalDensity.current) { 24.dp.toPx() }
 
+    // Keep updated reference to cropRect without restarting pointerInput
+    val currentCropRect by rememberUpdatedState(cropRect)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -301,12 +305,12 @@ private fun CropImageWithOverlay(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(cropRect, containerSize) {
+                .pointerInput(Unit) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         val touchX = down.position.x
                         val touchY = down.position.y
-                        val rect = cropRect
+                        val rect = currentCropRect
 
                         // Determine which handle/edge was touched ONCE at start
                         val draggedHandle = when {
@@ -329,39 +333,39 @@ private fun CropImageWithOverlay(
                                 change.consume()
                                 val dragAmount = change.position - change.previousPosition
 
-                                val currentRect = cropRect
+                                val rect = currentCropRect
                                 val minSize = 100f
                                 val width = containerSize.width.toFloat()
                                 val height = containerSize.height.toFloat()
 
                                 val newRect = when (draggedHandle) {
-                                    DragHandle.TOP_LEFT -> currentRect.copy(
-                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize),
-                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    DragHandle.TOP_LEFT -> rect.copy(
+                                        left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize),
+                                        top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
                                     )
-                                    DragHandle.TOP_RIGHT -> currentRect.copy(
-                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width),
-                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    DragHandle.TOP_RIGHT -> rect.copy(
+                                        right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width),
+                                        top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
                                     )
-                                    DragHandle.BOTTOM_LEFT -> currentRect.copy(
-                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize),
-                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    DragHandle.BOTTOM_LEFT -> rect.copy(
+                                        left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize),
+                                        bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
                                     )
-                                    DragHandle.BOTTOM_RIGHT -> currentRect.copy(
-                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width),
-                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    DragHandle.BOTTOM_RIGHT -> rect.copy(
+                                        right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width),
+                                        bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
                                     )
-                                    DragHandle.LEFT_EDGE -> currentRect.copy(
-                                        left = (currentRect.left + dragAmount.x).coerceIn(0f, currentRect.right - minSize)
+                                    DragHandle.LEFT_EDGE -> rect.copy(
+                                        left = (rect.left + dragAmount.x).coerceIn(0f, rect.right - minSize)
                                     )
-                                    DragHandle.RIGHT_EDGE -> currentRect.copy(
-                                        right = (currentRect.right + dragAmount.x).coerceIn(currentRect.left + minSize, width)
+                                    DragHandle.RIGHT_EDGE -> rect.copy(
+                                        right = (rect.right + dragAmount.x).coerceIn(rect.left + minSize, width)
                                     )
-                                    DragHandle.TOP_EDGE -> currentRect.copy(
-                                        top = (currentRect.top + dragAmount.y).coerceIn(0f, currentRect.bottom - minSize)
+                                    DragHandle.TOP_EDGE -> rect.copy(
+                                        top = (rect.top + dragAmount.y).coerceIn(0f, rect.bottom - minSize)
                                     )
-                                    DragHandle.BOTTOM_EDGE -> currentRect.copy(
-                                        bottom = (currentRect.bottom + dragAmount.y).coerceIn(currentRect.top + minSize, height)
+                                    DragHandle.BOTTOM_EDGE -> rect.copy(
+                                        bottom = (rect.bottom + dragAmount.y).coerceIn(rect.top + minSize, height)
                                     )
                                 }
 
