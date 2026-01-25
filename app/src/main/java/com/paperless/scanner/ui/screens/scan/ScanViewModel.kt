@@ -30,6 +30,7 @@ import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,12 +54,24 @@ enum class PageSource {
     FILES     // File picker (OpenMultipleDocuments)
 }
 
+/**
+ * Custom metadata for individual pages in batch uploads.
+ * Allows different metadata per page when uploading as separate documents.
+ */
+data class PageMetadata(
+    val title: String? = null,
+    val tags: List<Int>? = null,  // Tag IDs
+    val correspondent: Int? = null,  // Correspondent ID
+    val documentType: Int? = null  // Document Type ID
+)
+
 data class ScannedPage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val uri: Uri,
     val pageNumber: Int,
     val rotation: Int = 0,  // 0, 90, 180, 270
-    val source: PageSource = PageSource.SCANNER  // Default to scanner for backward compatibility
+    val source: PageSource = PageSource.SCANNER,  // Default to scanner for backward compatibility
+    val customMetadata: PageMetadata? = null  // Custom metadata for batch uploads
 )
 
 data class RemovedPageInfo(
@@ -105,6 +118,7 @@ class ScanViewModel @Inject constructor(
         private const val KEY_PAGE_URIS = "pageUris"
         private const val KEY_PAGE_IDS = "pageIds"
         private const val KEY_PAGE_ROTATIONS = "pageRotations"
+        private const val KEY_PAGE_METADATA = "pageMetadata"
         private const val KEY_UPLOAD_AS_SINGLE = "uploadAsSingleDocument"
     }
 
@@ -241,6 +255,7 @@ class ScanViewModel @Inject constructor(
         val urisString = savedStateHandle.get<String>(KEY_PAGE_URIS)
         val idsString = savedStateHandle.get<String>(KEY_PAGE_IDS)
         val rotationsString = savedStateHandle.get<String>(KEY_PAGE_ROTATIONS)
+        val metadataString = savedStateHandle.get<String>(KEY_PAGE_METADATA)
 
         // Only restore if we have valid data
         if (!urisString.isNullOrEmpty() && !idsString.isNullOrEmpty()) {
@@ -273,6 +288,28 @@ class ScanViewModel @Inject constructor(
                     emptyMap()
                 }
 
+                // Parse custom metadata (optional)
+                val gson = Gson()
+                val metadataMap = if (!metadataString.isNullOrEmpty()) {
+                    metadataString.split("|").mapNotNull { pair ->
+                        try {
+                            // Format: "id:json"
+                            val colonIndex = pair.indexOf(':')
+                            if (colonIndex > 0) {
+                                val id = pair.substring(0, colonIndex)
+                                val json = pair.substring(colonIndex + 1)
+                                val metadata = gson.fromJson(json, PageMetadata::class.java)
+                                id to metadata
+                            } else null
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse metadata: $pair", e)
+                            null
+                        }
+                    }.toMap()
+                } else {
+                    emptyMap()
+                }
+
                 // Validate data integrity
                 if (uris.isNotEmpty() && uris.size == ids.size) {
                     val restoredPages = uris.mapIndexed { index, uri ->
@@ -281,7 +318,8 @@ class ScanViewModel @Inject constructor(
                             id = id,
                             uri = uri,
                             pageNumber = index + 1,
-                            rotation = rotations[id] ?: 0
+                            rotation = rotations[id] ?: 0,
+                            customMetadata = metadataMap[id]
                         )
                     }
 
@@ -305,6 +343,7 @@ class ScanViewModel @Inject constructor(
             savedStateHandle[KEY_PAGE_URIS] = null
             savedStateHandle[KEY_PAGE_IDS] = null
             savedStateHandle[KEY_PAGE_ROTATIONS] = null
+            savedStateHandle[KEY_PAGE_METADATA] = null
         } else {
             // Serialize URIs as pipe-separated string
             val urisString = pages.joinToString("|") { it.uri.toString() }
@@ -320,6 +359,17 @@ class ScanViewModel @Inject constructor(
                 .joinToString("|") { "${it.id}:${it.rotation}" }
                 .ifEmpty { null }
             savedStateHandle[KEY_PAGE_ROTATIONS] = rotationsString
+
+            // Serialize custom metadata as "id:json|..." (only pages with metadata)
+            val gson = Gson()
+            val metadataString = pages
+                .filter { it.customMetadata != null }
+                .joinToString("|") { page ->
+                    val json = gson.toJson(page.customMetadata)
+                    "${page.id}:$json"
+                }
+                .ifEmpty { null }
+            savedStateHandle[KEY_PAGE_METADATA] = metadataString
 
             Log.d(TAG, "Synced ${pages.size} pages to SavedStateHandle")
         }
