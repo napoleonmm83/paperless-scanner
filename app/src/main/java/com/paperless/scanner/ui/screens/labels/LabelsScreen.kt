@@ -520,8 +520,7 @@ private fun DeleteConfirmationDialog(
             ) {
                 Text(
                     stringResource(R.string.labels_delete_button),
-                    color = if (isDeleting) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-                           else MaterialTheme.colorScheme.error
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         },

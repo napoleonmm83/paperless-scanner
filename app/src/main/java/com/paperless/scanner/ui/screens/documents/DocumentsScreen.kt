@@ -173,7 +173,7 @@ fun DocumentsScreen(
                         imageVector = Icons.Filled.Description,
                         contentDescription = stringResource(R.string.cd_no_documents),
                         modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
@@ -187,7 +187,7 @@ fun DocumentsScreen(
                         else
                             stringResource(R.string.documents_empty_hint_scan),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
