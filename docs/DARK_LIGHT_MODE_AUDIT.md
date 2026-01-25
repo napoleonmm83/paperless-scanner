@@ -10,18 +10,18 @@
 ## Executive Summary
 
 ### Audit Overview
-- **Total Screens Checked:** 9 (HomeScreen, Theme, CreateTagDialog, Color Definitions, Upload Components, SimplifiedSetupScreen, SettingsScreen, Navigation Components, ScanScreen)
-- **Total Components Checked:** 11
-- **Critical Issues Found:** 10
-- **Critical Issues Fixed:** 10 ✅
-- **WCAG AA Compliance Status:** In Progress (critical theme-level and component issues resolved)
+- **Total Screens Checked:** 11 (HomeScreen, Theme, CreateTagDialog, Color Definitions, Upload Components, SimplifiedSetupScreen, SettingsScreen, Navigation Components, ScanScreen, LabelsScreen, DocumentsScreen)
+- **Total Components Checked:** 13
+- **Critical Issues Found:** 13
+- **Critical Issues Fixed:** 13 ✅
+- **WCAG AA Compliance Status:** In Progress (all critical text/icon alpha transparency issues resolved)
 
 ### Issue Breakdown
 | Severity | Found | Fixed | Remaining |
 |----------|-------|-------|-----------|
-| **Critical** | 10 | 10 ✅ | 0 |
+| **Critical** | 13 | 13 ✅ | 0 |
 | **High** | 0 | 0 | 0 |
-| **Medium** | 2 | 0 | 2 (Acceptable - decorative elements) |
+| **Medium** | 10+ | 0 | ~10+ (Acceptable - borders, dividers, decorative elements) |
 | **Low** | 1 | 0 | 1 (Acceptable - nearly opaque overlay) |
 
 ---
@@ -619,6 +619,160 @@ IconButton(
 - Theme-aware colors instead of hardcoded semi-transparent overlays
 - Error button maintains proper warning appearance
 - Consistent with Material Design button patterns
+
+**Date:** 2026-01-25
+
+---
+
+### ✅ CRITICAL #11: LabelsScreen - Delete Button Text Alpha Transparency
+
+**Problem:**
+- Delete confirmation button text used `error.copy(alpha = 0.5f)` when `isDeleting` state active
+- Alpha transparency reduces error color visibility during critical deletion action
+- WCAG AA violation for critical action button text
+
+**Affected Files:**
+- `app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt` (Line 523)
+
+**Fix Details:**
+```kotlin
+// Before (Line 523):
+TextButton(
+    onClick = onConfirm,
+    enabled = !isDeleting
+) {
+    Text(
+        stringResource(R.string.labels_delete_button),
+        color = if (isDeleting) MaterialTheme.colorScheme.error.copy(alpha = 0.5f)  // ❌ 50% opacity
+               else MaterialTheme.colorScheme.error
+    )
+}
+
+// After:
+TextButton(
+    onClick = onConfirm,
+    enabled = !isDeleting
+) {
+    Text(
+        stringResource(R.string.labels_delete_button),
+        color = MaterialTheme.colorScheme.error  // ✅ Full opacity always
+    )
+}
+```
+
+**Result:**
+- Delete button text now maintains full error color visibility in both states
+- Proper contrast ratio maintained even when button is disabled
+- User clearly sees the destructive action warning
+
+**Impact:**
+- Critical destructive action maintains proper visual warning
+- Consistent error color treatment across app
+- Better UX for delete confirmations
+
+**Date:** 2026-01-25
+
+---
+
+### ✅ CRITICAL #12: DocumentsScreen - Empty State Alpha Transparency
+
+**Problem:**
+- Empty state icon used `onSurfaceVariant.copy(alpha = 0.4f)` reducing visibility
+- Empty state hint text used `onSurfaceVariant.copy(alpha = 0.7f)` reducing readability
+- WCAG AA violation for empty state UI elements
+
+**Affected Files:**
+- `app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentsScreen.kt` (Lines 176, 190)
+
+**Fix Details:**
+```kotlin
+// Before - Icon (Line 176):
+Icon(
+    imageVector = Icons.Filled.Description,
+    contentDescription = stringResource(R.string.cd_no_documents),
+    modifier = Modifier.size(64.dp),
+    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)  // ❌ 40% opacity
+)
+
+// After - Icon:
+Icon(
+    imageVector = Icons.Filled.Description,
+    contentDescription = stringResource(R.string.cd_no_documents),
+    modifier = Modifier.size(64.dp),
+    tint = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ Full opacity
+)
+
+// Before - Hint Text (Line 190):
+Text(
+    text = if (searchQuery.isNotEmpty())
+        stringResource(R.string.documents_empty_hint_search)
+    else
+        stringResource(R.string.documents_empty_hint_scan),
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)  // ❌ 70% opacity
+)
+
+// After - Hint Text:
+Text(
+    text = if (searchQuery.isNotEmpty())
+        stringResource(R.string.documents_empty_hint_search)
+    else
+        stringResource(R.string.documents_empty_hint_scan),
+    style = MaterialTheme.typography.bodyMedium,
+    color = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ Full opacity
+)
+```
+
+**Result:**
+- Empty state icon now clearly visible in both Light and Dark modes
+- Hint text properly readable with full contrast
+- Better UX when no documents are found
+
+**Impact:**
+- Empty states now provide clear visual feedback
+- Improved guidance for users on what to do next
+- Consistent with other empty state patterns (HomeScreen, LabelsScreen)
+
+**Date:** 2026-01-25
+
+---
+
+### ✅ CRITICAL #13: LabelsScreen Label Detail - Empty State Icon Alpha
+
+**Problem:**
+- Label detail screen (when viewing a specific label with no documents) used `onSurfaceVariant.copy(alpha = 0.4f)` for empty state icon
+- Reduces visibility of empty state guidance
+- WCAG AA violation for icon contrast
+
+**Affected Files:**
+- `app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt` (Line 1324)
+
+**Fix Details:**
+```kotlin
+// Before (Line 1324):
+Icon(
+    imageVector = Icons.Filled.Description,
+    contentDescription = stringResource(R.string.cd_no_documents),
+    modifier = Modifier.size(48.dp),
+    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)  // ❌ 40% opacity
+)
+
+// After:
+Icon(
+    imageVector = Icons.Filled.Description,
+    contentDescription = stringResource(R.string.cd_no_documents),
+    modifier = Modifier.size(48.dp),
+    tint = MaterialTheme.colorScheme.onSurfaceVariant  // ✅ Full opacity
+)
+```
+
+**Result:**
+- Empty state icon now clearly visible when label has no documents
+- Consistent with other empty state icons (DocumentsScreen, HomeScreen)
+
+**Impact:**
+- Better visual feedback when viewing empty labels
+- Improved UX consistency across all empty states
 
 **Date:** 2026-01-25
 

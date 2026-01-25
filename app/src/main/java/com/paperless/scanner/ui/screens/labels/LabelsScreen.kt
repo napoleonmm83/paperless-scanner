@@ -1320,7 +1320,7 @@ private fun LabelDetailView(
                         imageVector = Icons.Filled.Description,
                         contentDescription = stringResource(R.string.cd_no_documents),
                         modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
