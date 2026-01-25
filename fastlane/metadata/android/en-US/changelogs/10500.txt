@@ -1,0 +1,11 @@
+Version 1.5.0:
+
+✨ New Features:
+- Per-Page Metadata: Individual tags, titles, and types for each page in batch uploads
+- Smart Grouping: Pages with identical metadata are automatically merged into single uploads
+
+🔧 Improvements:
+- Optimized upload workflow for multiple documents
+- Enhanced metadata management with step-by-step editor
+
+This version brings more flexibility when uploading multiple scanned pages!

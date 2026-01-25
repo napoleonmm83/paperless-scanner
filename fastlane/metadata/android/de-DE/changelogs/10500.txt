@@ -1,0 +1,11 @@
+Version 1.5.0:
+
+✨ Neue Features:
+- Per-Page Metadaten: Individuelle Tags, Titel und Typen für jede Seite beim Batch-Upload
+- Intelligente Gruppierung: Seiten mit gleichen Metadaten werden automatisch zusammengefasst
+
+🔧 Verbesserungen:
+- Optimierter Upload-Workflow für mehrere Dokumente
+- Bessere Metadaten-Verwaltung im Step-by-Step Editor
+
+Diese Version bringt mehr Flexibilität beim Hochladen mehrerer gescannter Seiten!
