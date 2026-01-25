@@ -1145,25 +1145,139 @@ The following screens/components still need manual testing for contrast issues:
 
 ---
 
-## 7. Next Steps
+## 7. Manual Testing Phase (P0 Priority)
 
-### Immediate (User Action Required):
-1. **Manual Testing** - Test all remaining screens in both Light and Dark modes
-2. **Screenshot Collection** - Collect before/after screenshots for documentation
-3. **Priority Triage** - Identify which issues are critical vs. nice-to-have
+### Status: Preparation Complete ✅ - Awaiting User Execution
+
+**Created:** 2026-01-25
+**Archon Task ID:** 73a65f32-db1a-4ae6-93f4-28d15d6b4e07
+**Task Priority:** P0 (Highest - task_order: 108)
+
+### Testing Documentation
+
+Comprehensive manual testing checklists und guides wurden erstellt:
+
+- **📋 Testing Checklist:** `docs/MANUAL_TESTING_CHECKLIST.md`
+  - Detaillierte Checklisten für alle Komponenten
+  - Dark + Light Mode Test-Szenarien
+  - WCAG AA Acceptance Criteria
+  - Screenshot-Struktur und Naming
+
+- **📘 Testing Guide:** `docs/MANUAL_TESTING_GUIDE.md`
+  - Schritt-für-Schritt Anleitung
+  - Screenshot-Workflow
+  - Kontrast-Ratio Mess-Methoden
+  - Snackbar/Banner Trigger-Anleitungen
+
+### Components to Test
+
+| Component | File | Tests Required |
+|-----------|------|----------------|
+| **Bottom Navigation Bar** | `ui/components/BottomNavBar.kt` | Selected/Unselected states (Dark + Light) |
+| **Server Offline Banner** | `ui/components/ServerOfflineBanner.kt` | Banner visibility, button contrast |
+| **Settings Toggles** | `ui/screens/settings/SettingsScreen.kt` | Switch ON/OFF states, label contrast |
+| **Custom Snackbars** | `ui/components/CustomSnackbar.kt` | Success, Error, Info, Upload variants |
+
+### Test Coverage Goals
+
+- [ ] **20+ Screenshots** (min. 2 per component: Dark + Light)
+- [ ] **Kontrast-Ratios gemessen** für alle Text/Icon Elemente
+- [ ] **Edge Cases dokumentiert** (Min/Max Brightness, verschiedene Backgrounds)
+- [ ] **Findings in diesem Dokument** übertragen
+
+### Code Analysis Results
+
+**Pre-Testing Code Review (2026-01-25):**
+
+✅ **Bottom Navigation Bar** - Code clean
+- Verwendet `MaterialTheme.colorScheme.primary` für selected state
+- Verwendet `MaterialTheme.colorScheme.onSurfaceVariant` für unselected
+- KEINE Alpha-Transparenz auf Text/Icons
+- **Expected:** WCAG AA compliant
+
+✅ **Server Offline Banner** - Code clean
+- `errorContainer` / `onErrorContainer` color pair
+- Icon tint: `error` color
+- Border: `outline` color
+- **Expected:** WCAG AA compliant
+
+✅ **Custom Snackbar** - Code clean
+- `surface` / `primary` color pair
+- Icons mit `primary` tint
+- Border: `outline` color
+- **Expected:** WCAG AA compliant
+
+✅ **Settings Toggles (Switch)** - Material 3 Default
+- Nutzt Material 3 Switch Component
+- Auto-angepasste Theme Colors
+- **Expected:** WCAG AA compliant (Material 3 Standard)
+
+**Conclusion:** Alle Komponenten verwenden saubere Material Theme Colors. Manual Testing soll **bestätigen** dass die theoretischen Kontrast-Ratios in der Praxis ausreichend sind.
+
+### Next Actions (User)
+
+1. **Install Debug Build** auf Test-Gerät
+   ```bash
+   ./gradlew assembleDebug
+   adb install -r app/build/outputs/apk/debug/app-debug.apk
+   ```
+
+2. **Execute Tests** gemäß `MANUAL_TESTING_GUIDE.md`
+   - Toggle zwischen Dark/Light Mode
+   - Screenshots erstellen (Power + Vol Down)
+   - Kontrast-Ratios mit WebAIM Checker messen
+
+3. **Document Results** in `MANUAL_TESTING_CHECKLIST.md`
+   - Measured Ratios eintragen
+   - Issues (falls vorhanden) in "Kritische Issues" Tabelle
+   - Screenshots in `docs/screenshots/dark/` und `docs/screenshots/light/`
+
+4. **Update Archon Task** nach Completion
+   ```bash
+   # Falls alle Tests PASS:
+   manage_task("update", task_id="73a65f32-db1a-4ae6-93f4-28d15d6b4e07", status="done")
+
+   # Falls Issues gefunden:
+   manage_task("update", task_id="...", status="review")
+   # → Neue Fix-Tasks erstellen
+   ```
+
+5. **Git Commit** mit allen Findings
+   ```bash
+   git add docs/MANUAL_TESTING_CHECKLIST.md
+   git add docs/MANUAL_TESTING_GUIDE.md
+   git add docs/screenshots/
+   git add docs/DARK_LIGHT_MODE_AUDIT.md
+   git commit -m "docs: add manual testing results for Dark/Light mode contrast
+
+   - Complete manual testing for Bottom Nav, Banner, Toggles, Snackbars
+   - All components verified WCAG AA compliant
+   - 20+ screenshots documented in docs/screenshots/
+
+   Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+   ```
+
+---
+
+## 8. Next Steps
+
+### Immediate (AFTER Manual Testing):
+1. **Review Manual Testing Results** - Verify all components WCAG AA compliant
+2. **Fix Critical Issues** (if any found during manual testing)
+3. **Start P0 Task #2:** Kamera-UI Kontrast-Validierung gegen Dokumentenhintergründe
 
 ### Short-Term:
-1. Fix all Critical issues found during manual testing
-2. Fix all High-priority issues
-3. Update this documentation with new fixes
+1. Fix all High-priority issues
+2. Update this documentation with new fixes
+3. Automated Screenshot Tests (Paparazzi) - P2 Task
 
 ### Long-Term:
-1. Complete all Medium/Low priority fixes
-2. Create contrast testing automation (if possible with Paparazzi screenshot tests)
+1. Complete all Medium/Low priority fixes (borders, dividers)
+2. Create contrast testing automation
 3. Establish contrast review process for new features
 
 ---
 
 **Last Updated:** 2026-01-25
 **Author:** Claude Sonnet 4.5 (Archon)
-**Version:** 1.1 (Theme Color Fixes)
+**Version:** 1.2 (Manual Testing Phase Added)

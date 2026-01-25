@@ -1,0 +1,1 @@
+# Screenshots - Light Mode
