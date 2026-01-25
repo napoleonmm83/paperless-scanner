@@ -16,6 +16,7 @@ fun ApiDocument.toCachedEntity(): CachedDocument {
         modified = modified,
         added = added,
         archiveSerialNumber = archiveSerialNumber?.toString(),
+        originalFileName = originalFileName, // Now cached for full-text search
         correspondent = correspondentId,
         documentType = documentTypeId,
         storagePath = null, // Not in current API model
@@ -45,6 +46,6 @@ fun CachedDocument.toDomain(): DomainDocument {
         documentTypeId = documentType,
         tags = tagList,
         archiveSerialNumber = archiveSerialNumber?.toIntOrNull(),
-        originalFileName = null // Not stored in cache
+        originalFileName = originalFileName // Now retrieved from cache
     )
 }

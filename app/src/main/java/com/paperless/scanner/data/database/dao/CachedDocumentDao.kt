@@ -18,7 +18,7 @@ interface CachedDocumentDao {
      * BEST PRACTICE: Reactive Flow with optional filters for search and tags.
      * Supports offline-first filtering - automatically updates UI on DB changes.
      *
-     * @param searchQuery Text search in title/content (nullable for no search)
+     * @param searchQuery Text search in title/content/originalFileName (nullable for no search)
      * @param tagId Single tag ID filter (nullable for no tag filter)
      * @param limit Max results
      * @param offset Pagination offset
@@ -26,7 +26,7 @@ interface CachedDocumentDao {
     @Query("""
         SELECT * FROM cached_documents
         WHERE isDeleted = 0
-        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%')
+        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' OR originalFileName LIKE '%' || :searchQuery || '%')
         AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
         ORDER BY added DESC
         LIMIT :limit OFFSET :offset
@@ -44,7 +44,7 @@ interface CachedDocumentDao {
     @Query("""
         SELECT COUNT(*) FROM cached_documents
         WHERE isDeleted = 0
-        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%')
+        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' OR originalFileName LIKE '%' || :searchQuery || '%')
         AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
     """)
     fun getFilteredCount(searchQuery: String?, tagId: Int?): Flow<Int>
@@ -64,7 +64,7 @@ interface CachedDocumentDao {
     @Query("SELECT * FROM cached_documents WHERE id = :id AND isDeleted = 0")
     suspend fun getDocument(id: Int): CachedDocument?
 
-    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%')")
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' OR originalFileName LIKE '%' || :query || '%')")
     suspend fun searchDocuments(query: String): List<CachedDocument>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

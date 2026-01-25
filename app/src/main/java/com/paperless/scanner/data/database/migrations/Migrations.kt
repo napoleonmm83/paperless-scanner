@@ -292,3 +292,12 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         // CachedTask entity has NO @Index annotations, so Room expects NO indices
     }
 }
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add originalFileName column to cached_documents for full-text search
+        database.execSQL("""
+            ALTER TABLE cached_documents ADD COLUMN originalFileName TEXT
+        """)
+    }
+}

@@ -12,6 +12,7 @@ data class CachedDocument(
     val modified: String,
     val added: String,
     val archiveSerialNumber: String?,
+    val originalFileName: String?, // Original filename from upload
     val correspondent: Int?,
     val documentType: Int?,
     val storagePath: Int?,
