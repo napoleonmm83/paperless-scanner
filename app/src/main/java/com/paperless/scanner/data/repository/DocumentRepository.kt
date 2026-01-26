@@ -32,10 +32,16 @@ import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
 import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.domain.model.DocumentsResponse
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import androidx.sqlite.db.SimpleSQLiteQuery
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -362,53 +368,219 @@ class DocumentRepository @Inject constructor(
     }
 
     /**
-     * BEST PRACTICE: Reactive Flow with filters for offline-first search and tag filtering.
-     * Supports combining text search and tag filter simultaneously.
+     * BEST PRACTICE: Reactive Flow with filters for offline-first search, multi-tag and date filtering.
+     * Supports combining text search, multi-tag filter (OR logic), and date range filters.
      * Automatically triggers background API sync when online.
      *
      * @param searchQuery Text search in title/content (null = no search)
-     * @param tagId Single tag ID filter (null = no tag filter)
+     * @param tagIds Multiple tag IDs filter (empty = no tag filter, OR logic if multiple)
+     * @param createdAfter Filter documents created on or after this date
+     * @param createdBefore Filter documents created on or before this date
+     * @param addedAfter Filter documents added on or after this date
+     * @param addedBefore Filter documents added on or before this date
+     * @param modifiedAfter Filter documents modified on or after this date
+     * @param modifiedBefore Filter documents modified on or before this date
      * @param page Page number for pagination
      * @param pageSize Results per page
      * @return Flow that emits filtered documents and updates automatically
      */
     fun observeDocumentsFiltered(
         searchQuery: String? = null,
-        tagId: Int? = null,
+        tagIds: List<Int> = emptyList(),
+        correspondentId: Int? = null,
+        documentTypeId: Int? = null,
+        hasArchiveNumber: Boolean? = null,
+        createdAfter: java.time.LocalDate? = null,
+        createdBefore: java.time.LocalDate? = null,
+        addedAfter: java.time.LocalDate? = null,
+        addedBefore: java.time.LocalDate? = null,
+        modifiedAfter: java.time.LocalDate? = null,
+        modifiedBefore: java.time.LocalDate? = null,
+        ordering: String = "-added",
         page: Int = 1,
         pageSize: Int = 25
     ): Flow<List<Document>> {
         val query = searchQuery?.takeIf { it.isNotBlank() }
+        val hasDateFilters = createdAfter != null || createdBefore != null ||
+                addedAfter != null || addedBefore != null ||
+                modifiedAfter != null || modifiedBefore != null
+        val hasEntityFilters = correspondentId != null || documentTypeId != null || hasArchiveNumber != null
 
-        return cachedDocumentDao.observeDocumentsFiltered(
-            searchQuery = query,
-            tagId = tagId,
-            limit = pageSize,
-            offset = (page - 1) * pageSize
-        ).map { cachedList ->
-            cachedList.map { it.toCachedDomain() }
+        // DEBUG: Log Room query parameters
+        android.util.Log.d("DocumentRepository", """
+            ========================================
+            ROOM QUERY (Local Cache):
+            - Search Query: $query
+            - Tag IDs: $tagIds
+            - Correspondent ID: $correspondentId
+            - DocumentType ID: $documentTypeId
+            - Has Archive Number: $hasArchiveNumber
+            - Created: $createdAfter to $createdBefore
+            - Added: $addedAfter to $addedBefore
+            - Modified: $modifiedAfter to $modifiedBefore
+            - Has date filters: $hasDateFilters
+            - Has entity filters: $hasEntityFilters
+            - Page: $page, Size: $pageSize
+            ✅ Date + Entity + ASN filters NOW SUPPORTED in Room!
+            ========================================
+        """.trimIndent())
+
+        // Use dynamic query if: multi-tag, date filters, entity filters, OR custom ordering
+        return if (tagIds.size > 1 || hasDateFilters || hasEntityFilters || ordering != "-added") {
+            val sqlQuery = buildMultiTagQuery(
+                searchQuery = query,
+                tagIds = tagIds,
+                correspondentId = correspondentId,
+                documentTypeId = documentTypeId,
+                hasArchiveNumber = hasArchiveNumber,
+                createdAfter = createdAfter,
+                createdBefore = createdBefore,
+                addedAfter = addedAfter,
+                addedBefore = addedBefore,
+                modifiedAfter = modifiedAfter,
+                modifiedBefore = modifiedBefore,
+                ordering = ordering,
+                limit = pageSize,
+                offset = (page - 1) * pageSize
+            )
+            cachedDocumentDao.observeDocumentsFilteredDynamic(sqlQuery)
+                .map { cachedList ->
+                    android.util.Log.d("DocumentRepository", "ROOM: Got ${cachedList.size} documents from cache (dynamic query)")
+                    cachedList.map { it.toCachedDomain() }
+                }
+        } else {
+            // Single tag or no filters: use original static query for better performance
+            cachedDocumentDao.observeDocumentsFiltered(
+                searchQuery = query,
+                tagId = tagIds.firstOrNull(),
+                limit = pageSize,
+                offset = (page - 1) * pageSize
+            ).map { cachedList ->
+                android.util.Log.d("DocumentRepository", "ROOM: Got ${cachedList.size} documents from cache (static query)")
+                cachedList.map { it.toCachedDomain() }
+            }
         }
     }
 
     /**
      * Get total count of filtered documents as reactive Flow.
+     * Supports multi-tag filtering with OR logic, date filtering, entity filtering, and ASN filtering.
      */
     fun observeFilteredCount(
         searchQuery: String? = null,
-        tagId: Int? = null
+        tagIds: List<Int> = emptyList(),
+        correspondentId: Int? = null,
+        documentTypeId: Int? = null,
+        hasArchiveNumber: Boolean? = null,
+        createdAfter: java.time.LocalDate? = null,
+        createdBefore: java.time.LocalDate? = null,
+        addedAfter: java.time.LocalDate? = null,
+        addedBefore: java.time.LocalDate? = null,
+        modifiedAfter: java.time.LocalDate? = null,
+        modifiedBefore: java.time.LocalDate? = null
     ): Flow<Int> {
         val query = searchQuery?.takeIf { it.isNotBlank() }
-        return cachedDocumentDao.getFilteredCount(searchQuery = query, tagId = tagId)
+        val hasDateFilters = createdAfter != null || createdBefore != null ||
+                addedAfter != null || addedBefore != null ||
+                modifiedAfter != null || modifiedBefore != null
+        val hasEntityFilters = correspondentId != null || documentTypeId != null || hasArchiveNumber != null
+
+        // Use dynamic query for multi-tag count, date filtering, or entity filtering
+        return if (tagIds.size > 1 || hasDateFilters || hasEntityFilters) {
+            val sqlQuery = buildMultiTagCountQuery(
+                searchQuery = query,
+                tagIds = tagIds,
+                correspondentId = correspondentId,
+                documentTypeId = documentTypeId,
+                hasArchiveNumber = hasArchiveNumber,
+                createdAfter = createdAfter,
+                createdBefore = createdBefore,
+                addedAfter = addedAfter,
+                addedBefore = addedBefore,
+                modifiedAfter = modifiedAfter,
+                modifiedBefore = modifiedBefore
+            )
+            cachedDocumentDao.getFilteredCountDynamic(sqlQuery)
+        } else {
+            // Single tag or no filters: use original static query
+            cachedDocumentDao.getFilteredCount(searchQuery = query, tagId = tagIds.firstOrNull())
+        }
+    }
+
+    /**
+     * PAGING 3: Reactive Flow with automatic infinite scrolling.
+     *
+     * BEST PRACTICE: Replaces manual pagination with efficient Paging 3 library.
+     * Automatically handles:
+     * - Loading pages on demand (no manual loadNextPage() calls)
+     * - Placeholder counting
+     * - Database invalidation (automatic reload on DB changes)
+     * - Memory efficiency (only keeps loaded pages in memory)
+     *
+     * Benefits over manual pagination:
+     * - Simpler code (no manual page tracking)
+     * - Better performance (intelligent prefetching)
+     * - Built-in LoadState handling (loading/error states)
+     * - Automatic cache invalidation
+     *
+     * Usage in ViewModel:
+     * ```kotlin
+     * val documentsFlow = repository.observeDocumentsPaged(filter)
+     *     .cachedIn(viewModelScope)
+     * ```
+     *
+     * Usage in UI:
+     * ```kotlin
+     * val lazyPagingItems = documentsFlow.collectAsLazyPagingItems()
+     * LazyVerticalGrid {
+     *     items(lazyPagingItems.itemCount) { index ->
+     *         lazyPagingItems[index]?.let { DocumentCard(it) }
+     *     }
+     * }
+     * ```
+     *
+     * @param filter DocumentFilter with all filter options (tags, dates, search, etc.)
+     * @return Flow<PagingData<Document>> that updates automatically
+     */
+    fun observeDocumentsPaged(filter: DocumentFilter): Flow<PagingData<Document>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 100,           // Documents per page
+                prefetchDistance = 30,    // Start loading next page when 30 items from end
+                enablePlaceholders = false, // Don't show placeholders for unloaded items
+                initialLoadSize = 100     // Load 100 items initially
+            ),
+            pagingSourceFactory = {
+                // Build dynamic SQL query for filtering
+                // Note: PagingSource handles LIMIT and OFFSET automatically, so we don't add them here
+                val sqlQuery = buildMultiTagQueryForPaging(
+                    searchQuery = filter.query?.takeIf { it.isNotBlank() },
+                    tagIds = filter.tagIds,
+                    correspondentId = filter.correspondentId,
+                    documentTypeId = filter.documentTypeId,
+                    hasArchiveNumber = filter.hasArchiveNumber,
+                    createdAfter = filter.createdAfter,
+                    createdBefore = filter.createdBefore,
+                    addedAfter = filter.addedAfter,
+                    addedBefore = filter.addedBefore,
+                    modifiedAfter = filter.modifiedAfter,
+                    modifiedBefore = filter.modifiedBefore,
+                    ordering = filter.ordering
+                )
+                cachedDocumentDao.getDocumentsPagingSource(sqlQuery)
+            }
+        ).flow.map { pagingData ->
+            // Map CachedDocument entities to Document domain models
+            pagingData.map { cachedDoc ->
+                cachedDoc.toCachedDomain()
+            }
+        }
     }
 
     suspend fun getDocuments(
         page: Int = 1,
         pageSize: Int = 25,
-        query: String? = null,
-        tagIds: List<Int>? = null,
-        correspondentId: Int? = null,
-        documentTypeId: Int? = null,
-        ordering: String = "-created",
+        filter: DocumentFilter = DocumentFilter(),
         forceRefresh: Boolean = false
     ): Result<DocumentsResponse> {
         return try {
@@ -436,16 +608,51 @@ class DocumentRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
+                // DEBUG: Log API request parameters
+                android.util.Log.d("DocumentRepository", """
+                    ========================================
+                    API REQUEST:
+                    - Query: ${filter.query}
+                    - Tag IDs: ${filter.tagIds.takeIf { it.isNotEmpty() }?.joinToString(",")}
+                    - Created: ${filter.createdAfter} to ${filter.createdBefore}
+                    - Added: ${filter.addedAfter} to ${filter.addedBefore}
+                    - Modified: ${filter.modifiedAfter} to ${filter.modifiedBefore}
+                    - Date format: ISO 8601 (YYYY-MM-DD)
+                    ========================================
+                """.trimIndent())
+
                 val response = api.getDocuments(
                     page = page,
                     pageSize = pageSize,
-                    query = query,
-                    tagIds = tagIdsString,
-                    correspondentId = correspondentId,
-                    documentTypeId = documentTypeId,
-                    ordering = ordering
+                    query = filter.query,
+                    tagIds = filter.tagIds.takeIf { it.isNotEmpty() }?.joinToString(","),
+                    tagsIsNull = filter.tagsIsNull,
+                    correspondentId = filter.correspondentId,
+                    documentTypeId = filter.documentTypeId,
+                    createdAfter = filter.createdAfter?.toString(),
+                    createdBefore = filter.createdBefore?.toString(),
+                    addedAfter = filter.addedAfter?.toString(),
+                    addedBefore = filter.addedBefore?.toString(),
+                    modifiedAfter = filter.modifiedAfter?.toString(),
+                    modifiedBefore = filter.modifiedBefore?.toString(),
+                    hasArchiveNumber = filter.hasArchiveNumber,
+                    storagePathId = filter.storagePathId,
+                    ownerId = filter.ownerId,
+                    ordering = filter.ordering
                 )
+
+                // DEBUG: Log API response
+                android.util.Log.d("DocumentRepository", """
+                    ========================================
+                    API RESPONSE:
+                    - Total count: ${response.count}
+                    - Results: ${response.results.size} documents
+                    - Sample dates (first 3):
+                ${response.results.take(3).joinToString("\n") { doc ->
+                    "  - Doc ${doc.id}: created=${doc.created}, added=${doc.added}, modified=${doc.modified}"
+                }}
+                    ========================================
+                """.trimIndent())
 
                 // Update cache
                 val cachedEntities = response.results.map { it.toCachedEntity() }
@@ -898,5 +1105,426 @@ class DocumentRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
+    }
+
+    /**
+     * Converts Paperless-ngx ordering string to SQL ORDER BY clause.
+     *
+     * Paperless ordering format:
+     * - Prefix "-" means descending (e.g. "-created" = newest first)
+     * - No prefix means ascending (e.g. "title" = A to Z)
+     *
+     * Supported fields:
+     * - created, added, modified (dates)
+     * - title (alphabetical)
+     *
+     * @param ordering Paperless-style ordering string (e.g. "-created", "title")
+     * @return SQL ORDER BY clause (e.g. "ORDER BY created DESC", "ORDER BY title ASC")
+     */
+    private fun convertOrderingToSql(ordering: String): String {
+        val isDescending = ordering.startsWith("-")
+        val fieldName = if (isDescending) ordering.substring(1) else ordering
+        val direction = if (isDescending) "DESC" else "ASC"
+
+        // Map Paperless field names to SQL column names (if needed)
+        val sqlField = when (fieldName) {
+            "created" -> "created"
+            "added" -> "added"
+            "modified" -> "modified"
+            "title" -> "title"
+            else -> "added" // Fallback to default
+        }
+
+        return "ORDER BY $sqlField $direction"
+    }
+
+    /**
+     * Builds dynamic SQL query for Paging 3 (WITHOUT LIMIT/OFFSET).
+     * PagingSource will add LIMIT and OFFSET automatically.
+     *
+     * This is identical to buildMultiTagQuery() but without the final LIMIT/OFFSET clause.
+     *
+     * @param searchQuery Optional text search in title/content/originalFileName
+     * @param tagIds List of tag IDs to filter (OR logic)
+     * @param correspondentId Filter by correspondent
+     * @param documentTypeId Filter by document type
+     * @param hasArchiveNumber Filter by archive serial number presence
+     * @param createdAfter Filter documents created on or after this date
+     * @param createdBefore Filter documents created on or before this date
+     * @param addedAfter Filter documents added on or after this date
+     * @param addedBefore Filter documents added on or before this date
+     * @param modifiedAfter Filter documents modified on or after this date
+     * @param modifiedBefore Filter documents modified on or before this date
+     * @param ordering Sort order (Paperless format like "-created", "title")
+     * @return SimpleSQLiteQuery WITHOUT LIMIT/OFFSET (PagingSource will add them)
+     */
+    private fun buildMultiTagQueryForPaging(
+        searchQuery: String?,
+        tagIds: List<Int>,
+        correspondentId: Int?,
+        documentTypeId: Int?,
+        hasArchiveNumber: Boolean?,
+        createdAfter: java.time.LocalDate?,
+        createdBefore: java.time.LocalDate?,
+        addedAfter: java.time.LocalDate?,
+        addedBefore: java.time.LocalDate?,
+        modifiedAfter: java.time.LocalDate?,
+        modifiedBefore: java.time.LocalDate?,
+        ordering: String = "-added"
+    ): SimpleSQLiteQuery {
+        val args = mutableListOf<Any>()
+        val sql = StringBuilder("SELECT * FROM cached_documents WHERE isDeleted = 0")
+
+        // Add search filter if provided (includes tag name search)
+        if (!searchQuery.isNullOrBlank()) {
+            sql.append("""
+                 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\' OR originalFileName LIKE ? ESCAPE '\'
+                      OR EXISTS (
+                          SELECT 1 FROM cached_tags t
+                          WHERE t.name LIKE ? ESCAPE '\'
+                          AND (tags LIKE '[' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ']'
+                               OR tags LIKE '[' || t.id || ']')
+                      ))
+            """.trimIndent())
+            val searchPattern = "%$searchQuery%"
+            args.addAll(listOf(searchPattern, searchPattern, searchPattern, searchPattern))
+        }
+
+        // Add multi-tag filter (OR logic)
+        if (tagIds.isNotEmpty()) {
+            sql.append(" AND (")
+            val tagClauses = tagIds.map { tagId ->
+                args.addAll(listOf(
+                    "[$tagId,%",
+                    "%,$tagId,%",
+                    "%,$tagId]",
+                    "[$tagId]"
+                ))
+                "(tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)"
+            }
+            sql.append(tagClauses.joinToString(" OR "))
+            sql.append(")")
+        }
+
+        // Add correspondent filter
+        correspondentId?.let {
+            sql.append(" AND correspondent = ?")
+            args.add(it)
+        }
+
+        // Add document type filter
+        documentTypeId?.let {
+            sql.append(" AND documentType = ?")
+            args.add(it)
+        }
+
+        // Add archive serial number filter
+        hasArchiveNumber?.let {
+            if (it) {
+                sql.append(" AND archiveSerialNumber IS NULL")
+            } else {
+                sql.append(" AND archiveSerialNumber IS NOT NULL")
+            }
+        }
+
+        // Add date filters
+        createdAfter?.let {
+            sql.append(" AND created >= ?")
+            args.add(it.toString())
+        }
+
+        createdBefore?.let {
+            sql.append(" AND created <= ?")
+            args.add(it.toString())
+        }
+
+        addedAfter?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) >= ?")
+            args.add(it.toString())
+        }
+
+        addedBefore?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        modifiedAfter?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) >= ?")
+            args.add(it.toString())
+        }
+
+        modifiedBefore?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        // Add dynamic ordering (NO LIMIT/OFFSET - PagingSource adds them)
+        sql.append(" ${convertOrderingToSql(ordering)}")
+
+        return SimpleSQLiteQuery(sql.toString(), args.toTypedArray())
+    }
+
+    /**
+     * Builds dynamic SQL query for multi-tag filtering with OR logic and date filtering.
+     * Documents matching ANY of the selected tags are returned.
+     * Date filtering uses SQLite string comparison (ISO 8601 strings are lexicographically comparable).
+     *
+     * Pattern explanation: Tags are stored as JSON array [1,2,3]
+     * For each tag ID, we check 4 patterns:
+     * - [tagId,   → First element
+     * - ,tagId,   → Middle element
+     * - ,tagId]   → Last element
+     * - [tagId]   → Single element
+     *
+     * Multiple tags are combined with OR: (tag1 patterns) OR (tag2 patterns) OR ...
+     *
+     * Date filtering:
+     * - created: Direct string comparison (YYYY-MM-DD format)
+     * - added/modified: SUBSTR to extract date part from ISO DateTime (YYYY-MM-DDTHH:MM:SS...)
+     *
+     * @param searchQuery Optional text search in title/content/originalFileName
+     * @param tagIds List of tag IDs to filter (OR logic)
+     * @param createdAfter Filter documents created on or after this date
+     * @param createdBefore Filter documents created on or before this date
+     * @param addedAfter Filter documents added on or after this date
+     * @param addedBefore Filter documents added on or before this date
+     * @param modifiedAfter Filter documents modified on or after this date
+     * @param modifiedBefore Filter documents modified on or before this date
+     * @param ordering Sort order (Paperless format like "-created", "title")
+     * @param limit Max results
+     * @param offset Pagination offset
+     * @return SimpleSQLiteQuery with bind parameters
+     */
+    private fun buildMultiTagQuery(
+        searchQuery: String?,
+        tagIds: List<Int>,
+        correspondentId: Int?,
+        documentTypeId: Int?,
+        hasArchiveNumber: Boolean?,
+        createdAfter: java.time.LocalDate?,
+        createdBefore: java.time.LocalDate?,
+        addedAfter: java.time.LocalDate?,
+        addedBefore: java.time.LocalDate?,
+        modifiedAfter: java.time.LocalDate?,
+        modifiedBefore: java.time.LocalDate?,
+        ordering: String = "-added",
+        limit: Int,
+        offset: Int
+    ): SimpleSQLiteQuery {
+        val args = mutableListOf<Any>()
+        val sql = StringBuilder("SELECT * FROM cached_documents WHERE isDeleted = 0")
+
+        // Add search filter if provided (includes tag name search)
+        // BEST PRACTICE: ESCAPE '\' prevents wildcard characters (%, _) from being interpreted
+        if (!searchQuery.isNullOrBlank()) {
+            sql.append("""
+                 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\' OR originalFileName LIKE ? ESCAPE '\'
+                      OR EXISTS (
+                          SELECT 1 FROM cached_tags t
+                          WHERE t.name LIKE ? ESCAPE '\'
+                          AND (tags LIKE '[' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ']'
+                               OR tags LIKE '[' || t.id || ']')
+                      ))
+            """.trimIndent())
+            val searchPattern = "%$searchQuery%"
+            // Args: title, content, originalFileName, tag name
+            args.addAll(listOf(searchPattern, searchPattern, searchPattern, searchPattern))
+        }
+
+        // Add multi-tag filter (OR logic)
+        if (tagIds.isNotEmpty()) {
+            sql.append(" AND (")
+            val tagClauses = tagIds.map { tagId ->
+                // Add 4 patterns for this tag ID
+                args.addAll(listOf(
+                    "[$tagId,%",   // First element: [1,...]
+                    "%,$tagId,%",  // Middle element: [...,1,...]
+                    "%,$tagId]",   // Last element: [...,1]
+                    "[$tagId]"     // Single element: [1]
+                ))
+                "(tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)"
+            }
+            sql.append(tagClauses.joinToString(" OR "))
+            sql.append(")")
+        }
+
+        // Add correspondent filter
+        correspondentId?.let {
+            sql.append(" AND correspondent = ?")
+            args.add(it)
+        }
+
+        // Add document type filter
+        documentTypeId?.let {
+            sql.append(" AND documentType = ?")
+            args.add(it)
+        }
+
+        // Add archive serial number filter
+        // hasArchiveNumber=true means "without ASN" (IS NULL)
+        // hasArchiveNumber=false means "with ASN" (IS NOT NULL)
+        hasArchiveNumber?.let {
+            if (it) {
+                sql.append(" AND archiveSerialNumber IS NULL")
+            } else {
+                sql.append(" AND archiveSerialNumber IS NOT NULL")
+            }
+        }
+
+        // Add date filters
+        // BEST PRACTICE: ISO 8601 date strings are lexicographically comparable in SQLite
+        // "created" is stored as YYYY-MM-DD → direct comparison
+        // "added" and "modified" are stored as YYYY-MM-DDTHH:MM:SS+TZ → use SUBSTR for date part
+
+        createdAfter?.let {
+            sql.append(" AND created >= ?")
+            args.add(it.toString()) // LocalDate.toString() = YYYY-MM-DD
+        }
+
+        createdBefore?.let {
+            sql.append(" AND created <= ?")
+            args.add(it.toString())
+        }
+
+        addedAfter?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) >= ?")
+            args.add(it.toString()) // Extract YYYY-MM-DD from YYYY-MM-DDTHH:MM:SS...
+        }
+
+        addedBefore?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        modifiedAfter?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) >= ?")
+            args.add(it.toString())
+        }
+
+        modifiedBefore?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        // Add dynamic ordering
+        sql.append(" ${convertOrderingToSql(ordering)} LIMIT ? OFFSET ?")
+        args.addAll(listOf(limit, offset))
+
+        return SimpleSQLiteQuery(sql.toString(), args.toTypedArray())
+    }
+
+    /**
+     * Builds dynamic SQL query for counting documents with multi-tag and date filtering.
+     * Same logic as buildMultiTagQuery but returns COUNT(*).
+     */
+    private fun buildMultiTagCountQuery(
+        searchQuery: String?,
+        tagIds: List<Int>,
+        correspondentId: Int?,
+        documentTypeId: Int?,
+        hasArchiveNumber: Boolean?,
+        createdAfter: java.time.LocalDate?,
+        createdBefore: java.time.LocalDate?,
+        addedAfter: java.time.LocalDate?,
+        addedBefore: java.time.LocalDate?,
+        modifiedAfter: java.time.LocalDate?,
+        modifiedBefore: java.time.LocalDate?
+    ): SimpleSQLiteQuery {
+        val args = mutableListOf<Any>()
+        val sql = StringBuilder("SELECT COUNT(*) FROM cached_documents WHERE isDeleted = 0")
+
+        // Add search filter if provided (includes tag name search)
+        // BEST PRACTICE: ESCAPE '\' prevents wildcard characters (%, _) from being interpreted
+        if (!searchQuery.isNullOrBlank()) {
+            sql.append("""
+                 AND (title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\' OR originalFileName LIKE ? ESCAPE '\'
+                      OR EXISTS (
+                          SELECT 1 FROM cached_tags t
+                          WHERE t.name LIKE ? ESCAPE '\'
+                          AND (tags LIKE '[' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ',%'
+                               OR tags LIKE '%,' || t.id || ']'
+                               OR tags LIKE '[' || t.id || ']')
+                      ))
+            """.trimIndent())
+            val searchPattern = "%$searchQuery%"
+            // Args: title, content, originalFileName, tag name
+            args.addAll(listOf(searchPattern, searchPattern, searchPattern, searchPattern))
+        }
+
+        // Add multi-tag filter (OR logic)
+        if (tagIds.isNotEmpty()) {
+            sql.append(" AND (")
+            val tagClauses = tagIds.map { tagId ->
+                // Add 4 patterns for this tag ID
+                args.addAll(listOf(
+                    "[$tagId,%",   // First element
+                    "%,$tagId,%",  // Middle element
+                    "%,$tagId]",   // Last element
+                    "[$tagId]"     // Single element
+                ))
+                "(tags LIKE ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?)"
+            }
+            sql.append(tagClauses.joinToString(" OR "))
+            sql.append(")")
+        }
+
+        // Add correspondent filter
+        correspondentId?.let {
+            sql.append(" AND correspondent = ?")
+            args.add(it)
+        }
+
+        // Add document type filter
+        documentTypeId?.let {
+            sql.append(" AND documentType = ?")
+            args.add(it)
+        }
+
+        // Add archive serial number filter (same logic as buildMultiTagQuery)
+        hasArchiveNumber?.let {
+            if (it) {
+                sql.append(" AND archiveSerialNumber IS NULL")
+            } else {
+                sql.append(" AND archiveSerialNumber IS NOT NULL")
+            }
+        }
+
+        // Add date filters (same logic as buildMultiTagQuery)
+        createdAfter?.let {
+            sql.append(" AND created >= ?")
+            args.add(it.toString())
+        }
+
+        createdBefore?.let {
+            sql.append(" AND created <= ?")
+            args.add(it.toString())
+        }
+
+        addedAfter?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) >= ?")
+            args.add(it.toString())
+        }
+
+        addedBefore?.let {
+            sql.append(" AND SUBSTR(added, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        modifiedAfter?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) >= ?")
+            args.add(it.toString())
+        }
+
+        modifiedBefore?.let {
+            sql.append(" AND SUBSTR(modified, 1, 10) <= ?")
+            args.add(it.toString())
+        }
+
+        return SimpleSQLiteQuery(sql.toString(), args.toTypedArray())
     }
 }

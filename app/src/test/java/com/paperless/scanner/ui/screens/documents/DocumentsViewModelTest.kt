@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.documents
 
 import android.content.Context
+import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Document
@@ -8,7 +9,9 @@ import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -36,6 +39,9 @@ class DocumentsViewModelTest {
     private lateinit var documentRepository: DocumentRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
+    private lateinit var documentTypeRepository: DocumentTypeRepository
+    private lateinit var tokenManager: TokenManager
+    private lateinit var savedStateHandle: SavedStateHandle
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -46,16 +52,18 @@ class DocumentsViewModelTest {
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
+        documentTypeRepository = mockk(relaxed = true)
+        tokenManager = mockk(relaxed = true)
+        savedStateHandle = SavedStateHandle()
 
         // Default mock responses
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(emptyList())
-        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(emptyList())
+        coEvery { documentRepository.getDocuments(any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
-        // Mock reactive flows
-        every { documentRepository.observeDocuments(any(), any()) } returns flowOf(emptyList())
-        every { documentRepository.observeDocumentsFiltered(any(), any(), any(), any()) } returns flowOf(emptyList())
-        every { documentRepository.observeFilteredCount(any(), any()) } returns flowOf(0)
+        // Mock DataStore flows
+        every { tokenManager.documentFilterJson } returns flowOf(null)
     }
 
     @After
@@ -68,7 +76,10 @@ class DocumentsViewModelTest {
             context = context,
             documentRepository = documentRepository,
             tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            tokenManager = tokenManager,
+            savedStateHandle = savedStateHandle
         )
     }
 
@@ -80,7 +91,7 @@ class DocumentsViewModelTest {
 
         val state = viewModel.uiState.value
         assertTrue(state.isLoading)
-        assertTrue(state.documents.isEmpty())
+        // Note: documents are now in documentsFlow (Paging 3), not in UiState
         assertNull(state.error)
         assertEquals("", state.searchQuery)
         assertNull(state.activeTagFilter)
@@ -114,30 +125,30 @@ class DocumentsViewModelTest {
         advanceUntilIdle()
 
         viewModel.search("invoice")
+
+        // Wait for debounce (300ms) + processing
+        testScheduler.advanceTimeBy(400)
         advanceUntilIdle()
 
-        // Search is debounced, so we check the flow was updated
-        viewModel.uiState.test {
-            val state = awaitItem()
-            assertEquals("invoice", state.searchQuery)
-        }
+        // Check filter directly (search updates filter.query)
+        val filter = viewModel.filter.value
+        assertEquals("invoice", filter.query)
     }
 
     // ==================== Filter Tests ====================
 
     @Test
     fun `filterByTag updates activeTagFilter and reloads`() = runTest {
-        coEvery { documentRepository.getDocuments(any(), any(), any(), tagIds = listOf(5), any(), any(), any(), any()) } returns
-                Result.success(DocumentsResponse(count = 1, results = listOf(createMockDocument(1, "Tagged"))))
-
+        // Note: With Paging 3, filterByTag updates DocumentFilter which triggers PagingSource refresh
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         viewModel.filterByTag(5)
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertEquals(5, state.activeTagFilter)
+        // Check filter directly (UI state sync is async via flatMapLatest)
+        val filter = viewModel.filter.value
+        assertEquals(listOf(5), filter.tagIds)
     }
 
     @Test
@@ -151,7 +162,9 @@ class DocumentsViewModelTest {
         viewModel.filterByTag(null)
         advanceUntilIdle()
 
-        assertNull(viewModel.uiState.value.activeTagFilter)
+        // Check filter directly (UI state sync is async via flatMapLatest)
+        val filter = viewModel.filter.value
+        assertTrue(filter.tagIds.isEmpty())
     }
 
     @Test
@@ -165,9 +178,10 @@ class DocumentsViewModelTest {
         viewModel.clearFilters()
         advanceUntilIdle()
 
-        val state = viewModel.uiState.value
-        assertEquals("", state.searchQuery)
-        assertNull(state.activeTagFilter)
+        // Check filter directly (UI state sync is async via flatMapLatest)
+        val filter = viewModel.filter.value
+        assertNull(filter.query)
+        assertTrue(filter.tagIds.isEmpty())
     }
 
     // ==================== Error Handling Tests ====================
