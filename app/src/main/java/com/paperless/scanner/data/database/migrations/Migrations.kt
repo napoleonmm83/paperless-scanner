@@ -301,3 +301,13 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         """)
     }
 }
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // No-op migration to fix version mismatch from commit c398349
+        // Version was incorrectly bumped to 9 in AppDatabase.kt
+        // but only MIGRATION_7_8 (7→8) was added
+        // This migration does nothing but allows users who already updated
+        // to v1.5.5 (which expected v9) to continue without crash
+    }
+}
