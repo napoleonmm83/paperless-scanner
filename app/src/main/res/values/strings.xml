@@ -255,55 +255,7 @@
     <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
     <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
 
-    <!-- Document Filter -->
-    <string name="filter_title">Filter &amp; Sortierung</string>
-    <string name="filter_apply">Anwenden</string>
-    <string name="filter_reset">Zurücksetzen</string>
-    <string name="filter_active_count">%d Filter aktiv</string>
-    <string name="filter_clear_all">Alle Filter löschen</string>
-
-    <!-- Date Filters -->
-    <string name="filter_date_range">Datumsbereich</string>
-    <string name="filter_created_date">Erstelldatum</string>
-    <string name="filter_added_date">Hinzugefügt am</string>
-    <string name="filter_modified_date">Geändert am</string>
-    <string name="filter_date_from">Von</string>
-    <string name="filter_date_to">Bis</string>
-    <string name="filter_date_any">Beliebiges Datum</string>
-
-    <!-- Entity Filters -->
-    <string name="filter_tags">Tags</string>
-    <string name="filter_tags_any">Beliebige Tags</string>
-    <string name="filter_tags_none">Keine Tags</string>
-    <string name="filter_correspondent">Korrespondent</string>
-    <string name="filter_correspondent_any">Beliebiger Korrespondent</string>
-    <string name="filter_document_type">Dokumenttyp</string>
-    <string name="filter_document_type_any">Beliebiger Typ</string>
-    <string name="filter_storage_path">Speicherpfad</string>
-    <string name="filter_storage_path_any">Beliebiger Pfad</string>
-    <string name="filter_owner">Besitzer</string>
-    <string name="filter_owner_any">Beliebiger Besitzer</string>
-
-    <!-- Archive Filter -->
-    <string name="filter_archive_number">Archivnummer (ASN)</string>
-    <string name="filter_archive_any">Beliebig</string>
-    <string name="filter_archive_has">Mit ASN</string>
-    <string name="filter_archive_none">Ohne ASN</string>
-
-    <!-- Sorting -->
-    <string name="filter_sort_by">Sortieren nach</string>
-    <string name="filter_sort_created_desc">Neueste zuerst (Erstellt)</string>
-    <string name="filter_sort_created_asc">Älteste zuerst (Erstellt)</string>
-    <string name="filter_sort_added_desc">Neueste zuerst (Hinzugefügt)</string>
-    <string name="filter_sort_added_asc">Älteste zuerst (Hinzugefügt)</string>
-    <string name="filter_sort_modified_desc">Zuletzt geändert</string>
-    <string name="filter_sort_modified_asc">Zuerst geändert</string>
-    <string name="filter_sort_title_asc">Titel (A-Z)</string>
-    <string name="filter_sort_title_desc">Titel (Z-A)</string>
-    <string name="filter_sort_correspondent_asc">Korrespondent (A-Z)</string>
-    <string name="filter_sort_correspondent_desc">Korrespondent (Z-A)</string>
-
-
+    
     <string name="scan_page_removed">Seite %1$d entfernt</string>
     <string name="scan_undo">Rückgängig</string>
     <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>
@@ -627,7 +579,6 @@
     <string name="cd_gallery">Galerie</string>
     <string name="cd_files">Dateien</string>
     <string name="cd_remove_page">Seite %1$d entfernen</string>
-    <string name="cd_remove_tag">Tag %1$s entfernen</string>
     <string name="cd_status_online">Online</string>
     <string name="cd_status_offline">Offline</string>
     <string name="cd_pending_uploads">%1$d ausstehende Uploads</string>
@@ -794,8 +745,6 @@
     <string name="tag_suggestions_loading">Dokumente werden geladen…</string>
     <string name="error_not_authenticated">Nicht angemeldet</string>
     <string name="error_unknown">Unbekannter Fehler</string>
-    <string name="error_generic">Ein Fehler ist aufgetreten</string>
-    <string name="error_loading_more">Fehler beim Laden weiterer Dokumente</string>
     <string name="back">Zurück</string>
     <string name="close">Schließen</string>
     <string name="done">Fertig</string>

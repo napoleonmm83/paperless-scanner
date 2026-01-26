@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,23 +15,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.paging.LoadState
-import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,12 +68,7 @@ fun DocumentsScreen(
     viewModel: DocumentsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val currentFilter by viewModel.filter.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var showFilterSheet by remember { mutableStateOf(false) }
-
-    // PAGING 3: Collect paginated documents from Flow
-    val lazyPagingItems = viewModel.documentsFlow.collectAsLazyPagingItems()
 
     // Pull-to-refresh state
     var isRefreshing by remember { mutableStateOf(false) }
@@ -107,64 +93,23 @@ fun DocumentsScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-        // Header with Filter Icon
-        Row(
+        // Header
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 24.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(top = 24.dp, bottom = 8.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.documents_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.ExtraBold
-                )
-                // PAGING 3: Show item count from lazyPagingItems
-                // Note: itemCount shows currently loaded items, not total count
-                // This is by design in Paging 3 - accurate total count would require extra query
-                Text(
-                    text = when {
-                        lazyPagingItems.loadState.refresh is LoadState.Loading -> stringResource(R.string.loading)
-                        lazyPagingItems.itemCount > 0 -> stringResource(R.string.documents_count, lazyPagingItems.itemCount)
-                        else -> stringResource(R.string.documents_title)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Filter Icon with Badge
-            IconButton(onClick = { showFilterSheet = true }) {
-                BadgedBox(
-                    badge = {
-                        val filterCount = currentFilter.activeFiltersCount()
-                        if (filterCount > 0) {
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ) {
-                                Text(
-                                    text = filterCount.toString(),
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FilterList,
-                        contentDescription = stringResource(R.string.cd_filter),
-                        tint = if (currentFilter.isActive()) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
-                }
-            }
+            Text(
+                text = stringResource(R.string.documents_title),
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = if (uiState.isLoading) stringResource(R.string.loading) else stringResource(R.string.documents_count, uiState.totalCount),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         // Search Bar
@@ -213,9 +158,7 @@ fun DocumentsScreen(
         )
 
         // Document List
-        // PAGING 3: Show empty state when refresh is complete and no items loaded
-        val isEmpty = lazyPagingItems.itemCount == 0 && lazyPagingItems.loadState.refresh is LoadState.NotLoading
-        if (isEmpty) {
+        if (uiState.documents.isEmpty()) {
             // Empty state
             Box(
                 modifier = Modifier
@@ -258,12 +201,8 @@ fun DocumentsScreen(
                 else -> 1
             }
 
-            // PAGING 3: No manual scroll detection needed - automatic infinite scrolling
-            val listState = rememberLazyGridState()
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
-                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     horizontal = 24.dp,
@@ -272,119 +211,18 @@ fun DocumentsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // PAGING 3: Use items with count and index-based access
-                items(
-                    count = lazyPagingItems.itemCount,
-                    key = { index -> lazyPagingItems[index]?.id ?: index }
-                ) { index ->
-                    lazyPagingItems[index]?.let { document ->
-                        DocumentCard(
-                            document = document,
-                            onClick = { onDocumentClick(document.id) }
-                        )
-                    }
-                }
-
-                // PAGING 3: LoadState handling for loading/error states
-                when {
-                    // Initial loading state (full screen)
-                    lazyPagingItems.loadState.refresh is LoadState.Loading && lazyPagingItems.itemCount == 0 -> {
-                        item(span = { GridItemSpan(columns) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(64.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(48.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-
-                    // Error during initial load
-                    lazyPagingItems.loadState.refresh is LoadState.Error -> {
-                        val error = (lazyPagingItems.loadState.refresh as LoadState.Error).error
-                        item(span = { GridItemSpan(columns) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = stringResource(R.string.error_generic),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Text(
-                                        text = error.localizedMessage ?: stringResource(R.string.error_unknown),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Loading more items (append) - show footer loading indicator
-                    lazyPagingItems.loadState.append is LoadState.Loading -> {
-                        item(span = { GridItemSpan(columns) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-
-                    // Error loading more items (append)
-                    lazyPagingItems.loadState.append is LoadState.Error -> {
-                        val error = (lazyPagingItems.loadState.append as LoadState.Error).error
-                        item(span = { GridItemSpan(columns) }) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.error_loading_more),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
+                items(uiState.documents, key = { it.id }) { document ->
+                    DocumentCard(
+                        document = document,
+                        onClick = { onDocumentClick(document.id) }
+                    )
                 }
             }
         }
         }
-
-        // Filter Sheet
-        if (showFilterSheet) {
-            DocumentFilterSheet(
-                currentFilter = currentFilter,
-                tags = uiState.availableTags,
-                correspondents = uiState.availableCorrespondents,
-                documentTypes = uiState.availableDocumentTypes,
-                onFilterChanged = viewModel::updateFilter,
-                onDismiss = { showFilterSheet = false }
-            )
-        }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DocumentCard(
     document: DocumentItem,
@@ -449,21 +287,11 @@ private fun DocumentCard(
                     }
                 }
                 if (document.tags.isNotEmpty()) {
-                    // FlowRow for automatic wrapping with sensible limit
-                    val maxVisibleTags = 8
-                    val hasMoreTags = document.tags.size > maxVisibleTags
-                    val tagsToShow = if (hasMoreTags) {
-                        document.tags.take(maxVisibleTags - 1) // Leave space for "+X"
-                    } else {
-                        document.tags
-                    }
-
-                    FlowRow(
+                    Row(
                         modifier = Modifier.padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        tagsToShow.forEach { tag ->
+                        document.tags.take(3).forEach { tag ->
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
@@ -477,19 +305,12 @@ private fun DocumentCard(
                                 )
                             }
                         }
-                        if (hasMoreTags) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "+${document.tags.size - tagsToShow.size}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
+                        if (document.tags.size > 3) {
+                            Text(
+                                text = "+${document.tags.size - 3}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

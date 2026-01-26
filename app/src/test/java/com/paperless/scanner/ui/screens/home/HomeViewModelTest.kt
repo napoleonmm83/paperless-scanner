@@ -84,8 +84,7 @@ class HomeViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
         coEvery { documentRepository.getDocumentCount(any()) } returns Result.success(0)
-        // Updated for Paging 3 migration: getDocuments now has 4 parameters (page, pageSize, filter, forceRefresh)
-        coEvery { documentRepository.getDocuments(any(), any(), any(), any()) } returns
+        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())

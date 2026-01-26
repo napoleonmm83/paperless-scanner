@@ -255,55 +255,7 @@
     <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
     <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
 
-    <!-- Document Filter -->
-    <string name="filter_title">Filter &amp; Sorting</string>
-    <string name="filter_apply">Apply</string>
-    <string name="filter_reset">Reset</string>
-    <string name="filter_active_count">%d filters active</string>
-    <string name="filter_clear_all">Clear all filters</string>
-
-    <!-- Date Filters -->
-    <string name="filter_date_range">Date range</string>
-    <string name="filter_created_date">Created Date</string>
-    <string name="filter_added_date">Added Date</string>
-    <string name="filter_modified_date">Modified Date</string>
-    <string name="filter_date_from">From</string>
-    <string name="filter_date_to">To</string>
-    <string name="filter_date_any">Any date</string>
-
-    <!-- Entity Filters -->
-    <string name="filter_tags">Tags</string>
-    <string name="filter_tags_any">Any tags</string>
-    <string name="filter_tags_none">No tags</string>
-    <string name="filter_correspondent">Correspondent</string>
-    <string name="filter_correspondent_any">Any correspondent</string>
-    <string name="filter_document_type">Document Type</string>
-    <string name="filter_document_type_any">Any type</string>
-    <string name="filter_storage_path">Storage Path</string>
-    <string name="filter_storage_path_any">Any path</string>
-    <string name="filter_owner">Owner</string>
-    <string name="filter_owner_any">Any owner</string>
-
-    <!-- Archive Filter -->
-    <string name="filter_archive_number">Archive Number (ASN)</string>
-    <string name="filter_archive_any">Any</string>
-    <string name="filter_archive_has">With ASN</string>
-    <string name="filter_archive_none">Without ASN</string>
-
-    <!-- Sorting -->
-    <string name="filter_sort_by">Sort by</string>
-    <string name="filter_sort_created_desc">Newest first (Created)</string>
-    <string name="filter_sort_created_asc">Oldest first (Created)</string>
-    <string name="filter_sort_added_desc">Newest first (Added)</string>
-    <string name="filter_sort_added_asc">Oldest first (Added)</string>
-    <string name="filter_sort_modified_desc">Recently modified</string>
-    <string name="filter_sort_modified_asc">Oldest modified</string>
-    <string name="filter_sort_title_asc">Title (A-Z)</string>
-    <string name="filter_sort_title_desc">Title (Z-A)</string>
-    <string name="filter_sort_correspondent_asc">Correspondent (A-Z)</string>
-    <string name="filter_sort_correspondent_desc">Correspondent (Z-A)</string>
-
-
+    
     <string name="scan_page_removed">Seite %1$d entfernt</string>
     <string name="scan_undo">Rückgängig</string>
     <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>
@@ -627,7 +579,6 @@
     <string name="cd_gallery">Galerie</string>
     <string name="cd_files">Dateien</string>
     <string name="cd_remove_page">Seite %1$d entfernen</string>
-    <string name="cd_remove_tag">Remove tag %1$s</string>
     <string name="cd_status_online">Online</string>
     <string name="cd_status_offline">Offline</string>
     <string name="cd_pending_uploads">%1$d ausstehende Uploads</string>
@@ -792,11 +743,9 @@
     <string name="tag_suggestions_error_thumbnail">Vorschau konnte nicht geladen werden</string>
     <string name="tag_suggestions_error_ai_disabled">AI ist deaktiviert</string>
     <string name="tag_suggestions_loading">Dokumente werden geladen…</string>
-    <string name="error_not_authenticated">Not authenticated</string>
-    <string name="error_unknown">Unknown error</string>
-    <string name="error_generic">An error occurred</string>
-    <string name="error_loading_more">Error loading more documents</string>
-    <string name="back">Back</string>
+    <string name="error_not_authenticated">Nicht angemeldet</string>
+    <string name="error_unknown">Unbekannter Fehler</string>
+    <string name="back">Zurück</string>
     <string name="close">Schließen</string>
     <string name="done">Fertig</string>
 
