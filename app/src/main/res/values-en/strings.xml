@@ -816,6 +816,16 @@
     <string name="entity_type_document_types">Document Types</string>
     <string name="entity_type_custom_fields">Custom Fields</string>
 
+    <!-- Entity Type Selector -->
+    <string name="entity_selector_title">Choose Filter Type</string>
+    <string name="entity_selector_subtitle">Select which entities to display</string>
+
+    <!-- Entity Type Descriptions -->
+    <string name="entity_description_tags">Categories and keywords</string>
+    <string name="entity_description_correspondents">Senders and recipients</string>
+    <string name="entity_description_document_types">Types of documents</string>
+    <string name="entity_description_custom_fields">Custom data fields</string>
+
     <!-- Create/Edit Entity Dialog -->
     <string name="entity_create_correspondent">Create Correspondent</string>
     <string name="entity_create_document_type">Create Document Type</string>

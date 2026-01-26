@@ -227,29 +227,14 @@ fun LabelsScreen(
             }
         }
 
-        // Dynamic Entity Type Title
-        Text(
-            text = when (uiState.currentEntityType) {
-                EntityType.TAG -> stringResource(R.string.entity_type_tags)
-                EntityType.CORRESPONDENT -> stringResource(R.string.entity_type_correspondents)
-                EntityType.DOCUMENT_TYPE -> stringResource(R.string.entity_type_document_types)
-                EntityType.CUSTOM_FIELD -> stringResource(R.string.entity_type_custom_fields)
-            },
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(top = 16.dp, bottom = 8.dp),
-            textAlign = TextAlign.Center
-        )
-
-        // Entity Type Tabs (Icon-only)
-        EntityTypeTabs(
+        // Entity Type Selector (Trigger Button with BottomSheet)
+        EntityTypeSelector(
             selectedType = uiState.currentEntityType,
             customFieldsAvailable = uiState.customFieldsAvailable,
-            onTypeSelected = viewModel::setEntityType
+            onTypeSelected = viewModel::setEntityType,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(top = 16.dp, bottom = 8.dp)
         )
 
         // Search Bar with Sort/Filter Button
