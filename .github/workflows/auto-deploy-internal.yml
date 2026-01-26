@@ -133,6 +133,16 @@ jobs:
             [System.IO.File]::WriteAllText("app/google-services.json", $dummy, [System.Text.UTF8Encoding]::new($false))
           }
 
+      - name: Clean build cache (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat clean --no-daemon
+        shell: cmd
+
+      - name: Clean build cache (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew clean
+        shell: bash
+
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
         run: gradlew.bat testReleaseUnitTest --no-daemon
