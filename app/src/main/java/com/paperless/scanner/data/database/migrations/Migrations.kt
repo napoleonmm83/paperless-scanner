@@ -304,10 +304,18 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
 
 val MIGRATION_8_9 = object : Migration(8, 9) {
     override fun migrate(database: SupportSQLiteDatabase) {
-        // No-op migration to fix version mismatch from commit c398349
-        // Version was incorrectly bumped to 9 in AppDatabase.kt
-        // but only MIGRATION_7_8 (7→8) was added
-        // This migration does nothing but allows users who already updated
-        // to v1.5.5 (which expected v9) to continue without crash
+        // Fix missing documentCount columns in cached_correspondents and cached_document_types
+        // These columns were added to Entity definitions but migrations were never created
+        // MIGRATION_3_4 only added documentCount to cached_tags, missing the other two tables
+
+        // Add documentCount to cached_correspondents
+        database.execSQL("""
+            ALTER TABLE cached_correspondents ADD COLUMN documentCount INTEGER
+        """)
+
+        // Add documentCount to cached_document_types
+        database.execSQL("""
+            ALTER TABLE cached_document_types ADD COLUMN documentCount INTEGER
+        """)
     }
 }
