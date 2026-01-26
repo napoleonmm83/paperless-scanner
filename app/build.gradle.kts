@@ -204,14 +204,7 @@ dependencies {
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    implementation(libs.room.paging)
     ksp(libs.room.compiler)
-
-    // Paging 3
-    implementation(libs.paging.runtime)
-    implementation(libs.paging.compose)
-    // KSP needs access to PagingSource at compile time for Room code generation
-    ksp(libs.paging.runtime)
 
     // WorkManager
     implementation(libs.work.runtime.ktx)
