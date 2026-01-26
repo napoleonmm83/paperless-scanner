@@ -1,0 +1,10 @@
+Version 1.5.4:
+
+✨ Verbesserungen:
+- Schnelleres und flüssigeres Scrollen in der Dokumentenliste
+- Bessere Performance bei vielen Dokumenten
+- Dokumente laden jetzt automatisch beim Scrollen nach
+
+🔧 Unter der Haube:
+- Modernisierte App-Architektur für stabileren Betrieb
+- Reduzierter Speicherverbrauch

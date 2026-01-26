@@ -1,0 +1,10 @@
+Version 1.5.4:
+
+✨ Improvements:
+- Faster and smoother scrolling in document list
+- Better performance with many documents
+- Documents now load automatically while scrolling
+
+🔧 Under the hood:
+- Modernized app architecture for more stability
+- Reduced memory usage
