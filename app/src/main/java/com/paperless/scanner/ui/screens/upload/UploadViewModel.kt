@@ -84,7 +84,6 @@ class UploadViewModel @Inject constructor(
                         }
                     }
                 }
-                Log.d(TAG, "documentUrisStateFlow.map: input=$urisString, parsed=${parsed.size} URIs")
                 parsed
             }
             .stateIn(
@@ -101,10 +100,8 @@ class UploadViewModel @Inject constructor(
      */
     fun setDocumentUris(uris: List<Uri>) {
         if (uris.isEmpty()) {
-            Log.w(TAG, "setDocumentUris called with empty list")
             return
         }
-        Log.d(TAG, "setDocumentUris: Setting ${uris.size} URIs")
         val urisString = uris.joinToString("|") { it.toString() }
         savedStateHandle[KEY_DOCUMENT_URIS] = urisString
     }
@@ -304,10 +301,8 @@ class UploadViewModel @Inject constructor(
                 // Copy file to local storage to ensure WorkManager can access it later
                 // Content URIs from SAF lose permissions when passed to WorkManager
                 val localUri = if (FileUtils.isLocalFileUri(uri)) {
-                    Log.d(TAG, "URI is already local file: $uri")
                     uri
                 } else {
-                    Log.d(TAG, "Copying content URI to persistent storage: $uri")
                     FileUtils.copyToLocalStorage(context, uri) ?: run {
                         Log.e(TAG, "Failed to copy file for queue: $uri")
                         _uiState.update { UploadUiState.Error(
@@ -330,9 +325,6 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                val fileSize = FileUtils.getFileSize(localUri)
-                Log.d(TAG, "Queueing upload: $localUri ($fileSize bytes)")
-
                 // Queue the upload - WorkManager will handle retry, network checks, etc.
                 val queueId = uploadQueueRepository.queueUpload(
                     uri = localUri,
@@ -341,7 +333,6 @@ class UploadViewModel @Inject constructor(
                     documentTypeId = documentTypeId,
                     correspondentId = correspondentId
                 )
-                Log.d(TAG, "Upload queued with ID: $queueId")
 
                 // Trigger immediate upload processing
                 uploadWorkManager.scheduleImmediateUpload()
@@ -370,6 +361,7 @@ class UploadViewModel @Inject constructor(
     ) {
         viewModelScope.launch(ioDispatcher) {
             val pageCount = uris.size
+
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
 
             // Check storage BEFORE queueing
@@ -381,19 +373,21 @@ class UploadViewModel @Inject constructor(
             _uiState.update { UploadUiState.Queuing }
 
             try {
-                Log.d(TAG, "Queueing multi-page upload (${uris.size} pages)")
-
                 // Copy files to local storage to ensure WorkManager can access them later
                 // Content URIs from SAF lose permissions when passed to WorkManager
+                // For large batches, this may take several minutes - process sequentially to avoid OOM
                 val localUris = uris.mapIndexedNotNull { index, uri ->
+                    // Log progress every 10 files for large batches
+                    if (pageCount > 50 && (index + 1) % 10 == 0) {
+                        Log.d(TAG, "Copying progress: ${index + 1}/$pageCount files")
+                    }
+
                     if (FileUtils.isLocalFileUri(uri)) {
-                        Log.d(TAG, "  Page ${index + 1}: Already local file: $uri")
                         uri
                     } else {
-                        Log.d(TAG, "  Page ${index + 1}: Copying content URI to persistent storage: $uri")
                         val copiedUri = FileUtils.copyToLocalStorage(context, uri)
                         if (copiedUri == null) {
-                            Log.e(TAG, "  Page ${index + 1}: Failed to copy: $uri")
+                            Log.e(TAG, "Page ${index + 1}/$pageCount: Failed to copy: $uri")
                         }
                         copiedUri
                     }
@@ -407,10 +401,6 @@ class UploadViewModel @Inject constructor(
                         isRetryable = false
                     ) }
                     return@launch
-                }
-
-                if (localUris.size < uris.size) {
-                    Log.w(TAG, "Only ${localUris.size}/${uris.size} files copied successfully")
                 }
 
                 // Verify all files exist before queueing
@@ -428,23 +418,18 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                val totalSize = localUris.sumOf { FileUtils.getFileSize(it) }
-                Log.d(TAG, "Queueing multi-page upload: ${localUris.size} files ($totalSize bytes total)")
-
                 // Queue the upload - WorkManager will handle retry, network checks, etc.
                 if (uploadAsSingleDocument) {
                     // Combined: Merge all pages into a single PDF document
-                    val queueId = uploadQueueRepository.queueMultiPageUpload(
+                    uploadQueueRepository.queueMultiPageUpload(
                         uris = localUris,
                         title = title,
                         tagIds = tagIds,
                         documentTypeId = documentTypeId,
                         correspondentId = correspondentId
                     )
-                    Log.d(TAG, "Multi-page upload queued as single document with ID: $queueId")
                 } else {
                     // Individual: Queue each page as a separate document
-                    Log.d(TAG, "Queueing ${localUris.size} individual documents")
                     localUris.forEachIndexed { index, uri ->
                         val individualTitle = if (title.isNullOrBlank()) {
                             null
@@ -453,16 +438,14 @@ class UploadViewModel @Inject constructor(
                         } else {
                             title
                         }
-                        val queueId = uploadQueueRepository.queueUpload(
+                        uploadQueueRepository.queueUpload(
                             uri = uri,
                             title = individualTitle,
                             tagIds = tagIds,
                             documentTypeId = documentTypeId,
                             correspondentId = correspondentId
                         )
-                        Log.d(TAG, "  Document ${index + 1}/${localUris.size} queued with ID: $queueId")
                     }
-                    Log.d(TAG, "All ${localUris.size} individual documents queued successfully")
                 }
 
                 // Trigger immediate upload processing
@@ -491,6 +474,12 @@ class UploadViewModel @Inject constructor(
     fun uploadPagesWithMetadata(pages: List<com.paperless.scanner.ui.screens.scan.ScannedPage>) {
         viewModelScope.launch(ioDispatcher) {
             val pageCount = pages.size
+
+            // CRITICAL: Warn for large batches (50+ files can cause performance issues)
+            if (pageCount > 50) {
+                Log.w(TAG, "Large batch upload detected: $pageCount pages. This may take several minutes.")
+            }
+
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
 
             val uris = pages.map { it.uri }
@@ -504,18 +493,20 @@ class UploadViewModel @Inject constructor(
             _uiState.update { UploadUiState.Queuing }
 
             try {
-                Log.d(TAG, "Queueing pages with per-page metadata (${pages.size} pages)")
-
                 // Copy files to local storage
-                val localPages = pages.mapNotNull { page ->
+                // For large batches, this may take several minutes - process sequentially to avoid OOM
+                val localPages = pages.mapIndexedNotNull { index, page ->
+                    // Log progress every 10 files for large batches
+                    if (pageCount > 50 && (index + 1) % 10 == 0) {
+                        Log.d(TAG, "Copying progress: ${index + 1}/$pageCount pages")
+                    }
+
                     val localUri = if (FileUtils.isLocalFileUri(page.uri)) {
-                        Log.d(TAG, "  Page ${page.pageNumber}: Already local file: ${page.uri}")
                         page.uri
                     } else {
-                        Log.d(TAG, "  Page ${page.pageNumber}: Copying content URI to persistent storage: ${page.uri}")
                         val copiedUri = FileUtils.copyToLocalStorage(context, page.uri)
                         if (copiedUri == null) {
-                            Log.e(TAG, "  Page ${page.pageNumber}: Failed to copy: ${page.uri}")
+                            Log.e(TAG, "Page ${page.pageNumber}: Failed to copy: ${page.uri}")
                         }
                         copiedUri
                     }
@@ -537,10 +528,6 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                if (localPages.size < pages.size) {
-                    Log.w(TAG, "Only ${localPages.size}/${pages.size} files copied successfully")
-                }
-
                 // Verify all files exist before queueing
                 val missingFiles = localPages.filterNot { FileUtils.fileExists(it.uri) }
                 if (missingFiles.isNotEmpty()) {
@@ -553,46 +540,43 @@ class UploadViewModel @Inject constructor(
                     return@launch
                 }
 
-                // Group pages by metadata
+                // Group pages by metadata for organization
                 val groups = localPages.groupBy { it.customMetadata }
 
-                Log.d(TAG, "Grouped ${localPages.size} pages into ${groups.size} upload groups")
+                // CRITICAL: "Individuell bearbeiten" workflow ALWAYS uploads individual documents
+                // Each image becomes a separate document in Paperless, even if they share metadata
+                Log.i(TAG, "Queueing ${localPages.size} pages as individual documents (${groups.size} metadata groups)")
 
-                // Create uploads for each group
-                var uploadCount = 0
+                // Create individual uploads for each page
                 groups.forEach { (metadata, groupPages) ->
-                    val groupUris = groupPages.map { it.uri }
                     val title = metadata?.title
                     val tagIds = metadata?.tags ?: emptyList()
                     val documentTypeId = metadata?.documentType
                     val correspondentId = metadata?.correspondent
 
-                    if (groupPages.size == 1) {
-                        // Single page with unique metadata -> Individual upload
-                        val queueId = uploadQueueRepository.queueUpload(
-                            uri = groupUris.first(),
-                            title = title,
+                    // Upload each page individually with automatic numbering
+                    groupPages.forEachIndexed { index, page ->
+                        val individualTitle = if (groupPages.size == 1) {
+                            // Single page in group - use title as-is
+                            title
+                        } else {
+                            // Multiple pages in group - add numbering
+                            if (title.isNullOrBlank()) {
+                                "Dokument (${index + 1}/${groupPages.size})"
+                            } else {
+                                "$title (${index + 1}/${groupPages.size})"
+                            }
+                        }
+
+                        uploadQueueRepository.queueUpload(
+                            uri = page.uri,
+                            title = individualTitle,
                             tagIds = tagIds,
                             documentTypeId = documentTypeId,
                             correspondentId = correspondentId
                         )
-                        uploadCount++
-                        Log.d(TAG, "  Group ${uploadCount}: 1 page queued as single document (ID: $queueId)")
-                    } else {
-                        // Multiple pages with same metadata -> Multi-page upload
-                        val queueId = uploadQueueRepository.queueMultiPageUpload(
-                            uris = groupUris,
-                            title = title,
-                            tagIds = tagIds,
-                            documentTypeId = documentTypeId,
-                            correspondentId = correspondentId
-                        )
-                        uploadCount++
-                        Log.d(TAG, "  Group ${uploadCount}: ${groupPages.size} pages queued as multi-page document (ID: $queueId)")
                     }
                 }
-
-                Log.d(TAG, "All ${uploadCount} upload groups queued successfully")
 
                 // Trigger immediate upload processing
                 uploadWorkManager.scheduleImmediateUpload()
@@ -627,7 +611,6 @@ class UploadViewModel @Inject constructor(
 
             tagRepository.createTag(name = name, color = color)
                 .onSuccess { newTag ->
-                    Log.d(TAG, "Tag created: ${newTag.name}")
                     analyticsService.trackEvent(AnalyticsEvent.TagCreated)
                     // BEST PRACTICE: No manual list update needed!
                     // observeTagsReactively() automatically updates dropdown.
@@ -638,13 +621,11 @@ class UploadViewModel @Inject constructor(
                     // Handle duplicate tag error - try to find existing tag
                     if (e.message?.contains("unique constraint") == true ||
                         e.message?.contains("already exists") == true) {
-                        Log.d(TAG, "Tag '$name' already exists, trying to find it...")
                         // Refresh tags from server and try to find the existing tag
                         tagRepository.getTags(forceRefresh = true)
                         val existingTag = tagRepository.observeTags().first()
                             .find { it.name.equals(name, ignoreCase = true) }
                         if (existingTag != null) {
-                            Log.d(TAG, "Found existing tag: ${existingTag.name} (id=${existingTag.id})")
                             _createTagState.update { CreateTagState.Success(existingTag) }
                             return@launch
                         }
@@ -681,15 +662,12 @@ class UploadViewModel @Inject constructor(
                 // Show limit warning/info based on status
                 when (limitStatus) {
                     UsageLimitStatus.HARD_LIMIT_REACHED -> {
-                        Log.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
                         _analysisState.update { AnalysisState.LimitReached }
                     }
                     UsageLimitStatus.SOFT_LIMIT_200 -> {
-                        Log.i(TAG, "Soft limit 200 reached - showing warning")
                         _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
                     }
                     UsageLimitStatus.SOFT_LIMIT_100 -> {
-                        Log.i(TAG, "Soft limit 100 reached - showing info")
                         _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
                     }
                     else -> {
@@ -719,14 +697,11 @@ class UploadViewModel @Inject constructor(
 
                 when (result) {
                     is SuggestionResult.WiFiRequired -> {
-                        Log.d(TAG, "WiFi required for AI suggestions")
                         _wifiRequired.update { true }
                         _analysisState.update { AnalysisState.Idle }
                         // Don't show error - banner will inform user
                     }
                     is SuggestionResult.Success -> {
-                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
-
                         // Clear WiFi required state if analysis succeeded
                         _wifiRequired.update { false }
 
@@ -800,7 +775,6 @@ class UploadViewModel @Inject constructor(
      * User must click "Analyze" button again after clicking "Use anyway".
      */
     fun overrideWifiOnlyForSession() {
-        Log.d(TAG, "User overrode WiFi-only restriction")
         _wifiOnlyOverride.update { true }
         _wifiRequired.update { false }
 

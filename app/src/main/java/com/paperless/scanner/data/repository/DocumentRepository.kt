@@ -127,7 +127,9 @@ class DocumentRepository @Inject constructor(
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
         return try {
+            android.util.Log.d("DocumentRepository", "Creating PDF from ${uris.size} images...")
             val pdfFile = createPdfFromImages(uris)
+            android.util.Log.d("DocumentRepository", "PDF created: ${pdfFile.length()} bytes")
 
             val requestFile = ProgressRequestBody(
                 file = pdfFile,
@@ -154,6 +156,7 @@ class DocumentRepository @Inject constructor(
             val correspondentBody = correspondentId?.toString()
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
 
+            android.util.Log.d("DocumentRepository", "Starting upload...")
             val response = api.uploadDocument(
                 document = documentPart,
                 title = titleBody,
@@ -161,10 +164,12 @@ class DocumentRepository @Inject constructor(
                 documentType = documentTypeBody,
                 correspondent = correspondentBody
             )
+            android.util.Log.d("DocumentRepository", "Upload complete, reading response...")
 
             pdfFile.delete()
 
             val taskId = response.string().trim().removeSurrounding("\"")
+            android.util.Log.d("DocumentRepository", "Task ID received: $taskId")
             Result.success(taskId)
         } catch (e: IOException) {
             Result.failure(PaperlessException.NetworkError(e))

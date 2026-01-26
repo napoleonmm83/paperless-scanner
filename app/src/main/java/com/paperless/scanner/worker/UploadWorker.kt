@@ -42,26 +42,20 @@ class UploadWorker @AssistedInject constructor(
     private var lastNotificationProgress = -1
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "UploadWorker started")
-
         createNotificationChannel()
 
         // Pre-check: Ensure we have validated internet before starting uploads
         if (!networkMonitor.hasValidatedInternet()) {
             Log.w(TAG, "No validated internet connection - aborting upload worker")
-            Log.w(TAG, "This could be due to: captive portal, payment barrier, or WiFi/mobile without real internet")
             return Result.retry() // Retry later when internet is validated
         }
 
         // Pre-check: Ensure Paperless server is reachable before starting uploads
-        Log.d(TAG, "Checking server reachability before processing queue...")
         serverHealthMonitor.checkServerHealth()
         if (!serverHealthMonitor.isServerReachable.value) {
             Log.w(TAG, "Paperless server not reachable (status: ${serverHealthMonitor.serverStatus.value}) - aborting upload worker")
-            Log.w(TAG, "Will retry when server becomes available")
             return Result.retry() // Retry later when server is reachable
         }
-        Log.d(TAG, "Server is reachable - proceeding with queue processing")
 
         // Zähle alle ausstehenden Uploads für Fortschrittsanzeige
         var totalUploads = uploadQueueRepository.getPendingUploadCount()
@@ -69,11 +63,8 @@ class UploadWorker @AssistedInject constructor(
         var successCount = 0
         var failCount = 0
 
-        Log.d(TAG, "Total uploads pending: $totalUploads")
-
         // Falls keine Uploads vorhanden, direkt beenden
         if (totalUploads == 0) {
-            Log.d(TAG, "No pending uploads found, exiting")
             return Result.success()
         }
 
@@ -115,8 +106,6 @@ class UploadWorker @AssistedInject constructor(
             val documentName = pendingUpload.title?.takeIf { it.isNotBlank() }
                 ?: "Dokument $currentUpload"
 
-            Log.d(TAG, "Processing upload $currentUpload/$totalUploads: ${pendingUpload.id}")
-
             // Validate that files exist before attempting upload
             if (pendingUpload.isMultiPage) {
                 val uris = uploadQueueRepository.getAllUris(pendingUpload)
@@ -133,7 +122,6 @@ class UploadWorker @AssistedInject constructor(
                     failCount++
                     continue
                 }
-                Log.d(TAG, "Upload ${pendingUpload.id}: All ${uris.size} files verified (${uris.sumOf { FileUtils.getFileSize(it) }} bytes total)")
             } else {
                 val uri = Uri.parse(pendingUpload.uri)
                 if (!FileUtils.fileExists(uri)) {
@@ -143,8 +131,6 @@ class UploadWorker @AssistedInject constructor(
                     failCount++
                     continue
                 }
-                val fileSize = FileUtils.getFileSize(uri)
-                Log.d(TAG, "Upload ${pendingUpload.id}: File verified: $uri ($fileSize bytes)")
             }
 
             uploadQueueRepository.markAsUploading(pendingUpload.id)
@@ -200,7 +186,7 @@ class UploadWorker @AssistedInject constructor(
                 }
 
                 result.onSuccess {
-                    Log.d(TAG, "Upload successful: ${pendingUpload.id}")
+                    Log.d(TAG, "Upload ${pendingUpload.id}: Upload successful, task ID received")
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
 
@@ -210,9 +196,11 @@ class UploadWorker @AssistedInject constructor(
                     } else {
                         listOf(Uri.parse(pendingUpload.uri))
                     }
+                    Log.d(TAG, "Upload ${pendingUpload.id}: Cleaning up ${urisToClean.size} local files")
                     urisToClean.forEach { uri ->
                         FileUtils.deleteLocalCopy(uri)
                     }
+                    Log.d(TAG, "Upload ${pendingUpload.id}: Cleanup complete")
                 }.onFailure { e ->
                     // Safe error message extraction (prevent secondary exceptions)
                     val safeErrorMessage = try {
@@ -221,6 +209,7 @@ class UploadWorker @AssistedInject constructor(
                         "Upload fehlgeschlagen"
                     }
                     Log.e(TAG, "Upload failed: ${pendingUpload.id} - $safeErrorMessage", e)
+                    Log.e(TAG, "Upload failed: Exception type: ${e.javaClass.simpleName}")
                     uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                     failCount++
 
@@ -253,7 +242,6 @@ class UploadWorker @AssistedInject constructor(
 
         showCompletionNotification(successCount, failCount)
 
-        Log.d(TAG, "UploadWorker completed: $successCount success, $failCount failed")
         return if (failCount > 0 && successCount == 0) Result.failure() else Result.success()
     }
 

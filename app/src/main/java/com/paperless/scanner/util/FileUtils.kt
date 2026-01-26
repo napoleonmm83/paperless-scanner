@@ -163,6 +163,52 @@ object FileUtils {
     }
 
     /**
+     * Extracts the display filename from a URI (without extension).
+     * Useful for auto-populating document titles.
+     *
+     * @param context Application context
+     * @param uri Content or file URI
+     * @return Filename without extension, or null if cannot be determined
+     */
+    fun getFileName(context: Context, uri: Uri): String? {
+        return try {
+            // Try to get DISPLAY_NAME from ContentResolver (for content:// URIs)
+            if (uri.scheme == "content") {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val displayNameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                        if (displayNameIndex != -1) {
+                            val displayName = cursor.getString(displayNameIndex)
+                            // Remove file extension
+                            return displayName?.substringBeforeLast(".") ?: displayName
+                        }
+                    }
+                }
+            }
+
+            // Fallback: Use last path segment (for file:// URIs or if query fails)
+            uri.lastPathSegment?.let { segment ->
+                // Remove extension
+                val dotIndex = segment.lastIndexOf('.')
+                if (dotIndex > 0) {
+                    segment.substring(0, dotIndex)
+                } else {
+                    segment
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract filename from URI: $uri", e)
+            null
+        }
+    }
+
+    /**
      * Checks if a URI is a local file URI (file://) vs content URI (content://).
      */
     fun isLocalFileUri(uri: Uri): Boolean {

@@ -1,0 +1,9 @@
+Version 1.5.8:
+
+✨ New Features:
+- Auto-fill: Document title is automatically populated with filename
+- Applies to all upload screens (Single, Batch, Step-by-step)
+
+🔧 Improvements:
+- Faster metadata input during upload
+- Title can still be manually overridden

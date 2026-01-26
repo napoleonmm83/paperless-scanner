@@ -48,6 +48,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -197,12 +198,24 @@ fun ScanScreen(
             // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
             // Content URIs lose permissions when passed through navigation
             scope.launch(Dispatchers.IO) {
+                // Show processing indicator while copying files (before addPages)
+                withContext(Dispatchers.Main) {
+                    if (uris.size > 5) {
+                        viewModel.setProcessing(true)
+                    }
+                }
+
                 val localUris = uris.mapNotNull { uri ->
                     FileUtils.copyToLocalStorage(context, uri)
                 }
-                if (localUris.isNotEmpty()) {
-                    withContext(Dispatchers.Main) {
+
+                withContext(Dispatchers.Main) {
+                    if (localUris.isNotEmpty()) {
+                        // addPages will continue showing processing state if needed
                         viewModel.addPages(localUris, PageSource.GALLERY)
+                    } else {
+                        // No files copied - reset processing state
+                        viewModel.setProcessing(false)
                     }
                 }
             }
@@ -219,12 +232,24 @@ fun ScanScreen(
             // CRITICAL: Copy files to local storage IMMEDIATELY while we still have permission
             // Content URIs lose permissions when passed through navigation
             scope.launch(Dispatchers.IO) {
+                // Show processing indicator while copying files (before addPages)
+                withContext(Dispatchers.Main) {
+                    if (uris.size > 5) {
+                        viewModel.setProcessing(true)
+                    }
+                }
+
                 val localUris = uris.mapNotNull { uri ->
                     FileUtils.copyToLocalStorage(context, uri)
                 }
-                if (localUris.isNotEmpty()) {
-                    withContext(Dispatchers.Main) {
+
+                withContext(Dispatchers.Main) {
+                    if (localUris.isNotEmpty()) {
+                        // addPages will continue showing processing state if needed
                         viewModel.addPages(localUris, PageSource.FILES)
+                    } else {
+                        // No files copied - reset processing state
+                        viewModel.setProcessing(false)
                     }
                 }
             }
@@ -339,6 +364,38 @@ fun ScanScreen(
             modifier = Modifier.align(Alignment.BottomCenter)
         )
 
+        // Processing/Loading Overlay
+        if (uiState.isProcessing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
+                    .clickable(enabled = false) { }, // Block interactions
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(64.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 6.dp
+                    )
+                    Text(
+                        text = context.getString(R.string.scan_processing_files),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = context.getString(R.string.scan_please_wait),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         // Add More Source Dialog
         if (showAddMoreDialog) {
             AddMoreSourceDialog(
@@ -374,10 +431,13 @@ fun ScanScreen(
                 onDismiss = { showMetadataChoiceDialog = false },
                 onSameForAll = {
                     showMetadataChoiceDialog = false
-                    // Navigate to MultiPageUploadScreen with same metadata for all
+                    // Navigate to MultiPageUploadScreen with CURRENT upload mode
+                    // CRITICAL: Use uploadAsSingleDocument state, not hardcoded false
+                    // If user selected "Als separate Dokumente", this will be false
+                    // If user selected "Als einzelnes Dokument", this will be true
                     scope.launch {
                         val uris = viewModel.getRotatedPageUris()
-                        onMultipleDocumentsScanned(uris, false)  // Individual documents mode
+                        onMultipleDocumentsScanned(uris, uploadAsSingleDocument)
                     }
                 },
                 onIndividual = {

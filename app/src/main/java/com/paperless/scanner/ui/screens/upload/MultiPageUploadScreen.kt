@@ -56,11 +56,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.paperless.scanner.R
+import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
@@ -116,7 +118,14 @@ fun MultiPageUploadScreen(
     val isPremiumActive by viewModel.isPremiumActive.collectAsState()
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
-    var title by rememberSaveable { mutableStateOf(preTitle ?: "") }
+    // Auto-populate title with filename of first document if no preTitle is provided
+    val context = LocalContext.current
+    val defaultTitle = remember(documentUris) {
+        preTitle ?: documentUris.firstOrNull()?.let { uri ->
+            FileUtils.getFileName(context, uri)
+        } ?: ""
+    }
+    var title by rememberSaveable { mutableStateOf(defaultTitle) }
     val selectedTagIds = remember { mutableStateListOf<Int>() }
     var selectedDocumentTypeId by rememberSaveable { mutableStateOf(preDocumentTypeId) }
     var selectedCorrespondentId by rememberSaveable { mutableStateOf(preCorrespondentId) }
@@ -205,7 +214,7 @@ fun MultiPageUploadScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // PDF Info Card
+            // PDF Info Card (or Individual Documents Info)
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -220,14 +229,22 @@ fun MultiPageUploadScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PictureAsPdf,
+                        imageVector = if (uploadAsSingleDocument) {
+                            Icons.Default.PictureAsPdf
+                        } else {
+                            Icons.Default.CloudUpload
+                        },
                         contentDescription = stringResource(R.string.cd_pdf),
                         modifier = Modifier.size(48.dp),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = stringResource(R.string.multipage_upload_info, activeDocumentUris.size),
+                        text = if (uploadAsSingleDocument) {
+                            stringResource(R.string.multipage_upload_info, activeDocumentUris.size)
+                        } else {
+                            stringResource(R.string.multipage_upload_info_individual, activeDocumentUris.size)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -527,7 +544,11 @@ fun MultiPageUploadScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = stringResource(R.string.multipage_upload_button),
+                        text = if (uploadAsSingleDocument) {
+                            stringResource(R.string.multipage_upload_button)
+                        } else {
+                            stringResource(R.string.multipage_upload_button_individual)
+                        },
                         style = MaterialTheme.typography.titleMedium
                     )
                 }

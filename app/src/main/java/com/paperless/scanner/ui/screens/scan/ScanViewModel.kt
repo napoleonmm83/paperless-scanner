@@ -463,21 +463,51 @@ class ScanViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTagIds = emptyList()) }
     }
 
+    /**
+     * Manually set processing state (used during file copying phase).
+     */
+    fun setProcessing(isProcessing: Boolean) {
+        _uiState.update { it.copy(isProcessing = isProcessing) }
+    }
+
+    /**
+     * Add pages with processing state for better UX when importing many files.
+     * Shows loading indicator while pages are being added.
+     */
     fun addPages(uris: List<Uri>, source: PageSource = PageSource.SCANNER) {
-        _uiState.update { state ->
-            val startIndex = state.pageCount
-            val newPages = uris.mapIndexed { index, uri ->
-                ScannedPage(
-                    uri = uri,
-                    pageNumber = startIndex + index + 1,
-                    source = source
-                )
+        viewModelScope.launch {
+            // Show processing state for large batches (>5 files)
+            if (uris.size > 5) {
+                _uiState.update { it.copy(isProcessing = true) }
+                // Small delay to ensure UI updates before processing
+                kotlinx.coroutines.delay(100)
             }
-            val newTotalPages = state.pageCount + uris.size
-            analyticsService.trackEvent(AnalyticsEvent.ScanPageAdded(totalPages = newTotalPages))
-            val updatedPages = state.pages + newPages
-            syncPagesToSavedState(updatedPages)
-            state.copy(pages = updatedPages)
+
+            try {
+                withContext(Dispatchers.Default) {
+                    val startIndex = _uiState.value.pageCount
+                    val newPages = uris.mapIndexed { index, uri ->
+                        ScannedPage(
+                            uri = uri,
+                            pageNumber = startIndex + index + 1,
+                            source = source
+                        )
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        _uiState.update { state ->
+                            val newTotalPages = state.pageCount + uris.size
+                            analyticsService.trackEvent(AnalyticsEvent.ScanPageAdded(totalPages = newTotalPages))
+                            val updatedPages = state.pages + newPages
+                            syncPagesToSavedState(updatedPages)
+                            state.copy(pages = updatedPages)
+                        }
+                    }
+                }
+            } finally {
+                // Always reset processing state
+                _uiState.update { it.copy(isProcessing = false) }
+            }
         }
     }
 

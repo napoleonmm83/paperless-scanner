@@ -104,7 +104,8 @@
     <string name="multipage_upload_success">PDF mit %1$d Seiten erfolgreich hochgeladen!</string>
     <string name="multipage_upload_queued">Upload wird synchronisiert, sobald Verbindung besteht</string>
     <string name="multipage_upload_tag_created">Tag \"%1$s\" erstellt</string>
-    <string name="multipage_upload_info">%1$d Seiten werden als PDF zusammengefügt</string>
+    <string name="multipage_upload_info">%1$d pages will be merged into PDF</string>
+    <string name="multipage_upload_info_individual">%1$d documents will be uploaded individually</string>
     <string name="multipage_upload_preview">Seiten-Vorschau</string>
     <string name="multipage_upload_page_description">Seite %1$d</string>
     <string name="multipage_upload_title_label">Titel (optional)</string>
@@ -113,7 +114,8 @@
     <string name="multipage_upload_retry_button">Retry</string>
     <string name="multipage_upload_progress">Hochladen: %1$d%%</string>
     <string name="multipage_upload_uploading">PDF wird hochgeladen...</string>
-    <string name="multipage_upload_button">Als PDF hochladen</string>
+    <string name="multipage_upload_button">Upload as PDF</string>
+    <string name="multipage_upload_button_individual">Upload documents</string>
 
     
     <string name="document_detail_back">Zurück</string>
@@ -256,9 +258,11 @@
     <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
 
     
-    <string name="scan_page_removed">Seite %1$d entfernt</string>
-    <string name="scan_undo">Rückgängig</string>
-    <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>
+    <string name="scan_page_removed">Page %1$d removed</string>
+    <string name="scan_undo">Undo</string>
+    <string name="scan_scanner_error">Scanner could not be started: %1$s</string>
+    <string name="scan_processing_files">Processing files...</string>
+    <string name="scan_please_wait">Please wait</string>
     <string name="scan_new_document_title">NEUES DOKUMENT</string>
     <string name="scan_choose_option">Wähle eine Option</string>
     <string name="scan_option_scan">Scannen</string>

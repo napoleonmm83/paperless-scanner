@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,6 +51,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
+import com.paperless.scanner.util.FileUtils
 
 /**
  * Step-by-step metadata editor for batch upload with individual metadata per page.
@@ -83,8 +85,13 @@ fun StepByStepMetadataScreen(
     val correspondents by viewModel.correspondents.collectAsState()
 
     // Local state for current page metadata
+    // Auto-populate title with filename if no existing metadata title
+    val context = LocalContext.current
     var title by remember(uiState.currentPageIndex) {
-        mutableStateOf(viewModel.getCurrentPageMetadata()?.title ?: "")
+        val existingTitle = viewModel.getCurrentPageMetadata()?.title
+        val pageUri = currentPage?.uri
+        val filename = pageUri?.let { FileUtils.getFileName(context, it) }
+        mutableStateOf(existingTitle ?: filename ?: "")
     }
     var selectedTagIds by remember(uiState.currentPageIndex) {
         mutableStateOf(viewModel.getCurrentPageMetadata()?.tags?.toSet() ?: emptySet())

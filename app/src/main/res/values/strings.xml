@@ -105,6 +105,7 @@
     <string name="multipage_upload_queued">Upload wird synchronisiert, sobald Verbindung besteht</string>
     <string name="multipage_upload_tag_created">Tag \"%1$s\" erstellt</string>
     <string name="multipage_upload_info">%1$d Seiten werden als PDF zusammengefügt</string>
+    <string name="multipage_upload_info_individual">%1$d Dokumente werden einzeln hochgeladen</string>
     <string name="multipage_upload_preview">Seiten-Vorschau</string>
     <string name="multipage_upload_page_description">Seite %1$d</string>
     <string name="multipage_upload_title_label">Titel (optional)</string>
@@ -114,6 +115,7 @@
     <string name="multipage_upload_progress">Hochladen: %1$d%%</string>
     <string name="multipage_upload_uploading">PDF wird hochgeladen...</string>
     <string name="multipage_upload_button">Als PDF hochladen</string>
+    <string name="multipage_upload_button_individual">Dokumente hochladen</string>
 
     
     <string name="document_detail_back">Zurück</string>
@@ -259,6 +261,8 @@
     <string name="scan_page_removed">Seite %1$d entfernt</string>
     <string name="scan_undo">Rückgängig</string>
     <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>
+    <string name="scan_processing_files">Dateien werden verarbeitet...</string>
+    <string name="scan_please_wait">Bitte warten</string>
     <string name="scan_new_document_title">NEUES DOKUMENT</string>
     <string name="scan_choose_option">Wähle eine Option</string>
     <string name="scan_option_scan">Scannen</string>

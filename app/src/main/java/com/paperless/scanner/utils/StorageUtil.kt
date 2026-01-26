@@ -167,6 +167,17 @@ object StorageUtil {
             }
         }
 
+        // Check if ANY individual file exceeds the maximum size (CRITICAL BUG FIX)
+        // Previously this checked totalSize which failed for batch uploads
+        val oversizedFile = uris.firstOrNull { uri ->
+            try {
+                val fileSize = getFileSize(context, uri)
+                fileSize > MAX_FILE_SIZE_BYTES
+            } catch (e: Exception) {
+                false
+            }
+        }
+
         // Get available space
         val availableSpace = getAvailableSpaceBytes()
 
@@ -175,12 +186,17 @@ object StorageUtil {
         val hasEnoughSpace = availableSpace?.let { it >= requiredSpace } ?: true
 
         val message = when {
+            oversizedFile != null -> {
+                val fileSize = try {
+                    getFileSize(context, oversizedFile)
+                } catch (e: Exception) {
+                    0L
+                }
+                "Eine Datei ist zu groß (${formatBytes(fileSize)}). Maximum pro Datei: ${formatBytes(MAX_FILE_SIZE_BYTES)}"
+            }
             !hasEnoughSpace && availableSpace != null -> {
                 "Nicht genug Speicherplatz. Verfügbar: ${formatBytes(availableSpace)}, " +
                 "Benötigt: ${formatBytes(requiredSpace)}"
-            }
-            totalSize > MAX_FILE_SIZE_BYTES -> {
-                "Datei zu groß (${formatBytes(totalSize)}). Maximum: ${formatBytes(MAX_FILE_SIZE_BYTES)}"
             }
             else -> {
                 "Speicherplatz OK: ${availableSpace?.let { formatBytes(it) } ?: "Unbekannt"}"
@@ -188,7 +204,7 @@ object StorageUtil {
         }
 
         return StorageCheckResult(
-            hasEnoughSpace = hasEnoughSpace && totalSize <= MAX_FILE_SIZE_BYTES,
+            hasEnoughSpace = hasEnoughSpace && oversizedFile == null,
             availableBytes = availableSpace,
             requiredBytes = requiredSpace,
             message = message

@@ -1,0 +1,9 @@
+Version 1.5.8:
+
+✨ Neue Features:
+- Auto-Befüllung: Dokumententitel wird automatisch mit Dateinamen vorausgefüllt
+- Gilt für alle Upload-Screens (Einzel, Batch, Schritt-für-Schritt)
+
+🔧 Verbesserungen:
+- Schnelleres Ausfüllen von Metadaten beim Upload
+- Titel kann weiterhin manuell überschrieben werden
