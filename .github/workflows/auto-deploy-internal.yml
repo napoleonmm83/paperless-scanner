@@ -7,12 +7,13 @@ on:
       - main
     paths:
       # Deploy when app code or build config changes
+      # NOTE: version.properties is EXCLUDED to prevent double-deployment
+      # (workflow bumps version and pushes, which would re-trigger itself)
       - 'app/**'
       - 'gradle/**'
       - '*.gradle'
       - '*.gradle.kts'
       - 'gradle.properties'
-      - 'version.properties'
       - 'gradlew'
       - 'gradlew.bat'
       - 'fastlane/**'  # Includes Fastfile, Appfile, and metadata/changelogs
