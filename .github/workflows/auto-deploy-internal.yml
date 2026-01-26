@@ -79,7 +79,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+          # Cache disabled to fix KSP compilation issues on self-hosted runner
 
       - name: Setup Android SDK path (self-hosted Windows)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
@@ -232,7 +232,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+          # Cache disabled to fix KSP compilation issues on self-hosted runner
 
       - name: Setup Android SDK path (self-hosted Windows)
         if: needs.check-runner.outputs.is-self-hosted == 'true' && runner.os == 'Windows'
