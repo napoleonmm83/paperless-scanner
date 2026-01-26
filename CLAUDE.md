@@ -452,6 +452,49 @@ fastlane/metadata/android/
    ```
 3. **Push auf main** → Automatischer Deploy
 
+### Git Push Workflow mit Auto-Rebase
+
+**Problem gelöst:** GitHub Actions bumped automatisch die Version nach Deployment, was zu "failed to push some refs" Fehlern führte.
+
+**Lösung:** Zweistufiger Ansatz für nahtloses Pushen ohne manuelle Rebases.
+
+#### Phase 1: Pre-Push Hook (Automatisch)
+
+**Installiert:** `.git/hooks/pre-push`
+
+Der Hook läuft **automatisch bei jedem `git push`** und:
+1. ✅ Fetched remote changes (Version Bumps von GitHub Actions)
+2. ✅ Detektiert ob Remote voraus ist
+3. ✅ Führt automatisch `git pull --rebase --autostash` aus
+4. ✅ Zeigt klare Status-Meldungen
+5. ✅ Bricht bei Konflikten ab mit Fehlermeldungen
+
+**Typischer Ablauf:**
+```bash
+$ git push
+🔍 Checking for remote changes before push...
+⚠️  Remote has new commits (likely auto-bump from GitHub Actions).
+🔄 Auto-rebasing with remote changes...
+✅ Rebase successful! Continuing with push...
+To https://github.com/.../paperless-scanner.git
+   fc9bd63..9fee1c7  main -> main
+```
+
+#### Phase 2: Workflow-Optimierung
+
+**Workflow:** `.github/workflows/auto-deploy-internal.yml`
+
+**Path Filtering optimiert:**
+- ✅ Version Bumps (`version.properties`) triggern **KEINE** neue Deployment-Pipeline
+- ✅ Dokumentation (`docs/**`, `**.md`) triggert **KEINE** Deployments
+- ✅ Nur echte Code/Build-Änderungen triggern Deployment
+
+**Resultat:** Keine Deployment-Loops, keine Push-Konflikte, seamless Developer Experience.
+
+**Detaillierte Dokumentation:** [docs/GIT_HOOKS.md](docs/GIT_HOOKS.md)
+
+---
+
 ### Changelog Format
 
 **CRITICAL: Google Play Store Limit - 500 Characters Maximum Per Language!**
@@ -727,6 +770,7 @@ Emulator muss "Google Play" System Image haben, nicht nur "Google APIs".
 | Known Issues | `docs/KNOWN_ISSUES.md` |
 | ByteRover Setup | `docs/BYTEROVER.md` |
 | **Lokales CI Testing** | `docs/LOCAL_CI_TESTING.md` |
+| **Git Hooks & Push Workflow** | `docs/GIT_HOOKS.md` |
 | **Lokales Deployment** | `docs/LOCAL_DEPLOY.md` |
 | **Best Practices** | `docs/BEST_PRACTICES.md` |
 | **Release Notes Template** | `docs/RELEASE_NOTES_TEMPLATE.md` |
@@ -928,9 +972,11 @@ Git Hooks sind bereits konfiguriert und werden automatisch ausgeführt:
 | Hook | Wann | Was wird geprüft |
 |------|------|------------------|
 | **pre-commit** | Bei `git commit` | Schnelle Syntax-Checks (Kotlin Compile, Duplicates) |
-| **pre-push** | Bei `git push` | **VOLLSTÄNDIGE CI** (Release Tests, Lint, Build) |
+| **pre-push** | Bei `git push` | **1. Auto-Rebase** mit remote changes (verhindert Push-Konflikte)<br>**2. VOLLSTÄNDIGE CI** (Release Tests, Lint, Build) |
 
 Die Hooks verwenden **RELEASE-Varianten** - exakt wie GitHub Actions!
+
+**ℹ️ Hinweis:** Der pre-push Hook führt automatisch `git pull --rebase --autostash` aus wenn Remote voraus ist (z.B. durch GitHub Actions Version Bump). Siehe [Git Push Workflow](#git-push-workflow-mit-auto-rebase) für Details.
 
 ### WICHTIG: RELEASE statt DEBUG!
 
