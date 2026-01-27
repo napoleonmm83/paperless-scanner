@@ -60,10 +60,23 @@ object DocumentFilterQueryBuilder {
 
         // Multi-tag filtering (OR logic: document must have at least ONE of these tags)
         if (filter.tagIds.isNotEmpty()) {
-            val tagConditions = filter.tagIds.map { "tags LIKE ?" }
+            // Gson stores List<Int> as [1,2,3] (numbers without quotes)
+            // Need to match: [1], [1,2], [2,1], etc.
+            // Use 4 patterns per tag: start [ID,  middle ,ID,  end ,ID]  single [ID]
+            val tagConditions = filter.tagIds.flatMap { tagId ->
+                listOf(
+                    "tags LIKE ?", // [ID,...
+                    "tags LIKE ?", // ...,ID,...
+                    "tags LIKE ?", // ...,ID]
+                    "tags LIKE ?"  // [ID] (single tag)
+                )
+            }
             whereConditions.add("(${tagConditions.joinToString(" OR ")})")
             filter.tagIds.forEach { tagId ->
-                args.add("%\"$tagId\"%") // JSON array pattern: "[1,2,3]"
+                args.add("%[$tagId,%") // Tag at start: [1,2,3]
+                args.add("%,$tagId,%") // Tag in middle: [9,1,5]
+                args.add("%,$tagId]%") // Tag at end: [9,5,1]
+                args.add("%[$tagId]%") // Single tag: [1]
             }
         }
 
@@ -172,10 +185,23 @@ object DocumentFilterQueryBuilder {
 
         // Multi-tag filtering (OR logic)
         if (filter.tagIds.isNotEmpty()) {
-            val tagConditions = filter.tagIds.map { "tags LIKE ?" }
+            // Gson stores List<Int> as [1,2,3] (numbers without quotes)
+            // Need to match: [1], [1,2], [2,1], etc.
+            // Use 4 patterns per tag: start [ID,  middle ,ID,  end ,ID]  single [ID]
+            val tagConditions = filter.tagIds.flatMap { tagId ->
+                listOf(
+                    "tags LIKE ?", // [ID,...
+                    "tags LIKE ?", // ...,ID,...
+                    "tags LIKE ?", // ...,ID]
+                    "tags LIKE ?"  // [ID] (single tag)
+                )
+            }
             whereConditions.add("(${tagConditions.joinToString(" OR ")})")
             filter.tagIds.forEach { tagId ->
-                args.add("%\"$tagId\"%")
+                args.add("%[$tagId,%") // Tag at start: [1,2,3]
+                args.add("%,$tagId,%") // Tag in middle: [9,1,5]
+                args.add("%,$tagId]%") // Tag at end: [9,5,1]
+                args.add("%[$tagId]%") // Single tag: [1]
             }
         }
 
@@ -281,10 +307,23 @@ object DocumentFilterQueryBuilder {
 
         // Multi-tag filtering (OR logic)
         if (filter.tagIds.isNotEmpty()) {
-            val tagConditions = filter.tagIds.map { "tags LIKE ?" }
+            // Gson stores List<Int> as [1,2,3] (numbers without quotes)
+            // Need to match: [1], [1,2], [2,1], etc.
+            // Use 4 patterns per tag: start [ID,  middle ,ID,  end ,ID]  single [ID]
+            val tagConditions = filter.tagIds.flatMap { tagId ->
+                listOf(
+                    "tags LIKE ?", // [ID,...
+                    "tags LIKE ?", // ...,ID,...
+                    "tags LIKE ?", // ...,ID]
+                    "tags LIKE ?"  // [ID] (single tag)
+                )
+            }
             whereConditions.add("(${tagConditions.joinToString(" OR ")})")
             filter.tagIds.forEach { tagId ->
-                args.add("%\"$tagId\"%")
+                args.add("%[$tagId,%") // Tag at start: [1,2,3]
+                args.add("%,$tagId,%") // Tag in middle: [9,1,5]
+                args.add("%,$tagId]%") // Tag at end: [9,5,1]
+                args.add("%[$tagId]%") // Single tag: [1]
             }
         }
 
