@@ -910,4 +910,36 @@
     <string name="sort_modified_asc">Modified (Oldest)</string>
     <string name="sort_asn_asc">ASN (Ascending)</string>
     <string name="sort_asn_desc">ASN (Descending)</string>
+
+    <!-- Trash Screen -->
+    <string name="trash_title">Trash</string>
+    <string name="trash_empty">Trash is empty</string>
+    <string name="trash_empty_subtitle">Deleted documents are kept here for 30 days</string>
+    <string name="trash_restore">Restore</string>
+    <string name="trash_delete_permanent">Delete Permanently</string>
+    <string name="trash_restore_all">Restore All</string>
+    <string name="trash_empty_all">Empty Trash</string>
+    <string name="trash_days_left">%1$d days left</string>
+    <string name="trash_expires_in_days">Expires in %1$d days</string>
+    <string name="trash_less_than_1_day">Less than 1 day</string>
+    <string name="trash_expired">Expired</string>
+    <string name="trash_deleted_at">Deleted on %1$s</string>
+    <string name="trash_confirm_delete_title">Delete document permanently?</string>
+    <string name="trash_confirm_delete_message">This action cannot be undone.</string>
+    <string name="trash_confirm_empty_title">Empty trash?</string>
+    <string name="trash_confirm_empty_message">All %1$d documents will be permanently deleted. This action cannot be undone.</string>
+    <string name="trash_document_restored">Document restored</string>
+    <string name="trash_documents_restored">%1$d documents restored</string>
+    <string name="trash_document_deleted">Document permanently deleted</string>
+    <string name="trash_trash_emptied">Trash emptied</string>
+    <string name="trash_document_deleting">Deleting %1$s…</string>
+    <string name="trash_document_deleted_permanently">%1$s permanently deleted</string>
+    <string name="trash_deleting_in_seconds">Deleting in %1$d seconds</string>
+    <string name="trash_tap_to_undo">Tap to undo</string>
+    <string name="undo">Undo</string>
+    <string name="error_restore_document">Error restoring document</string>
+    <string name="error_restore_all_documents">Error restoring all documents</string>
+    <string name="error_delete_document">Error deleting document</string>
+    <string name="error_empty_trash">Error emptying trash</string>
+    <string name="unknown">Unknown</string>
 </resources>

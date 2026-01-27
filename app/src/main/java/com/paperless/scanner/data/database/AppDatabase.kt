@@ -32,7 +32,7 @@ import com.paperless.scanner.data.database.entities.SyncMetadata
         SyncMetadata::class,
         AiUsageLog::class
     ],
-    version = 9,
+    version = 10, // MIGRATION_9_10: Added deletedAt for Trash feature
     exportSchema = false
 )
 @TypeConverters(Converters::class)

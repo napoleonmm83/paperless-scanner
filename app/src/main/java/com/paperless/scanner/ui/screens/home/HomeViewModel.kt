@@ -87,6 +87,8 @@ data class HomeUiState(
     val recentDocuments: List<RecentDocument> = emptyList(),
     val processingTasks: List<ProcessingTask> = emptyList(),
     val untaggedCount: Int = 0,
+    val deletedCount: Int = 0,
+    val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
     val isLoading: Boolean = true,
     val error: String? = null
 )
@@ -165,6 +167,8 @@ class HomeViewModel @Inject constructor(
         observeRecentDocumentsReactively()
         observeProcessingTasksReactively()
         observeUntaggedCountReactively()
+        observeDeletedCountReactively()
+        observeOldestDeletedTimestampReactively()
     }
 
     /**
@@ -265,6 +269,30 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             documentRepository.observeUntaggedDocumentsCount().collect { count ->
                 _uiState.update { it.copy(untaggedCount = count) }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for trash count.
+     * Automatically updates UI when documents are deleted/restored.
+     */
+    private fun observeDeletedCountReactively() {
+        viewModelScope.launch {
+            documentRepository.observeTrashedDocumentsCount().collect { count ->
+                _uiState.update { it.copy(deletedCount = count) }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for oldest deleted document timestamp.
+     * Automatically updates UI for "Expires in X days" countdown on TrashCard.
+     */
+    private fun observeOldestDeletedTimestampReactively() {
+        viewModelScope.launch {
+            documentRepository.observeOldestDeletedTimestamp().collect { timestamp ->
+                _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
             }
         }
     }

@@ -54,6 +54,9 @@ sealed class Screen(val route: String) {
     // Smart Tagging (Tinder-style swipe to tag)
     data object SmartTagging : Screen("smart-tagging")
 
+    // Trash (Soft-deleted documents)
+    data object Trash : Screen("trash")
+
     // App Lock
     data object AppLock : Screen("app-lock")
 

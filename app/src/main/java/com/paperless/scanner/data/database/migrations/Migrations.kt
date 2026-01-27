@@ -319,3 +319,23 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
         """)
     }
 }
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add deletedAt timestamp for Trash feature (30-day auto-cleanup)
+        // Paperless-ngx v2.20.5 supports server-side trash with configurable retention
+        // This column tracks when a document was deleted for automatic cleanup via WorkManager
+
+        // Add deletedAt column to cached_documents
+        database.execSQL("""
+            ALTER TABLE cached_documents ADD COLUMN deletedAt INTEGER
+        """)
+
+        // Create index on deletedAt for efficient auto-cleanup queries
+        // WorkManager will query: WHERE isDeleted = 1 AND deletedAt < cutoffTime
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_cached_documents_deletedAt
+            ON cached_documents(deletedAt)
+        """)
+    }
+}

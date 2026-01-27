@@ -910,4 +910,36 @@
     <string name="sort_modified_asc">Geändert (Älteste)</string>
     <string name="sort_asn_asc">ASN (Aufsteigend)</string>
     <string name="sort_asn_desc">ASN (Absteigend)</string>
+
+    <!-- Trash Screen -->
+    <string name="trash_title">Papierkorb</string>
+    <string name="trash_empty">Der Papierkorb ist leer</string>
+    <string name="trash_empty_subtitle">Gelöschte Dokumente werden hier 30 Tage lang aufbewahrt</string>
+    <string name="trash_restore">Wiederherstellen</string>
+    <string name="trash_delete_permanent">Endgültig löschen</string>
+    <string name="trash_restore_all">Alle wiederherstellen</string>
+    <string name="trash_empty_all">Papierkorb leeren</string>
+    <string name="trash_days_left">%1$d Tage verbleibend</string>
+    <string name="trash_expires_in_days">Verfällt in %1$d Tagen</string>
+    <string name="trash_less_than_1_day">Weniger als 1 Tag</string>
+    <string name="trash_expired">Abgelaufen</string>
+    <string name="trash_deleted_at">Gelöscht am %1$s</string>
+    <string name="trash_confirm_delete_title">Dokument endgültig löschen?</string>
+    <string name="trash_confirm_delete_message">Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="trash_confirm_empty_title">Papierkorb leeren?</string>
+    <string name="trash_confirm_empty_message">Alle %1$d Dokumente werden endgültig gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.</string>
+    <string name="trash_document_restored">Dokument wiederhergestellt</string>
+    <string name="trash_documents_restored">%1$d Dokumente wiederhergestellt</string>
+    <string name="trash_document_deleted">Dokument endgültig gelöscht</string>
+    <string name="trash_trash_emptied">Papierkorb geleert</string>
+    <string name="trash_document_deleting">%1$s wird gelöscht…</string>
+    <string name="trash_document_deleted_permanently">%1$s endgültig gelöscht</string>
+    <string name="trash_deleting_in_seconds">Löschen in %1$d Sekunden</string>
+    <string name="trash_tap_to_undo">Tippe zum Rückgängig machen</string>
+    <string name="undo">Rückgängig</string>
+    <string name="error_restore_document">Fehler beim Wiederherstellen des Dokuments</string>
+    <string name="error_restore_all_documents">Fehler beim Wiederherstellen aller Dokumente</string>
+    <string name="error_delete_document">Fehler beim Löschen des Dokuments</string>
+    <string name="error_empty_trash">Fehler beim Leeren des Papierkorbs</string>
+    <string name="unknown">Unbekannt</string>
 </resources>

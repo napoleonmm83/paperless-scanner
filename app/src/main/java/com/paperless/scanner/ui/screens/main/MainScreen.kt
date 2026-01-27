@@ -57,6 +57,9 @@ fun MainScreen(
                 },
                 onNavigateToSmartTagging = {
                     navController.navigate(Screen.SmartTagging.route)
+                },
+                onNavigateToTrash = {
+                    navController.navigate(Screen.Trash.route)
                 }
             )
             Screen.Documents.route -> DocumentsScreen(

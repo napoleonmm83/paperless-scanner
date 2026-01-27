@@ -21,6 +21,7 @@ import com.paperless.scanner.data.api.models.SuggestionsResponse
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.api.models.TokenResponse
+import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentTypeRequest
@@ -228,4 +229,32 @@ interface PaperlessApi {
         @Path("id") id: Int,
         @Body document: UpdateDocumentWithPermissionsRequest
     ): Document
+
+    // Trash endpoints (Paperless-ngx v2.20+)
+
+    /**
+     * Get documents from trash (soft-deleted documents).
+     * Returns paginated list of deleted documents.
+     *
+     * @param page Page number (1-indexed)
+     * @param pageSize Number of results per page
+     * @return DocumentsResponse with deleted documents
+     */
+    @GET("api/trash/")
+    suspend fun getTrash(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 25
+    ): DocumentsResponse
+
+    /**
+     * Perform bulk action on documents in trash.
+     * Supports "restore" (move back to documents) and "delete" (permanent deletion).
+     *
+     * @param request TrashBulkActionRequest with document IDs and action
+     * @return 200 OK on success
+     */
+    @POST("api/trash/")
+    suspend fun trashBulkAction(
+        @Body request: TrashBulkActionRequest
+    ): Response<Unit>
 }

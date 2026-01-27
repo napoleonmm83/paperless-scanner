@@ -1,9 +1,13 @@
 package com.paperless.scanner.data.database.entities
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "cached_documents")
+@Entity(
+    tableName = "cached_documents",
+    indices = [Index(value = ["deletedAt"])] // Index for efficient trash queries (WorkManager auto-cleanup)
+)
 data class CachedDocument(
     @PrimaryKey val id: Int,
     val title: String,
@@ -22,5 +26,6 @@ data class CachedDocument(
     // Offline metadata
     val isCached: Boolean = true,
     val lastSyncedAt: Long = System.currentTimeMillis(),
-    val isDeleted: Boolean = false // Soft delete for sync
+    val isDeleted: Boolean = false, // Soft delete for sync
+    val deletedAt: Long? = null // Timestamp when document was deleted (for 30-day auto-cleanup)
 )

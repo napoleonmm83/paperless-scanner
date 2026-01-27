@@ -247,6 +247,21 @@ fun PaperlessNavGraph(
             )
         }
 
+        // Trash Screen (Soft-deleted documents)
+        composable(
+            route = Screen.Trash.route,
+            enterTransition = { PaperlessAnimations.screenEnterTransition },
+            exitTransition = { PaperlessAnimations.screenExitTransition },
+            popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
+            popExitTransition = { PaperlessAnimations.screenPopExitTransition }
+        ) {
+            com.paperless.scanner.ui.screens.trash.TrashScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
         composable(
             route = Screen.Upload.route,
             arguments = listOf(

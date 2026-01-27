@@ -79,8 +79,15 @@ interface CachedDocumentDao {
     @Update
     suspend fun update(document: CachedDocument)
 
-    @Query("UPDATE cached_documents SET isDeleted = 1 WHERE id = :id")
-    suspend fun softDelete(id: Int)
+    /**
+     * Soft-delete a document (marks as deleted with timestamp).
+     * UPDATED for Trash feature: Now also sets deletedAt timestamp.
+     *
+     * @param id Document ID to soft-delete
+     * @param deletedAt Timestamp when deleted (default = current time)
+     */
+    @Query("UPDATE cached_documents SET isDeleted = 1, deletedAt = :deletedAt WHERE id = :id")
+    suspend fun softDelete(id: Int, deletedAt: Long = System.currentTimeMillis())
 
     @Query("DELETE FROM cached_documents")
     suspend fun deleteAll()
@@ -151,4 +158,80 @@ interface CachedDocumentDao {
      */
     @RawQuery(observedEntities = [CachedDocument::class])
     fun getDocumentsPagingSource(query: SupportSQLiteQuery): PagingSource<Int, CachedDocument>
+
+    // ========================================
+    // TRASH / SOFT DELETE METHODS
+    // ========================================
+
+    /**
+     * Observe all deleted documents (for TrashScreen).
+     * Returns documents where isDeleted = 1, ordered by deletion time (most recent first).
+     *
+     * @return Flow that emits list of deleted documents and updates automatically
+     */
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 1 ORDER BY deletedAt DESC")
+    fun observeDeletedDocuments(): Flow<List<CachedDocument>>
+
+    /**
+     * Get paginated deleted documents (for TrashScreen with pagination).
+     *
+     * @param limit Max results per page
+     * @param offset Pagination offset
+     * @return Flow that emits paginated list of deleted documents
+     */
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 1 ORDER BY deletedAt DESC LIMIT :limit OFFSET :offset")
+    fun observeDeletedDocuments(limit: Int, offset: Int): Flow<List<CachedDocument>>
+
+    /**
+     * Get count of documents in trash.
+     *
+     * @return Flow that emits count of deleted documents
+     */
+    @Query("SELECT COUNT(*) FROM cached_documents WHERE isDeleted = 1")
+    fun observeDeletedCount(): Flow<Int>
+
+    /**
+     * Restore a document from trash (set isDeleted = 0, clear deletedAt).
+     * Used when user clicks "Restore" in TrashScreen or Undo in Snackbar.
+     *
+     * @param id Document ID to restore
+     */
+    @Query("UPDATE cached_documents SET isDeleted = 0, deletedAt = NULL WHERE id = :id")
+    suspend fun restoreDocument(id: Int)
+
+    /**
+     * Restore multiple documents from trash (bulk restore).
+     *
+     * @param ids List of document IDs to restore
+     */
+    @Query("UPDATE cached_documents SET isDeleted = 0, deletedAt = NULL WHERE id IN (:ids)")
+    suspend fun restoreDocuments(ids: List<Int>)
+
+    /**
+     * Soft-delete multiple documents (bulk delete).
+     *
+     * @param ids List of document IDs to delete
+     * @param deletedAt Timestamp when deleted (default = current time)
+     */
+    @Query("UPDATE cached_documents SET isDeleted = 1, deletedAt = :deletedAt WHERE id IN (:ids)")
+    suspend fun softDeleteMultiple(ids: List<Int>, deletedAt: Long = System.currentTimeMillis())
+
+    /**
+     * Get documents deleted before a certain time (for auto-cleanup).
+     * Used by WorkManager to find documents older than 30 days in trash.
+     *
+     * @param cutoffTime Timestamp cutoff (e.g., now - 30 days)
+     * @return List of document IDs to permanently delete
+     */
+    @Query("SELECT id FROM cached_documents WHERE isDeleted = 1 AND deletedAt < :cutoffTime")
+    suspend fun getOldDeletedDocumentIds(cutoffTime: Long): List<Int>
+
+    /**
+     * Get oldest deletion timestamp (for expiration countdown on HomeScreen).
+     * Used to show "Expires in X days" on TrashCard.
+     *
+     * @return Flow that emits the oldest deletedAt timestamp, or null if trash is empty
+     */
+    @Query("SELECT MIN(deletedAt) FROM cached_documents WHERE isDeleted = 1")
+    fun getOldestDeletedTimestamp(): Flow<Long?>
 }

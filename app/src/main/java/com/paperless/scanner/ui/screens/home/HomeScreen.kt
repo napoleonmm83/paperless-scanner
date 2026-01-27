@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Inbox
@@ -76,6 +77,7 @@ fun HomeScreen(
     onNavigateToPendingSync: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSmartTagging: () -> Unit = {},
+    onNavigateToTrash: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -216,6 +218,26 @@ fun HomeScreen(
                     null
                 }
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Trash Quick Access (second row)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            TrashCard(
+                deletedCount = uiState.deletedCount,
+                oldestDeletedTimestamp = uiState.oldestDeletedTimestamp,
+                onClick = onNavigateToTrash,
+                modifier = Modifier.weight(1f)
+            )
+            // Placeholder for future quick actions (keeping layout balanced)
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -469,6 +491,97 @@ private fun StatCard(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * TrashCard - Dedicated card for trash quick access with expiration countdown.
+ * Shows count + "Expires in X days" based on oldest deleted document.
+ *
+ * Dark Tech Precision Pro Style Guide:
+ * - Surface background (#141414)
+ * - 1dp border with outline (#27272A)
+ * - No elevation
+ * - 20dp corner radius, 16dp padding
+ */
+@Composable
+private fun TrashCard(
+    deletedCount: Int,
+    oldestDeletedTimestamp: Long?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    retentionDays: Int = 30 // Default Paperless-ngx retention period
+) {
+    // Calculate days until expiration
+    val daysUntilExpiration = oldestDeletedTimestamp?.let { timestamp ->
+        val expirationTime = timestamp + (retentionDays * 24 * 60 * 60 * 1000L)
+        val now = System.currentTimeMillis()
+        val daysRemaining = ((expirationTime - now) / (24 * 60 * 60 * 1000L)).toInt()
+        maxOf(0, daysRemaining) // Ensure non-negative
+    }
+
+    Card(
+        onClick = onClick,
+        enabled = true, // Always clickable (allows viewing empty state)
+        modifier = modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline,
+            shape = RoundedCornerShape(20.dp)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = stringResource(R.string.trash_title),
+                modifier = Modifier.size(28.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = deletedCount.toString(),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.trash_title).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Show expiration countdown if trash is not empty
+            if (deletedCount > 0 && daysUntilExpiration != null) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccessTime,
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.trash_expires_in_days, daysUntilExpiration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
         }
     }
 }

@@ -423,3 +423,26 @@ data class SuggestionsResponse(
     @SerializedName("dates")
     val dates: List<String> = emptyList()
 )
+
+/**
+ * Request for bulk actions on documents in trash (Paperless-ngx v2.20+).
+ * Supports restore and hard-delete operations.
+ *
+ * API Endpoint: POST /api/trash/
+ *
+ * @param documents List of document IDs to perform action on
+ * @param action Action to perform: "restore" or "empty"
+ *               IMPORTANT: Valid actions are ONLY "restore" and "empty" (verified against Paperless-ngx v2.20.5)
+ */
+data class TrashBulkActionRequest(
+    @SerializedName("documents")
+    val documents: List<Int>,
+    @SerializedName("action")
+    val action: String  // "restore" or "empty"
+)
+
+/**
+ * Response from trash endpoints (DocumentsResponse is reused).
+ * GET /api/trash/ returns paginated list of deleted documents.
+ */
+// Note: TrashResponse uses existing DocumentsResponse model
