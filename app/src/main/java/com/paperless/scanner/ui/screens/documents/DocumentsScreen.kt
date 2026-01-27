@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -95,6 +96,15 @@ fun DocumentsScreen(
     // Filter sheet state
     var showFilterSheet by remember { mutableStateOf(false) }
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // LazyGrid state for scroll control
+    val gridState = rememberLazyGridState()
+
+    // Auto-scroll to top when filter or sort changes
+    androidx.compose.runtime.LaunchedEffect(uiState.currentFilter) {
+        // Scroll to top when filter/sort changes
+        gridState.scrollToItem(0)
+    }
 
     // BEST PRACTICE: Room Flow automatically updates UI when documents change in DB.
     // Pull-to-refresh allows users to manually trigger server sync.
@@ -430,6 +440,7 @@ fun DocumentsScreen(
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
+                state = gridState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     horizontal = 24.dp,
