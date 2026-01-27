@@ -4,13 +4,48 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 
 /**
- * Domain model for structured document filtering.
+ * Sort field options for document sorting.
+ */
+enum class DocumentSortField {
+    @SerializedName("added")
+    ADDED,      // Hinzugefügt (Default)
+
+    @SerializedName("created")
+    CREATED,    // Erstellt
+
+    @SerializedName("modified")
+    MODIFIED,   // Geändert
+
+    @SerializedName("title")
+    TITLE,      // Titel
+
+    @SerializedName("asn")
+    ASN         // Archive Serial Number
+}
+
+/**
+ * Sort order options.
+ */
+enum class SortOrder {
+    @SerializedName("asc")
+    ASC,        // Aufsteigend
+
+    @SerializedName("desc")
+    DESC        // Absteigend (Default)
+}
+
+/**
+ * Domain model for structured document filtering and sorting.
  *
  * Supports 11 filter criteria for comprehensive offline and online filtering:
  * - Multi-tag filtering with OR logic (tagIds)
  * - Metadata filters (correspondent, document type)
  * - Date range filters (created, added, modified)
  * - Archive status filters (hasArchiveSerialNumber, archiveSerialNumber)
+ *
+ * Supports sorting with 5 fields and 2 directions:
+ * - Sort fields: ADDED (default), CREATED, MODIFIED, TITLE, ASN
+ * - Sort order: DESC (default), ASC
  *
  * Note: Full-text search is handled separately via SearchBar, not in this filter model.
  *
@@ -21,7 +56,9 @@ import com.google.gson.annotations.SerializedName
  * val filter = DocumentFilter(
  *     tagIds = listOf(1, 2, 3),
  *     correspondentId = 5,
- *     createdDateFrom = "2024-01-01"
+ *     createdDateFrom = "2024-01-01",
+ *     sortBy = DocumentSortField.CREATED,
+ *     sortOrder = SortOrder.DESC
  * )
  * ```
  */
@@ -103,7 +140,21 @@ data class DocumentFilter(
      * Null = no ASN filter.
      */
     @SerializedName("archive_serial_number")
-    val archiveSerialNumber: Int? = null
+    val archiveSerialNumber: Int? = null,
+
+    /**
+     * Sort field (default: ADDED).
+     * Determines which document field to sort by.
+     */
+    @SerializedName("sort_by")
+    val sortBy: DocumentSortField = DocumentSortField.ADDED,
+
+    /**
+     * Sort order (default: DESC).
+     * Determines ascending or descending sort direction.
+     */
+    @SerializedName("sort_order")
+    val sortOrder: SortOrder = SortOrder.DESC
 ) {
     /**
      * Check if this filter is empty (no active filters).

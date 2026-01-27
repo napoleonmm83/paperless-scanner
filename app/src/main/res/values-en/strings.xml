@@ -894,4 +894,20 @@
     <string name="filter_chip_created_date">Created: %1$s</string>
     <string name="filter_chip_added_date">Added: %1$s</string>
     <string name="filter_chip_modified_date">Modified: %1$s</string>
+
+    <!-- Document Sorting -->
+    <string name="filter_section_sort">Sort</string>
+    <string name="sort_placeholder">Select Sort</string>
+
+    <!-- Sort Options -->
+    <string name="sort_added_desc">Added (Newest)</string>
+    <string name="sort_added_asc">Added (Oldest)</string>
+    <string name="sort_created_desc">Created (Newest)</string>
+    <string name="sort_created_asc">Created (Oldest)</string>
+    <string name="sort_title_asc">Title (A → Z)</string>
+    <string name="sort_title_desc">Title (Z → A)</string>
+    <string name="sort_modified_desc">Modified (Newest)</string>
+    <string name="sort_modified_asc">Modified (Oldest)</string>
+    <string name="sort_asn_asc">ASN (Ascending)</string>
+    <string name="sort_asn_desc">ASN (Descending)</string>
 </resources>

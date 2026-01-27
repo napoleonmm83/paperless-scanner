@@ -59,7 +59,9 @@ import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.domain.model.DocumentSortField
 import com.paperless.scanner.domain.model.DocumentType
+import com.paperless.scanner.domain.model.SortOrder
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.components.TagAutocomplete
 import com.paperless.scanner.ui.components.DateRangePickerField
@@ -254,6 +256,22 @@ fun DocumentFilterSheet(
                         )
                     }
                 )
+            }
+
+            // Section: Sort
+            item {
+                FilterSection(title = stringResource(R.string.filter_section_sort)) {
+                    SortDropdown(
+                        currentSort = editingFilter.sortBy,
+                        currentOrder = editingFilter.sortOrder,
+                        onSortChanged = { sortBy, sortOrder ->
+                            editingFilter = editingFilter.copy(
+                                sortBy = sortBy,
+                                sortOrder = sortOrder
+                            )
+                        }
+                    )
+                }
             }
 
             // Action Buttons
@@ -588,6 +606,124 @@ private fun <T : Any> EntityDropdown(
                     },
                     onClick = {
                         onSelect(if (isSelected) null else itemId)
+                        expanded = false
+                    },
+                    leadingIcon = if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else null
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Dropdown for selecting document sort field and order.
+ *
+ * Displays all 10 sort options (5 fields x 2 directions) with check icon for selected option.
+ * No clear button - a sort option is always selected (default: ADDED DESC).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SortDropdown(
+    currentSort: DocumentSortField,
+    currentOrder: SortOrder,
+    onSortChanged: (DocumentSortField, SortOrder) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // All 10 sort options as pairs
+    val sortOptions = listOf(
+        DocumentSortField.ADDED to SortOrder.DESC,
+        DocumentSortField.ADDED to SortOrder.ASC,
+        DocumentSortField.CREATED to SortOrder.DESC,
+        DocumentSortField.CREATED to SortOrder.ASC,
+        DocumentSortField.TITLE to SortOrder.ASC,
+        DocumentSortField.TITLE to SortOrder.DESC,
+        DocumentSortField.MODIFIED to SortOrder.DESC,
+        DocumentSortField.MODIFIED to SortOrder.ASC,
+        DocumentSortField.ASN to SortOrder.ASC,
+        DocumentSortField.ASN to SortOrder.DESC
+    )
+
+    // Map current sort to its string resource
+    val currentLabel = when (currentSort to currentOrder) {
+        DocumentSortField.ADDED to SortOrder.DESC -> stringResource(R.string.sort_added_desc)
+        DocumentSortField.ADDED to SortOrder.ASC -> stringResource(R.string.sort_added_asc)
+        DocumentSortField.CREATED to SortOrder.DESC -> stringResource(R.string.sort_created_desc)
+        DocumentSortField.CREATED to SortOrder.ASC -> stringResource(R.string.sort_created_asc)
+        DocumentSortField.TITLE to SortOrder.ASC -> stringResource(R.string.sort_title_asc)
+        DocumentSortField.TITLE to SortOrder.DESC -> stringResource(R.string.sort_title_desc)
+        DocumentSortField.MODIFIED to SortOrder.DESC -> stringResource(R.string.sort_modified_desc)
+        DocumentSortField.MODIFIED to SortOrder.ASC -> stringResource(R.string.sort_modified_asc)
+        DocumentSortField.ASN to SortOrder.ASC -> stringResource(R.string.sort_asn_asc)
+        DocumentSortField.ASN to SortOrder.DESC -> stringResource(R.string.sort_asn_desc)
+        else -> ""
+    }
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = currentLabel,
+            onValueChange = {},
+            readOnly = true,
+            placeholder = {
+                Text(
+                    text = stringResource(R.string.sort_placeholder),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            sortOptions.forEach { (field, order) ->
+                val isSelected = currentSort == field && currentOrder == order
+                val label = when (field to order) {
+                    DocumentSortField.ADDED to SortOrder.DESC -> stringResource(R.string.sort_added_desc)
+                    DocumentSortField.ADDED to SortOrder.ASC -> stringResource(R.string.sort_added_asc)
+                    DocumentSortField.CREATED to SortOrder.DESC -> stringResource(R.string.sort_created_desc)
+                    DocumentSortField.CREATED to SortOrder.ASC -> stringResource(R.string.sort_created_asc)
+                    DocumentSortField.TITLE to SortOrder.ASC -> stringResource(R.string.sort_title_asc)
+                    DocumentSortField.TITLE to SortOrder.DESC -> stringResource(R.string.sort_title_desc)
+                    DocumentSortField.MODIFIED to SortOrder.DESC -> stringResource(R.string.sort_modified_desc)
+                    DocumentSortField.MODIFIED to SortOrder.ASC -> stringResource(R.string.sort_modified_asc)
+                    DocumentSortField.ASN to SortOrder.ASC -> stringResource(R.string.sort_asn_asc)
+                    DocumentSortField.ASN to SortOrder.DESC -> stringResource(R.string.sort_asn_desc)
+                    else -> ""
+                }
+
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = label,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        onSortChanged(field, order)
                         expanded = false
                     },
                     leadingIcon = if (isSelected) {

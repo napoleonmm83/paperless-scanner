@@ -256,25 +256,33 @@ class DocumentsViewModel @Inject constructor(
 
     /**
      * Apply a new filter (replaces current filter completely).
+     * Automatically persists to SavedStateHandle and TokenManager.
      */
     fun applyFilter(filter: DocumentFilter) {
         _filterFlow.update { filter }
+        saveFilterToPersistence(filter)
     }
 
     /**
      * Update filter with a lambda (for partial updates).
+     * Automatically persists to SavedStateHandle and TokenManager.
      *
      * Example: updateFilter { it.copy(query = "invoice") }
      */
     fun updateFilter(block: (DocumentFilter) -> DocumentFilter) {
-        _filterFlow.update(block)
+        val newFilter = block(_filterFlow.value)
+        _filterFlow.update { newFilter }
+        saveFilterToPersistence(newFilter)
     }
 
     /**
      * Clear all filters (reset to empty).
+     * Automatically persists to SavedStateHandle and TokenManager.
      */
     fun clearFilter() {
-        _filterFlow.update { DocumentFilter.empty() }
+        val emptyFilter = DocumentFilter.empty()
+        _filterFlow.update { emptyFilter }
+        saveFilterToPersistence(emptyFilter)
     }
 
     /**

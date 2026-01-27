@@ -3,6 +3,8 @@ package com.paperless.scanner.data.database
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.domain.model.DocumentSortField
+import com.paperless.scanner.domain.model.SortOrder
 
 /**
  * Utility for building dynamic SQL queries from DocumentFilter.
@@ -142,7 +144,7 @@ object DocumentFilterQueryBuilder {
                 append(" WHERE ")
                 append(whereConditions.joinToString(" AND "))
             }
-            append(" ORDER BY added DESC")
+            append(buildOrderByClause(filter))
             append(" LIMIT ? OFFSET ?")
         }
 
@@ -389,10 +391,28 @@ object DocumentFilterQueryBuilder {
                 append(" WHERE ")
                 append(whereConditions.joinToString(" AND "))
             }
-            append(" ORDER BY added DESC")
+            append(buildOrderByClause(filter))
             // ❌ DO NOT ADD LIMIT/OFFSET - Room handles pagination automatically
         }
 
         return SimpleSQLiteQuery(sql, args.toTypedArray())
+    }
+
+    /**
+     * Build ORDER BY clause from filter sort settings.
+     *
+     * @param filter DocumentFilter with sortBy and sortOrder
+     * @return SQL ORDER BY clause (e.g., "ORDER BY title COLLATE NOCASE ASC")
+     */
+    private fun buildOrderByClause(filter: DocumentFilter): String {
+        val orderByField = when (filter.sortBy) {
+            DocumentSortField.ADDED -> "added"
+            DocumentSortField.CREATED -> "created"
+            DocumentSortField.MODIFIED -> "modified"
+            DocumentSortField.TITLE -> "title COLLATE NOCASE" // Case-insensitive sort
+            DocumentSortField.ASN -> "CAST(archiveSerialNumber AS INTEGER)" // Numeric sort (handles NULL)
+        }
+        val direction = if (filter.sortOrder == SortOrder.ASC) "ASC" else "DESC"
+        return " ORDER BY $orderByField $direction"
     }
 }
