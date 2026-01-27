@@ -10,10 +10,12 @@ import androidx.paging.map
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,6 +41,8 @@ data class DocumentsUiState(
     val error: String? = null,
     val currentFilter: DocumentFilter = DocumentFilter.empty(),
     val availableTags: List<Tag> = emptyList(),
+    val availableCorrespondents: List<Correspondent> = emptyList(),
+    val availableDocumentTypes: List<DocumentType> = emptyList(),
     val totalCount: Int = 0
     // NOTE: documents are now Flow<PagingData<DocumentItem>> (not in UI State)
 )
@@ -50,6 +54,7 @@ class DocumentsViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
+    private val documentTypeRepository: DocumentTypeRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -74,6 +79,7 @@ class DocumentsViewModel @Inject constructor(
 
     private var tagMap: Map<Int, Tag> = emptyMap()
     private var correspondentMap: Map<Int, Correspondent> = emptyMap()
+    private var documentTypeMap: Map<Int, DocumentType> = emptyMap()
 
     /**
      * PAGING 3: Documents as paginated Flow for infinite scroll.
@@ -224,9 +230,10 @@ class DocumentsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            // Load tags and correspondents first for name lookups
+            // Load tags, correspondents, and document types first for name lookups
             val tagsResult = tagRepository.getTags()
             val correspondentsResult = correspondentRepository.getCorrespondents()
+            val documentTypesResult = documentTypeRepository.getDocumentTypes()
 
             tagsResult.onSuccess { tags ->
                 tagMap = tags.associateBy { it.id }
@@ -235,6 +242,12 @@ class DocumentsViewModel @Inject constructor(
 
             correspondentsResult.onSuccess { correspondents ->
                 correspondentMap = correspondents.associateBy { it.id }
+                _uiState.update { it.copy(availableCorrespondents = correspondents) }
+            }
+
+            documentTypesResult.onSuccess { documentTypes ->
+                documentTypeMap = documentTypes.associateBy { it.id }
+                _uiState.update { it.copy(availableDocumentTypes = documentTypes) }
             }
 
             // Note: observeDocumentsReactively() handles document loading via Flow
