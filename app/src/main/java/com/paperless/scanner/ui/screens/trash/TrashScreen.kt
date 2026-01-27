@@ -410,16 +410,19 @@ private fun TrashDocumentCard(
         label = "cardFlip"
     )
 
-    // Countdown logic
+    // Countdown logic - smooth 100ms steps for fluid animation
     LaunchedEffect(isFlipped) {
         if (isFlipped) {
             // Start countdown
             countdownJob = coroutineScope.launch {
-                val totalSeconds = 30
-                for (i in totalSeconds downTo 1) {
-                    secondsRemaining = i
-                    progress = i.toFloat() / totalSeconds
-                    delay(1000)
+                val totalMillis = 30_000L // 30 seconds
+                val stepMillis = 100L // Update every 100ms for smooth animation
+                val totalSteps = (totalMillis / stepMillis).toInt()
+
+                for (i in totalSteps downTo 0) {
+                    secondsRemaining = (i * stepMillis / 1000).toInt() + 1
+                    progress = i.toFloat() / totalSteps
+                    delay(stepMillis)
                 }
                 // Countdown finished - delete permanently
                 onDelete()
@@ -573,6 +576,12 @@ private fun TrashDocumentCardFront(
 
 /**
  * Back side of card - red countdown with progress.
+ *
+ * Features:
+ * - Full height red background that empties from right to left
+ * - Smooth animation via animateFloatAsState
+ * - White text/icons for contrast
+ * - Tap anywhere to undo
  */
 @Composable
 private fun TrashDocumentCardBack(
@@ -581,23 +590,41 @@ private fun TrashDocumentCardBack(
     secondsRemaining: Int,
     onUndo: () -> Unit
 ) {
+    // Animate progress smoothly for fluid right-to-left emptying
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(
+            durationMillis = 100, // Match countdown step duration
+            easing = PaperlessAnimations.EaseInOut
+        ),
+        label = "progressAnimation"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .height(160.dp) // Fixed height for full card
             .clickable(onClick = onUndo),
         contentAlignment = Alignment.Center
     ) {
-        // Background progress bar (full width)
-        LinearProgressIndicator(
-            progress = { progress },
+        // Dark background (empty state)
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(),
-            color = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
-            trackColor = MaterialTheme.colorScheme.surface,
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
         )
 
-        // Content overlay
+        // Red progress bar (fills from right to left as it empties)
+        // Using fillMaxWidth(animatedProgress) creates smooth right-to-left animation
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(animatedProgress) // Shrinks from right
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.error.copy(alpha = 0.9f))
+                .align(Alignment.CenterStart) // Anchor to left, empties from right
+        )
+
+        // Content overlay (always centered)
         Column(
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
