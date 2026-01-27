@@ -88,6 +88,20 @@ interface CachedDocumentDao {
     @Query("SELECT COUNT(*) FROM cached_documents WHERE isDeleted = 0")
     suspend fun getCount(): Int
 
+    /**
+     * Get count of documents without tags (for Smart Tagging).
+     * Checks if tags field is empty array "[]" or NULL.
+     */
+    @Query("SELECT COUNT(*) FROM cached_documents WHERE isDeleted = 0 AND (tags IS NULL OR tags = '[]')")
+    fun observeUntaggedCount(): Flow<Int>
+
+    /**
+     * Get all untagged documents (for Smart Tagging screen).
+     * Ordered by most recently added first.
+     */
+    @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 AND (tags IS NULL OR tags = '[]') ORDER BY added DESC")
+    suspend fun getUntaggedDocuments(): List<CachedDocument>
+
     // Methods for orphan detection during sync
     @Query("SELECT id FROM cached_documents")
     suspend fun getAllIds(): List<Int>

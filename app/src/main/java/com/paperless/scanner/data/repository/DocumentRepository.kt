@@ -456,6 +456,31 @@ class DocumentRepository @Inject constructor(
     }
 
     /**
+     * Get count of untagged documents (for Smart Tagging).
+     * Reactively updates when documents are tagged or new documents are added.
+     *
+     * @return Flow that emits count of documents without tags
+     */
+    fun observeUntaggedDocumentsCount(): Flow<Int> {
+        return cachedDocumentDao.observeUntaggedCount()
+    }
+
+    /**
+     * Get all untagged documents from local cache (for Smart Tagging screen).
+     * Uses offline-first approach - returns cached documents immediately.
+     *
+     * @return Result with list of untagged documents ordered by most recent
+     */
+    suspend fun getUntaggedDocuments(): Result<List<Document>> {
+        return try {
+            val cachedDocs = cachedDocumentDao.getUntaggedDocuments()
+            Result.success(cachedDocs.map { it.toCachedDomain() })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
      * PAGING 3: Get documents as paginated Flow for infinite scroll.
      *
      * BEST PRACTICE: Pager automatically handles:

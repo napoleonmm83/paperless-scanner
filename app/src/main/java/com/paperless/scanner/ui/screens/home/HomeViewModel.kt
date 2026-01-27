@@ -164,6 +164,7 @@ class HomeViewModel @Inject constructor(
         observeTagsReactively()
         observeRecentDocumentsReactively()
         observeProcessingTasksReactively()
+        observeUntaggedCountReactively()
     }
 
     /**
@@ -174,10 +175,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             tagRepository.observeTags().collect { tags ->
                 tagMap = tags.associateBy { it.id }
-
-                // Recalculate untagged count when tags change
-                val untagged = countUntaggedFromRecent(_uiState.value.recentDocuments)
-                _uiState.update { it.copy(untaggedCount = untagged) }
             }
         }
     }
@@ -205,12 +202,9 @@ class HomeViewModel @Inject constructor(
                     )
                 }
 
-                val untagged = countUntaggedFromRecent(recentDocs)
-
                 _uiState.update { currentState ->
                     currentState.copy(
                         recentDocuments = recentDocs,
-                        untaggedCount = untagged,
                         isLoading = false
                     )
                 }
@@ -259,6 +253,18 @@ class HomeViewModel @Inject constructor(
                 } else {
                     stopTaskPolling()
                 }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for untagged documents count.
+     * Automatically updates when documents are tagged or new documents are added.
+     */
+    private fun observeUntaggedCountReactively() {
+        viewModelScope.launch {
+            documentRepository.observeUntaggedDocumentsCount().collect { count ->
+                _uiState.update { it.copy(untaggedCount = count) }
             }
         }
     }
@@ -426,10 +432,6 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-    private fun countUntaggedFromRecent(docs: List<RecentDocument>): Int {
-        return docs.count { it.tagName == null }
-    }
-
 
     private fun mapTaskStatus(status: String): TaskStatus {
         return when (status) {
@@ -559,29 +561,22 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _tagSuggestionsState.update { it.copy(isLoading = true) }
 
-            // Get recent documents and filter for untagged ones (max 20)
-            documentRepository.getDocuments(
-                page = 1,
-                pageSize = 50, // Fetch more to ensure we get enough untagged ones
-                ordering = "-added"
-            ).onSuccess { response ->
+            // Get ALL untagged documents from local cache (no limit)
+            documentRepository.getUntaggedDocuments().onSuccess { documents ->
                 val serverUrl = tokenManager.serverUrl.first() ?: ""
                 val authToken = tokenManager.token.first() ?: ""
 
-                // Filter for untagged documents and take max 20
-                val untaggedDocs = response.results
-                    .filter { it.tags.isEmpty() }
-                    .take(20)
-                    .map { doc ->
-                        UntaggedDocument(
-                            id = doc.id,
-                            title = doc.title,
-                            thumbnailUrl = if (serverUrl.isNotEmpty() && authToken.isNotEmpty()) {
-                                "$serverUrl/api/documents/${doc.id}/thumb/"
-                            } else null,
-                            analysisState = UntaggedDocAnalysisState.Idle
-                        )
-                    }
+                // Map to UI model
+                val untaggedDocs = documents.map { doc ->
+                    UntaggedDocument(
+                        id = doc.id,
+                        title = doc.title,
+                        thumbnailUrl = if (serverUrl.isNotEmpty() && authToken.isNotEmpty()) {
+                            "$serverUrl/api/documents/${doc.id}/thumb/"
+                        } else null,
+                        analysisState = UntaggedDocAnalysisState.Idle
+                    )
+                }
 
                 _tagSuggestionsState.update {
                     it.copy(
