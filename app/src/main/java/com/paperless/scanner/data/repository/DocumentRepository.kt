@@ -476,9 +476,9 @@ class DocumentRepository @Inject constructor(
     ): Flow<PagingData<Document>> {
         return Pager(
             config = PagingConfig(
-                pageSize = 25,
-                enablePlaceholders = false,
-                initialLoadSize = 50 // Load more initially for better UX
+                pageSize = 100,
+                maxSize = 500, // Memory limit: max 500 items in memory
+                enablePlaceholders = false
             ),
             pagingSourceFactory = {
                 val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildPagingQuery(

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -31,8 +32,10 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -52,6 +55,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -287,6 +291,84 @@ fun DocumentsScreen(
                     )
                 }
 
+                // Created Date chip
+                if (uiState.currentFilter.createdDateFrom != null || uiState.currentFilter.createdDateTo != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(createdDateFrom = null, createdDateTo = null) } },
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.filter_chip_created_date,
+                                    formatDateRangeForChip(
+                                        uiState.currentFilter.createdDateFrom,
+                                        uiState.currentFilter.createdDateTo
+                                    )
+                                )
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Added Date chip
+                if (uiState.currentFilter.addedDateFrom != null || uiState.currentFilter.addedDateTo != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(addedDateFrom = null, addedDateTo = null) } },
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.filter_chip_added_date,
+                                    formatDateRangeForChip(
+                                        uiState.currentFilter.addedDateFrom,
+                                        uiState.currentFilter.addedDateTo
+                                    )
+                                )
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Modified Date chip
+                if (uiState.currentFilter.modifiedDateFrom != null || uiState.currentFilter.modifiedDateTo != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(modifiedDateFrom = null, modifiedDateTo = null) } },
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.filter_chip_modified_date,
+                                    formatDateRangeForChip(
+                                        uiState.currentFilter.modifiedDateFrom,
+                                        uiState.currentFilter.modifiedDateTo
+                                    )
+                                )
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
                 // Clear All chip
                 FilterChip(
                     selected = false,
@@ -368,6 +450,60 @@ fun DocumentsScreen(
                         )
                     }
                 }
+
+                // Append LoadState (Loading at bottom while scrolling)
+                when (val appendState = pagedDocuments.loadState.append) {
+                    is LoadState.Loading -> {
+                        item(span = { GridItemSpan(columns) }) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(32.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                    is LoadState.Error -> {
+                        item(span = { GridItemSpan(columns) }) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                ),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.error_loading_more),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Button(
+                                        onClick = { pagedDocuments.retry() }
+                                    ) {
+                                        Text(stringResource(R.string.retry))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    is LoadState.NotLoading -> {
+                        // No additional UI needed
+                    }
+                }
             }
         }
         }
@@ -379,6 +515,8 @@ fun DocumentsScreen(
             sheetState = filterSheetState,
             currentFilter = uiState.currentFilter,
             availableTags = uiState.availableTags,
+            availableCorrespondents = uiState.availableCorrespondents,
+            availableDocumentTypes = uiState.availableDocumentTypes,
             onDismiss = { showFilterSheet = false },
             onApply = { filter ->
                 viewModel.applyFilter(filter)
@@ -501,5 +639,41 @@ private fun DocumentCard(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+/**
+ * Format date range for filter chip display.
+ * Examples:
+ * - "01.01 - 31.01" (both dates set)
+ * - "Ab 01.01" (only start date)
+ * - "Bis 31.01" (only end date)
+ */
+private fun formatDateRangeForChip(startDate: String?, endDate: String?): String {
+    return when {
+        startDate != null && endDate != null -> {
+            val start = formatShortDate(startDate)
+            val end = formatShortDate(endDate)
+            "$start - $end"
+        }
+        startDate != null -> "Ab ${formatShortDate(startDate)}"
+        endDate != null -> "Bis ${formatShortDate(endDate)}"
+        else -> ""
+    }
+}
+
+/**
+ * Format ISO date (YYYY-MM-DD) to short display format (DD.MM).
+ */
+private fun formatShortDate(isoDate: String): String {
+    return try {
+        val parts = isoDate.split("-")
+        if (parts.size == 3) {
+            "${parts[2]}.${parts[1]}"
+        } else {
+            isoDate
+        }
+    } catch (e: Exception) {
+        isoDate
     }
 }

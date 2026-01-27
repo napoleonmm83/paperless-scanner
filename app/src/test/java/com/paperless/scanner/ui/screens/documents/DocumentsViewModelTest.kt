@@ -12,6 +12,7 @@ import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -41,6 +42,7 @@ class DocumentsViewModelTest {
     private lateinit var documentRepository: DocumentRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
+    private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var tokenManager: TokenManager
 
     private val testDispatcher = StandardTestDispatcher()
@@ -53,6 +55,7 @@ class DocumentsViewModelTest {
         documentRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
+        documentTypeRepository = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
 
         // Mock TokenManager behavior
@@ -62,6 +65,7 @@ class DocumentsViewModelTest {
         // Default mock responses
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(emptyList())
+        coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(emptyList())
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
 
@@ -82,6 +86,7 @@ class DocumentsViewModelTest {
             documentRepository = documentRepository,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
             tokenManager = tokenManager
         )
     }

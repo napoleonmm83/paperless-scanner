@@ -749,6 +749,7 @@
     <string name="tag_suggestions_loading">Dokumente werden geladen…</string>
     <string name="error_not_authenticated">Nicht angemeldet</string>
     <string name="error_unknown">Unbekannter Fehler</string>
+    <string name="error_loading_more">Error loading more documents</string>
     <string name="back">Zurück</string>
     <string name="close">Schließen</string>
     <string name="done">Fertig</string>
@@ -875,4 +876,20 @@
     <string name="filter_chip_correspondent">Correspondent</string>
     <string name="filter_chip_document_type">Document Type</string>
     <string name="filter_chip_archive_status">Archive Status</string>
+
+    <!-- Date Range Picker -->
+    <string name="date_range_not_set">Not Set</string>
+    <string name="date_range_clear">Clear Date</string>
+    <string name="date_range_select">Select Date</string>
+    <string name="date_range_confirm">OK</string>
+    <string name="date_range_cancel">Cancel</string>
+    <string name="date_range_today">Today</string>
+    <string name="date_range_last_7_days">7 Days</string>
+    <string name="date_range_last_30_days">30 Days</string>
+    <string name="filter_section_created_date">Created Date</string>
+    <string name="filter_section_added_date">Added Date</string>
+    <string name="filter_section_modified_date">Modified Date</string>
+    <string name="filter_chip_created_date">Created: %1$s</string>
+    <string name="filter_chip_added_date">Added: %1$s</string>
+    <string name="filter_chip_modified_date">Modified: %1$s</string>
 </resources>

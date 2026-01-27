@@ -122,10 +122,12 @@
   - Hinweis-Banner für ungetaggte Dokumente
 
 - [x] **Dokumenten-Übersicht**
-  - Vollständige Dokumentenliste mit Pagination
-  - Suche und Filter
+  - Vollständige Dokumentenliste mit Paging 3
+  - Suche und Filter mit reaktiven Flows
   - Pull-to-Refresh
-  - Unendliches Scrollen
+  - Unendliches Scrollen (Paging 3 mit LoadState UI)
+  - Memory-Limit: max 500 Items in-memory (PagingConfig maxSize)
+  - Note: RemoteMediator für zukünftige Server-Pagination geplant
 
 - [x] **Dokument-Detailansicht**
   - Vollständige Dokumentinformationen

@@ -57,6 +57,7 @@ import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.components.TagAutocomplete
+import com.paperless.scanner.ui.components.DateRangePickerField
 
 /**
  * Advanced document filter bottom sheet.
@@ -203,6 +204,51 @@ fun DocumentFilterSheet(
                         onSelect = { editingFilter = editingFilter.copy(hasArchiveSerialNumber = it) }
                     )
                 }
+            }
+
+            // Section: Created Date Range
+            item {
+                DateRangePickerField(
+                    label = stringResource(R.string.filter_section_created_date),
+                    startDate = editingFilter.createdDateFrom,
+                    endDate = editingFilter.createdDateTo,
+                    onDateRangeSelected = { start, end ->
+                        editingFilter = editingFilter.copy(
+                            createdDateFrom = start,
+                            createdDateTo = end
+                        )
+                    }
+                )
+            }
+
+            // Section: Added Date Range
+            item {
+                DateRangePickerField(
+                    label = stringResource(R.string.filter_section_added_date),
+                    startDate = editingFilter.addedDateFrom,
+                    endDate = editingFilter.addedDateTo,
+                    onDateRangeSelected = { start, end ->
+                        editingFilter = editingFilter.copy(
+                            addedDateFrom = start,
+                            addedDateTo = end
+                        )
+                    }
+                )
+            }
+
+            // Section: Modified Date Range
+            item {
+                DateRangePickerField(
+                    label = stringResource(R.string.filter_section_modified_date),
+                    startDate = editingFilter.modifiedDateFrom,
+                    endDate = editingFilter.modifiedDateTo,
+                    onDateRangeSelected = { start, end ->
+                        editingFilter = editingFilter.copy(
+                            modifiedDateFrom = start,
+                            modifiedDateTo = end
+                        )
+                    }
+                )
             }
 
             // Action Buttons
