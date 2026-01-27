@@ -101,9 +101,11 @@ fun DocumentsScreen(
     val gridState = rememberLazyGridState()
 
     // Auto-scroll to top when filter or sort changes
-    androidx.compose.runtime.LaunchedEffect(uiState.currentFilter) {
-        // Scroll to top when filter/sort changes
-        gridState.scrollToItem(0)
+    // Wait for LoadState.refresh to finish before scrolling to ensure new data is loaded
+    androidx.compose.runtime.LaunchedEffect(uiState.currentFilter, pagedDocuments.loadState.refresh) {
+        if (pagedDocuments.loadState.refresh is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
+            gridState.animateScrollToItem(0)
+        }
     }
 
     // BEST PRACTICE: Room Flow automatically updates UI when documents change in DB.
