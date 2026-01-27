@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Log
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -19,6 +20,7 @@ import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
+import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.models.PermissionSet
 import com.paperless.scanner.data.api.models.SetPermissionsRequest
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
@@ -27,6 +29,7 @@ import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsReques
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
+import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.mappers.toCachedEntity
@@ -54,10 +57,15 @@ class DocumentRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedDocumentDao: CachedDocumentDao,
     private val cachedTagDao: CachedTagDao,
+    private val cachedTaskDao: CachedTaskDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
     private val serverHealthMonitor: ServerHealthMonitor
 ) {
+    companion object {
+        private const val TAG = "DocumentRepository"
+    }
+
     private val gson = Gson()
     suspend fun uploadDocument(
         uri: Uri,
@@ -748,10 +756,31 @@ class DocumentRepository @Inject constructor(
     suspend fun deleteDocument(documentId: Int): Result<Unit> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
+                // CASCADE CLEANUP STEP 1: Get all unacknowledged task IDs for this document
+                // Must happen BEFORE deletion to get task IDs
+                val tasks = cachedTaskDao.getAllTasks()
+                    .filter { it.relatedDocument == documentId.toString() && !it.acknowledged }
+                val taskIds = tasks.map { it.id }
+
                 // Online: Delete via API
                 val response = api.deleteDocument(documentId)
 
                 if (response.isSuccessful) {
+                    // CASCADE CLEANUP STEP 2: Acknowledge tasks on SERVER
+                    if (taskIds.isNotEmpty()) {
+                        try {
+                            val ackRequest = com.paperless.scanner.data.api.models.AcknowledgeTasksRequest(taskIds)
+                            api.acknowledgeTasks(ackRequest)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
+                            // Continue anyway - local cleanup is more important for UX
+                        }
+                    }
+
+                    // CASCADE CLEANUP STEP 3: Acknowledge tasks LOCALLY
+                    // BEST PRACTICE: Ensures immediate UI update in "Verarbeitung" section
+                    cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
+
                     // Hard delete from cache - document is confirmed deleted on server
                     cachedDocumentDao.hardDelete(documentId)
                     Result.success(Unit)
@@ -772,6 +801,10 @@ class DocumentRepository @Inject constructor(
                     changeData = "{}"
                 )
                 pendingChangeDao.insert(pendingChange)
+
+                // CASCADE CLEANUP: Acknowledge tasks for this document
+                // CRITICAL: Must happen BEFORE soft delete so reactivity works
+                cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
 
                 // Soft delete from local cache immediately for UX
                 // BEST PRACTICE: Use current time as deletion timestamp (local delete)

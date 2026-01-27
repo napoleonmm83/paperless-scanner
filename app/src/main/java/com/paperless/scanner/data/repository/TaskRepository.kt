@@ -38,9 +38,30 @@ class TaskRepository @Inject constructor(
     /**
      * BEST PRACTICE: Reactive Flow for unacknowledged tasks.
      * Perfect for task notification badge UI - automatically updates count.
+     *
+     * DEPRECATED: Use observeUnacknowledgedTasksExcludingDeleted() instead
+     * to automatically filter tasks for deleted documents.
      */
     fun observeUnacknowledgedTasks(): Flow<List<PaperlessTask>> {
         return cachedTaskDao.observeUnacknowledgedTasks()
+            .map { cachedList -> cachedList.map { it.cachedTaskToDomain() } }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for unacknowledged tasks excluding deleted documents.
+     * Uses @RawQuery with observedEntities to ensure immediate reactivity.
+     *
+     * This is the RECOMMENDED method for UI components (e.g., HomeScreen).
+     * Automatically updates when:
+     * - Task is added/updated/acknowledged (cached_tasks changes)
+     * - Document is deleted/restored (cached_documents.isDeleted changes)
+     *
+     * No manual refresh or navigation required - UI updates instantly!
+     *
+     * @return Flow<List<PaperlessTask>> - Tasks without deleted documents
+     */
+    fun observeUnacknowledgedTasksExcludingDeleted(): Flow<List<PaperlessTask>> {
+        return cachedTaskDao.observeUnacknowledgedTasksExcludingDeleted()
             .map { cachedList -> cachedList.map { it.cachedTaskToDomain() } }
     }
 

@@ -254,10 +254,11 @@ object AppModule {
         api: PaperlessApi,
         cachedDocumentDao: CachedDocumentDao,
         cachedTagDao: CachedTagDao,
+        cachedTaskDao: CachedTaskDao,
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor,
         serverHealthMonitor: ServerHealthMonitor
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao, networkMonitor, serverHealthMonitor)
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor)
 
     @Provides
     @Singleton

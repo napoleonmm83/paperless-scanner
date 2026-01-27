@@ -217,16 +217,21 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * BEST PRACTICE: Reactive Flow for processing tasks.
-     * Automatically updates UI when tasks are added/updated/deleted in DB.
+     * BEST PRACTICE: Reactive Flow with multi-table observation.
+     * Uses @RawQuery with observedEntities=[CachedTask, CachedDocument]
+     * to ensure immediate UI updates when documents are deleted.
      *
-     * FIX: Filters out tasks for deleted documents (prevents 404 errors when clicking).
-     * When a document is moved to trash (isDeleted = 1), its processing task
-     * should not be shown in the HomeScreen anymore.
+     * The magic happens at DAO level:
+     * - observeUnacknowledgedTasksExcludingDeleted() uses @RawQuery
+     * - observedEntities tells Room to watch BOTH tables
+     * - When document.isDeleted changes, Room automatically re-emits Flow
+     * - No manual refresh, no navigation required!
+     *
+     * This is THE correct way to do reactive multi-table queries in Room.
      */
     private fun observeProcessingTasksReactively() {
         viewModelScope.launch {
-            taskRepository.observeUnacknowledgedTasks().collect { tasks ->
+            taskRepository.observeUnacknowledgedTasksExcludingDeleted().collect { tasks ->
                 val processingTasks = tasks
                     // Only show document processing tasks, not system tasks like train_classifier
                     .filter { task -> task.taskFileName != null }
@@ -244,29 +249,19 @@ class HomeViewModel @Inject constructor(
                     .sortedByDescending { it.id }
                     .take(10)
 
-                // CRITICAL FIX: Filter out tasks for deleted/trashed documents
-                // Prevents 404 errors when user clicks on processing task for a deleted document
-                val validProcessingTasks = processingTasks.filter { task ->
-                    task.documentId?.let { docId ->
-                        // Check if document still exists and is not deleted (isDeleted = 0)
-                        // If document is deleted or doesn't exist, exclude this task
-                        documentRepository.getDocument(docId) != null
-                    } ?: true // Tasks without documentId are valid (e.g., system tasks that passed filter)
-                }
-
                 // Track newly completed tasks for document sync
                 val previousTasks = _uiState.value.processingTasks
-                syncCompletedDocuments(previousTasks, validProcessingTasks)
+                syncCompletedDocuments(previousTasks, processingTasks)
 
                 _uiState.update { currentState ->
                     currentState.copy(
-                        processingTasks = validProcessingTasks,
+                        processingTasks = processingTasks,
                         isLoading = false
                     )
                 }
 
                 // Start/stop polling based on task status
-                if (validProcessingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
+                if (processingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
                     startTaskPolling()
                 } else {
                     stopTaskPolling()
