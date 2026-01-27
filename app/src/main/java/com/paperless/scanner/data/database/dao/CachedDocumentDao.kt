@@ -1,10 +1,13 @@
 package com.paperless.scanner.data.database.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Update
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.paperless.scanner.data.database.entities.CachedDocument
 import kotlinx.coroutines.flow.Flow
 
@@ -95,4 +98,43 @@ interface CachedDocumentDao {
     // Hard delete a single document
     @Query("DELETE FROM cached_documents WHERE id = :id")
     suspend fun hardDelete(id: Int)
+
+    // Advanced Filtering with @RawQuery for DocumentFilter support
+
+    /**
+     * BEST PRACTICE: Dynamic filtering with @RawQuery for complex multi-criteria queries.
+     * Supports all DocumentFilter fields: query, multi-tags (OR logic), correspondent,
+     * documentType, date ranges, and archive status.
+     *
+     * Use DocumentFilterQueryBuilder to construct the SupportSQLiteQuery.
+     *
+     * @param query SupportSQLiteQuery built from DocumentFilter
+     * @return Flow that emits filtered documents and updates automatically
+     */
+    @RawQuery(observedEntities = [CachedDocument::class])
+    fun observeDocumentsWithFilter(query: SupportSQLiteQuery): Flow<List<CachedDocument>>
+
+    /**
+     * Get total count of filtered documents (for pagination).
+     *
+     * @param query SupportSQLiteQuery built from DocumentFilter (COUNT(*) variant)
+     * @return Flow that emits count and updates automatically
+     */
+    @RawQuery(observedEntities = [CachedDocument::class])
+    fun getCountWithFilter(query: SupportSQLiteQuery): Flow<Int>
+
+    /**
+     * PAGING 3: Get documents as PagingSource for infinite scroll.
+     * Supports all DocumentFilter fields via @RawQuery with dynamic SQL.
+     *
+     * CRITICAL: Room automatically handles pagination bounds (LIMIT/OFFSET).
+     * The query should NOT include LIMIT/OFFSET - Room adds them automatically!
+     *
+     * Use DocumentFilterQueryBuilder.buildPagingQuery() for correct SQL generation.
+     *
+     * @param query SupportSQLiteQuery built from DocumentFilter (NO LIMIT/OFFSET!)
+     * @return PagingSource that Room uses for Paging 3 integration
+     */
+    @RawQuery(observedEntities = [CachedDocument::class])
+    fun getDocumentsPagingSource(query: SupportSQLiteQuery): PagingSource<Int, CachedDocument>
 }

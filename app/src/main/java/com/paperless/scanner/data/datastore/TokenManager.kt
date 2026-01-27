@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.paperless.scanner.domain.model.DocumentFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -50,6 +51,9 @@ class TokenManager(private val context: Context) {
         private val APP_LOCK_PASSWORD_HASH_KEY = stringPreferencesKey("app_lock_password_hash")
         private val APP_LOCK_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("app_lock_biometric_enabled")
         private val APP_LOCK_TIMEOUT_KEY = stringPreferencesKey("app_lock_timeout")
+
+        // Document Filter Preferences
+        private val DOCUMENT_FILTER_KEY = stringPreferencesKey("document_filter")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -437,5 +441,48 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences[APP_LOCK_TIMEOUT_KEY] = timeout.name
         }
+    }
+
+    // Document Filter Settings
+
+    /**
+     * Reactive Flow for document filter state.
+     * Emits DocumentFilter.empty() if no filter is stored.
+     */
+    val documentFilter: Flow<DocumentFilter> = context.dataStore.data.map { preferences ->
+        val filterJson = preferences[DOCUMENT_FILTER_KEY]
+        DocumentFilter.fromJson(filterJson)
+    }
+
+    /**
+     * Save document filter to persistent storage.
+     * Filter is serialized to JSON for compact storage.
+     */
+    suspend fun saveDocumentFilter(filter: DocumentFilter) {
+        context.dataStore.edit { preferences ->
+            if (filter.isEmpty()) {
+                preferences.remove(DOCUMENT_FILTER_KEY)
+            } else {
+                preferences[DOCUMENT_FILTER_KEY] = filter.toJson()
+            }
+        }
+    }
+
+    /**
+     * Clear stored document filter.
+     */
+    suspend fun clearDocumentFilter() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(DOCUMENT_FILTER_KEY)
+        }
+    }
+
+    /**
+     * Get document filter synchronously (for ViewModel initialization).
+     * Returns DocumentFilter.empty() if no filter is stored.
+     */
+    fun getDocumentFilterSync(): DocumentFilter = runBlocking {
+        val filterJson = context.dataStore.data.first()[DOCUMENT_FILTER_KEY]
+        DocumentFilter.fromJson(filterJson)
     }
 }

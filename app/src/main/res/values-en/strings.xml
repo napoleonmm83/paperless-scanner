@@ -853,4 +853,26 @@
     <string name="empty_correspondents">No correspondents created yet.\nTap \"Create Correspondent\" above to get started.</string>
     <string name="empty_document_types">No document types created yet.\nTap \"Create Document Type\" above to get started.</string>
     <string name="empty_custom_fields">No custom fields created yet.\nTap \"Create Field\" above to get started.</string>
+
+    <!-- Document Filter -->
+    <string name="filter_button">Filter</string>
+    <string name="filter_title">Filter Documents</string>
+    <string name="filter_active_count">%1$d active filters</string>
+    <string name="filter_section_tags">Tags</string>
+    <string name="filter_no_tags">No tags available</string>
+    <string name="tag_autocomplete_placeholder">Search tags...</string>
+    <string name="filter_section_correspondent">Correspondent</string>
+    <string name="filter_section_document_type">Document Type</string>
+    <string name="filter_section_archive_status">Archive Status</string>
+    <string name="filter_archive_all">All Documents</string>
+    <string name="filter_archive_with_asn">Only with Archive Number</string>
+    <string name="filter_archive_without_asn">Only without Archive Number</string>
+    <string name="filter_clear_selection">Clear Selection</string>
+    <string name="filter_more_items">+%1$d more</string>
+    <string name="filter_clear_all">Clear All</string>
+    <string name="filter_apply">Apply</string>
+    <string name="filter_chip_tags">%1$d Tags</string>
+    <string name="filter_chip_correspondent">Correspondent</string>
+    <string name="filter_chip_document_type">Document Type</string>
+    <string name="filter_chip_archive_status">Archive Status</string>
 </resources>

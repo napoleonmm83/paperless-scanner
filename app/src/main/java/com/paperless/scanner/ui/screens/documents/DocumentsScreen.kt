@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.documents
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,15 +20,22 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,6 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -71,11 +81,16 @@ fun DocumentsScreen(
     viewModel: DocumentsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pagedDocuments = viewModel.pagedDocuments.collectAsLazyPagingItems()
     var searchQuery by remember { mutableStateOf("") }
 
     // Pull-to-refresh state
     var isRefreshing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    // Filter sheet state
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // BEST PRACTICE: Room Flow automatically updates UI when documents change in DB.
     // Pull-to-refresh allows users to manually trigger server sync.
@@ -115,53 +130,180 @@ fun DocumentsScreen(
             )
         }
 
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = {
-                searchQuery = it
-                viewModel.search(it)
-            },
+        // Search Bar + Filter Button
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 8.dp),
-            placeholder = {
-                Text(stringResource(R.string.documents_search_placeholder))
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = stringResource(R.string.cd_search),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = {
-                        searchQuery = ""
-                        viewModel.search("")
-                    }) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.documents_search_clear),
-                            modifier = Modifier.size(20.dp)
-                        )
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    viewModel.search(it)
+                },
+                modifier = Modifier.weight(1f),
+                placeholder = {
+                    Text(stringResource(R.string.documents_search_placeholder))
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = stringResource(R.string.cd_search),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = {
+                            searchQuery = ""
+                            viewModel.search("")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.documents_search_clear),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                ),
+                singleLine = true
+            )
+
+            // Filter Button with Badge
+            val activeFilterCount = uiState.currentFilter.activeFilterCount()
+            BadgedBox(
+                badge = {
+                    if (activeFilterCount > 0) {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            Text(activeFilterCount.toString())
+                        }
                     }
                 }
-            },
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-            ),
-            singleLine = true
-        )
+            ) {
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            color = if (activeFilterCount > 0) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.FilterList,
+                        contentDescription = stringResource(R.string.filter_button),
+                        tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
-        // Document List
-        if (uiState.documents.isEmpty()) {
+        // Active Filter Chips
+        if (!uiState.currentFilter.isEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Tags chip
+                if (uiState.currentFilter.tagIds.isNotEmpty()) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(tagIds = emptyList()) } },
+                        label = { Text(stringResource(R.string.filter_chip_tags, uiState.currentFilter.tagIds.size)) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Correspondent chip
+                if (uiState.currentFilter.correspondentId != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(correspondentId = null) } },
+                        label = { Text(stringResource(R.string.filter_chip_correspondent)) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Document Type chip
+                if (uiState.currentFilter.documentTypeId != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(documentTypeId = null) } },
+                        label = { Text(stringResource(R.string.filter_chip_document_type)) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Archive Status chip
+                if (uiState.currentFilter.hasArchiveSerialNumber != null) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { viewModel.updateFilter { it.copy(hasArchiveSerialNumber = null) } },
+                        label = { Text(stringResource(R.string.filter_chip_archive_status)) },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize)
+                            )
+                        }
+                    )
+                }
+
+                // Clear All chip
+                FilterChip(
+                    selected = false,
+                    onClick = { viewModel.clearFilter() },
+                    label = { Text(stringResource(R.string.filter_clear_all)) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        labelColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // Document List (Paging 3 Infinite Scroll)
+        if (pagedDocuments.itemCount == 0 && !uiState.isLoading) {
             // Empty state
             Box(
                 modifier = Modifier
@@ -214,15 +356,34 @@ fun DocumentsScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(uiState.documents, key = { it.id }) { document ->
-                    DocumentCard(
-                        document = document,
-                        onClick = { onDocumentClick(document.id) }
-                    )
+                items(
+                    count = pagedDocuments.itemCount,
+                    key = { index -> pagedDocuments[index]?.id ?: index }
+                ) { index ->
+                    val document = pagedDocuments[index]
+                    if (document != null) {
+                        DocumentCard(
+                            document = document,
+                            onClick = { onDocumentClick(document.id) }
+                        )
+                    }
                 }
             }
         }
         }
+    }
+
+    // Filter Sheet
+    if (showFilterSheet) {
+        DocumentFilterSheet(
+            sheetState = filterSheetState,
+            currentFilter = uiState.currentFilter,
+            availableTags = uiState.availableTags,
+            onDismiss = { showFilterSheet = false },
+            onApply = { filter ->
+                viewModel.applyFilter(filter)
+            }
+        )
     }
 }
 

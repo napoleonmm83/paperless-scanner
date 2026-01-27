@@ -4,6 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.geom.PageSize
 import com.itextpdf.kernel.pdf.PdfDocument
@@ -404,6 +408,89 @@ class DocumentRepository @Inject constructor(
     ): Flow<Int> {
         val query = searchQuery?.takeIf { it.isNotBlank() }
         return cachedDocumentDao.getFilteredCount(searchQuery = query, tagId = tagId)
+    }
+
+    /**
+     * BEST PRACTICE: Advanced filtering with searchQuery + DocumentFilter.
+     * Reactive Flow with @RawQuery for complex multi-criteria queries.
+     *
+     * @param searchQuery Full-text search (from SearchBar) - searches title, content, filename, ASN
+     * @param filter DocumentFilter with structured criteria (from FilterSheet) - tags, correspondent, docType, dates, archive status
+     * @param page Page number for pagination
+     * @param pageSize Results per page
+     * @return Flow that emits filtered documents and updates automatically
+     */
+    fun observeDocumentsWithFilter(
+        searchQuery: String? = null,
+        filter: com.paperless.scanner.domain.model.DocumentFilter = com.paperless.scanner.domain.model.DocumentFilter.empty(),
+        page: Int = 1,
+        pageSize: Int = 25
+    ): Flow<List<Document>> {
+        val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildQuery(
+            searchQuery = searchQuery,
+            filter = filter,
+            limit = pageSize,
+            offset = (page - 1) * pageSize
+        )
+        return cachedDocumentDao.observeDocumentsWithFilter(query).map { cachedList ->
+            cachedList.map { it.toCachedDomain() }
+        }
+    }
+
+    /**
+     * Get total count of filtered documents with searchQuery + DocumentFilter.
+     *
+     * @param searchQuery Full-text search (from SearchBar)
+     * @param filter DocumentFilter with structured criteria (from FilterSheet)
+     * @return Flow that emits count and updates automatically
+     */
+    fun observeCountWithFilter(
+        searchQuery: String? = null,
+        filter: com.paperless.scanner.domain.model.DocumentFilter = com.paperless.scanner.domain.model.DocumentFilter.empty()
+    ): Flow<Int> {
+        val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildCountQuery(
+            searchQuery = searchQuery,
+            filter = filter
+        )
+        return cachedDocumentDao.getCountWithFilter(query)
+    }
+
+    /**
+     * PAGING 3: Get documents as paginated Flow for infinite scroll.
+     *
+     * BEST PRACTICE: Pager automatically handles:
+     * - Loading initial data
+     * - Loading more when user scrolls (append)
+     * - Caching loaded pages
+     * - Cancelling old requests when filter/search changes
+     *
+     * The PagingSource is invalidated automatically when Room DB changes.
+     *
+     * @param searchQuery Full-text search (from SearchBar)
+     * @param filter DocumentFilter with structured criteria (from FilterSheet)
+     * @return Flow<PagingData<Document>> for collectAsLazyPagingItems()
+     */
+    fun getDocumentsPaged(
+        searchQuery: String? = null,
+        filter: com.paperless.scanner.domain.model.DocumentFilter = com.paperless.scanner.domain.model.DocumentFilter.empty()
+    ): Flow<PagingData<Document>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 25,
+                enablePlaceholders = false,
+                initialLoadSize = 50 // Load more initially for better UX
+            ),
+            pagingSourceFactory = {
+                val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildPagingQuery(
+                    searchQuery = searchQuery,
+                    filter = filter
+                )
+                cachedDocumentDao.getDocumentsPagingSource(query)
+            }
+        ).flow.map { pagingData ->
+            // Map CachedDocument to Domain Document
+            pagingData.map { it.toCachedDomain() }
+        }
     }
 
     suspend fun getDocuments(

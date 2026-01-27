@@ -853,4 +853,26 @@
     <string name="empty_correspondents">Noch keine Korrespondenten erstellt.\nTippe oben auf \"Korrespondent erstellen\" um zu starten.</string>
     <string name="empty_document_types">Noch keine Dokumenttypen erstellt.\nTippe oben auf \"Dokumenttyp erstellen\" um zu starten.</string>
     <string name="empty_custom_fields">Noch keine benutzerdefinierten Felder erstellt.\nTippe oben auf \"Feld erstellen\" um zu starten.</string>
+
+    <!-- Document Filter -->
+    <string name="filter_button">Filter</string>
+    <string name="filter_title">Dokumente filtern</string>
+    <string name="filter_active_count">%1$d aktive Filter</string>
+    <string name="filter_section_tags">Tags</string>
+    <string name="filter_no_tags">Keine Tags verfügbar</string>
+    <string name="tag_autocomplete_placeholder">Tags suchen...</string>
+    <string name="filter_section_correspondent">Korrespondent</string>
+    <string name="filter_section_document_type">Dokumenttyp</string>
+    <string name="filter_section_archive_status">Archiv-Status</string>
+    <string name="filter_archive_all">Alle Dokumente</string>
+    <string name="filter_archive_with_asn">Nur mit Archivnummer</string>
+    <string name="filter_archive_without_asn">Nur ohne Archivnummer</string>
+    <string name="filter_clear_selection">Auswahl aufheben</string>
+    <string name="filter_more_items">+%1$d weitere</string>
+    <string name="filter_clear_all">Alle löschen</string>
+    <string name="filter_apply">Anwenden</string>
+    <string name="filter_chip_tags">%1$d Tags</string>
+    <string name="filter_chip_correspondent">Korrespondent</string>
+    <string name="filter_chip_document_type">Dokumenttyp</string>
+    <string name="filter_chip_archive_status">Archiv-Status</string>
 </resources>
