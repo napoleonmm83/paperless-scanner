@@ -27,12 +27,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +44,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -170,12 +175,12 @@ fun DocumentFilterSheet(
             if (availableCorrespondents.isNotEmpty()) {
                 item {
                     FilterSection(title = stringResource(R.string.filter_section_correspondent)) {
-                        SelectableList(
+                        EntityDropdown(
                             items = availableCorrespondents,
                             selectedId = editingFilter.correspondentId,
                             onSelect = { editingFilter = editingFilter.copy(correspondentId = it) },
-                            onClear = { editingFilter = editingFilter.copy(correspondentId = null) },
-                            itemLabel = { it.name }
+                            itemLabel = { it.name },
+                            placeholder = stringResource(R.string.filter_correspondent_placeholder)
                         )
                     }
                 }
@@ -185,12 +190,12 @@ fun DocumentFilterSheet(
             if (availableDocumentTypes.isNotEmpty()) {
                 item {
                     FilterSection(title = stringResource(R.string.filter_section_document_type)) {
-                        SelectableList(
+                        EntityDropdown(
                             items = availableDocumentTypes,
                             selectedId = editingFilter.documentTypeId,
                             onSelect = { editingFilter = editingFilter.copy(documentTypeId = it) },
-                            onClear = { editingFilter = editingFilter.copy(documentTypeId = null) },
-                            itemLabel = { it.name }
+                            itemLabel = { it.name },
+                            placeholder = stringResource(R.string.filter_document_type_placeholder)
                         )
                     }
                 }
@@ -496,6 +501,106 @@ private fun ArchiveStatusSelector(
                 color = if (hasArchiveSerialNumber == false) MaterialTheme.colorScheme.onPrimaryContainer
                 else MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T : Any> EntityDropdown(
+    items: List<T>,
+    selectedId: Int?,
+    onSelect: (Int?) -> Unit,
+    itemLabel: (T) -> String,
+    placeholder: String
+) {
+    // Find selected item
+    val getItemId: (T) -> Int = { item ->
+        when (item) {
+            is Correspondent -> item.id
+            is DocumentType -> item.id
+            else -> 0
+        }
+    }
+
+    val selectedItem = items.firstOrNull { getItemId(it) == selectedId }
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selectedItem?.let { itemLabel(it) } ?: "",
+            onValueChange = {},
+            readOnly = true,
+            placeholder = {
+                Text(
+                    text = placeholder,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Clear button (only show when item selected)
+                    if (selectedItem != null) {
+                        IconButton(
+                            onClick = {
+                                onSelect(null)
+                                expanded = false
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.filter_clear_selection),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            items.forEach { item ->
+                val itemId = getItemId(item)
+                val isSelected = selectedId == itemId
+
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = itemLabel(item),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    onClick = {
+                        onSelect(if (isSelected) null else itemId)
+                        expanded = false
+                    },
+                    leadingIcon = if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else null
+                )
+            }
         }
     }
 }

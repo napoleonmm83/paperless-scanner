@@ -863,7 +863,9 @@
     <string name="filter_no_tags">Keine Tags verfügbar</string>
     <string name="tag_autocomplete_placeholder">Tags suchen...</string>
     <string name="filter_section_correspondent">Korrespondent</string>
+    <string name="filter_correspondent_placeholder">Korrespondent auswählen</string>
     <string name="filter_section_document_type">Dokumenttyp</string>
+    <string name="filter_document_type_placeholder">Dokumenttyp auswählen</string>
     <string name="filter_section_archive_status">Archiv-Status</string>
     <string name="filter_archive_all">Alle Dokumente</string>
     <string name="filter_archive_with_asn">Nur mit Archivnummer</string>
