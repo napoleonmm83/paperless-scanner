@@ -219,6 +219,10 @@ class HomeViewModel @Inject constructor(
     /**
      * BEST PRACTICE: Reactive Flow for processing tasks.
      * Automatically updates UI when tasks are added/updated/deleted in DB.
+     *
+     * FIX: Filters out tasks for deleted documents (prevents 404 errors when clicking).
+     * When a document is moved to trash (isDeleted = 1), its processing task
+     * should not be shown in the HomeScreen anymore.
      */
     private fun observeProcessingTasksReactively() {
         viewModelScope.launch {
@@ -240,19 +244,29 @@ class HomeViewModel @Inject constructor(
                     .sortedByDescending { it.id }
                     .take(10)
 
+                // CRITICAL FIX: Filter out tasks for deleted/trashed documents
+                // Prevents 404 errors when user clicks on processing task for a deleted document
+                val validProcessingTasks = processingTasks.filter { task ->
+                    task.documentId?.let { docId ->
+                        // Check if document still exists and is not deleted (isDeleted = 0)
+                        // If document is deleted or doesn't exist, exclude this task
+                        documentRepository.getDocument(docId) != null
+                    } ?: true // Tasks without documentId are valid (e.g., system tasks that passed filter)
+                }
+
                 // Track newly completed tasks for document sync
                 val previousTasks = _uiState.value.processingTasks
-                syncCompletedDocuments(previousTasks, processingTasks)
+                syncCompletedDocuments(previousTasks, validProcessingTasks)
 
                 _uiState.update { currentState ->
                     currentState.copy(
-                        processingTasks = processingTasks,
+                        processingTasks = validProcessingTasks,
                         isLoading = false
                     )
                 }
 
                 // Start/stop polling based on task status
-                if (processingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
+                if (validProcessingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
                     startTaskPolling()
                 } else {
                     stopTaskPolling()
