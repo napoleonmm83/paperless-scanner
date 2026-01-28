@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.repository
 
 import android.util.Log
+import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import okhttp3.FormBody
@@ -18,7 +19,8 @@ import javax.net.ssl.SSLHandshakeException
 
 class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
-    private val client: OkHttpClient
+    private val client: OkHttpClient,
+    private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -479,6 +481,11 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout() {
+        // Reset Cloudflare detection to allow fresh detection on next login
+        // (important if user switches to a different server)
+        cloudflareDetectionInterceptor.resetDetection()
+
+        // Clear all credentials and settings (includes Cloudflare flag in DataStore)
         tokenManager.clearCredentials()
     }
 }

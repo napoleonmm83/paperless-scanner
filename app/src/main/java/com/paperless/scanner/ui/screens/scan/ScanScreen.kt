@@ -110,7 +110,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val MAX_PAGES = 20
+// Page limit increased from 20 to 100 based on tested capacity (90-100 pages)
+// App supports large batches: storage validation, 50MB per file limit, tested for crashes
+// See: ByteRover context - "Large Batch Validation (Task 98/100)"
+private const val MAX_PAGES = 100
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,6 +131,7 @@ fun ScanScreen(
     val uiState by viewModel.uiState.collectAsState()
     val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
+    val usesCloudflare by viewModel.usesCloudflare.collectAsState()
     val uploadAsSingleDocument by viewModel.uploadAsSingleDocument.collectAsState()
     var showAddMoreDialog by remember { mutableStateOf(false) }
     var showMetadataChoiceDialog by remember { mutableStateOf(false) }
@@ -307,6 +311,7 @@ fun ScanScreen(
                     uiState = uiState,
                     wifiRequired = wifiRequired,
                     isWifiConnected = isWifiConnected,
+                    usesCloudflare = usesCloudflare,
                     uploadAsSingleDocument = uploadAsSingleDocument,
                     onUploadModeChange = { viewModel.setUploadAsSingleDocument(it) },
                     onUseAnywayClick = { viewModel.overrideWifiOnlyForSession() },
@@ -582,6 +587,7 @@ private fun MultiPageContent(
     uiState: ScanUiState,
     wifiRequired: Boolean,
     isWifiConnected: Boolean,
+    usesCloudflare: Boolean,
     uploadAsSingleDocument: Boolean,
     onUploadModeChange: (Boolean) -> Unit,
     onUseAnywayClick: () -> Unit,
@@ -593,11 +599,11 @@ private fun MultiPageContent(
     onClear: () -> Unit,
     onContinue: () -> Unit
 ) {
-    val isNearLimit = uiState.pageCount >= 18
+    val isNearLimit = uiState.pageCount >= 90
     val isAtLimit = uiState.pageCount >= MAX_PAGES
     val progressColor = when {
-        uiState.pageCount >= 19 -> MaterialTheme.colorScheme.error
-        uiState.pageCount >= 15 -> MaterialTheme.colorScheme.tertiary
+        uiState.pageCount >= 90 -> MaterialTheme.colorScheme.error
+        uiState.pageCount >= 50 -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.primary
     }
 
@@ -694,6 +700,19 @@ private fun MultiPageContent(
             Spacer(modifier = Modifier.height(16.dp))
             WifiRequiredBanner(
                 onUseAnywayClick = onUseAnywayClick,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        // Cloudflare Timeout Warning - shown when:
+        // 1. Server uses Cloudflare (cf-ray header detected)
+        // 2. Single PDF mode (not individual documents)
+        // 3. Large batch (>15 pages) OR slow connection (no WiFi)
+        if (usesCloudflare && uploadAsSingleDocument && (uiState.pageCount > 15 || !isWifiConnected)) {
+            Spacer(modifier = Modifier.height(16.dp))
+            CloudflareTimeoutWarning(
+                pageCount = uiState.pageCount,
+                isWifiConnected = isWifiConnected,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
@@ -1250,6 +1269,84 @@ private fun ZoomableImage(
                 ),
             contentScale = ContentScale.Fit
         )
+    }
+}
+
+/**
+ * Cloudflare Timeout Warning Banner.
+ *
+ * Shown when server uses Cloudflare AND user is uploading large PDF via slow connection.
+ * Cloudflare has a 100-second timeout limit which can affect:
+ * - Large PDFs (>50MB) over slow connections (upload time)
+ * - NOT server-side processing (which is asynchronous after upload completes)
+ *
+ * @param pageCount Number of pages to upload
+ * @param isWifiConnected Whether device is on WiFi (vs mobile data)
+ * @param modifier Modifier for the banner
+ */
+@Composable
+private fun CloudflareTimeoutWarning(
+    pageCount: Int,
+    isWifiConnected: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.scan_cloudflare_timeout_warning_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = stringResource(
+                    R.string.scan_cloudflare_timeout_warning_message,
+                    pageCount
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Recommendation based on connection type
+            Text(
+                text = if (isWifiConnected) {
+                    stringResource(R.string.scan_cloudflare_recommendation_wifi)
+                } else {
+                    stringResource(R.string.scan_cloudflare_recommendation_no_wifi)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

@@ -57,6 +57,9 @@ class TokenManager(private val context: Context) {
 
         // Trash Pending Delete Preferences (survives AppLock)
         private val TRASH_PENDING_DELETES_KEY = stringPreferencesKey("trash_pending_deletes")
+
+        // Server Configuration Detection
+        private val SERVER_USES_CLOUDFLARE_KEY = booleanPreferencesKey("server_uses_cloudflare")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -202,6 +205,7 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences.clear()
         }
+        // Note: Cloudflare detection flag is also cleared since we clear ALL preferences
     }
 
     fun getTokenSync(): String? = runBlocking {
@@ -521,5 +525,31 @@ class TokenManager(private val context: Context) {
         context.dataStore.edit { preferences ->
             preferences.remove(TRASH_PENDING_DELETES_KEY)
         }
+    }
+
+    // Server Configuration Detection
+
+    /**
+     * Whether the server uses Cloudflare (detected via cf-ray header).
+     * This information is used to show timeout warnings for large uploads.
+     */
+    val serverUsesCloudflare: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SERVER_USES_CLOUDFLARE_KEY] ?: false
+    }
+
+    /**
+     * Set whether server uses Cloudflare (detected automatically during health checks).
+     */
+    suspend fun setServerUsesCloudflare(usesCloudflare: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SERVER_USES_CLOUDFLARE_KEY] = usesCloudflare
+        }
+    }
+
+    /**
+     * Get Cloudflare detection state synchronously.
+     */
+    fun isServerUsingCloudflareSync(): Boolean = runBlocking {
+        context.dataStore.data.first()[SERVER_USES_CLOUDFLARE_KEY] ?: false
     }
 }

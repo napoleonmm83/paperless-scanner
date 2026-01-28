@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
+import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.RetryInterceptor
@@ -50,7 +51,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -73,9 +76,20 @@ annotation class AuthClient
 @Retention(AnnotationRetention.BINARY)
 annotation class PaperlessGptClient
 
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ApplicationScope
+
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(): CoroutineScope {
+        return CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    }
 
     @Provides
     @Singleton
@@ -125,9 +139,17 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideCloudflareDetectionInterceptor(
+        tokenManager: TokenManager,
+        @ApplicationScope applicationScope: CoroutineScope
+    ): CloudflareDetectionInterceptor = CloudflareDetectionInterceptor(tokenManager, applicationScope)
+
+    @Provides
+    @Singleton
     fun provideOkHttpClient(
         tokenManager: TokenManager,
-        dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor
+        dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
+        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
@@ -152,6 +174,7 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            .addInterceptor(cloudflareDetectionInterceptor)  // Detect Cloudflare usage via cf-ray header
             .addInterceptor(RetryInterceptor(maxRetries = 3))
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -236,8 +259,9 @@ object AppModule {
     @Singleton
     fun provideAuthRepository(
         tokenManager: TokenManager,
-        @AuthClient client: OkHttpClient
-    ): AuthRepository = AuthRepository(tokenManager, client)
+        @AuthClient client: OkHttpClient,
+        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
+    ): AuthRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor)
 
     @Provides
     @Singleton

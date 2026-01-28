@@ -109,6 +109,7 @@ class ScanViewModel @Inject constructor(
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
+    private val tokenManager: com.paperless.scanner.data.datastore.TokenManager,
     val appLockManager: com.paperless.scanner.util.AppLockManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -214,6 +215,13 @@ class ScanViewModel @Inject constructor(
 
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+
+    /**
+     * Whether server uses Cloudflare (detected automatically via cf-ray header).
+     * Used to show timeout warnings for large uploads (Cloudflare has 100s timeout).
+     */
+    val usesCloudflare: StateFlow<Boolean> = tokenManager.serverUsesCloudflare
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
 
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
