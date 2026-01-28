@@ -119,7 +119,7 @@ fun TrashScreen(
                             )
                             if (uiState.totalCount > 0) {
                                 Text(
-                                    text = "${uiState.totalCount} ${stringResource(R.string.documents_count)}",
+                                    text = stringResource(R.string.documents_count, uiState.totalCount),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
