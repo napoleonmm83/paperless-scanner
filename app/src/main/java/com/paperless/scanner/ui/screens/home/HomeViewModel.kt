@@ -573,7 +573,20 @@ class HomeViewModel @Inject constructor(
     fun acknowledgeTask(taskId: Int) {
         // Optimistic update - remove task from UI immediately
         _uiState.update { state ->
-            state.copy(processingTasks = state.processingTasks.filter { it.id != taskId })
+            val updatedTasks = state.processingTasks.filter { it.id != taskId }
+            // Find the acknowledged task to update the count correctly
+            val acknowledgedTask = state.processingTasks.find { it.id == taskId }
+            val wasActive = acknowledgedTask?.let {
+                it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
+            } ?: false
+
+            state.copy(
+                processingTasks = updatedTasks,
+                // Decrement allProcessingTasksCount if the acknowledged task was active
+                allProcessingTasksCount = if (wasActive) maxOf(0, state.allProcessingTasksCount - 1) else state.allProcessingTasksCount,
+                // Reset showAllProcessingTasks when list becomes empty or small enough
+                showAllProcessingTasks = if (updatedTasks.size <= HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) false else state.showAllProcessingTasks
+            )
         }
 
         // Then acknowledge on server
