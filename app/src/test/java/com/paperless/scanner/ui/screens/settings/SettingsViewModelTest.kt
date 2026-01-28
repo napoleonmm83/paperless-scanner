@@ -60,12 +60,12 @@ class SettingsViewModelTest {
         every { billingManager.isSubscriptionActive } returns flowOf(false)
         every { billingManager.isSubscriptionActiveSync() } returns false
 
-        // AppLock-related mocks
+        // AppLock-related mocks (all as suspend for consistency)
         every { tokenManager.isAppLockEnabledSync() } returns false
         every { tokenManager.isAppLockBiometricEnabled() } returns false
-        every { tokenManager.getAppLockTimeout() } returns com.paperless.scanner.util.AppLockTimeout.IMMEDIATE
         coEvery { tokenManager.isAppLockEnabled() } returns flowOf(false)
         coEvery { tokenManager.isAppLockBiometricEnabledFlow() } returns flowOf(false)
+        coEvery { tokenManager.getAppLockTimeout() } returns com.paperless.scanner.util.AppLockTimeout.IMMEDIATE
         coEvery { tokenManager.getAppLockTimeoutFlow() } returns flowOf(com.paperless.scanner.util.AppLockTimeout.IMMEDIATE)
     }
 
