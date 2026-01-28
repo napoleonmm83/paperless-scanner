@@ -10,9 +10,11 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
+import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
+import retrofit2.HttpException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,7 @@ enum class UploadQuality(val key: String, @StringRes val displayNameRes: Int) {
 
 data class SettingsUiState(
     val serverUrl: String = "",
+    val serverVersion: String? = null,  // Server version from /api/status/ (null if not loaded or no permission)
     val isConnected: Boolean = false,
     val showUploadNotifications: Boolean = true,
     val uploadQuality: UploadQuality = UploadQuality.AUTO,
@@ -56,6 +59,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
+    private val api: PaperlessApi,
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager
@@ -66,6 +70,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         loadSettings()
+        loadServerVersion()
     }
 
     private fun loadSettings() {
@@ -292,6 +297,53 @@ class SettingsViewModel @Inject constructor(
     fun setAppLockTimeout(timeout: com.paperless.scanner.util.AppLockTimeout) {
         viewModelScope.launch {
             tokenManager.setAppLockTimeout(timeout)
+        }
+    }
+
+    /**
+     * Load server version from /api/status/ endpoint.
+     * Requires admin permissions - silently fails if user is not admin (403).
+     */
+    private fun loadServerVersion() {
+        viewModelScope.launch {
+            try {
+                val serverUrl = tokenManager.serverUrl.first()
+                if (serverUrl.isNullOrEmpty()) {
+                    // No server configured - skip version check
+                    return@launch
+                }
+
+                val response = api.getServerStatus()
+                if (!response.isSuccessful) {
+                    throw retrofit2.HttpException(response)
+                }
+
+                val body = response.body()
+                // Extract version from x-version header if not in body
+                val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
+                val version = body?.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
+
+                _uiState.update { it.copy(serverVersion = version) }
+            } catch (e: HttpException) {
+                when (e.code()) {
+                    403 -> {
+                        // User is not admin - silently fail (don't show error)
+                        // Version remains null and won't be displayed in UI
+                        android.util.Log.d("SettingsViewModel", "Server version not available (no admin permission)")
+                    }
+                    404 -> {
+                        // Old Paperless version without /api/status/ endpoint
+                        android.util.Log.d("SettingsViewModel", "Server version not available (endpoint not found)")
+                    }
+                    else -> {
+                        // Other HTTP errors - log but don't crash
+                        android.util.Log.w("SettingsViewModel", "Failed to load server version: ${e.code()}")
+                    }
+                }
+            } catch (e: Exception) {
+                // Network error or other exception - silently fail
+                android.util.Log.w("SettingsViewModel", "Failed to load server version", e)
+            }
         }
     }
 }

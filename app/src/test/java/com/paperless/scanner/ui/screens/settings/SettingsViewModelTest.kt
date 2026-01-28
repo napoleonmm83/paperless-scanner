@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
@@ -27,6 +28,7 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private lateinit var tokenManager: TokenManager
+    private lateinit var api: PaperlessApi
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
@@ -37,6 +39,7 @@ class SettingsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         tokenManager = mockk(relaxed = true)
+        api = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
@@ -56,6 +59,14 @@ class SettingsViewModelTest {
         coEvery { tokenManager.aiDebugModeEnabled } returns flowOf(false)
         every { billingManager.isSubscriptionActive } returns flowOf(false)
         every { billingManager.isSubscriptionActiveSync() } returns false
+
+        // AppLock-related mocks
+        every { tokenManager.isAppLockEnabledSync() } returns false
+        every { tokenManager.isAppLockBiometricEnabled() } returns false
+        every { tokenManager.getAppLockTimeout() } returns com.paperless.scanner.util.AppLockTimeout.IMMEDIATE
+        coEvery { tokenManager.isAppLockEnabled() } returns flowOf(false)
+        coEvery { tokenManager.isAppLockBiometricEnabledFlow() } returns flowOf(false)
+        coEvery { tokenManager.getAppLockTimeoutFlow() } returns flowOf(com.paperless.scanner.util.AppLockTimeout.IMMEDIATE)
     }
 
     @After
@@ -66,6 +77,7 @@ class SettingsViewModelTest {
     private fun createViewModel(): SettingsViewModel {
         return SettingsViewModel(
             tokenManager = tokenManager,
+            api = api,
             analyticsService = analyticsService,
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager

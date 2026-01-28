@@ -23,6 +23,7 @@ import com.paperless.scanner.ui.screens.pdfviewer.PdfViewerScreen
 import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
 import com.paperless.scanner.ui.screens.home.SmartTaggingScreen
+import com.paperless.scanner.ui.screens.diagnostics.DiagnosticsScreen
 
 // Main screens that use the bottom navigation
 private val mainScreenRoutes = listOf(
@@ -438,6 +439,15 @@ fun PaperlessNavGraph(
                     navController.popBackStack()
                 },
                 isChangingPassword = isChangingPassword
+            )
+        }
+
+        // Diagnostics Screen (Server Status)
+        composable(route = Screen.Diagnostics.route) {
+            DiagnosticsScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
             )
         }
 

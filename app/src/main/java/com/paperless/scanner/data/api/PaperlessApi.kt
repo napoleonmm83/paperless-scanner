@@ -17,6 +17,7 @@ import com.paperless.scanner.data.api.models.DocumentTypesResponse
 import com.paperless.scanner.data.api.models.DocumentsResponse
 import com.paperless.scanner.data.api.models.GroupsResponse
 import com.paperless.scanner.data.api.models.PaperlessTask
+import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.api.models.SuggestionsResponse
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
@@ -54,6 +55,15 @@ interface PaperlessApi {
         @Field("username") username: String,
         @Field("password") password: String
     ): TokenResponse
+
+    /**
+     * Get server status and version information.
+     * Requires admin permissions. Returns 403 for non-admin users.
+     *
+     * @return Response with ServerStatusResponse body and x-version header
+     */
+    @GET("api/status/")
+    suspend fun getServerStatus(): Response<ServerStatusResponse>
 
     @GET("api/tags/")
     suspend fun getTags(

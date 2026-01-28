@@ -32,6 +32,7 @@ sealed class Screen(val route: String) {
     }
     data object Labels : Screen("labels")
     data object Settings : Screen("settings")
+    data object Diagnostics : Screen("diagnostics")
 
     // Document detail
     data object DocumentDetail : Screen("document/{documentId}") {

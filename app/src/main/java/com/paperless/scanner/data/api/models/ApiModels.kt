@@ -446,3 +446,57 @@ data class TrashBulkActionRequest(
  * GET /api/trash/ returns paginated list of deleted documents.
  */
 // Note: TrashResponse uses existing DocumentsResponse model
+
+/**
+ * Response from /api/status/ endpoint.
+ * Provides server version and system information.
+ * Requires admin permissions.
+ */
+data class ServerStatusResponse(
+    @SerializedName("paperless_version")
+    val paperlessVersion: String? = null,
+    @SerializedName("server_os")
+    val serverOs: String? = null,
+    @SerializedName("install_type")
+    val installType: String? = null,
+    @SerializedName("storage")
+    val storage: StorageInfo? = null,
+    @SerializedName("database")
+    val database: DatabaseInfo? = null,
+    @SerializedName("tasks")
+    val tasks: TasksInfo? = null
+)
+
+data class StorageInfo(
+    @SerializedName("total")
+    val total: Long? = null,
+    @SerializedName("available")
+    val available: Long? = null
+)
+
+data class DatabaseInfo(
+    @SerializedName("type")
+    val type: String? = null,
+    @SerializedName("url")
+    val url: String? = null,
+    @SerializedName("status")
+    val status: String? = null,
+    @SerializedName("migration_status")
+    val migrationStatus: MigrationStatus? = null
+)
+
+data class MigrationStatus(
+    @SerializedName("latest_migration")
+    val latestMigration: String? = null,
+    @SerializedName("unapplied_migrations")
+    val unappliedMigrations: List<String>? = null
+)
+
+data class TasksInfo(
+    @SerializedName("redis_url")
+    val redisUrl: String? = null,
+    @SerializedName("redis_status")
+    val redisStatus: String? = null,
+    @SerializedName("celery_status")
+    val celeryStatus: String? = null
+)

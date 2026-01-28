@@ -272,6 +272,13 @@
     <string name="scan_hold_to_sort">Gedrückt halten zum Sortieren</string>
     <string name="scan_limit_reached">Maximum erreicht</string>
     <string name="scan_almost_full">Fast voll</string>
+
+    <!-- Cloudflare Timeout Warning -->
+    <string name="scan_cloudflare_timeout_warning_title">Cloudflare Timeout-Warnung</string>
+    <string name="scan_cloudflare_timeout_warning_message">Ihr Server nutzt Cloudflare (100s Timeout-Limit). Das Hochladen von %d Seiten als einzelnes PDF könnte bei langsamer Verbindung abbrechen.</string>
+    <string name="scan_cloudflare_recommendation_wifi">✓ WiFi verbunden - Upload sollte funktionieren</string>
+    <string name="scan_cloudflare_recommendation_no_wifi">⚠️ Empfehlung: WiFi nutzen oder "Separate Dokumente" wählen</string>
+
     <string name="scan_upload_single">Hochladen</string>
     <string name="scan_upload_pdf">Als PDF hochladen</string>
     <string name="scan_add_metadata">Metadaten hinzufügen</string>
@@ -385,6 +392,9 @@
     <string name="settings_not_connected">Nicht verbunden</string>
     <string name="settings_section_server">Server</string>
     <string name="settings_server_url">Server-URL</string>
+    <string name="settings_server_version">Paperless-ngx Version</string>
+    <string name="settings_diagnostics">Server-Diagnose</string>
+    <string name="settings_diagnostics_subtitle">System-Status und Gesundheit prüfen</string>
     <string name="settings_change_server">Server-Einstellungen ändern</string>
     <string name="settings_change_server_subtitle">Server-URL, Token oder Anmeldedaten anpassen</string>
     <string name="settings_not_configured">Nicht konfiguriert</string>
@@ -409,7 +419,41 @@
     <string name="settings_debug_mode_disabled">AI-Entwicklermodus deaktiviert</string>
     <string name="settings_debug_mode_already_enabled">Entwicklermodus ist bereits aktiviert</string>
 
-    
+    <!-- Diagnostics Screen -->
+    <string name="diagnostics_title">SERVER-DIAGNOSE</string>
+    <string name="diagnostics_section_version">Version</string>
+    <string name="diagnostics_section_system">System-Info</string>
+    <string name="diagnostics_section_storage">Speicher</string>
+    <string name="diagnostics_section_database">Datenbank</string>
+    <string name="diagnostics_section_tasks">Task-System</string>
+    <string name="diagnostics_version">Paperless-ngx Version</string>
+    <string name="diagnostics_server_os">Betriebssystem</string>
+    <string name="diagnostics_install_type">Installationsart</string>
+    <string name="diagnostics_storage_total">Gesamtspeicher</string>
+    <string name="diagnostics_storage_available">Verfügbar</string>
+    <string name="diagnostics_storage_used">Belegt</string>
+    <string name="diagnostics_storage_warning">Wenig Speicher verfügbar!</string>
+    <string name="diagnostics_storage_critical">Kritisch: Speicher fast voll!</string>
+    <string name="diagnostics_database_type">Datenbanktyp</string>
+    <string name="diagnostics_database_status">Status</string>
+    <string name="diagnostics_database_migrations">Ausstehende Migrationen</string>
+    <string name="diagnostics_database_latest_migration">Letzte Migration</string>
+    <string name="diagnostics_redis_url">Redis URL</string>
+    <string name="diagnostics_redis_status">Redis Status</string>
+    <string name="diagnostics_celery_status">Celery Worker Status</string>
+    <string name="diagnostics_status_ok">OK</string>
+    <string name="diagnostics_status_error">FEHLER</string>
+    <string name="diagnostics_status_unknown">Unbekannt</string>
+    <string name="diagnostics_unavailable">Nicht verfügbar</string>
+    <string name="diagnostics_unavailable_subtitle">Diese Information erfordert Admin-Rechte</string>
+    <string name="diagnostics_loading">Lade Diagnosedaten...</string>
+    <string name="diagnostics_error">Fehler beim Laden der Diagnosedaten</string>
+    <string name="diagnostics_refresh">Aktualisieren</string>
+    <string name="diagnostics_health_good">System läuft einwandfrei</string>
+    <string name="diagnostics_health_warning">Achtung: Einige Probleme erkannt</string>
+    <string name="diagnostics_health_critical">Kritisch: Server-Probleme</string>
+
+
     <string name="theme_mode_system">System</string>
     <string name="theme_mode_light">Hell</string>
     <string name="theme_mode_dark">Dunkel</string>

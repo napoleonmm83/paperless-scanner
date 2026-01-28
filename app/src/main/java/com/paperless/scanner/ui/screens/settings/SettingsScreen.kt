@@ -80,6 +80,7 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onNavigateToSetupAppLock: (isChangingPassword: Boolean) -> Unit = { },
     onNavigateToEditServer: () -> Unit = { },
+    onNavigateToDiagnostics: () -> Unit = { },
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -323,6 +324,32 @@ fun SettingsScreen(
                 icon = Icons.Filled.Cloud,
                 title = stringResource(R.string.settings_server_url),
                 value = uiState.serverUrl.ifEmpty { stringResource(R.string.settings_not_configured) }
+            )
+
+            // Server Version (only shown if available - requires admin permission)
+            uiState.serverVersion?.let { version ->
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsInfoItem(
+                    icon = Icons.Filled.Info,
+                    title = stringResource(R.string.settings_server_version),
+                    value = version
+                )
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingsClickableItem(
+                icon = Icons.Filled.Analytics,
+                title = stringResource(R.string.settings_diagnostics),
+                value = stringResource(R.string.settings_diagnostics_subtitle),
+                onClick = onNavigateToDiagnostics
             )
 
             HorizontalDivider(

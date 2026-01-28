@@ -1,0 +1,10 @@
+Version 1.5.27:
+
+✨ New Features:
+- Diagnostics Screen: Server status, version, storage, database and tasks
+- Health status with warnings for low storage or errors
+- Server version now displayed in settings
+
+🔧 Improvements:
+- Robust edge case handling (division by zero, negative values)
+- Optimized API integration for status endpoint

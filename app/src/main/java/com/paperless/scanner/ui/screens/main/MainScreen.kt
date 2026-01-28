@@ -85,6 +85,9 @@ fun MainScreen(
                 },
                 onNavigateToEditServer = {
                     navController.navigate(Screen.EditServerSettings.route)
+                },
+                onNavigateToDiagnostics = {
+                    navController.navigate(Screen.Diagnostics.route)
                 }
             )
         }

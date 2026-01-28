@@ -267,12 +267,19 @@
     <string name="scan_choose_option">Wähle eine Option</string>
     <string name="scan_option_scan">Scannen</string>
     <string name="scan_option_gallery">Galerie</string>
-    <string name="scan_option_files">Dateien</string>
-    <string name="scan_page_count">%1$d / %2$d Seiten</string>
-    <string name="scan_hold_to_sort">Gedrückt halten zum Sortieren</string>
-    <string name="scan_limit_reached">Maximum erreicht</string>
-    <string name="scan_almost_full">Fast voll</string>
-    <string name="scan_upload_single">Hochladen</string>
+    <string name="scan_option_files">Files</string>
+    <string name="scan_page_count">%1$d / %2$d Pages</string>
+    <string name="scan_hold_to_sort">Hold to sort</string>
+    <string name="scan_limit_reached">Maximum reached</string>
+    <string name="scan_almost_full">Almost full</string>
+
+    <!-- Cloudflare Timeout Warning -->
+    <string name="scan_cloudflare_timeout_warning_title">Cloudflare Timeout Warning</string>
+    <string name="scan_cloudflare_timeout_warning_message">Your server uses Cloudflare (100s timeout limit). Uploading %d pages as single PDF may timeout on slow connections.</string>
+    <string name="scan_cloudflare_recommendation_wifi">✓ WiFi connected - upload should work</string>
+    <string name="scan_cloudflare_recommendation_no_wifi">⚠️ Recommendation: Use WiFi or select "Separate Documents"</string>
+
+    <string name="scan_upload_single">Upload</string>
     <string name="scan_upload_pdf">Als PDF hochladen</string>
     <string name="scan_add_metadata">Metadaten hinzufügen</string>
     <string name="scan_more_pages">Weitere Seiten</string>
@@ -384,8 +391,11 @@
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Nicht verbunden</string>
     <string name="settings_section_server">Server</string>
-    <string name="settings_server_url">Server-URL</string>
-    <string name="settings_change_server">Server-Einstellungen ändern</string>
+    <string name="settings_server_url">Server URL</string>
+    <string name="settings_server_version">Paperless-ngx Version</string>
+    <string name="settings_diagnostics">Server Diagnostics</string>
+    <string name="settings_diagnostics_subtitle">Check system status and health</string>
+    <string name="settings_change_server">Change server settings</string>
     <string name="settings_change_server_subtitle">Server-URL, Token oder Anmeldedaten anpassen</string>
     <string name="settings_not_configured">Nicht konfiguriert</string>
     <string name="settings_section_security">Sicherheit</string>
@@ -409,7 +419,41 @@
     <string name="settings_debug_mode_disabled">AI-Entwicklermodus deaktiviert</string>
     <string name="settings_debug_mode_already_enabled">Entwicklermodus ist bereits aktiviert</string>
 
-    
+    <!-- Diagnostics Screen -->
+    <string name="diagnostics_title">SERVER DIAGNOSTICS</string>
+    <string name="diagnostics_section_version">Version</string>
+    <string name="diagnostics_section_system">System Info</string>
+    <string name="diagnostics_section_storage">Storage</string>
+    <string name="diagnostics_section_database">Database</string>
+    <string name="diagnostics_section_tasks">Task System</string>
+    <string name="diagnostics_version">Paperless-ngx Version</string>
+    <string name="diagnostics_server_os">Operating System</string>
+    <string name="diagnostics_install_type">Installation Type</string>
+    <string name="diagnostics_storage_total">Total Storage</string>
+    <string name="diagnostics_storage_available">Available</string>
+    <string name="diagnostics_storage_used">Used</string>
+    <string name="diagnostics_storage_warning">Low storage available!</string>
+    <string name="diagnostics_storage_critical">Critical: Storage almost full!</string>
+    <string name="diagnostics_database_type">Database Type</string>
+    <string name="diagnostics_database_status">Status</string>
+    <string name="diagnostics_database_migrations">Pending Migrations</string>
+    <string name="diagnostics_database_latest_migration">Latest Migration</string>
+    <string name="diagnostics_redis_url">Redis URL</string>
+    <string name="diagnostics_redis_status">Redis Status</string>
+    <string name="diagnostics_celery_status">Celery Worker Status</string>
+    <string name="diagnostics_status_ok">OK</string>
+    <string name="diagnostics_status_error">ERROR</string>
+    <string name="diagnostics_status_unknown">Unknown</string>
+    <string name="diagnostics_unavailable">Not available</string>
+    <string name="diagnostics_unavailable_subtitle">This information requires admin permissions</string>
+    <string name="diagnostics_loading">Loading diagnostics data...</string>
+    <string name="diagnostics_error">Failed to load diagnostics</string>
+    <string name="diagnostics_refresh">Refresh</string>
+    <string name="diagnostics_health_good">System running smoothly</string>
+    <string name="diagnostics_health_warning">Warning: Some issues detected</string>
+    <string name="diagnostics_health_critical">Critical: Server problems detected</string>
+
+
     <string name="theme_mode_system">System</string>
     <string name="theme_mode_light">Hell</string>
     <string name="theme_mode_dark">Dunkel</string>

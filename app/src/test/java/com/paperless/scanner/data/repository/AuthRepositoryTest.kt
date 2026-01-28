@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,6 +22,7 @@ class AuthRepositoryTest {
 
     private lateinit var mockWebServer: MockWebServer
     private lateinit var tokenManager: TokenManager
+    private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var authRepository: AuthRepository
     private lateinit var client: OkHttpClient
 
@@ -29,8 +31,9 @@ class AuthRepositoryTest {
         mockWebServer = MockWebServer()
         mockWebServer.start()
         tokenManager = mockk(relaxed = true)
+        cloudflareDetectionInterceptor = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(tokenManager, client)
+        authRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor)
     }
 
     @After
