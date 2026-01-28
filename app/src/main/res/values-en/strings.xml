@@ -318,8 +318,10 @@
     <string name="home_last_synced_long_ago">a while ago</string>
     <string name="home_new_scan">Neuer Scan</string>
     <string name="home_all_documents">Alle Dokumente</string>
-    <string name="home_processing">Verarbeitung</string>
-    <string name="home_refresh">Aktualisieren</string>
+    <string name="home_processing">Processing</string>
+    <string name="home_processing_show_more">Show %d more</string>
+    <string name="home_processing_show_less">Show less</string>
+    <string name="home_refresh">Refresh</string>
     <string name="home_recently_added">Zuletzt hinzugefügt</string>
     <string name="home_see_all">Alle</string>
     <string name="home_no_documents">Noch keine Dokumente</string>

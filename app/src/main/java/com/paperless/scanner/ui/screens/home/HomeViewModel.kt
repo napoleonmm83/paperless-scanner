@@ -87,6 +87,8 @@ data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
     val recentDocuments: List<RecentDocument> = emptyList(),
     val processingTasks: List<ProcessingTask> = emptyList(),
+    val allProcessingTasksCount: Int = 0,      // Total count for Hero Card (unlimited)
+    val showAllProcessingTasks: Boolean = false, // Toggle for "show more" in list
     val untaggedCount: Int = 0,
     val deletedCount: Int = 0,
     val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
@@ -96,14 +98,28 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val error: String? = null
 ) {
+    companion object {
+        const val PROCESSING_TASKS_DISPLAY_LIMIT = 10
+    }
+
     /**
      * Total processing count for Hero Card progress indicator.
-     * Combines active uploads + Paperless server tasks.
+     * Combines active uploads + ALL Paperless server tasks (not limited).
      */
     val totalProcessingCount: Int
-        get() = activeUploadsCount + processingTasks.count {
-            it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
-        }
+        get() = activeUploadsCount + allProcessingTasksCount
+
+    /**
+     * Number of hidden tasks (for "show X more" button).
+     */
+    val hiddenProcessingTasksCount: Int
+        get() = if (showAllProcessingTasks) 0 else maxOf(0, processingTasks.size - PROCESSING_TASKS_DISPLAY_LIMIT)
+
+    /**
+     * Tasks to display in UI (limited or all based on toggle).
+     */
+    val displayedProcessingTasks: List<ProcessingTask>
+        get() = if (showAllProcessingTasks) processingTasks else processingTasks.take(PROCESSING_TASKS_DISPLAY_LIMIT)
 }
 
 @HiltViewModel
@@ -269,6 +285,11 @@ class HomeViewModel @Inject constructor(
                     }
                     .sortedByDescending { it.id }
 
+                // Count active tasks for Hero Card (unlimited count)
+                val activeTasksCount = processingTasks.count {
+                    it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
+                }
+
                 // Track newly completed tasks for document sync
                 val previousTasks = _uiState.value.processingTasks
                 syncCompletedDocuments(previousTasks, processingTasks)
@@ -276,12 +297,13 @@ class HomeViewModel @Inject constructor(
                 _uiState.update { currentState ->
                     currentState.copy(
                         processingTasks = processingTasks,
+                        allProcessingTasksCount = activeTasksCount,
                         isLoading = false
                     )
                 }
 
                 // Start/stop polling based on task status
-                if (processingTasks.any { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
+                if (activeTasksCount > 0) {
                     startTaskPolling()
                 } else {
                     stopTaskPolling()
@@ -563,6 +585,15 @@ class HomeViewModel @Inject constructor(
                 .onFailure { error ->
                     logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
                 }
+        }
+    }
+
+    /**
+     * Toggle showing all processing tasks vs. limited display.
+     */
+    fun toggleShowAllProcessingTasks() {
+        _uiState.update { state ->
+            state.copy(showAllProcessingTasks = !state.showAllProcessingTasks)
         }
     }
 

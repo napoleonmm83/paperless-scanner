@@ -41,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -267,7 +268,7 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                uiState.processingTasks.forEach { task ->
+                uiState.displayedProcessingTasks.forEach { task ->
                     ProcessingTaskCard(
                         task = task,
                         onClick = {
@@ -276,6 +277,24 @@ fun HomeScreen(
                         onDismiss = { viewModel.acknowledgeTask(task.id) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Show more/less button
+                if (uiState.processingTasks.size > HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) {
+                    TextButton(
+                        onClick = { viewModel.toggleShowAllProcessingTasks() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = if (uiState.showAllProcessingTasks) {
+                                stringResource(R.string.home_processing_show_less)
+                            } else {
+                                stringResource(R.string.home_processing_show_more, uiState.hiddenProcessingTasksCount)
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
