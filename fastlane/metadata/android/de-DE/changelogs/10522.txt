@@ -1,0 +1,16 @@
+Version 1.5.22:
+
+✨ Neue Features:
+- HomeScreen Redesign: Hero Card + kompakte Stats
+- SyncCenter: Neuer zentraler Sync-Überblick
+- Smart Tagging Stat-Anzeige
+
+🐛 Fehlerbehebungen:
+- Papierkorb-Zähler aktualisiert jetzt sofort
+- Orphan-Cleanup bei Trash-Sync
+- Verbesserte Offline-Erkennung
+
+🔧 Verbesserungen:
+- Pull-to-Refresh synct alle Dashboard-Daten
+- Kompakte SyncCenter-Karten mit Expand
+- Animierter Fortschrittsbalken bei Tasks

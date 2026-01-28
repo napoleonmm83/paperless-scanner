@@ -17,6 +17,7 @@ import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.dao.SyncHistoryDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.migrations.MIGRATION_1_2
 import com.paperless.scanner.data.database.migrations.MIGRATION_2_3
@@ -27,6 +28,7 @@ import com.paperless.scanner.data.database.migrations.MIGRATION_6_7
 import com.paperless.scanner.data.database.migrations.MIGRATION_7_8
 import com.paperless.scanner.data.database.migrations.MIGRATION_8_9
 import com.paperless.scanner.data.database.migrations.MIGRATION_9_10
+import com.paperless.scanner.data.database.migrations.MIGRATION_10_11
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
@@ -296,7 +298,8 @@ object AppModule {
             MIGRATION_6_7,
             MIGRATION_7_8,
             MIGRATION_8_9,
-            MIGRATION_9_10  // Trash feature: Added deletedAt timestamp
+            MIGRATION_9_10,  // Trash feature: Added deletedAt timestamp
+            MIGRATION_10_11  // SyncCenter feature: Added sync_history table
         )
 
         // For debug builds, allow destructive migration if migration fails
@@ -360,6 +363,12 @@ object AppModule {
     fun provideAiUsageDao(
         database: AppDatabase
     ): AiUsageDao = database.aiUsageDao()
+
+    @Provides
+    @Singleton
+    fun provideSyncHistoryDao(
+        database: AppDatabase
+    ): SyncHistoryDao = database.syncHistoryDao()
 
     @Provides
     @Singleton

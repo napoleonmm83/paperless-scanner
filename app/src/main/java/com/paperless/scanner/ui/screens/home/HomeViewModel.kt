@@ -15,6 +15,7 @@ import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
@@ -89,9 +90,21 @@ data class HomeUiState(
     val untaggedCount: Int = 0,
     val deletedCount: Int = 0,
     val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
+    val activeUploadsCount: Int = 0,           // NEW: Active uploads in queue
+    val failedSyncCount: Int = 0,              // NEW: Failed sync operations
+    val lastSyncedAt: Long? = null,            // NEW: Timestamp of last successful sync
     val isLoading: Boolean = true,
     val error: String? = null
-)
+) {
+    /**
+     * Total processing count for Hero Card progress indicator.
+     * Combines active uploads + Paperless server tasks.
+     */
+    val totalProcessingCount: Int
+        get() = activeUploadsCount + processingTasks.count {
+            it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
+        }
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -100,6 +113,7 @@ class HomeViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
+    private val syncHistoryRepository: SyncHistoryRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
@@ -113,7 +127,12 @@ class HomeViewModel @Inject constructor(
         private val logger = Logger.getLogger(HomeViewModel::class.java.name)
         private const val POLLING_INTERVAL_MS = 3000L
         private const val NETWORK_CHECK_INTERVAL_MS = 1000L
+        // Debounce: Only refresh if more than 30 seconds since last refresh
+        private const val REFRESH_DEBOUNCE_MS = 30_000L
     }
+
+    // Track last refresh timestamp for debounce
+    private var lastRefreshTimestamp = 0L
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -169,6 +188,8 @@ class HomeViewModel @Inject constructor(
         observeUntaggedCountReactively()
         observeDeletedCountReactively()
         observeOldestDeletedTimestampReactively()
+        observeActiveUploadsCountReactively()
+        observeFailedSyncCountReactively()
     }
 
     /**
@@ -306,21 +327,66 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * BEST PRACTICE: Reactive Flow for active uploads count.
+     * Automatically updates UI when uploads are queued/completed.
+     * Used by Hero Card to show processing progress.
+     */
+    private fun observeActiveUploadsCountReactively() {
+        viewModelScope.launch {
+            uploadQueueRepository.pendingCount.collect { count ->
+                _uiState.update { it.copy(activeUploadsCount = count) }
+            }
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for failed sync count.
+     * Automatically updates UI when sync operations fail/succeed.
+     * Used by Stats Row to show red badge.
+     */
+    private fun observeFailedSyncCountReactively() {
+        viewModelScope.launch {
+            syncHistoryRepository.observeFailedCount().collect { count ->
+                _uiState.update { it.copy(failedSyncCount = count) }
+            }
+        }
+    }
+
     fun loadDashboardData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-
-            // BEST PRACTICE: Tags, recent documents, and tasks are handled by reactive Flows.
-            // Only load stats and trigger initial task fetch here.
 
             val stats = loadStats()
 
             // Force refresh tasks from API to populate cache (triggers reactive Flow update)
             taskRepository.getTasks(forceRefresh = true)
 
+            // Refresh untagged count from API
+            var untaggedCount = 0
+            documentRepository.getUntaggedCount().onSuccess { count ->
+                untaggedCount = count
+            }
+
+            // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
+            documentRepository.getDocuments(
+                page = 1,
+                pageSize = 10,
+                ordering = "-added",
+                forceRefresh = true
+            )
+
+            // Sync trash documents (page 1 for quick init, full sync on pull-to-refresh)
+            documentRepository.getTrashDocuments(page = 1, pageSize = 100)
+
+            // Update lastSyncedAt on initial load too
+            lastRefreshTimestamp = System.currentTimeMillis()
+
             _uiState.update { currentState ->
                 currentState.copy(
                     stats = stats,
+                    untaggedCount = untaggedCount,
+                    lastSyncedAt = lastRefreshTimestamp,
                     isLoading = false
                 )
             }
@@ -403,21 +469,83 @@ class HomeViewModel @Inject constructor(
     /**
      * BEST PRACTICE: Refresh both stats and tasks.
      * Use this for:
-     * - ON_RESUME lifecycle events
-     * - Pull-to-refresh user actions
-     * - After upload/delete operations
-     * - Network reconnect scenarios
+     * - Pull-to-refresh user actions (forceRefresh = true)
+     * - After upload/delete operations (forceRefresh = true)
+     * - Network reconnect scenarios (forceRefresh = true)
+     *
+     * For ON_RESUME events, use refreshDashboardIfNeeded() to apply debounce.
      */
     fun refreshDashboard() {
         viewModelScope.launch {
             // Refresh stats from server (forceRefresh = true)
             val stats = loadStats(forceRefresh = true)
-            _uiState.update { it.copy(stats = stats) }
+
+            // Update lastSyncedAt timestamp
+            val now = System.currentTimeMillis()
+            lastRefreshTimestamp = now
+
+            _uiState.update { it.copy(stats = stats, lastSyncedAt = now) }
 
             // Refresh processing tasks from API (triggers reactive Flow update automatically)
             taskRepository.getTasks(forceRefresh = true)
 
+            // Refresh untagged count from API
+            documentRepository.getUntaggedCount().onSuccess { count ->
+                _uiState.update { it.copy(untaggedCount = count) }
+            }
+
+            // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
+            documentRepository.getDocuments(
+                page = 1,
+                pageSize = 10,
+                ordering = "-added",
+                forceRefresh = true
+            )
+
+            // Full trash sync: fetch all pages and cleanup orphans
+            syncTrashDocuments()
+
             // Polling will be started/stopped automatically by observeProcessingTasksReactively()
+        }
+    }
+
+    /**
+     * Full trash sync: fetches all pages from server and cleans up orphaned local docs.
+     */
+    private suspend fun syncTrashDocuments() {
+        var page = 1
+        var hasMore = true
+        val serverTrashIds = mutableSetOf<Int>()
+
+        while (hasMore) {
+            documentRepository.getTrashDocuments(page = page, pageSize = 100)
+                .onSuccess { response ->
+                    serverTrashIds.addAll(response.results.map { it.id })
+                    hasMore = response.next != null && response.results.isNotEmpty()
+                    page++
+                }
+                .onFailure {
+                    hasMore = false
+                }
+        }
+
+        // Clean up local trash docs that no longer exist on server
+        if (serverTrashIds.isNotEmpty()) {
+            documentRepository.cleanupOrphanedTrashDocs(serverTrashIds)
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Debounced refresh for ON_RESUME events.
+     * Only refreshes if more than 30 seconds since last refresh.
+     * Reduces server load and battery usage for quick app switches.
+     */
+    fun refreshDashboardIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (now - lastRefreshTimestamp > REFRESH_DEBOUNCE_MS) {
+            refreshDashboard()
+        } else {
+            logger.log(Level.FINE, "Skipping refresh - last refresh was ${(now - lastRefreshTimestamp) / 1000}s ago")
         }
     }
 

@@ -50,7 +50,7 @@ fun MainScreen(
                 },
                 onDocumentClick = onDocumentClick,
                 onNavigateToPendingSync = {
-                    navController.navigate(Screen.PendingSync.route)
+                    navController.navigate(Screen.SyncCenter.route)
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)

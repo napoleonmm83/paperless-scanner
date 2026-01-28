@@ -4,11 +4,14 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
-import com.paperless.scanner.data.database.entities.CachedDocument
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.util.DateFormatter
+import com.paperless.scanner.worker.TrashDeleteWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +39,19 @@ data class TrashDocumentItem(
 )
 
 /**
+ * State for a document pending permanent deletion with countdown.
+ *
+ * @param documentId The document ID
+ * @param progress Progress from 1.0 (start) to 0.0 (delete)
+ * @param secondsRemaining Seconds until deletion
+ */
+data class PendingDeleteState(
+    val documentId: Int,
+    val progress: Float = 1f,
+    val secondsRemaining: Int = 30
+)
+
+/**
  * UI State for Trash Screen.
  */
 data class TrashUiState(
@@ -44,7 +60,8 @@ data class TrashUiState(
     val documents: List<TrashDocumentItem> = emptyList(),
     val totalCount: Int = 0,
     val isRestoring: Boolean = false,
-    val isDeleting: Boolean = false
+    val isDeleting: Boolean = false,
+    val pendingDeletes: Map<Int, PendingDeleteState> = emptyMap()
 )
 
 /**
@@ -58,14 +75,25 @@ data class TrashUiState(
 @HiltViewModel
 class TrashViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val documentRepository: DocumentRepository
+    private val documentRepository: DocumentRepository,
+    private val tokenManager: TokenManager,
+    private val trashDeleteWorkManager: TrashDeleteWorkManager
 ) : ViewModel() {
 
     companion object {
         private const val RETENTION_DAYS = 30 // Default trash retention (same as backend)
+        private const val COUNTDOWN_SECONDS = 30
+        private const val COUNTDOWN_STEP_MS = 100L
     }
 
     private val _uiState = MutableStateFlow(TrashUiState())
+
+    // Track countdown jobs by document ID - runs in viewModelScope, independent of UI lifecycle
+    private val pendingDeleteJobs = mutableMapOf<Int, Job>()
+
+    // Track start times for pending deletes (for persistence/restore)
+    // Map: documentId -> startTimeMillis
+    private val pendingDeleteStartTimes = mutableMapOf<Int, Long>()
     val uiState: StateFlow<TrashUiState> = _uiState.asStateFlow()
 
     /**
@@ -98,30 +126,193 @@ class TrashViewModel @Inject constructor(
         observeDocuments()
         observeCount()
         refreshTrash() // Load trash from server on init
+        restorePendingDeletes() // Restore pending deletes after AppLock
     }
 
     /**
-     * BEST PRACTICE: Fetch trash documents from API and update Room cache.
+     * Restore pending deletes from DataStore after AppLock/Process Death.
+     * Uses TokenManager which persists independently of NavBackStackEntry lifecycle.
+     * Calculates elapsed time and continues countdown from where it left off.
+     * If countdown has expired, schedules immediate deletion via WorkManager.
+     *
+     * WorkManager handles the actual deletion, ensuring it completes even if
+     * the user navigates away again.
+     */
+    private fun restorePendingDeletes() {
+        val savedStartTimes: String? = tokenManager.getPendingTrashDeletesSync()
+        if (savedStartTimes.isNullOrEmpty()) return
+
+        val now = System.currentTimeMillis()
+        val totalDurationMs = COUNTDOWN_SECONDS * 1000L
+
+        // Parse saved start times: "docId:startTime,docId:startTime,..."
+        savedStartTimes.split(",").forEach { entry ->
+            val parts = entry.split(":")
+            if (parts.size == 2) {
+                val documentId = parts[0].toIntOrNull()
+                val startTime = parts[1].toLongOrNull()
+
+                if (documentId != null && startTime != null) {
+                    val elapsedMs = now - startTime
+                    val remainingMs = totalDurationMs - elapsedMs
+
+                    if (remainingMs <= 0) {
+                        // Countdown expired during AppLock - schedule immediate delete via WorkManager
+                        trashDeleteWorkManager.scheduleImmediateDelete(documentId)
+                    } else {
+                        // Schedule WorkManager job with remaining time
+                        val remainingSeconds = (remainingMs / 1000).toInt() + 1
+                        trashDeleteWorkManager.schedulePendingDelete(documentId, remainingSeconds.toLong())
+                        // Continue UI countdown from where it left off
+                        startPendingDeleteWithRemainingTime(documentId, startTime, remainingMs)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Start pending delete UI countdown with remaining time (for restore after AppLock).
+     * The actual deletion is handled by TrashDeleteWorker (scheduled in restorePendingDeletes).
+     */
+    private fun startPendingDeleteWithRemainingTime(
+        documentId: Int,
+        originalStartTime: Long,
+        remainingMs: Long
+    ) {
+        // Cancel existing UI job if any
+        pendingDeleteJobs[documentId]?.cancel()
+
+        // Track start time
+        pendingDeleteStartTimes[documentId] = originalStartTime
+        savePendingDeletesToDataStore()
+
+        // Calculate initial state
+        val totalDurationMs = COUNTDOWN_SECONDS * 1000L
+        val initialProgress = remainingMs.toFloat() / totalDurationMs
+        val initialSeconds = (remainingMs / 1000).toInt() + 1
+
+        // Add to pending deletes state for UI
+        _uiState.update { state ->
+            state.copy(
+                pendingDeletes = state.pendingDeletes + (documentId to PendingDeleteState(
+                    documentId = documentId,
+                    progress = initialProgress,
+                    secondsRemaining = initialSeconds
+                ))
+            )
+        }
+
+        // Start UI countdown job with remaining time
+        // The actual deletion is handled by TrashDeleteWorker
+        val remainingSteps = (remainingMs / COUNTDOWN_STEP_MS).toInt()
+        val job = viewModelScope.launch {
+            for (i in remainingSteps downTo 0) {
+                val secondsRemaining = (i * COUNTDOWN_STEP_MS / 1000).toInt() + 1
+                val progress = i.toFloat() / (totalDurationMs / COUNTDOWN_STEP_MS).toInt()
+
+                _uiState.update { state ->
+                    val currentPending = state.pendingDeletes[documentId]
+                    if (currentPending != null) {
+                        state.copy(
+                            pendingDeletes = state.pendingDeletes + (documentId to currentPending.copy(
+                                progress = progress,
+                                secondsRemaining = secondsRemaining
+                            ))
+                        )
+                    } else {
+                        state
+                    }
+                }
+
+                delay(COUNTDOWN_STEP_MS)
+            }
+
+            // UI countdown finished - just remove from UI state
+            // The actual deletion is handled by TrashDeleteWorker
+            // IMPORTANT: Do NOT remove from DataStore here - the Worker needs
+            // to see it's still pending. The Worker handles DataStore cleanup.
+            _uiState.update { state ->
+                state.copy(pendingDeletes = state.pendingDeletes - documentId)
+            }
+            pendingDeleteJobs.remove(documentId)
+            pendingDeleteStartTimes.remove(documentId)
+            // Note: Don't call savePendingDeletesToDataStore() - Worker handles this
+        }
+
+        pendingDeleteJobs[documentId] = job
+    }
+
+    /**
+     * Save pending deletes to DataStore for AppLock survival.
+     * Uses TokenManager which persists independently of NavBackStackEntry lifecycle.
+     * Format: "docId:startTime,docId:startTime,..."
+     */
+    private fun savePendingDeletesToDataStore() {
+        val serialized = if (pendingDeleteStartTimes.isEmpty()) {
+            null
+        } else {
+            pendingDeleteStartTimes.entries.joinToString(",") { "${it.key}:${it.value}" }
+        }
+        viewModelScope.launch {
+            tokenManager.savePendingTrashDeletes(serialized)
+        }
+    }
+
+    /**
+     * Remove a pending delete from tracking.
+     */
+    private fun removePendingDelete(documentId: Int) {
+        pendingDeleteJobs[documentId]?.cancel()
+        pendingDeleteJobs.remove(documentId)
+        pendingDeleteStartTimes.remove(documentId)
+        savePendingDeletesToDataStore()
+
+        _uiState.update { state ->
+            state.copy(pendingDeletes = state.pendingDeletes - documentId)
+        }
+    }
+
+    /**
+     * BEST PRACTICE: Fetch ALL trash documents from API and update Room cache.
      * Called on screen init to sync server state with local cache.
      * This ensures documents deleted via web interface are visible in app.
+     *
+     * Fetches all pages from API (100 docs per page) to ensure complete sync.
      */
     fun refreshTrash() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            documentRepository.getTrashDocuments()
-                .onSuccess {
-                    // Success - Room Flow will auto-update UI
-                    _uiState.update { it.copy(isLoading = false) }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Fehler beim Laden des Papierkorbs"
-                        )
+            var page = 1
+            var hasMore = true
+            val serverTrashIds = mutableSetOf<Int>()
+
+            while (hasMore) {
+                documentRepository.getTrashDocuments(page = page, pageSize = 100)
+                    .onSuccess { response ->
+                        serverTrashIds.addAll(response.results.map { it.id })
+                        hasMore = response.next != null && response.results.isNotEmpty()
+                        page++
                     }
-                }
+                    .onFailure { error ->
+                        hasMore = false
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = error.message ?: "Fehler beim Laden des Papierkorbs"
+                            )
+                        }
+                        return@launch
+                    }
+            }
+
+            // Clean up local trash docs that no longer exist on server
+            // (e.g., auto-expired after 30 days or permanently deleted elsewhere)
+            documentRepository.cleanupOrphanedTrashDocs(serverTrashIds)
+
+            // Success - Room Flow will auto-update UI
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -268,6 +459,97 @@ class TrashViewModel @Inject constructor(
      */
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /**
+     * Start pending delete countdown for a document.
+     *
+     * This method does two things:
+     * 1. Starts a UI countdown animation (runs in viewModelScope)
+     * 2. Schedules a background WorkManager job to perform the actual deletion
+     *
+     * The WorkManager job ensures the deletion completes even if:
+     * - User navigates away from TrashScreen
+     * - AppLock is triggered
+     * - App is killed/backgrounded
+     *
+     * BEST PRACTICE: Persists start time to DataStore (via TokenManager) for AppLock survival.
+     *
+     * @param documentId Document ID to start countdown for
+     */
+    fun startPendingDelete(documentId: Int) {
+        // Cancel existing job if any
+        pendingDeleteJobs[documentId]?.cancel()
+
+        // Track start time for persistence
+        val startTime = System.currentTimeMillis()
+        pendingDeleteStartTimes[documentId] = startTime
+        savePendingDeletesToDataStore()
+
+        // Schedule background worker to perform the actual deletion after countdown
+        // This runs independently of ViewModel lifecycle
+        trashDeleteWorkManager.schedulePendingDelete(documentId, COUNTDOWN_SECONDS.toLong())
+
+        // Add to pending deletes state for UI
+        _uiState.update { state ->
+            state.copy(
+                pendingDeletes = state.pendingDeletes + (documentId to PendingDeleteState(documentId))
+            )
+        }
+
+        // Start countdown job for UI animation only (viewModelScope)
+        // The actual deletion is handled by TrashDeleteWorker
+        val job = viewModelScope.launch {
+            val totalSteps = (COUNTDOWN_SECONDS * 1000L / COUNTDOWN_STEP_MS).toInt()
+
+            for (i in totalSteps downTo 0) {
+                val secondsRemaining = (i * COUNTDOWN_STEP_MS / 1000).toInt() + 1
+                val progress = i.toFloat() / totalSteps
+
+                _uiState.update { state ->
+                    val currentPending = state.pendingDeletes[documentId]
+                    if (currentPending != null) {
+                        state.copy(
+                            pendingDeletes = state.pendingDeletes + (documentId to currentPending.copy(
+                                progress = progress,
+                                secondsRemaining = secondsRemaining
+                            ))
+                        )
+                    } else {
+                        state
+                    }
+                }
+
+                delay(COUNTDOWN_STEP_MS)
+            }
+
+            // UI countdown finished - just remove from UI state
+            // The actual deletion is handled by TrashDeleteWorker
+            // IMPORTANT: Do NOT remove from DataStore here - the Worker needs
+            // to see it's still pending. The Worker handles DataStore cleanup.
+            _uiState.update { state ->
+                state.copy(pendingDeletes = state.pendingDeletes - documentId)
+            }
+            pendingDeleteJobs.remove(documentId)
+            pendingDeleteStartTimes.remove(documentId)
+            // Note: Don't call savePendingDeletesToDataStore() - Worker handles this
+        }
+
+        pendingDeleteJobs[documentId] = job
+    }
+
+    /**
+     * Cancel pending delete countdown for a document (undo).
+     *
+     * Cancels both the UI countdown animation AND the background WorkManager job.
+     *
+     * @param documentId Document ID to cancel countdown for
+     */
+    fun cancelPendingDelete(documentId: Int) {
+        // Cancel background worker first
+        trashDeleteWorkManager.cancelPendingDelete(documentId)
+        // Then remove from UI state
+        removePendingDelete(documentId)
     }
 
     /**

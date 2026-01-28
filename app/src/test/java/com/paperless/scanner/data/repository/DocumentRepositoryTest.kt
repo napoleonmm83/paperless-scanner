@@ -242,4 +242,153 @@ class DocumentRepositoryTest {
         val capturedPart = documentSlot.captured
         assertTrue(capturedPart.body.contentType()?.toString()?.contains("image/jpeg") == true)
     }
+
+    // ==================== Trash Feature Tests ====================
+
+    @Test
+    fun `deleteDocument online success soft deletes from cache`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { cachedTaskDao.getAllTasks() } returns emptyList()
+        coEvery { api.deleteDocument(1) } returns mockk {
+            every { isSuccessful } returns true
+        }
+
+        val result = documentRepository.deleteDocument(1)
+
+        assertTrue(result.isSuccess)
+        coVerify { cachedDocumentDao.softDelete(1, any()) }
+    }
+
+    @Test
+    fun `deleteDocument offline queues pending change`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        val result = documentRepository.deleteDocument(1)
+
+        assertTrue(result.isSuccess)
+        coVerify { cachedDocumentDao.softDelete(1, any()) }
+        coVerify { pendingChangeDao.insert(any()) }
+    }
+
+    @Test
+    fun `deleteDocument API failure returns error`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { cachedTaskDao.getAllTasks() } returns emptyList()
+        coEvery { api.deleteDocument(1) } returns mockk {
+            every { isSuccessful } returns false
+            every { code() } returns 404
+            every { message() } returns "Not found"
+        }
+
+        val result = documentRepository.deleteDocument(1)
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `restoreDocument online success updates local cache`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        coEvery { api.trashBulkAction(any()) } returns mockk {
+            every { isSuccessful } returns true
+        }
+
+        val result = documentRepository.restoreDocument(1)
+
+        assertTrue(result.isSuccess)
+        coVerify { cachedDocumentDao.restoreDocument(1) }
+    }
+
+    @Test
+    fun `restoreDocument offline queues pending change`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        val result = documentRepository.restoreDocument(1)
+
+        assertTrue(result.isSuccess)
+        coVerify { cachedDocumentDao.restoreDocument(1) }
+        coVerify { pendingChangeDao.insert(any()) }
+    }
+
+    @Test
+    fun `restoreDocuments bulk calls API with correct action`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
+        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
+            every { isSuccessful } returns true
+        }
+
+        val result = documentRepository.restoreDocuments(listOf(1, 2, 3))
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf(1, 2, 3), requestSlot.captured.documents)
+        assertEquals("restore", requestSlot.captured.action)
+        coVerify { cachedDocumentDao.restoreDocuments(listOf(1, 2, 3)) }
+    }
+
+    @Test
+    fun `permanentlyDeleteDocument online success hard deletes from cache`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
+        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
+            every { isSuccessful } returns true
+        }
+
+        val result = documentRepository.permanentlyDeleteDocument(1)
+
+        assertTrue(result.isSuccess)
+        assertEquals("empty", requestSlot.captured.action)
+        coVerify { cachedDocumentDao.hardDelete(1) }
+    }
+
+    @Test
+    fun `permanentlyDeleteDocument offline queues pending change`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        val result = documentRepository.permanentlyDeleteDocument(1)
+
+        assertTrue(result.isSuccess)
+        coVerify { cachedDocumentDao.hardDelete(1) }
+        coVerify { pendingChangeDao.insert(any()) }
+    }
+
+    @Test
+    fun `permanentlyDeleteDocuments bulk uses empty action`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
+        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
+            every { isSuccessful } returns true
+        }
+
+        val result = documentRepository.permanentlyDeleteDocuments(listOf(1, 2))
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf(1, 2), requestSlot.captured.documents)
+        assertEquals("empty", requestSlot.captured.action)
+        coVerify { cachedDocumentDao.deleteByIds(listOf(1, 2)) }
+    }
+
+    @Test
+    fun `observeTrashedDocuments returns Flow from DAO`() = runTest {
+        val mockDocuments = listOf(
+            mockk<com.paperless.scanner.data.database.entities.CachedDocument>(relaxed = true)
+        )
+        every { cachedDocumentDao.observeDeletedDocuments() } returns kotlinx.coroutines.flow.flowOf(mockDocuments)
+
+        val flow = documentRepository.observeTrashedDocuments()
+
+        flow.collect { documents ->
+            assertEquals(1, documents.size)
+        }
+    }
+
+    @Test
+    fun `observeTrashedDocumentsCount returns count Flow from DAO`() = runTest {
+        every { cachedDocumentDao.observeDeletedCount() } returns kotlinx.coroutines.flow.flowOf(5)
+
+        val flow = documentRepository.observeTrashedDocumentsCount()
+
+        flow.collect { count ->
+            assertEquals(5, count)
+        }
+    }
 }

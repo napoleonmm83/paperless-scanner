@@ -781,14 +781,23 @@ class DocumentRepository @Inject constructor(
                     // BEST PRACTICE: Ensures immediate UI update in "Verarbeitung" section
                     cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
 
-                    // Hard delete from cache - document is confirmed deleted on server
-                    cachedDocumentDao.hardDelete(documentId)
+                    // Soft delete from cache so trash count Flow updates immediately
+                    // Server confirmed deletion → document is now in server trash
+                    // Trash sync will later update with server's actual data
+                    cachedDocumentDao.softDelete(documentId, deletedAt = System.currentTimeMillis())
                     Result.success(Unit)
                 } else {
+                    // Extract actual error body from server response
+                    val errorBody = try {
+                        response.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
                     Result.failure(
                         PaperlessException.fromHttpCode(
                             response.code(),
-                            response.message()
+                            errorBody ?: response.message()
                         )
                     )
                 }
@@ -1146,10 +1155,17 @@ class DocumentRepository @Inject constructor(
                     cachedDocumentDao.restoreDocument(documentId)
                     Result.success(Unit)
                 } else {
+                    // Extract actual error body from server response
+                    val errorBody = try {
+                        response.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    Log.e(TAG, "restoreDocument failed: HTTP ${response.code()}, body: $errorBody")
                     Result.failure(
                         PaperlessException.fromHttpCode(
                             response.code(),
-                            response.message()
+                            errorBody ?: response.message()
                         )
                     )
                 }
@@ -1197,10 +1213,17 @@ class DocumentRepository @Inject constructor(
                     cachedDocumentDao.restoreDocuments(documentIds)
                     Result.success(Unit)
                 } else {
+                    // Extract actual error body from server response
+                    val errorBody = try {
+                        response.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: $errorBody")
                     Result.failure(
                         PaperlessException.fromHttpCode(
                             response.code(),
-                            response.message()
+                            errorBody ?: response.message()
                         )
                     )
                 }
@@ -1250,10 +1273,17 @@ class DocumentRepository @Inject constructor(
                     cachedDocumentDao.hardDelete(documentId)
                     Result.success(Unit)
                 } else {
+                    // Extract actual error body from server response
+                    val errorBody = try {
+                        response.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    Log.e(TAG, "permanentlyDeleteDocument failed: HTTP ${response.code()}, body: $errorBody")
                     Result.failure(
                         PaperlessException.fromHttpCode(
                             response.code(),
-                            response.message()
+                            errorBody ?: response.message()
                         )
                     )
                 }
@@ -1301,10 +1331,17 @@ class DocumentRepository @Inject constructor(
                     cachedDocumentDao.deleteByIds(documentIds)
                     Result.success(Unit)
                 } else {
+                    // Extract actual error body from server response
+                    val errorBody = try {
+                        response.errorBody()?.string()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: $errorBody")
                     Result.failure(
                         PaperlessException.fromHttpCode(
                             response.code(),
-                            response.message()
+                            errorBody ?: response.message()
                         )
                     )
                 }
@@ -1381,5 +1418,20 @@ class DocumentRepository @Inject constructor(
      */
     fun observeOldestDeletedTimestamp(): Flow<Long?> {
         return cachedDocumentDao.getOldestDeletedTimestamp()
+    }
+
+    /**
+     * Remove local soft-deleted documents that no longer exist on the server.
+     * Called after a full trash sync (all pages fetched) to keep local cache consistent.
+     *
+     * @param serverTrashIds Set of document IDs currently in server trash
+     */
+    suspend fun cleanupOrphanedTrashDocs(serverTrashIds: Set<Int>) {
+        val localDeletedIds = cachedDocumentDao.getDeletedIds().toSet()
+        val orphanedIds = localDeletedIds - serverTrashIds
+        if (orphanedIds.isNotEmpty()) {
+            cachedDocumentDao.deleteByIds(orphanedIds.toList())
+            Log.d(TAG, "Cleaned up ${orphanedIds.size} orphaned trash docs: $orphanedIds")
+        }
     }
 }

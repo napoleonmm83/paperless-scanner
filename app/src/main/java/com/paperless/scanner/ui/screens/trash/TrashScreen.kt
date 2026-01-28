@@ -69,7 +69,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CustomSnackbarHost
 import com.paperless.scanner.ui.theme.PaperlessAnimations
-import kotlinx.coroutines.Job
 
 /**
  * TrashScreen - Display and manage soft-deleted documents.
@@ -187,8 +186,10 @@ fun TrashScreen(
                     else -> {
                         TrashDocumentList(
                             documents = uiState.documents,
+                            pendingDeletes = uiState.pendingDeletes,
                             onRestore = viewModel::restoreDocument,
-                            onDelete = viewModel::permanentlyDeleteDocument,
+                            onStartPendingDelete = viewModel::startPendingDelete,
+                            onCancelPendingDelete = viewModel::cancelPendingDelete,
                             isRestoring = uiState.isRestoring,
                             isDeleting = uiState.isDeleting
                         )
@@ -342,8 +343,10 @@ private fun EmptyTrashState() {
 @Composable
 private fun TrashDocumentList(
     documents: List<TrashDocumentItem>,
+    pendingDeletes: Map<Int, PendingDeleteState>,
     onRestore: (Int) -> Unit,
-    onDelete: (Int) -> Unit,
+    onStartPendingDelete: (Int) -> Unit,
+    onCancelPendingDelete: (Int) -> Unit,
     isRestoring: Boolean,
     isDeleting: Boolean
 ) {
@@ -356,10 +359,13 @@ private fun TrashDocumentList(
             items = documents,
             key = { it.id }
         ) { document ->
+            val pendingDeleteState = pendingDeletes[document.id]
             TrashDocumentCard(
                 document = document,
+                pendingDeleteState = pendingDeleteState,
                 onRestore = { onRestore(document.id) },
-                onDelete = { onDelete(document.id) },
+                onStartPendingDelete = { onStartPendingDelete(document.id) },
+                onCancelPendingDelete = { onCancelPendingDelete(document.id) },
                 isRestoring = isRestoring,
                 isDeleting = isDeleting
             )
@@ -376,6 +382,10 @@ private fun TrashDocumentList(
  * - Tap back card to undo (flip back to front)
  * - After 30 seconds, document is permanently deleted
  *
+ * BEST PRACTICE: Countdown state managed by ViewModel (not UI).
+ * This ensures the countdown survives UI recomposition when cards
+ * scroll out of view in LazyColumn.
+ *
  * Dark Tech Precision Pro Theme:
  * - Corner Radius: 20dp
  * - Border: 1dp outline
@@ -385,20 +395,19 @@ private fun TrashDocumentList(
 @Composable
 private fun TrashDocumentCard(
     document: TrashDocumentItem,
+    pendingDeleteState: PendingDeleteState?,
     onRestore: () -> Unit,
-    onDelete: () -> Unit,
+    onStartPendingDelete: () -> Unit,
+    onCancelPendingDelete: () -> Unit,
     isRestoring: Boolean,
     isDeleting: Boolean
 ) {
-    val context = LocalContext.current
     val density = LocalDensity.current
-    val coroutineScope = rememberCoroutineScope()
 
-    // Card flip state
-    var isFlipped by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf(1f) }
-    var secondsRemaining by remember { mutableStateOf(30) }
-    var countdownJob by remember { mutableStateOf<Job?>(null) }
+    // Card is flipped if there's a pending delete state from ViewModel
+    val isFlipped = pendingDeleteState != null
+    val progress = pendingDeleteState?.progress ?: 1f
+    val secondsRemaining = pendingDeleteState?.secondsRemaining ?: 30
 
     // Flip animation
     val rotation by animateFloatAsState(
@@ -409,31 +418,6 @@ private fun TrashDocumentCard(
         ),
         label = "cardFlip"
     )
-
-    // Countdown logic - smooth 100ms steps for fluid animation
-    LaunchedEffect(isFlipped) {
-        if (isFlipped) {
-            // Start countdown
-            countdownJob = coroutineScope.launch {
-                val totalMillis = 30_000L // 30 seconds
-                val stepMillis = 100L // Update every 100ms for smooth animation
-                val totalSteps = (totalMillis / stepMillis).toInt()
-
-                for (i in totalSteps downTo 0) {
-                    secondsRemaining = (i * stepMillis / 1000).toInt() + 1
-                    progress = i.toFloat() / totalSteps
-                    delay(stepMillis)
-                }
-                // Countdown finished - delete permanently
-                onDelete()
-            }
-        } else {
-            // Cancel countdown (undo)
-            countdownJob?.cancel()
-            progress = 1f
-            secondsRemaining = 30
-        }
-    }
 
     Card(
         modifier = Modifier
@@ -462,7 +446,7 @@ private fun TrashDocumentCard(
                 TrashDocumentCardFront(
                     document = document,
                     onRestore = onRestore,
-                    onDelete = { isFlipped = true },
+                    onDelete = onStartPendingDelete,
                     isRestoring = isRestoring,
                     isDeleting = isDeleting
                 )
@@ -472,7 +456,7 @@ private fun TrashDocumentCard(
                     document = document,
                     progress = progress,
                     secondsRemaining = secondsRemaining,
-                    onUndo = { isFlipped = false }
+                    onUndo = onCancelPendingDelete
                 )
             }
         }

@@ -109,8 +109,8 @@ interface CachedDocumentDao {
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 AND (tags IS NULL OR tags = '[]') ORDER BY added DESC")
     suspend fun getUntaggedDocuments(): List<CachedDocument>
 
-    // Methods for orphan detection during sync
-    @Query("SELECT id FROM cached_documents")
+    // Methods for orphan detection during sync (excludes soft-deleted/trashed docs)
+    @Query("SELECT id FROM cached_documents WHERE isDeleted = 0")
     suspend fun getAllIds(): List<Int>
 
     @Query("DELETE FROM cached_documents WHERE id IN (:ids)")
@@ -234,4 +234,11 @@ interface CachedDocumentDao {
      */
     @Query("SELECT MIN(deletedAt) FROM cached_documents WHERE isDeleted = 1")
     fun getOldestDeletedTimestamp(): Flow<Long?>
+
+    /**
+     * Get all soft-deleted document IDs.
+     * Used for orphan cleanup after full trash sync from server.
+     */
+    @Query("SELECT id FROM cached_documents WHERE isDeleted = 1")
+    suspend fun getDeletedIds(): List<Int>
 }

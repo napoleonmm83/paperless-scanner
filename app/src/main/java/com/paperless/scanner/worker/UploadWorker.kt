@@ -17,8 +17,11 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.database.UploadStatus
+import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
 import dagger.assisted.Assisted
@@ -32,7 +35,8 @@ class UploadWorker @AssistedInject constructor(
     private val uploadQueueRepository: UploadQueueRepository,
     private val documentRepository: DocumentRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
+    private val syncHistoryRepository: SyncHistoryRepository
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -190,6 +194,21 @@ class UploadWorker @AssistedInject constructor(
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
 
+                    // Record success in SyncHistory
+                    try {
+                        val pageInfo = if (pendingUpload.isMultiPage) {
+                            val uris = uploadQueueRepository.getAllUris(pendingUpload)
+                            " (${uris.size} Seiten)"
+                        } else ""
+                        syncHistoryRepository.recordSuccess(
+                            actionType = SyncHistoryEntry.ACTION_UPLOAD,
+                            title = "Dokument hochgeladen",
+                            details = "${documentName}${pageInfo}"
+                        )
+                    } catch (historyError: Exception) {
+                        Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                    }
+
                     // Clean up local file copies after successful upload
                     val urisToClean = if (pendingUpload.isMultiPage) {
                         uploadQueueRepository.getAllUris(pendingUpload)
@@ -212,6 +231,25 @@ class UploadWorker @AssistedInject constructor(
                     Log.e(TAG, "Upload failed: Exception type: ${e.javaClass.simpleName}")
                     uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                     failCount++
+
+                    // Record failure in SyncHistory with user-friendly and technical error
+                    try {
+                        val httpCode = when (e) {
+                            is PaperlessException.ClientError -> e.code
+                            is PaperlessException.ServerError -> e.code
+                            is PaperlessException.AuthError -> e.code
+                            else -> null
+                        }
+                        syncHistoryRepository.recordFailure(
+                            actionType = SyncHistoryEntry.ACTION_UPLOAD,
+                            title = "Upload fehlgeschlagen",
+                            userMessage = syncHistoryRepository.getUserFriendlyError(httpCode, e as? Exception),
+                            technicalError = syncHistoryRepository.getTechnicalError(httpCode, e.message, e as? Exception),
+                            details = documentName
+                        )
+                    } catch (historyError: Exception) {
+                        Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                    }
 
                     if (pendingUpload.retryCount >= MAX_RETRIES) {
                         Log.w(TAG, "Max retries reached for: ${pendingUpload.id}")
@@ -237,6 +275,19 @@ class UploadWorker @AssistedInject constructor(
                 Log.e(TAG, "Unexpected error during upload: ${pendingUpload.id} - $safeErrorMessage", e)
                 uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                 failCount++
+
+                // Record unexpected failure in SyncHistory
+                try {
+                    syncHistoryRepository.recordFailure(
+                        actionType = SyncHistoryEntry.ACTION_UPLOAD,
+                        title = "Upload fehlgeschlagen",
+                        userMessage = "Unerwarteter Fehler",
+                        technicalError = "${e.javaClass.simpleName}: ${e.message}",
+                        details = documentName
+                    )
+                } catch (historyError: Exception) {
+                    Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                }
             }
         }
 

@@ -220,9 +220,18 @@ fun PaperlessNavGraph(
             )
         }
 
-        // Pending Sync Screen
+        // Sync Center Screen (replaces PendingSync)
+        composable(route = Screen.SyncCenter.route) {
+            com.paperless.scanner.ui.screens.synccenter.SyncCenterScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Pending Sync Screen (deprecated - redirects to SyncCenter for backward compatibility)
         composable(route = Screen.PendingSync.route) {
-            com.paperless.scanner.ui.screens.pendingsync.PendingSyncScreen(
+            com.paperless.scanner.ui.screens.synccenter.SyncCenterScreen(
                 onNavigateBack = {
                     navController.popBackStack()
                 }

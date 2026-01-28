@@ -10,6 +10,7 @@ import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.dao.SyncHistoryDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.entities.AiUsageLog
 import com.paperless.scanner.data.database.entities.CachedCorrespondent
@@ -18,6 +19,7 @@ import com.paperless.scanner.data.database.entities.CachedDocumentType
 import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.database.entities.CachedTask
 import com.paperless.scanner.data.database.entities.PendingChange
+import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.database.entities.SyncMetadata
 
 @Database(
@@ -30,9 +32,10 @@ import com.paperless.scanner.data.database.entities.SyncMetadata
         CachedTask::class,
         PendingChange::class,
         SyncMetadata::class,
-        AiUsageLog::class
+        AiUsageLog::class,
+        SyncHistoryEntry::class
     ],
-    version = 10, // MIGRATION_9_10: Added deletedAt for Trash feature
+    version = 11, // MIGRATION_10_11: Added sync_history for SyncCenter feature
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -46,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun pendingChangeDao(): PendingChangeDao
     abstract fun syncMetadataDao(): SyncMetadataDao
     abstract fun aiUsageDao(): AiUsageDao
+    abstract fun syncHistoryDao(): SyncHistoryDao
 
     companion object {
         const val DATABASE_NAME = "paperless_scanner_db"

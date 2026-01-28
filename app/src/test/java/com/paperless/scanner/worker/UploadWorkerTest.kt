@@ -12,6 +12,7 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.health.ServerStatus
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,6 +60,7 @@ class UploadWorkerTest {
     private lateinit var documentRepository: DocumentRepository
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: ServerHealthMonitor
+    private lateinit var syncHistoryRepository: SyncHistoryRepository
 
     @Before
     fun setup() {
@@ -67,6 +69,7 @@ class UploadWorkerTest {
         documentRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
+        syncHistoryRepository = mockk(relaxed = true)
 
         // Default: hasValidatedInternet returns true
         every { networkMonitor.hasValidatedInternet() } returns true
@@ -105,7 +108,8 @@ class UploadWorkerTest {
                 uploadQueueRepository = uploadQueueRepository,
                 documentRepository = documentRepository,
                 networkMonitor = networkMonitor,
-                serverHealthMonitor = serverHealthMonitor
+                serverHealthMonitor = serverHealthMonitor,
+                syncHistoryRepository = syncHistoryRepository
             )
         )
         // Mock suspend function setForeground to avoid WorkManager context issues

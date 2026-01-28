@@ -339,3 +339,36 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         """)
     }
 }
+
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add sync_history table for persistent sync operation history
+        // SyncCenter feature: Shows completed uploads, deletions, restores with error details
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS sync_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                actionType TEXT NOT NULL,
+                status TEXT NOT NULL,
+                title TEXT NOT NULL,
+                details TEXT,
+                affectedDocumentIds TEXT,
+                userMessage TEXT,
+                technicalError TEXT,
+                createdAt INTEGER NOT NULL,
+                documentCount INTEGER NOT NULL DEFAULT 1
+            )
+        """)
+
+        // Create index on createdAt for sorting and cleanup queries
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_sync_history_createdAt
+            ON sync_history(createdAt)
+        """)
+
+        // Create index on status for filtering (success/failed)
+        database.execSQL("""
+            CREATE INDEX IF NOT EXISTS index_sync_history_status
+            ON sync_history(status)
+        """)
+    }
+}

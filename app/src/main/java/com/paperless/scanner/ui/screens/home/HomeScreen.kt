@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Card
@@ -104,17 +106,13 @@ fun HomeScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    // BEST PRACTICE: Refresh dashboard (stats + tasks) when screen becomes visible
-    // This catches changes made via web interface or other devices
+    // BEST PRACTICE: Debounced refresh on ON_RESUME to prevent excessive server calls
+    // Only refreshes if >30 seconds since last refresh (quick app switches won't trigger)
+    // Pull-to-refresh always works for forced user-triggered updates
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshDashboard()  // Immediate refresh
-                // Delayed refresh to catch newly created tasks (after uploads/deletes)
-                coroutineScope.launch {
-                    delay(1500)
-                    viewModel.refreshDashboard()
-                }
+                viewModel.refreshDashboardIfNeeded()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -163,84 +161,79 @@ fun HomeScreen(
             onClickShowDetails = onNavigateToPendingSync
         )
 
-        // Header
+        // Header with Last Synced Indicator
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
-                .padding(top = 24.dp, bottom = 16.dp)
+                .padding(top = 24.dp, bottom = 8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.home_welcome_back),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.home_your_archive),
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.ExtraBold
-            )
-        }
-
-        // Stats Grid
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                icon = Icons.Filled.Description,
-                value = "${uiState.stats.totalDocuments}",
-                label = stringResource(R.string.home_stat_documents),
-                isPrimary = true,
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                icon = Icons.Filled.Inbox,
-                value = "${uiState.stats.pendingUploads}",
-                label = stringResource(R.string.home_stat_pending),
-                isPrimary = false,
-                modifier = Modifier.weight(1f),
-                onClick = onNavigateToPendingSync
-            )
-            StatCard(
-                icon = Icons.Filled.Tag,
-                value = "${uiState.untaggedCount}",
-                label = stringResource(R.string.home_stat_untagged),
-                isPrimary = false,
-                modifier = Modifier.weight(1f),
-                onClick = if (isServerReachable && uiState.untaggedCount > 0) {
-                    onNavigateToSmartTagging
-                } else {
-                    null
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = stringResource(R.string.home_welcome_back),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.home_your_archive),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
-            )
+
+                // Last synced indicator in top right
+                LastSyncedIndicator(
+                    lastSyncedAt = uiState.lastSyncedAt,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Trash Quick Access (second row)
-        Row(
+        // Hero Document Card
+        HeroDocumentCard(
+            totalDocuments = uiState.stats.totalDocuments,
+            processingCount = uiState.totalProcessingCount,
+            onClick = onNavigateToDocuments,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            TrashCard(
-                deletedCount = uiState.deletedCount,
-                oldestDeletedTimestamp = uiState.oldestDeletedTimestamp,
-                onClick = onNavigateToTrash,
-                modifier = Modifier.weight(1f)
-            )
-            // Placeholder for future quick actions (keeping layout balanced)
-            Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.weight(1f))
+                .padding(horizontal = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Compact Stats Row (Sync, Tags, Trash)
+        val daysUntilExpiration = uiState.oldestDeletedTimestamp?.let { timestamp ->
+            val retentionDays = 30
+            val expirationTime = timestamp + (retentionDays * 24 * 60 * 60 * 1000L)
+            val now = System.currentTimeMillis()
+            val daysRemaining = ((expirationTime - now) / (24 * 60 * 60 * 1000L)).toInt()
+            maxOf(0, daysRemaining)
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        CompactStatsRow(
+            syncActiveCount = uiState.activeUploadsCount + uiState.stats.pendingUploads,
+            syncFailedCount = uiState.failedSyncCount,
+            untaggedCount = uiState.untaggedCount,
+            trashCount = uiState.deletedCount,
+            trashExpiresInDays = null, // Expiration info shown only in Trash screen
+            onSyncClick = onNavigateToPendingSync,
+            onTagsClick = if (isServerReachable && uiState.untaggedCount > 0) {
+                onNavigateToSmartTagging
+            } else null,
+            onTrashClick = onNavigateToTrash,
+            modifier = Modifier.padding(horizontal = 24.dp)
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Processing Tasks Section (only show if there are tasks)
         if (uiState.processingTasks.isNotEmpty()) {
@@ -491,6 +484,340 @@ private fun StatCard(
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * LastSyncedIndicator - Shows when data was last synced.
+ * Updates live to show relative time.
+ */
+@Composable
+private fun LastSyncedIndicator(
+    lastSyncedAt: Long?,
+    modifier: Modifier = Modifier
+) {
+    if (lastSyncedAt == null) return
+
+    // Calculate relative time
+    val now = System.currentTimeMillis()
+    val diffMinutes = ((now - lastSyncedAt) / 60_000).toInt()
+    val diffHours = diffMinutes / 60
+
+    val timeText = when {
+        diffMinutes < 1 -> stringResource(R.string.home_last_synced_just_now)
+        diffMinutes < 60 -> stringResource(R.string.home_last_synced_minutes_ago, diffMinutes)
+        diffHours < 24 -> stringResource(R.string.home_last_synced_hours_ago, diffHours)
+        else -> stringResource(R.string.home_last_synced_long_ago)
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Refresh,
+            contentDescription = null,
+            modifier = Modifier.size(12.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        Text(
+            text = stringResource(R.string.home_last_synced, timeText),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+    }
+}
+
+/**
+ * CompactStatsRow - Three compact stat cards in a row.
+ * Replaces the old 2-row layout with a cleaner single row.
+ *
+ * Dark Tech Precision Pro Style Guide:
+ * - Surface background (#141414)
+ * - 1dp border with outline (#27272A)
+ * - No elevation
+ * - 16dp corner radius, 12dp padding
+ */
+@Composable
+private fun CompactStatsRow(
+    syncActiveCount: Int,
+    syncFailedCount: Int,
+    untaggedCount: Int,
+    trashCount: Int,
+    trashExpiresInDays: Int?,
+    onSyncClick: () -> Unit,
+    onTagsClick: (() -> Unit)?,
+    onTrashClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Sync Center Card
+        CompactStatCard(
+            icon = Icons.Filled.Refresh,
+            value = syncActiveCount,
+            label = stringResource(R.string.home_stat_sync),
+            badgeCount = syncFailedCount,
+            showErrorBadge = syncFailedCount > 0,
+            onClick = onSyncClick,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Tags Card
+        CompactStatCard(
+            icon = Icons.Filled.AutoAwesome,
+            value = untaggedCount,
+            label = stringResource(R.string.home_stat_smart_tagging),
+            badgeCount = 0,
+            showErrorBadge = false,
+            onClick = onTagsClick,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Trash Card
+        CompactStatCard(
+            icon = Icons.Filled.Delete,
+            value = trashCount,
+            label = stringResource(R.string.trash_title),
+            badgeCount = 0,
+            showErrorBadge = false,
+            subtitle = if (trashCount > 0 && trashExpiresInDays != null) {
+                stringResource(R.string.trash_expires_in_days, trashExpiresInDays)
+            } else null,
+            onClick = onTrashClick,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/**
+ * CompactStatCard - Individual compact stat card for the stats row.
+ */
+@Composable
+private fun CompactStatCard(
+    icon: ImageVector,
+    value: Int,
+    label: String,
+    badgeCount: Int,
+    showErrorBadge: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null
+) {
+    Card(
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+        modifier = modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline,
+            shape = RoundedCornerShape(16.dp)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = value.toString(),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = label.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Optional subtitle (e.g., "🕐 27 days")
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccessTime,
+                            contentDescription = null,
+                            modifier = Modifier.size(10.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+
+            // Error badge (red dot)
+            if (showErrorBadge && badgeCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (badgeCount > 9) "9+" else badgeCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onError
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * HeroDocumentCard - Main hero card showing total documents and processing status.
+ *
+ * Dark Tech Precision Pro Style Guide:
+ * - Surface background (#141414)
+ * - 1dp border with primary color (#E1FF8D)
+ * - No elevation
+ * - 20dp corner radius, 20dp padding
+ */
+@Composable
+private fun HeroDocumentCard(
+    totalDocuments: Int,
+    processingCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.primary,
+            shape = RoundedCornerShape(20.dp)
+        ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Document icon with primary background
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Description,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = totalDocuments.toString(),
+                                style = MaterialTheme.typography.headlineLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = stringResource(R.string.home_stat_documents).uppercase(),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // "See all" link
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.home_see_all),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            // Processing indicator (only show if processing)
+            if (processingCount > 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Animated indeterminate progress bar
+                    androidx.compose.material3.LinearProgressIndicator(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+
+                    // Processing count text
+                    Text(
+                        text = stringResource(R.string.home_hero_processing, processingCount),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
     }
 }

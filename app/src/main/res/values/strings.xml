@@ -307,6 +307,15 @@
     <string name="home_stat_this_month">Diesen Monat</string>
     <string name="home_stat_pending">Ausstehend</string>
     <string name="home_stat_untagged">Ohne Tags</string>
+    <string name="home_hero_processing">%d werden verarbeitet</string>
+    <string name="home_stat_sync">Sync</string>
+    <string name="home_stat_tags">Tags</string>
+    <string name="home_stat_smart_tagging">Smart Tagging</string>
+    <string name="home_last_synced">Aktualisiert: %s</string>
+    <string name="home_last_synced_just_now">gerade eben</string>
+    <string name="home_last_synced_minutes_ago">vor %d Min</string>
+    <string name="home_last_synced_hours_ago">vor %d Std</string>
+    <string name="home_last_synced_long_ago">vor längerer Zeit</string>
     <string name="home_new_scan">Neuer Scan</string>
     <string name="home_all_documents">Alle Dokumente</string>
     <string name="home_processing">Verarbeitung</string>
@@ -347,7 +356,28 @@
     <string name="pending_sync_status_completed">Completed</string>
     <string name="pending_sync_status_failed">Failed</string>
 
-    
+
+    <string name="sync_center_title">SYNC CENTER</string>
+    <string name="sync_center_back">Zurück</string>
+    <string name="sync_center_active">Aktive Aufträge</string>
+    <string name="sync_center_failed">Fehlgeschlagen</string>
+    <string name="sync_center_completed">Kürzlich abgeschlossen</string>
+    <string name="sync_center_empty">Alles synchronisiert</string>
+    <string name="sync_center_empty_subtitle">Keine ausstehenden Syncs</string>
+    <string name="sync_center_retry">Wiederholen</string>
+    <string name="sync_center_delete">Löschen</string>
+    <string name="sync_center_show_technical">Technische Details</string>
+    <string name="sync_center_technical_details">Technische Details:</string>
+    <string name="sync_center_unnamed_document">Unbenanntes Dokument</string>
+    <string name="sync_center_multi_page">Mehrseitig</string>
+    <string name="sync_center_single_page">Einzelseite</string>
+    <string name="sync_center_new_entity">Neu</string>
+    <string name="sync_center_status_pending">Wartend</string>
+    <string name="sync_center_status_uploading">Hochladen</string>
+    <string name="sync_center_status_completed">Abgeschlossen</string>
+    <string name="sync_center_status_failed">Fehlgeschlagen</string>
+
+
     <string name="settings_title">EINSTELLUNGEN</string>
     <string name="settings_paperless_ngx">Paperless-ngx</string>
     <string name="settings_not_connected">Nicht verbunden</string>

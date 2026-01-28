@@ -54,6 +54,9 @@ class TokenManager(private val context: Context) {
 
         // Document Filter Preferences
         private val DOCUMENT_FILTER_KEY = stringPreferencesKey("document_filter")
+
+        // Trash Pending Delete Preferences (survives AppLock)
+        private val TRASH_PENDING_DELETES_KEY = stringPreferencesKey("trash_pending_deletes")
     }
 
     val token: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -484,5 +487,39 @@ class TokenManager(private val context: Context) {
     fun getDocumentFilterSync(): DocumentFilter = runBlocking {
         val filterJson = context.dataStore.data.first()[DOCUMENT_FILTER_KEY]
         DocumentFilter.fromJson(filterJson)
+    }
+
+    // Trash Pending Delete Settings (survives AppLock back stack clear)
+
+    /**
+     * Save pending trash deletes to DataStore.
+     * Format: "docId:startTime,docId:startTime,..."
+     * This data survives AppLock because DataStore is independent of NavBackStackEntry.
+     */
+    suspend fun savePendingTrashDeletes(pendingDeletes: String?) {
+        context.dataStore.edit { preferences ->
+            if (pendingDeletes.isNullOrBlank()) {
+                preferences.remove(TRASH_PENDING_DELETES_KEY)
+            } else {
+                preferences[TRASH_PENDING_DELETES_KEY] = pendingDeletes
+            }
+        }
+    }
+
+    /**
+     * Get pending trash deletes synchronously (for ViewModel initialization).
+     * Returns null if no pending deletes are stored.
+     */
+    fun getPendingTrashDeletesSync(): String? = runBlocking {
+        context.dataStore.data.first()[TRASH_PENDING_DELETES_KEY]
+    }
+
+    /**
+     * Clear pending trash deletes.
+     */
+    suspend fun clearPendingTrashDeletes() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(TRASH_PENDING_DELETES_KEY)
+        }
     }
 }

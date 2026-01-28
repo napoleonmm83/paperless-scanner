@@ -10,6 +10,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.sync.SyncManager
@@ -48,6 +49,7 @@ class HomeViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
+    private lateinit var syncHistoryRepository: SyncHistoryRepository
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var syncManager: SyncManager
@@ -66,6 +68,7 @@ class HomeViewModelTest {
         tagRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
+        syncHistoryRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
@@ -87,6 +90,8 @@ class HomeViewModelTest {
         coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
         coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
+        coEvery { documentRepository.getUntaggedCount() } returns Result.success(0)
+        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.success(DocumentsResponse(count = 0, results = emptyList(), next = null))
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
     }
@@ -103,6 +108,7 @@ class HomeViewModelTest {
             tagRepository = tagRepository,
             taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
+            syncHistoryRepository = syncHistoryRepository,
             networkMonitor = networkMonitor,
             serverHealthMonitor = serverHealthMonitor,
             syncManager = syncManager,

@@ -1,7 +1,11 @@
 package com.paperless.scanner.ui.screens.pendingsync
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +26,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Upload
@@ -37,6 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -202,85 +212,242 @@ private fun UploadItem(
     onRetry: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val hasDetails = upload.retryCount > 0 || upload.errorMessage != null
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = hasDetails) { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(
+            width = 1.dp,
+            color = when (upload.status) {
+                UploadStatus.FAILED -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                UploadStatus.UPLOADING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.outline
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
-            // Title
+            // Compact Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = upload.title ?: stringResource(R.string.pending_sync_unnamed_document),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                StatusBadge(status = upload.status)
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Details
-            InfoRow(label = stringResource(R.string.pending_sync_type), value = if (upload.isMultiPage) stringResource(R.string.pending_sync_multi_page) else stringResource(R.string.pending_sync_single))
-            InfoRow(label = stringResource(R.string.pending_sync_retry_count), value = "${upload.retryCount}")
-            InfoRow(
-                label = stringResource(R.string.pending_sync_created),
-                value = formatTimestamp(upload.createdAt)
-            )
-
-            if (upload.errorMessage != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Status Icon
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = when (upload.status) {
+                                UploadStatus.FAILED -> MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
+                                UploadStatus.UPLOADING -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                UploadStatus.COMPLETED -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                            },
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = stringResource(R.string.cd_error),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = upload.errorMessage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
-
-            // Actions
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (upload.status == UploadStatus.FAILED) {
-                    IconButton(onClick = onRetry) {
+                    if (upload.status == UploadStatus.UPLOADING) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.pending_sync_retry),
-                            tint = MaterialTheme.colorScheme.primary
+                            imageVector = when (upload.status) {
+                                UploadStatus.FAILED -> Icons.Default.Error
+                                UploadStatus.COMPLETED -> Icons.Default.CloudUpload
+                                else -> Icons.Default.Upload
+                            },
+                            contentDescription = null,
+                            tint = when (upload.status) {
+                                UploadStatus.FAILED -> MaterialTheme.colorScheme.error
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                IconButton(onClick = onDelete) {
+
+                // Title & Type
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = upload.title ?: stringResource(R.string.pending_sync_unnamed_document),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = if (upload.isMultiPage)
+                            stringResource(R.string.pending_sync_multi_page)
+                        else
+                            stringResource(R.string.pending_sync_single),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Status Badge
+                StatusBadge(status = upload.status)
+
+                // Expand indicator (only if has details)
+                if (hasDetails) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Action Buttons
+                if (upload.status == UploadStatus.FAILED) {
+                    IconButton(
+                        onClick = onRetry,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.pending_sync_retry),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.pending_sync_delete),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Expandable Details Section
+            AnimatedVisibility(
+                visible = isExpanded && hasDetails,
+                enter = expandVertically(),
+                exit = shrinkVertically()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Details Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Retry Count
+                        Column {
+                            Text(
+                                text = stringResource(R.string.pending_sync_retry_count),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${upload.retryCount}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Created Date
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = stringResource(R.string.pending_sync_created),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatTimestamp(upload.createdAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Error (if present)
+                    if (upload.errorMessage != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = stringResource(R.string.cd_error),
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = upload.errorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Inline Error Badge (when collapsed but has error)
+            if (!isExpanded && upload.errorMessage != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = upload.errorMessage,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 1
                     )
                 }
             }
@@ -293,78 +460,204 @@ private fun PendingChangeItem(
     change: PendingChange,
     onDelete: () -> Unit
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val hasDetails = change.syncAttempts > 0 || change.lastError != null
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = hasDetails) { isExpanded = !isExpanded },
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (change.lastError != null)
+                MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+            else
+                MaterialTheme.colorScheme.outline
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
-            // Title
+            // Compact Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "${change.changeType.uppercase()} ${change.entityType}",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = if (change.entityId == null) stringResource(R.string.pending_sync_id_new) else "ID: ${change.entityId}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Details
-            InfoRow(label = stringResource(R.string.pending_sync_sync_attempts), value = "${change.syncAttempts}")
-            InfoRow(
-                label = stringResource(R.string.pending_sync_created),
-                value = formatTimestamp(change.createdAt)
-            )
-
-            if (change.lastError != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                // Type Icon
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = stringResource(R.string.cd_error),
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // Title & Subtitle
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "${change.changeType.uppercase()} ${change.entityType}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
                     )
                     Text(
-                        text = change.lastError,
+                        text = if (change.entityId == null)
+                            stringResource(R.string.pending_sync_id_new)
+                        else
+                            "ID: ${change.entityId}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // Expand indicator (only if has details)
+                if (hasDetails) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Delete Button
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.pending_sync_delete),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            // Actions
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+            // Expandable Details Section
+            AnimatedVisibility(
+                visible = isExpanded && hasDetails,
+                enter = expandVertically(),
+                exit = shrinkVertically()
             ) {
-                IconButton(onClick = onDelete) {
+                Column(
+                    modifier = Modifier.padding(top = 12.dp)
+                ) {
+                    // Divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Details Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Sync Attempts
+                        Column {
+                            Text(
+                                text = stringResource(R.string.pending_sync_sync_attempts),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${change.syncAttempts}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        // Created Date
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = stringResource(R.string.pending_sync_created),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = formatTimestamp(change.createdAt),
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Error (if present)
+                    if (change.lastError != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = stringResource(R.string.cd_error),
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = change.lastError,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Inline Error Badge (when collapsed but has error)
+            if (!isExpanded && change.lastError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.pending_sync_delete),
-                        tint = MaterialTheme.colorScheme.error
+                        imageVector = Icons.Default.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.pending_sync_status_failed),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
             }

@@ -48,8 +48,11 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // Pending Sync Debug
+    // Pending Sync Debug (deprecated - use SyncCenter)
     data object PendingSync : Screen("pending-sync")
+
+    // Sync Center (new unified sync screen)
+    data object SyncCenter : Screen("sync-center")
 
     // Smart Tagging (Tinder-style swipe to tag)
     data object SmartTagging : Screen("smart-tagging")

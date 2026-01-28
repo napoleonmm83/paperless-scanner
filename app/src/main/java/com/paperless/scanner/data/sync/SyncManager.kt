@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.Document
+import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
@@ -277,6 +278,7 @@ class SyncManager @Inject constructor(
                         "tag" -> pushTagChange(change)
                         "correspondent" -> pushCorrespondentChange(change)
                         "document_type" -> pushDocumentTypeChange(change)
+                        "trash" -> pushTrashChange(change)
                         else -> {
                             Log.w(TAG, "Unknown entity type: ${change.entityType}")
                             pendingChangeDao.delete(change)
@@ -381,6 +383,28 @@ class SyncManager @Inject constructor(
             }
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
+            }
+        }
+    }
+
+    /**
+     * Push trash deletion to server (offline-queued permanent delete).
+     */
+    private suspend fun pushTrashChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        when (change.changeType) {
+            "delete" -> {
+                val request = TrashBulkActionRequest(
+                    documents = listOf(change.entityId!!),
+                    action = "empty"  // "empty" = permanent delete from trash
+                )
+                val response = api.trashBulkAction(request)
+                if (!response.isSuccessful) {
+                    throw Exception("Failed to delete trash document ${change.entityId}: HTTP ${response.code()}")
+                }
+                Log.d(TAG, "Successfully pushed trash delete for document ${change.entityId}")
+            }
+            else -> {
+                Log.w(TAG, "Unknown trash change type: ${change.changeType}")
             }
         }
     }
