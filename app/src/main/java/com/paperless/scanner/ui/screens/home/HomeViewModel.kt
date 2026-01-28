@@ -268,7 +268,6 @@ class HomeViewModel @Inject constructor(
                         )
                     }
                     .sortedByDescending { it.id }
-                    .take(10)
 
                 // Track newly completed tasks for document sync
                 val previousTasks = _uiState.value.processingTasks
