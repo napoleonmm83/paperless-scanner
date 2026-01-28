@@ -311,6 +311,12 @@ class SyncManager @Inject constructor(
     }
 
     private suspend fun pushDocumentChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        val entityId = change.entityId
+        if (entityId == null) {
+            Log.w(TAG, "Skipping document change ${change.id}: entityId is null")
+            return
+        }
+
         when (change.changeType) {
             "update" -> {
                 // Parse the change data from JSON
@@ -334,15 +340,15 @@ class SyncManager @Inject constructor(
                     created = created
                 )
 
-                val updatedDocument = api.updateDocument(change.entityId!!, request)
+                val updatedDocument = api.updateDocument(entityId, request)
 
                 // Update cache with response
                 cachedDocumentDao.insert(updatedDocument.toCachedEntity())
 
-                Log.d(TAG, "Successfully pushed document update ${change.entityId}")
+                Log.d(TAG, "Successfully pushed document update $entityId")
             }
             "delete" -> {
-                api.deleteDocument(change.entityId!!)
+                api.deleteDocument(entityId)
             }
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
@@ -351,13 +357,19 @@ class SyncManager @Inject constructor(
     }
 
     private suspend fun pushTagChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        val entityId = change.entityId
+        if (entityId == null) {
+            Log.w(TAG, "Skipping tag change ${change.id}: entityId is null")
+            return
+        }
+
         when (change.changeType) {
             "update" -> {
                 val data = gson.fromJson(change.changeData, Map::class.java)
-                Log.d(TAG, "Would update tag ${change.entityId} with data: $data")
+                Log.d(TAG, "Would update tag $entityId with data: $data")
             }
             "delete" -> {
-                api.deleteTag(change.entityId!!)
+                api.deleteTag(entityId)
             }
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
@@ -366,9 +378,15 @@ class SyncManager @Inject constructor(
     }
 
     private suspend fun pushCorrespondentChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        val entityId = change.entityId
+        if (entityId == null) {
+            Log.w(TAG, "Skipping correspondent change ${change.id}: entityId is null")
+            return
+        }
+
         when (change.changeType) {
             "delete" -> {
-                api.deleteCorrespondent(change.entityId!!)
+                api.deleteCorrespondent(entityId)
             }
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
@@ -377,9 +395,15 @@ class SyncManager @Inject constructor(
     }
 
     private suspend fun pushDocumentTypeChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        val entityId = change.entityId
+        if (entityId == null) {
+            Log.w(TAG, "Skipping document type change ${change.id}: entityId is null")
+            return
+        }
+
         when (change.changeType) {
             "delete" -> {
-                api.deleteDocumentType(change.entityId!!)
+                api.deleteDocumentType(entityId)
             }
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
@@ -391,17 +415,23 @@ class SyncManager @Inject constructor(
      * Push trash deletion to server (offline-queued permanent delete).
      */
     private suspend fun pushTrashChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+        val entityId = change.entityId
+        if (entityId == null) {
+            Log.w(TAG, "Skipping trash change ${change.id}: entityId is null")
+            return
+        }
+
         when (change.changeType) {
             "delete" -> {
                 val request = TrashBulkActionRequest(
-                    documents = listOf(change.entityId!!),
+                    documents = listOf(entityId),
                     action = "empty"  // "empty" = permanent delete from trash
                 )
                 val response = api.trashBulkAction(request)
                 if (!response.isSuccessful) {
-                    throw Exception("Failed to delete trash document ${change.entityId}: HTTP ${response.code()}")
+                    throw Exception("Failed to delete trash document $entityId: HTTP ${response.code()}")
                 }
-                Log.d(TAG, "Successfully pushed trash delete for document ${change.entityId}")
+                Log.d(TAG, "Successfully pushed trash delete for document $entityId")
             }
             else -> {
                 Log.w(TAG, "Unknown trash change type: ${change.changeType}")
