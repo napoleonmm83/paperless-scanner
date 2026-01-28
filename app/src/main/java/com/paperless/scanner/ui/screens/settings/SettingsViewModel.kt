@@ -325,24 +325,12 @@ class SettingsViewModel @Inject constructor(
 
                 _uiState.update { it.copy(serverVersion = version) }
             } catch (e: HttpException) {
-                when (e.code()) {
-                    403 -> {
-                        // User is not admin - silently fail (don't show error)
-                        // Version remains null and won't be displayed in UI
-                        android.util.Log.d("SettingsViewModel", "Server version not available (no admin permission)")
-                    }
-                    404 -> {
-                        // Old Paperless version without /api/status/ endpoint
-                        android.util.Log.d("SettingsViewModel", "Server version not available (endpoint not found)")
-                    }
-                    else -> {
-                        // Other HTTP errors - log but don't crash
-                        android.util.Log.w("SettingsViewModel", "Failed to load server version: ${e.code()}")
-                    }
-                }
+                // Silently fail for all HTTP errors
+                // 403: User is not admin - version remains null
+                // 404: Old Paperless version without /api/status/
+                // Other: Network or server errors
             } catch (e: Exception) {
                 // Network error or other exception - silently fail
-                android.util.Log.w("SettingsViewModel", "Failed to load server version", e)
             }
         }
     }

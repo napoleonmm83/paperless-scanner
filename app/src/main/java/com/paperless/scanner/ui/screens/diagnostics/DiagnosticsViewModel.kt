@@ -63,9 +63,6 @@ class DiagnosticsViewModel @Inject constructor(
                 // Create updated response with version from header
                 val serverStatus = body.copy(paperlessVersion = version)
 
-                // Debug logging
-                android.util.Log.d("DiagnosticsViewModel", "API Response: paperlessVersion=${serverStatus.paperlessVersion}, serverOs=${serverStatus.serverOs}, installType=${serverStatus.installType}")
-
                 val health = calculateHealthStatus(serverStatus)
 
                 _uiState.update {
