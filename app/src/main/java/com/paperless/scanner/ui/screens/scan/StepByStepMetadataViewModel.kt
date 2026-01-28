@@ -87,32 +87,42 @@ class StepByStepMetadataViewModel @Inject constructor(
     }
 
     fun initializePages(pages: List<ScannedPage>) {
-        if (_uiState.value.pages.isEmpty()) {
-            _uiState.value = _uiState.value.copy(pages = pages)
+        _uiState.update { state ->
+            if (state.pages.isEmpty()) state.copy(pages = pages) else state
         }
     }
 
     fun nextPage() {
-        if (_uiState.value.hasNext) {
-            val newIndex = _uiState.value.currentPageIndex + 1
-            _uiState.value = _uiState.value.copy(currentPageIndex = newIndex)
-            savedStateHandle[KEY_CURRENT_INDEX] = newIndex
+        _uiState.update { state ->
+            if (state.hasNext) {
+                val newIndex = state.currentPageIndex + 1
+                savedStateHandle[KEY_CURRENT_INDEX] = newIndex
+                state.copy(currentPageIndex = newIndex)
+            } else {
+                state
+            }
         }
     }
 
     fun previousPage() {
-        if (_uiState.value.hasPrevious) {
-            val newIndex = _uiState.value.currentPageIndex - 1
-            _uiState.value = _uiState.value.copy(currentPageIndex = newIndex)
-            savedStateHandle[KEY_CURRENT_INDEX] = newIndex
+        _uiState.update { state ->
+            if (state.hasPrevious) {
+                val newIndex = state.currentPageIndex - 1
+                savedStateHandle[KEY_CURRENT_INDEX] = newIndex
+                state.copy(currentPageIndex = newIndex)
+            } else {
+                state
+            }
         }
     }
 
     fun updateCurrentPageMetadata(metadata: PageMetadata) {
-        val currentPage = _uiState.value.currentPage ?: return
-        val updatedMetadata = _uiState.value.pageMetadata.toMutableMap()
-        updatedMetadata[currentPage.id] = metadata
-        _uiState.value = _uiState.value.copy(pageMetadata = updatedMetadata)
+        _uiState.update { state ->
+            val currentPage = state.currentPage ?: return@update state
+            val updatedMetadata = state.pageMetadata.toMutableMap()
+            updatedMetadata[currentPage.id] = metadata
+            state.copy(pageMetadata = updatedMetadata)
+        }
     }
 
     fun getCurrentPageMetadata(): PageMetadata? {

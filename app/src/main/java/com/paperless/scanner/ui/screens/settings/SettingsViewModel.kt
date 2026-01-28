@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -108,26 +109,26 @@ class SettingsViewModel @Inject constructor(
             // Observe Premium status changes
             launch {
                 billingManager.isSubscriptionActive.collect { isPremium ->
-                    _uiState.value = _uiState.value.copy(isPremiumActive = isPremium)
+                    _uiState.update { it.copy(isPremiumActive = isPremium) }
                 }
             }
 
             // Observe AI preferences changes
             launch {
                 tokenManager.aiSuggestionsEnabled.collect { enabled ->
-                    _uiState.value = _uiState.value.copy(aiSuggestionsEnabled = enabled)
+                    _uiState.update { it.copy(aiSuggestionsEnabled = enabled) }
                 }
             }
 
             launch {
                 tokenManager.aiNewTagsEnabled.collect { enabled ->
-                    _uiState.value = _uiState.value.copy(aiNewTagsEnabled = enabled)
+                    _uiState.update { it.copy(aiNewTagsEnabled = enabled) }
                 }
             }
 
             launch {
                 tokenManager.aiWifiOnly.collect { wifiOnly ->
-                    _uiState.value = _uiState.value.copy(aiWifiOnly = wifiOnly)
+                    _uiState.update { it.copy(aiWifiOnly = wifiOnly) }
                 }
             }
 
@@ -135,54 +136,54 @@ class SettingsViewModel @Inject constructor(
             launch {
                 tokenManager.themeMode.collect { modeKey ->
                     val mode = ThemeMode.entries.find { it.key == modeKey } ?: ThemeMode.SYSTEM
-                    _uiState.value = _uiState.value.copy(themeMode = mode)
+                    _uiState.update { it.copy(themeMode = mode) }
                 }
             }
 
             // Observe AI debug mode changes
             launch {
                 tokenManager.aiDebugModeEnabled.collect { enabled ->
-                    _uiState.value = _uiState.value.copy(aiDebugModeEnabled = enabled)
+                    _uiState.update { it.copy(aiDebugModeEnabled = enabled) }
                 }
             }
 
             // Observe App-Lock changes
             launch {
                 tokenManager.isAppLockEnabled().collect { enabled ->
-                    _uiState.value = _uiState.value.copy(appLockEnabled = enabled)
+                    _uiState.update { it.copy(appLockEnabled = enabled) }
                 }
             }
 
             launch {
                 tokenManager.isAppLockBiometricEnabledFlow().collect { enabled ->
-                    _uiState.value = _uiState.value.copy(appLockBiometricEnabled = enabled)
+                    _uiState.update { it.copy(appLockBiometricEnabled = enabled) }
                 }
             }
 
             launch {
                 tokenManager.getAppLockTimeoutFlow().collect { timeout ->
-                    _uiState.value = _uiState.value.copy(appLockTimeout = timeout)
+                    _uiState.update { it.copy(appLockTimeout = timeout) }
                 }
             }
         }
     }
 
     fun setShowUploadNotifications(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(showUploadNotifications = enabled)
+        _uiState.update { it.copy(showUploadNotifications = enabled) }
         viewModelScope.launch {
             tokenManager.setUploadNotificationsEnabled(enabled)
         }
     }
 
     fun setUploadQuality(quality: UploadQuality) {
-        _uiState.value = _uiState.value.copy(uploadQuality = quality)
+        _uiState.update { it.copy(uploadQuality = quality) }
         viewModelScope.launch {
             tokenManager.setUploadQuality(quality.key)
         }
     }
 
     fun setAnalyticsEnabled(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(analyticsEnabled = enabled)
+        _uiState.update { it.copy(analyticsEnabled = enabled) }
         viewModelScope.launch {
             tokenManager.setAnalyticsConsent(enabled)
             analyticsService.setEnabled(enabled)
@@ -191,7 +192,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setThemeMode(mode: ThemeMode) {
-        _uiState.value = _uiState.value.copy(themeMode = mode)
+        _uiState.update { it.copy(themeMode = mode) }
         viewModelScope.launch {
             tokenManager.setThemeMode(mode.key)
         }
@@ -250,7 +251,7 @@ class SettingsViewModel @Inject constructor(
     fun loadSubscriptionInfo() {
         viewModelScope.launch {
             val info = billingManager.getSubscriptionInfo()
-            _uiState.value = _uiState.value.copy(subscriptionInfo = info)
+            _uiState.update { it.copy(subscriptionInfo = info) }
         }
     }
 
