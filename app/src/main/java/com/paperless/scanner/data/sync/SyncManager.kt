@@ -271,8 +271,19 @@ class SyncManager @Inject constructor(
 
             Log.d(TAG, "Found ${pending.size} pending changes")
 
+            // Track failed document IDs - if a document delete fails, skip trash delete for same doc
+            // This prevents "document not yet deleted" errors when offline delete + trash delete are queued
+            val failedDocumentIds = mutableSetOf<Int>()
+
             for (change in pending) {
                 try {
+                    // Skip trash deletes for documents whose soft-delete failed
+                    if (change.entityType == "trash" && change.entityId in failedDocumentIds) {
+                        Log.w(TAG, "Skipping trash delete for document ${change.entityId} - soft delete failed earlier")
+                        // Keep in queue for next sync attempt (soft delete needs to succeed first)
+                        continue
+                    }
+
                     when (change.entityType) {
                         "document" -> pushDocumentChange(change)
                         "tag" -> pushTagChange(change)
@@ -290,6 +301,12 @@ class SyncManager @Inject constructor(
                     Log.d(TAG, "Successfully pushed ${change.changeType} for ${change.entityType} ${change.entityId}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to push change ${change.id}", e)
+
+                    // Track failed document deletes to skip dependent trash deletes
+                    if (change.entityType == "document" && change.changeType == "delete" && change.entityId != null) {
+                        failedDocumentIds.add(change.entityId)
+                        Log.d(TAG, "Added document ${change.entityId} to failed list - will skip trash delete")
+                    }
 
                     // Update retry count and error
                     pendingChangeDao.update(

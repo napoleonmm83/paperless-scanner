@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,10 @@ class NetworkMonitor @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
     private val workManager = WorkManager.getInstance(context)
+
+    // Debounce to prevent rapid online/offline flapping
+    private var offlineDebounceJob: kotlinx.coroutines.Job? = null
+    private val OFFLINE_DEBOUNCE_MS = 2000L // Wait 2 seconds before declaring offline
 
     private val _isOnline = MutableStateFlow(checkInitialOnlineStatus())
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
@@ -63,6 +68,11 @@ class NetworkMonitor @Inject constructor(
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             Log.d(TAG, "Network available")
+
+            // Cancel any pending offline debounce - network is back
+            offlineDebounceJob?.cancel()
+            offlineDebounceJob = null
+
             updateNetworkStatus(network)
 
             // Note: Do NOT trigger uploads/sync here - onAvailable fires before validation
@@ -107,12 +117,29 @@ class NetworkMonitor @Inject constructor(
         }
 
         override fun onLost(network: Network) {
-            Log.d(TAG, "=== NETWORK LOST ===")
-            Log.d(TAG, "Network lost - setting isOnline=false, isWifiConnected=false")
-            _isOnline.value = false
-            _isWifiConnected.value = false
-            Log.d(TAG, "NetworkMonitor state updated: isOnline=${_isOnline.value}, isWifi=${_isWifiConnected.value}")
-            Log.d(TAG, "====================")
+            Log.d(TAG, "=== NETWORK LOST (debounced) ===")
+
+            // Cancel any pending offline transition
+            offlineDebounceJob?.cancel()
+
+            // Debounce: Wait before declaring offline to prevent flapping
+            // This handles cases where network briefly disconnects during handoff
+            offlineDebounceJob = scope.launch {
+                Log.d(TAG, "Starting offline debounce (${OFFLINE_DEBOUNCE_MS}ms)")
+                delay(OFFLINE_DEBOUNCE_MS)
+
+                // Double-check if still offline after debounce
+                val stillOffline = !checkOnlineStatus()
+                if (stillOffline) {
+                    Log.d(TAG, "Debounce complete - confirming offline state")
+                    _isOnline.value = false
+                    _isWifiConnected.value = false
+                    Log.d(TAG, "NetworkMonitor state updated: isOnline=false, isWifi=false")
+                } else {
+                    Log.d(TAG, "Debounce complete - network recovered, staying online")
+                }
+            }
+            Log.d(TAG, "================================")
         }
     }
 
