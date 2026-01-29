@@ -18,142 +18,19 @@ import com.paperless.scanner.domain.model.SortOrder
  *
  * Note: Full-text search is handled separately via SearchBar/Repository, not in this builder.
  *
- * Usage:
+ * Usage (Paging 3):
  * ```kotlin
- * val query = DocumentFilterQueryBuilder.buildQuery(filter, limit = 25, offset = 0)
- * val documents = dao.observeDocumentsWithFilter(query)
+ * val query = DocumentFilterQueryBuilder.buildPagingQuery(searchQuery, filter)
+ * val pagingSource = dao.getDocumentsPagingSource(query)
+ * ```
+ *
+ * Usage (Count):
+ * ```kotlin
+ * val query = DocumentFilterQueryBuilder.buildCountQuery(searchQuery, filter)
+ * val count = dao.getCountWithFilter(query)
  * ```
  */
 object DocumentFilterQueryBuilder {
-
-    /**
-     * Build SELECT query for documents matching the search query and/or filter.
-     *
-     * @param searchQuery Full-text search query (from SearchBar) - searches title, content, filename, ASN
-     * @param filter DocumentFilter with structured criteria (from FilterSheet)
-     * @param limit Max results
-     * @param offset Pagination offset
-     * @return SupportSQLiteQuery ready for @RawQuery
-     */
-    fun buildQuery(
-        searchQuery: String? = null,
-        filter: DocumentFilter,
-        limit: Int = 25,
-        offset: Int = 0
-    ): SupportSQLiteQuery {
-        val whereConditions = mutableListOf<String>()
-        val args = mutableListOf<Any>()
-
-        // Always exclude soft-deleted documents
-        whereConditions.add("isDeleted = 0")
-
-        // Full-text search (separate from structured filter)
-        if (!searchQuery.isNullOrBlank()) {
-            val trimmedQuery = searchQuery.trim()
-            whereConditions.add(
-                "(title LIKE ? OR content LIKE ? OR originalFileName LIKE ? OR archiveSerialNumber LIKE ?)"
-            )
-            val likePattern = "%$trimmedQuery%"
-            args.add(likePattern)
-            args.add(likePattern)
-            args.add(likePattern)
-            args.add(likePattern)
-        }
-
-        // Multi-tag filtering (OR logic: document must have at least ONE of these tags)
-        if (filter.tagIds.isNotEmpty()) {
-            // Gson stores List<Int> as [1,2,3] (numbers without quotes)
-            // Need to match: [1], [1,2], [2,1], etc.
-            // Use 4 patterns per tag: start [ID,  middle ,ID,  end ,ID]  single [ID]
-            val tagConditions = filter.tagIds.flatMap { tagId ->
-                listOf(
-                    "tags LIKE ?", // [ID,...
-                    "tags LIKE ?", // ...,ID,...
-                    "tags LIKE ?", // ...,ID]
-                    "tags LIKE ?"  // [ID] (single tag)
-                )
-            }
-            whereConditions.add("(${tagConditions.joinToString(" OR ")})")
-            filter.tagIds.forEach { tagId ->
-                args.add("%[$tagId,%") // Tag at start: [1,2,3]
-                args.add("%,$tagId,%") // Tag in middle: [9,1,5]
-                args.add("%,$tagId]%") // Tag at end: [9,5,1]
-                args.add("%[$tagId]%") // Single tag: [1]
-            }
-        }
-
-        // Correspondent filter (exact match)
-        if (filter.correspondentId != null) {
-            whereConditions.add("correspondent = ?")
-            args.add(filter.correspondentId)
-        }
-
-        // Document Type filter (exact match)
-        if (filter.documentTypeId != null) {
-            whereConditions.add("documentType = ?")
-            args.add(filter.documentTypeId)
-        }
-
-        // Created date range (ISO 8601 string comparison works for YYYY-MM-DD format)
-        if (filter.createdDateFrom != null) {
-            whereConditions.add("created >= ?")
-            args.add(filter.createdDateFrom)
-        }
-        if (filter.createdDateTo != null) {
-            whereConditions.add("created <= ?")
-            args.add("${filter.createdDateTo}T23:59:59") // End of day
-        }
-
-        // Added date range
-        if (filter.addedDateFrom != null) {
-            whereConditions.add("added >= ?")
-            args.add(filter.addedDateFrom)
-        }
-        if (filter.addedDateTo != null) {
-            whereConditions.add("added <= ?")
-            args.add("${filter.addedDateTo}T23:59:59")
-        }
-
-        // Modified date range
-        if (filter.modifiedDateFrom != null) {
-            whereConditions.add("modified >= ?")
-            args.add(filter.modifiedDateFrom)
-        }
-        if (filter.modifiedDateTo != null) {
-            whereConditions.add("modified <= ?")
-            args.add("${filter.modifiedDateTo}T23:59:59")
-        }
-
-        // Archive status filter
-        when (filter.hasArchiveSerialNumber) {
-            true -> whereConditions.add("archiveSerialNumber IS NOT NULL")
-            false -> whereConditions.add("archiveSerialNumber IS NULL")
-            null -> {} // No filter
-        }
-
-        // Specific archive serial number (exact match)
-        if (filter.archiveSerialNumber != null) {
-            whereConditions.add("archiveSerialNumber = ?")
-            args.add(filter.archiveSerialNumber.toString())
-        }
-
-        // Build final SQL
-        val sql = buildString {
-            append("SELECT * FROM cached_documents")
-            if (whereConditions.isNotEmpty()) {
-                append(" WHERE ")
-                append(whereConditions.joinToString(" AND "))
-            }
-            append(buildOrderByClause(filter))
-            append(" LIMIT ? OFFSET ?")
-        }
-
-        // Add limit and offset to args
-        args.add(limit)
-        args.add(offset)
-
-        return SimpleSQLiteQuery(sql, args.toTypedArray())
-    }
 
     /**
      * Build COUNT query for documents matching the search query and/or filter.

@@ -13,46 +13,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CachedDocumentDao {
-    // Reactive Flow - updates automatically on any DB change
+    // Reactive Flow for recent documents (HomeScreen) - updates automatically on any DB change
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     fun observeDocuments(limit: Int, offset: Int): Flow<List<CachedDocument>>
 
-    /**
-     * BEST PRACTICE: Reactive Flow with optional filters for search and tags.
-     * Supports offline-first filtering - automatically updates UI on DB changes.
-     *
-     * @param searchQuery Text search in title/content/originalFileName (nullable for no search)
-     * @param tagId Single tag ID filter (nullable for no tag filter)
-     * @param limit Max results
-     * @param offset Pagination offset
-     */
-    @Query("""
-        SELECT * FROM cached_documents
-        WHERE isDeleted = 0
-        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' OR originalFileName LIKE '%' || :searchQuery || '%')
-        AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
-        ORDER BY added DESC
-        LIMIT :limit OFFSET :offset
-    """)
-    fun observeDocumentsFiltered(
-        searchQuery: String?,
-        tagId: Int?,
-        limit: Int,
-        offset: Int
-    ): Flow<List<CachedDocument>>
-
-    /**
-     * Get total count of filtered documents (for pagination).
-     */
-    @Query("""
-        SELECT COUNT(*) FROM cached_documents
-        WHERE isDeleted = 0
-        AND (:searchQuery IS NULL OR title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' OR originalFileName LIKE '%' || :searchQuery || '%')
-        AND (:tagId IS NULL OR tags LIKE '%"' || :tagId || '"%')
-    """)
-    fun getFilteredCount(searchQuery: String?, tagId: Int?): Flow<Int>
-
-    // Legacy suspend method - kept for backward compatibility
+    // Suspend method for getRecentDocuments and similar "Top N" queries
     @Query("SELECT * FROM cached_documents WHERE isDeleted = 0 ORDER BY added DESC LIMIT :limit OFFSET :offset")
     suspend fun getDocuments(limit: Int, offset: Int): List<CachedDocument>
 
@@ -123,22 +88,10 @@ interface CachedDocumentDao {
     // Advanced Filtering with @RawQuery for DocumentFilter support
 
     /**
-     * BEST PRACTICE: Dynamic filtering with @RawQuery for complex multi-criteria queries.
-     * Supports all DocumentFilter fields: query, multi-tags (OR logic), correspondent,
-     * documentType, date ranges, and archive status.
+     * Get total count of filtered documents (for DocumentsScreen header).
+     * Uses buildCountQuery() which doesn't need LIMIT/OFFSET.
      *
-     * Use DocumentFilterQueryBuilder to construct the SupportSQLiteQuery.
-     *
-     * @param query SupportSQLiteQuery built from DocumentFilter
-     * @return Flow that emits filtered documents and updates automatically
-     */
-    @RawQuery(observedEntities = [CachedDocument::class])
-    fun observeDocumentsWithFilter(query: SupportSQLiteQuery): Flow<List<CachedDocument>>
-
-    /**
-     * Get total count of filtered documents (for pagination).
-     *
-     * @param query SupportSQLiteQuery built from DocumentFilter (COUNT(*) variant)
+     * @param query SupportSQLiteQuery built from DocumentFilterQueryBuilder.buildCountQuery()
      * @return Flow that emits count and updates automatically
      */
     @RawQuery(observedEntities = [CachedDocument::class])
