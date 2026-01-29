@@ -400,18 +400,34 @@ class TrashViewModel @Inject constructor(
 
     /**
      * Restore all documents from trash (bulk operation).
+     *
+     * EDGE CASE HANDLING: If any documents have pending delete countdowns running,
+     * we skip those and let the countdown continue - the user explicitly chose to
+     * delete them. We only restore documents that are NOT in pending delete state.
+     *
+     * This prevents the API error "some documents have not yet been deleted" which
+     * occurs when trying to restore documents that are still in the countdown phase.
      */
     fun restoreAllDocuments() {
         viewModelScope.launch {
             _uiState.update { it.copy(isRestoring = true, error = null) }
 
-            val documentIds = _uiState.value.documents.map { it.id }
-            if (documentIds.isEmpty()) {
+            // Get current pending delete IDs - these will continue their countdown
+            val pendingDeleteIds = _uiState.value.pendingDeletes.keys.toSet()
+
+            // Only restore documents that are NOT in pending delete state
+            // Pending delete docs continue their countdown as user intended
+            val documentIdsToRestore = _uiState.value.documents
+                .map { it.id }
+                .filter { it !in pendingDeleteIds }
+
+            if (documentIdsToRestore.isEmpty()) {
+                // All docs are pending deletes - nothing to restore, countdowns continue
                 _uiState.update { it.copy(isRestoring = false) }
                 return@launch
             }
 
-            documentRepository.restoreDocuments(documentIds)
+            documentRepository.restoreDocuments(documentIdsToRestore)
                 .onSuccess {
                     _uiState.update { it.copy(isRestoring = false) }
                 }
@@ -428,10 +444,22 @@ class TrashViewModel @Inject constructor(
 
     /**
      * Permanently delete all documents (empty trash bulk operation).
+     *
+     * EDGE CASE HANDLING: If any documents have pending delete countdowns running,
+     * we cancel those countdowns first (to stop the WorkManager jobs), then delete
+     * ALL documents including those that were pending.
+     *
+     * User intent is clear: "Delete everything permanently now"
      */
     fun emptyTrash() {
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true, error = null) }
+
+            // Cancel all pending deletes first - we'll delete them immediately instead
+            val pendingDeleteIds = _uiState.value.pendingDeletes.keys.toList()
+            pendingDeleteIds.forEach { documentId ->
+                cancelPendingDelete(documentId)
+            }
 
             val documentIds = _uiState.value.documents.map { it.id }
             if (documentIds.isEmpty()) {
