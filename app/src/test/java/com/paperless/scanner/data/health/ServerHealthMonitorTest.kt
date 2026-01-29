@@ -83,6 +83,9 @@ class ServerHealthMonitorTest {
         every { networkMonitor.isOnline } returns isOnlineFlow
         every { networkMonitor.checkOnlineStatus() } returns true
 
+        // Mock TokenManager.getServerUrlSync() for isPrivateNetworkUrl check in checkServerHealth
+        every { tokenManager.getServerUrlSync() } returns "https://example.com"
+
         // Create ServerHealthMonitor
         serverHealthMonitor = ServerHealthMonitor(api, tokenManager, networkMonitor)
     }
