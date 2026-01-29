@@ -255,9 +255,12 @@
     <string name="documents_empty_no_results">Keine Ergebnisse</string>
     <string name="documents_empty_no_documents">Keine Dokumente</string>
     <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
-    <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
+    <string name="documents_empty_hint_scan">Scan documents to see them here</string>
+    <string name="documents_deleted_snackbar">Document moved to trash</string>
+    <string name="documents_undo">Undo</string>
+    <string name="documents_delete_background">Delete</string>
 
-    
+
     <string name="scan_page_removed">Page %1$d removed</string>
     <string name="scan_undo">Undo</string>
     <string name="scan_scanner_error">Scanner could not be started: %1$s</string>

@@ -695,44 +695,54 @@ class DocumentRepository @Inject constructor(
                     .filter { it.relatedDocument == documentId.toString() && !it.acknowledged }
                 val taskIds = tasks.map { it.id }
 
-                // Online: Delete via API
-                val response = api.deleteDocument(documentId)
+                // OPTIMISTIC UI: Soft-delete locally FIRST for immediate UI feedback
+                // This is critical for Gmail-style swipe animations where the card
+                // slides off-screen before the API call completes
+                val deletedAt = System.currentTimeMillis()
+                cachedDocumentDao.softDelete(documentId, deletedAt = deletedAt)
+                cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
 
-                if (response.isSuccessful) {
-                    // CASCADE CLEANUP STEP 2: Acknowledge tasks on SERVER
-                    if (taskIds.isNotEmpty()) {
-                        try {
-                            val ackRequest = com.paperless.scanner.data.api.models.AcknowledgeTasksRequest(taskIds)
-                            api.acknowledgeTasks(ackRequest)
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
-                            // Continue anyway - local cleanup is more important for UX
+                // Online: Delete via API (wrapped in try-catch for rollback on exception)
+                try {
+                    val response = api.deleteDocument(documentId)
+
+                    if (response.isSuccessful) {
+                        // CASCADE CLEANUP STEP 2: Acknowledge tasks on SERVER
+                        if (taskIds.isNotEmpty()) {
+                            try {
+                                val ackRequest = com.paperless.scanner.data.api.models.AcknowledgeTasksRequest(taskIds)
+                                api.acknowledgeTasks(ackRequest)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
+                                // Continue anyway - local cleanup is more important for UX
+                            }
                         }
-                    }
+                        // Success: local state already updated, nothing more to do
+                        Result.success(Unit)
+                    } else {
+                        // API FAILED: Rollback optimistic delete by restoring the document
+                        Log.w(TAG, "deleteDocument API failed (HTTP ${response.code()}), rolling back optimistic delete")
+                        cachedDocumentDao.restoreDocument(documentId)
 
-                    // CASCADE CLEANUP STEP 3: Acknowledge tasks LOCALLY
-                    // BEST PRACTICE: Ensures immediate UI update in "Verarbeitung" section
-                    cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
-
-                    // Soft delete from cache so trash count Flow updates immediately
-                    // Server confirmed deletion → document is now in server trash
-                    // Trash sync will later update with server's actual data
-                    cachedDocumentDao.softDelete(documentId, deletedAt = System.currentTimeMillis())
-                    Result.success(Unit)
-                } else {
-                    // Extract actual error body from server response
-                    val errorBody = try {
-                        response.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
-                    Result.failure(
-                        PaperlessException.fromHttpCode(
-                            response.code(),
-                            errorBody ?: response.message()
+                        // Extract actual error body from server response
+                        val errorBody = try {
+                            response.errorBody()?.string()
+                        } catch (_: Exception) {
+                            null
+                        }
+                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
+                        Result.failure(
+                            PaperlessException.fromHttpCode(
+                                response.code(),
+                                errorBody ?: response.message()
+                            )
                         )
-                    )
+                    }
+                } catch (e: Exception) {
+                    // API EXCEPTION (timeout, network error): Rollback optimistic delete
+                    Log.w(TAG, "deleteDocument API exception, rolling back optimistic delete: ${e.message}")
+                    cachedDocumentDao.restoreDocument(documentId)
+                    throw e // Re-throw to be caught by outer catch block
                 }
             } else {
                 // Offline: Queue deletion for sync

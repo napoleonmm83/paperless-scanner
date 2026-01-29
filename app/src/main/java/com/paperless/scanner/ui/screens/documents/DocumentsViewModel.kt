@@ -36,6 +36,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Represents a document that was just deleted (for undo functionality).
+ */
+data class DeletedDocumentInfo(
+    val id: Int,
+    val title: String
+)
+
 data class DocumentsUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
@@ -43,7 +51,8 @@ data class DocumentsUiState(
     val availableTags: List<Tag> = emptyList(),
     val availableCorrespondents: List<Correspondent> = emptyList(),
     val availableDocumentTypes: List<DocumentType> = emptyList(),
-    val totalCount: Int = 0
+    val totalCount: Int = 0,
+    val deletedDocument: DeletedDocumentInfo? = null // For undo snackbar
     // NOTE: documents are now Flow<PagingData<DocumentItem>> (not in UI State)
 )
 
@@ -316,6 +325,68 @@ class DocumentsViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    /**
+     * Delete a document (soft-delete, moves to trash).
+     * Shows snackbar with undo option for 5 seconds.
+     *
+     * BEST PRACTICE: Optimistic UI update - Paging 3 invalidates automatically
+     * when Room DB changes, so no manual list manipulation needed.
+     *
+     * @param documentId Document ID to delete
+     * @param documentTitle Document title (for undo snackbar display)
+     */
+    fun deleteDocument(documentId: Int, documentTitle: String) {
+        viewModelScope.launch {
+            // Store deleted document info for undo
+            _uiState.update {
+                it.copy(deletedDocument = DeletedDocumentInfo(documentId, documentTitle))
+            }
+
+            // Perform soft-delete via repository
+            documentRepository.deleteDocument(documentId)
+                .onFailure { error ->
+                    // Clear undo state and show error
+                    _uiState.update {
+                        it.copy(
+                            deletedDocument = null,
+                            error = error.message ?: context.getString(R.string.error_delete_document)
+                        )
+                    }
+                }
+            // On success: Room Flow automatically updates the paged list
+        }
+    }
+
+    /**
+     * Undo the last delete operation (restore document from trash).
+     *
+     * BEST PRACTICE: Restore via repository, Room Flow handles UI update.
+     */
+    fun undoDelete() {
+        val deletedDoc = _uiState.value.deletedDocument ?: return
+
+        viewModelScope.launch {
+            // Clear undo state immediately
+            _uiState.update { it.copy(deletedDocument = null) }
+
+            // Restore document from trash
+            documentRepository.restoreDocument(deletedDoc.id)
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = error.message ?: context.getString(R.string.error_restore_document))
+                    }
+                }
+            // On success: Room Flow automatically updates the paged list
+        }
+    }
+
+    /**
+     * Clear the deleted document state (called when snackbar is dismissed).
+     */
+    fun clearDeletedDocument() {
+        _uiState.update { it.copy(deletedDocument = null) }
     }
 
     fun resetState() {

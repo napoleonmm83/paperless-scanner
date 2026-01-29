@@ -28,6 +28,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -98,7 +99,9 @@ private fun CustomSnackbar(
         message.contains("permanently deleted", ignoreCase = true) -> Icons.Default.DeleteForever
 
         message.contains("wird gelöscht", ignoreCase = true) ||
-        message.contains("deleting", ignoreCase = true) -> Icons.Default.Delete
+        message.contains("deleting", ignoreCase = true) ||
+        message.contains("papierkorb", ignoreCase = true) ||
+        message.contains("trash", ignoreCase = true) -> Icons.Default.Delete
 
         // Success
         message.contains("erfolgreich", ignoreCase = true) ||
@@ -126,15 +129,34 @@ private fun CustomSnackbar(
         else -> Icons.Default.Info
     }
 
+    // Dark Mode: Green/primary background with dark text (inverted)
+    // Light Mode: Dark surface background with green/primary text
+    val isDarkTheme = isSystemInDarkTheme()
+    val backgroundColor = if (isDarkTheme) {
+        MaterialTheme.colorScheme.primary // Neon-yellow/green in dark mode
+    } else {
+        MaterialTheme.colorScheme.surface // Dark surface in light mode
+    }
+    val contentColor = if (isDarkTheme) {
+        MaterialTheme.colorScheme.onPrimary // Dark text on green background
+    } else {
+        MaterialTheme.colorScheme.primary // Green text on dark background
+    }
+    val borderColor = if (isDarkTheme) {
+        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f) // Subtle border in dark mode
+    } else {
+        MaterialTheme.colorScheme.outline // Normal outline in light mode
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp),
         shape = RoundedCornerShape(20.dp), // Dark Tech Precision Pro: 20dp radius
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface // Adapts to theme
+            containerColor = backgroundColor
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), // Adapts to theme
+        border = BorderStroke(1.dp, borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // No shadow
     ) {
         Row(
@@ -147,14 +169,14 @@ private fun CustomSnackbar(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary, // Adapts to theme
+                tint = contentColor,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary, // Adapts to theme
+                color = contentColor,
                 modifier = Modifier.weight(1f)
             )
 
@@ -162,15 +184,14 @@ private fun CustomSnackbar(
             data.visuals.actionLabel?.let { actionLabel ->
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(
-                    onClick = { data.performAction() },
-                    modifier = Modifier.padding(end = 0.dp)
+                    onClick = { data.performAction() }
                 ) {
                     Text(
                         text = actionLabel.uppercase(),
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold
                         ),
-                        color = MaterialTheme.colorScheme.primary
+                        color = contentColor
                     )
                 }
             }

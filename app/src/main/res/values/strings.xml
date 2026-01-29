@@ -256,8 +256,11 @@
     <string name="documents_empty_no_documents">Keine Dokumente</string>
     <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
     <string name="documents_empty_hint_scan">Scanne Dokumente um sie hier zu sehen</string>
+    <string name="documents_deleted_snackbar">Dokument in den Papierkorb verschoben</string>
+    <string name="documents_undo">Rückgängig</string>
+    <string name="documents_delete_background">Löschen</string>
 
-    
+
     <string name="scan_page_removed">Seite %1$d entfernt</string>
     <string name="scan_undo">Rückgängig</string>
     <string name="scan_scanner_error">Scanner konnte nicht gestartet werden: %1$s</string>

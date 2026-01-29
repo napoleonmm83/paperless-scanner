@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
@@ -45,11 +46,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,13 +71,18 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.components.CustomSnackbarHost
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 
 data class DocumentItem(
@@ -100,9 +114,49 @@ fun DocumentsScreen(
     // LazyGrid state for scroll control
     val gridState = rememberLazyGridState()
 
+    // Snackbar state for undo delete
+    val snackbarHostState = remember { SnackbarHostState() }
+    val deletedSnackbarMessage = stringResource(R.string.documents_deleted_snackbar)
+    val undoLabel = stringResource(R.string.documents_undo)
+
+    // Show snackbar when document is deleted
+    // CRITICAL: Combined LaunchedEffect to prevent race conditions between
+    // snackbar display and auto-dismiss when multiple deletes happen quickly
+    LaunchedEffect(uiState.deletedDocument?.id) {
+        val deletedDoc = uiState.deletedDocument ?: return@LaunchedEffect
+
+        // Dismiss any existing snackbar first to prevent race conditions
+        snackbarHostState.currentSnackbarData?.dismiss()
+
+        // Launch auto-dismiss timer in parallel
+        val autoDismissJob = launch {
+            delay(8000L) // 8 seconds
+            snackbarHostState.currentSnackbarData?.dismiss()
+        }
+
+        try {
+            val result = snackbarHostState.showSnackbar(
+                message = deletedSnackbarMessage,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Indefinite, // Prevents auto-dismiss during state changes
+                withDismissAction = true
+            )
+
+            // Cancel auto-dismiss if user interacted
+            autoDismissJob.cancel()
+
+            when (result) {
+                SnackbarResult.ActionPerformed -> viewModel.undoDelete()
+                SnackbarResult.Dismissed -> viewModel.clearDeletedDocument()
+            }
+        } finally {
+            autoDismissJob.cancel()
+        }
+    }
+
     // Auto-scroll to top when filter or sort changes
     // Wait for LoadState.refresh to finish before scrolling to ensure new data is loaded
-    androidx.compose.runtime.LaunchedEffect(uiState.currentFilter, pagedDocuments.loadState.refresh) {
+    LaunchedEffect(uiState.currentFilter, pagedDocuments.loadState.refresh) {
         if (pagedDocuments.loadState.refresh is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
             gridState.animateScrollToItem(0)
         }
@@ -112,6 +166,9 @@ fun DocumentsScreen(
     // Pull-to-refresh allows users to manually trigger server sync.
     // See DocumentsViewModel.observeDocumentsReactively()
 
+    Scaffold(
+        snackbarHost = { CustomSnackbarHost(hostState = snackbarHostState) }
+    ) { scaffoldPadding ->
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
@@ -122,7 +179,8 @@ fun DocumentsScreen(
                 delay(1000)
                 isRefreshing = false
             }
-        }
+        },
+        modifier = Modifier.padding(scaffoldPadding)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -457,9 +515,12 @@ fun DocumentsScreen(
                 ) { index ->
                     val document = pagedDocuments[index]
                     if (document != null) {
-                        DocumentCard(
+                        SwipeableDocumentCard(
                             document = document,
-                            onClick = { onDocumentClick(document.id) }
+                            onClick = { onDocumentClick(document.id) },
+                            onDelete = { viewModel.deleteDocument(document.id, document.title) },
+                            // Animate item removal for smooth Gmail-style transition
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }
@@ -534,6 +595,123 @@ fun DocumentsScreen(
             onApply = { filter ->
                 viewModel.applyFilter(filter)
             }
+        )
+    }
+    } // Scaffold
+}
+
+/**
+ * Document card with swipe-to-delete functionality.
+ *
+ * MATERIAL 3 BEST PRACTICE: SwipeToDismissBox for destructive actions with undo.
+ * - Swipe left to reveal delete action
+ * - Red background indicates destructive action
+ * - Actual deletion is handled by ViewModel (with undo via Snackbar)
+ *
+ * GMAIL-STYLE ANIMATION: Card slides off-screen when dismissed.
+ * - confirmValueChange returns true to let SwipeToDismissBox animate the dismiss
+ * - Room Flow removes the item from the list after animation
+ * - Haptic feedback provides tactile confirmation
+ *
+ * SWIPE SENSITIVITY: Requires 40% of card width to trigger delete.
+ * This prevents accidental deletes while scrolling through the list.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableDocumentCard(
+    document: DocumentItem,
+    onClick: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Track if delete was already triggered for this swipe to prevent duplicates
+    var deleteTriggered by remember { mutableStateOf(false) }
+
+    // Haptic feedback for tactile confirmation
+    val hapticFeedback = LocalHapticFeedback.current
+
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart && !deleteTriggered) {
+                deleteTriggered = true
+                // Trigger haptic feedback for tactile confirmation
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                onDelete()
+                // Return true to let the card slide off-screen (Gmail-style)
+                true
+            } else {
+                false
+            }
+        },
+        // Require 40% of card width to trigger delete (default is ~15%)
+        // This prevents accidental deletes while scrolling
+        positionalThreshold = { totalDistance -> totalDistance * 0.4f }
+    )
+
+    // Reset the flag when a new document is shown (recomposition with different document)
+    LaunchedEffect(document.id) {
+        deleteTriggered = false
+    }
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier,
+        backgroundContent = {
+            // Progressive visual feedback:
+            // - Show background starting at ~5% swipe (early feedback)
+            // - Full opacity at 40% (where delete triggers)
+            // - Delete icon fades in with progress
+            val swipeProgress = dismissState.progress
+
+            // Start showing at 5%, full at 40%
+            // Map 0.05-0.40 range to 0.0-1.0 alpha
+            val normalizedProgress = ((swipeProgress - 0.05f) / 0.35f).coerceIn(0f, 1f)
+
+            // Background alpha: subtle at start, full red at threshold
+            val backgroundAlpha = normalizedProgress * 0.9f + 0.1f * (if (swipeProgress > 0.05f) 1f else 0f)
+
+            val backgroundColor = if (swipeProgress > 0.05f) {
+                MaterialTheme.colorScheme.error.copy(alpha = backgroundAlpha.coerceIn(0f, 1f))
+            } else {
+                Color.Transparent
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundColor, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 24.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                // Show delete icon/text when swiping (fades in with progress)
+                if (swipeProgress > 0.05f) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.alpha(normalizedProgress)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.documents_delete_background),
+                            color = MaterialTheme.colorScheme.onError,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onError
+                        )
+                    }
+                }
+            }
+        },
+        enableDismissFromStartToEnd = false, // Only allow swipe from right to left
+        enableDismissFromEndToStart = true
+    ) {
+        DocumentCard(
+            document = document,
+            // Disable clicks when delete is triggered (card is animating off-screen)
+            onClick = { if (!deleteTriggered) onClick() }
         )
     }
 }
