@@ -153,8 +153,7 @@ fun AppLockNavigationInterceptor(
             is AppLockState.LockedOut -> {
                 val lockedOutState = lockState as AppLockState.LockedOut
                 Log.d("AppLockInterceptor", "State: LOCKED_OUT (permanent=${lockedOutState.isPermanent})")
-                // Only navigate away if permanent lockout (after 15 total attempts)
-                // Temporary lockout (every 5 attempts) is handled in AppLockScreen UI
+
                 if (lockedOutState.isPermanent) {
                     // User was permanently locked out - logout and go to onboarding
                     routeBeforeLock = null  // Clear saved route
@@ -163,8 +162,26 @@ fun AppLockNavigationInterceptor(
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                } else {
+                    // Temporary lockout - navigate to AppLockScreen if not already there
+                    // This handles app restart with preserved LockedOut state
+                    if (isCurrentRouteProtected && currentRouteTemplate != Screen.AppLock.route) {
+                        // Save FULL route with actual arguments before locking
+                        routeBeforeLock = currentFullRoute
+                        Log.d("AppLockInterceptor", "Saved FULL route before lock (LockedOut): $routeBeforeLock")
+
+                        Log.d("AppLockInterceptor", "Navigating to AppLock screen (temporary lockout)")
+                        navController.navigate(Screen.AppLock.route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = false
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    } else {
+                        Log.d("AppLockInterceptor", "Already on AppLock screen or route not protected")
+                    }
                 }
-                // For temporary lockout, stay on AppLock screen (don't navigate away)
             }
             is AppLockState.Unlocked -> {
                 Log.d("AppLockInterceptor", "State: UNLOCKED")

@@ -223,6 +223,9 @@ dependencies {
     // Biometric
     implementation(libs.biometric)
 
+    // Security (Encrypted Storage)
+    implementation(libs.security.crypto)
+
     // Password Hashing (BCrypt for App-Lock)
     implementation("org.mindrot:jbcrypt:0.4")
 

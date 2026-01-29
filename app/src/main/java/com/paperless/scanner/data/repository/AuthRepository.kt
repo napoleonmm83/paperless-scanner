@@ -4,6 +4,7 @@ import android.util.Log
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.util.ServerUrlParser
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -39,25 +40,23 @@ class AuthRepository @Inject constructor(
      * Detects whether the server uses HTTPS or HTTP.
      * Tries HTTPS first (preferred), falls back to HTTP if SSL fails.
      *
-     * @param host The hostname without protocol (e.g., "paperless.example.com")
+     * Supports:
+     * - Domain names: paperless.example.com, paperless.example.com:8000
+     * - IPv4 addresses: 192.168.1.100, 192.168.1.100:8000
+     * - IPv6 addresses: [::1], [2001:db8::1]:8000
+     *
+     * @param host The hostname/IP with optional port (protocol and path are stripped)
      * @return The full URL with detected protocol (e.g., "https://paperless.example.com")
      */
     suspend fun detectServerProtocol(host: String): Result<String> {
-        // Clean the host - remove any existing protocol and path
-        val cleanHost = host
-            .trim()
-            .removePrefix("https://")
-            .removePrefix("http://")
-            .split("/").first()  // Remove any path
-            .trimEnd('/')
+        // Use ServerUrlParser for comprehensive URL validation
+        val parseResult = ServerUrlParser.parse(host)
 
-        if (cleanHost.isBlank()) {
-            return Result.failure(PaperlessException.ContentError("Server-Adresse fehlt"))
-        }
-
-        // Validate host format
-        if (cleanHost.contains(" ")) {
-            return Result.failure(PaperlessException.ContentError("Ungültige Server-Adresse"))
+        val cleanHost = when (parseResult) {
+            is ServerUrlParser.ParseResult.Success -> parseResult.toHostString()
+            is ServerUrlParser.ParseResult.Error -> {
+                return Result.failure(PaperlessException.ContentError(parseResult.message))
+            }
         }
 
         Log.d(TAG, "Detecting protocol for: $cleanHost")

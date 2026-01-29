@@ -24,6 +24,8 @@ import retrofit2.HttpException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -78,6 +80,16 @@ sealed class ServerHealthResult {
      * Connection refused - server port not reachable.
      */
     data object ConnectionRefused : ServerHealthResult()
+
+    /**
+     * SSL/TLS certificate error (expired, self-signed, hostname mismatch).
+     */
+    data object SslError : ServerHealthResult()
+
+    /**
+     * VPN required - server is on a private network that requires VPN access.
+     */
+    data object VpnRequired : ServerHealthResult()
 
     /**
      * Other error occurred during health check.
@@ -293,13 +305,32 @@ class ServerHealthMonitor @Inject constructor(
 
         } catch (e: ConnectException) {
             // Connection refused - server port not reachable
-            _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.CONNECTION_REFUSED)
-            ServerHealthResult.ConnectionRefused
+            // Check if this might be a VPN requirement (private network URL)
+            if (isPrivateNetworkUrl()) {
+                android.util.Log.w(TAG, "Connection refused to private network - VPN may be required")
+                _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.VPN_REQUIRED)
+                ServerHealthResult.VpnRequired
+            } else {
+                _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.CONNECTION_REFUSED)
+                ServerHealthResult.ConnectionRefused
+            }
 
         } catch (e: SocketTimeoutException) {
             // Socket timeout (different from coroutine timeout)
             _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.TIMEOUT)
             ServerHealthResult.Timeout
+
+        } catch (e: SSLHandshakeException) {
+            // SSL handshake failed - certificate issues (expired, self-signed, hostname mismatch)
+            android.util.Log.w(TAG, "SSL handshake failed: ${e.message}")
+            _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.SSL_ERROR)
+            ServerHealthResult.SslError
+
+        } catch (e: SSLException) {
+            // General SSL/TLS error
+            android.util.Log.w(TAG, "SSL error: ${e.message}")
+            _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.SSL_ERROR)
+            ServerHealthResult.SslError
 
         } catch (e: Exception) {
             // HTTP errors need careful handling:
@@ -331,6 +362,41 @@ class ServerHealthMonitor @Inject constructor(
                     ServerHealthResult.Error(e.message ?: "Unknown error")
                 }
             }
+        }
+    }
+
+    /**
+     * Checks if the configured server URL points to a private network address.
+     * Used to detect if VPN might be required when connection fails.
+     *
+     * Private IP ranges:
+     * - 10.0.0.0/8 (Class A)
+     * - 172.16.0.0/12 (Class B)
+     * - 192.168.0.0/16 (Class C)
+     * - Localhost (127.0.0.0/8)
+     */
+    private fun isPrivateNetworkUrl(): Boolean {
+        val serverUrl = tokenManager.getServerUrlSync() ?: return false
+        return try {
+            val host = java.net.URL(serverUrl).host
+            // Check for private IP patterns
+            host.startsWith("10.") ||
+            host.startsWith("192.168.") ||
+            host.startsWith("172.16.") || host.startsWith("172.17.") ||
+            host.startsWith("172.18.") || host.startsWith("172.19.") ||
+            host.startsWith("172.20.") || host.startsWith("172.21.") ||
+            host.startsWith("172.22.") || host.startsWith("172.23.") ||
+            host.startsWith("172.24.") || host.startsWith("172.25.") ||
+            host.startsWith("172.26.") || host.startsWith("172.27.") ||
+            host.startsWith("172.28.") || host.startsWith("172.29.") ||
+            host.startsWith("172.30.") || host.startsWith("172.31.") ||
+            host.startsWith("127.") ||
+            host == "localhost" ||
+            host.endsWith(".local") ||
+            host.endsWith(".internal") ||
+            host.endsWith(".lan")
+        } catch (e: Exception) {
+            false
         }
     }
 }

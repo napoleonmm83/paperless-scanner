@@ -578,12 +578,29 @@
     <string name="error_ssl_certificate">SSL-Zertifikat ungültig</string>
     <string name="error_server_unreachable">Server nicht erreichbar</string>
 
+    <!-- Login Rate Limiting -->
+    <string name="login_temporarily_locked">Too many failed attempts. Please wait and try again later.</string>
+    <string name="login_permanently_locked">Too many failed attempts. Please clear app data in system settings.</string>
+    <string name="login_attempts_remaining">%1$d attempts remaining</string>
+    <string name="login_lockout_countdown">Locked for %1$s</string>
+
+    <!-- HTTP Fallback Warning -->
+    <string name="http_fallback_title">Unencrypted Connection</string>
+    <string name="http_fallback_message">HTTPS is not available for \"%1$s\". The connection would be unencrypted over HTTP.</string>
+    <string name="http_fallback_warning_title">⚠️ Security Warning</string>
+    <string name="http_fallback_warning_detail">Your credentials and documents will be transmitted unencrypted. Others on the same network could intercept the data.</string>
+    <string name="http_fallback_remember_choice">Don\'t ask again for this server</string>
+    <string name="http_fallback_accept">Connect Anyway</string>
+    <string name="http_fallback_cancel">Cancel</string>
+    <string name="http_fallback_icon_description">Unencrypted connection</string>
+
     <!-- Server Offline Detection Error Messages -->
     <string name="server_offline_title">Server nicht erreichbar</string>
     <string name="server_offline_no_internet">Keine Internetverbindung verfügbar</string>
     <string name="server_offline_dns">Server-Adresse konnte nicht aufgelöst werden. Bitte Server-URL in Einstellungen prüfen.</string>
     <string name="server_offline_connection_refused">Server ist nicht erreichbar. Bitte prüfen ob der Server läuft.</string>
     <string name="server_offline_timeout">Server antwortet nicht. Bitte später erneut versuchen.</string>
+    <string name="server_offline_ssl_error">SSL-Zertifikatsfehler. Bitte Zertifikat prüfen (abgelaufen, selbst-signiert oder Hostname-Fehler).</string>
     <string name="server_offline_vpn_required">VPN-Verbindung erforderlich. Bitte VPN aktivieren und erneut versuchen.</string>
     <string name="server_offline_unknown">Server-Verbindung fehlgeschlagen. Bitte Einstellungen prüfen.</string>
     <string name="check_server_settings">Server-Einstellungen prüfen</string>

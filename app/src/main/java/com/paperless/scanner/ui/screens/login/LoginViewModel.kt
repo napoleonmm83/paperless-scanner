@@ -10,6 +10,8 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
+import com.paperless.scanner.util.LoginRateLimiter
+import com.paperless.scanner.util.LoginRateLimitState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,7 @@ class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val tokenManager: TokenManager,
     private val analyticsService: AnalyticsService,
+    private val loginRateLimiter: LoginRateLimiter,
     val biometricHelper: BiometricHelper
 ) : ViewModel() {
 
@@ -40,6 +43,9 @@ class LoginViewModel @Inject constructor(
 
     private val _serverStatus = MutableStateFlow<ServerStatus>(ServerStatus.Idle)
     val serverStatus: StateFlow<ServerStatus> = _serverStatus.asStateFlow()
+
+    /** Rate limit state for UI display (lockout countdown, remaining attempts) */
+    val rateLimitState: StateFlow<LoginRateLimitState> = loginRateLimiter.rateLimitState
 
     // Cached detected URL for login
     private var detectedServerUrl: String? = null
@@ -80,6 +86,9 @@ class LoginViewModel @Inject constructor(
     private suspend fun detectServerInternal(serverUrl: String) {
         Log.d(TAG, "Starting detection for: $serverUrl")
 
+        // Check if user explicitly entered http:// (not a fallback in this case)
+        val userExplicitlyUsedHttp = serverUrl.trim().lowercase().startsWith("http://")
+
         // Update status on Main thread
         withContext(Dispatchers.Main) {
             _serverStatus.update { ServerStatus.Checking }
@@ -96,9 +105,11 @@ class LoginViewModel @Inject constructor(
             result
                 .onSuccess { url ->
                     val isHttps = url.startsWith("https://")
+                    // HTTP fallback = we're using HTTP but user didn't explicitly request it
+                    val isHttpFallback = !isHttps && !userExplicitlyUsedHttp
                     detectedServerUrl = url
-                    _serverStatus.update { ServerStatus.Success(url, isHttps) }
-                    Log.d(TAG, "Status = Success, url = $url, isHttps = $isHttps")
+                    _serverStatus.update { ServerStatus.Success(url, isHttps, isHttpFallback) }
+                    Log.d(TAG, "Status = Success, url = $url, isHttps = $isHttps, isHttpFallback = $isHttpFallback")
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
@@ -129,6 +140,33 @@ class LoginViewModel @Inject constructor(
             return
         }
 
+        // Check rate limit before attempting login
+        if (!loginRateLimiter.isLoginAllowed()) {
+            val state = loginRateLimiter.rateLimitState.value
+            when (state) {
+                is LoginRateLimitState.PermanentlyLocked -> {
+                    _uiState.update {
+                        LoginUiState.RateLimited(
+                            message = context.getString(R.string.login_permanently_locked),
+                            remainingMs = 0L,
+                            isPermanent = true
+                        )
+                    }
+                }
+                is LoginRateLimitState.TemporarilyLocked -> {
+                    _uiState.update {
+                        LoginUiState.RateLimited(
+                            message = context.getString(R.string.login_temporarily_locked),
+                            remainingMs = state.remainingMs,
+                            isPermanent = false
+                        )
+                    }
+                }
+                else -> {} // Should not happen
+            }
+            return
+        }
+
         // Get URL from serverStatus (preferred), cached value, or use the passed serverUrl directly
         // The passed serverUrl is already validated when coming from ServerSetupScreen
         val urlToUse = when (val status = _serverStatus.value) {
@@ -147,12 +185,18 @@ class LoginViewModel @Inject constructor(
             authRepository.login(urlToUse, username, password)
                 .onSuccess { result ->
                     // LoginResult only has Success now - MFA is handled as error
+                    loginRateLimiter.recordSuccessfulLogin()
                     analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("password"))
                     withContext(Dispatchers.Main) {
                         _uiState.update { LoginUiState.Success }
                     }
                 }
                 .onFailure { exception ->
+                    // Only count auth errors (wrong credentials) for rate limiting
+                    // Don't count network/SSL errors as they're not brute-force attempts
+                    if (isAuthError(exception)) {
+                        loginRateLimiter.recordFailedAttempt()
+                    }
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("auth_error"))
                     withContext(Dispatchers.Main) {
                         // Check if it's an SSL error
@@ -182,6 +226,33 @@ class LoginViewModel @Inject constructor(
             return
         }
 
+        // Check rate limit before attempting login
+        if (!loginRateLimiter.isLoginAllowed()) {
+            val state = loginRateLimiter.rateLimitState.value
+            when (state) {
+                is LoginRateLimitState.PermanentlyLocked -> {
+                    _uiState.update {
+                        LoginUiState.RateLimited(
+                            message = context.getString(R.string.login_permanently_locked),
+                            remainingMs = 0L,
+                            isPermanent = true
+                        )
+                    }
+                }
+                is LoginRateLimitState.TemporarilyLocked -> {
+                    _uiState.update {
+                        LoginUiState.RateLimited(
+                            message = context.getString(R.string.login_temporarily_locked),
+                            remainingMs = state.remainingMs,
+                            isPermanent = false
+                        )
+                    }
+                }
+                else -> {} // Should not happen
+            }
+            return
+        }
+
         // Get URL from serverStatus (preferred), cached value, or use the passed serverUrl directly
         val urlToUse = when (val status = _serverStatus.value) {
             is ServerStatus.Success -> status.url
@@ -198,6 +269,7 @@ class LoginViewModel @Inject constructor(
 
             authRepository.validateToken(urlToUse, token)
                 .onSuccess {
+                    loginRateLimiter.recordSuccessfulLogin()
                     tokenManager.saveCredentials(urlToUse, token)
                     analyticsService.trackEvent(AnalyticsEvent.LoginSuccess("token"))
                     withContext(Dispatchers.Main) {
@@ -205,6 +277,10 @@ class LoginViewModel @Inject constructor(
                     }
                 }
                 .onFailure { exception ->
+                    // Only count auth errors (invalid token) for rate limiting
+                    if (isAuthError(exception)) {
+                        loginRateLimiter.recordFailedAttempt()
+                    }
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("invalid_token"))
                     withContext(Dispatchers.Main) {
                         // Check if it's an SSL error
@@ -261,6 +337,24 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Accepts insecure HTTP connection for a specific host.
+     * This stores the preference so the user won't be asked again for this domain.
+     */
+    fun acceptHttpForHost(host: String) {
+        viewModelScope.launch {
+            tokenManager.acceptHttpForHost(host)
+            Log.d(TAG, "HTTP fallback accepted for host: $host")
+        }
+    }
+
+    /**
+     * Checks if the user has already accepted HTTP for a host.
+     */
+    fun isHttpAcceptedForHost(host: String): Boolean {
+        return tokenManager.isHostAcceptedForHttp(host)
+    }
+
     private fun isSslError(exception: Throwable): Boolean {
         val message = exception.message?.lowercase() ?: ""
         return message.contains("ssl") ||
@@ -268,6 +362,26 @@ class LoginViewModel @Inject constructor(
                 message.contains("zertifikat") ||
                 exception is javax.net.ssl.SSLException ||
                 exception is javax.net.ssl.SSLHandshakeException
+    }
+
+    /**
+     * Checks if the exception is an authentication error (wrong credentials/token).
+     * Network errors and SSL errors should NOT count towards rate limiting.
+     */
+    private fun isAuthError(exception: Throwable): Boolean {
+        // Check for PaperlessException.AuthError
+        if (exception is com.paperless.scanner.data.api.PaperlessException.AuthError) {
+            return true
+        }
+        // Check for common auth error patterns in message
+        val message = exception.message?.lowercase() ?: ""
+        return message.contains("401") ||
+                message.contains("403") ||
+                message.contains("unauthorized") ||
+                message.contains("forbidden") ||
+                message.contains("ungültig") ||
+                message.contains("falsch") ||
+                message.contains("invalid")
     }
 
     private fun extractHostFromUrl(url: String): String {
@@ -285,11 +399,36 @@ sealed class LoginUiState {
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()
     data class SslError(val host: String, val message: String) : LoginUiState()
+
+    /**
+     * Login is blocked due to too many failed attempts.
+     * @param message User-facing message explaining the lockout
+     * @param remainingMs Milliseconds until lockout expires (0 for permanent)
+     * @param isPermanent True if this is a permanent lockout requiring app data clear
+     */
+    data class RateLimited(
+        val message: String,
+        val remainingMs: Long,
+        val isPermanent: Boolean
+    ) : LoginUiState()
 }
 
 sealed class ServerStatus {
     data object Idle : ServerStatus()
     data object Checking : ServerStatus()
-    data class Success(val url: String, val isHttps: Boolean) : ServerStatus()
+
+    /**
+     * Server successfully detected.
+     * @param url The full URL with detected protocol
+     * @param isHttps Whether HTTPS is used (secure connection)
+     * @param isHttpFallback True if HTTPS was attempted but failed, and we fell back to HTTP
+     *                       False if user explicitly entered http:// or if HTTPS was successful
+     */
+    data class Success(
+        val url: String,
+        val isHttps: Boolean,
+        val isHttpFallback: Boolean = false
+    ) : ServerStatus()
+
     data class Error(val message: String) : ServerStatus()
 }

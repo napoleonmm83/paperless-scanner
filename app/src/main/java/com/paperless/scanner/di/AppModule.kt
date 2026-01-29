@@ -99,6 +99,13 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideLoginRateLimiter(
+        @ApplicationContext context: Context
+    ): com.paperless.scanner.util.LoginRateLimiter =
+        com.paperless.scanner.util.LoginRateLimiter(context)
+
+    @Provides
+    @Singleton
     @AuthClient
     fun provideAuthOkHttpClient(tokenManager: TokenManager): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {

@@ -80,13 +80,18 @@ fun AppLockScreen(
     LaunchedEffect(uiState) {
         val currentState = uiState
         if (currentState is AppLockUiState.LockedOut && !currentState.isPermanent) {
-            while (true) {
-                val now = System.currentTimeMillis()
-                val remaining = (currentState.lockoutUntil - now) / 1000
-                remainingSeconds = maxOf(0, remaining.toInt())
-                if (remainingSeconds <= 0) break
+            // Initialize from ViewModel for more accurate timing
+            remainingSeconds = viewModel.getRemainingLockoutSeconds()
+            Log.d("AppLockScreen", "Starting countdown timer with $remainingSeconds seconds remaining")
+
+            while (remainingSeconds > 0) {
                 kotlinx.coroutines.delay(1000)
+                remainingSeconds = viewModel.getRemainingLockoutSeconds()
             }
+
+            // Countdown expired - trigger state refresh
+            Log.d("AppLockScreen", "Countdown expired, refreshing lockout state")
+            viewModel.refreshLockoutState()
         }
     }
 

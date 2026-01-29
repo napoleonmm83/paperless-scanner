@@ -103,6 +103,8 @@ fun ServerOfflineBanner(
                             stringResource(R.string.server_offline_connection_refused)
                         ServerOfflineReason.TIMEOUT ->
                             stringResource(R.string.server_offline_timeout)
+                        ServerOfflineReason.SSL_ERROR ->
+                            stringResource(R.string.server_offline_ssl_error)
                         ServerOfflineReason.VPN_REQUIRED ->
                             stringResource(R.string.server_offline_vpn_required)
                         ServerOfflineReason.UNKNOWN ->

@@ -1,15 +1,19 @@
 package com.paperless.scanner.data.datastore
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.paperless.scanner.domain.model.DocumentFilter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
@@ -18,7 +22,10 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class TokenManager(private val context: Context) {
 
     companion object {
-        private val TOKEN_KEY = stringPreferencesKey("auth_token")
+        private const val TAG = "TokenManager"
+
+        // Legacy key - kept for migration only
+        private val TOKEN_KEY_LEGACY = stringPreferencesKey("auth_token")
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
         private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
         private val UPLOAD_NOTIFICATIONS_KEY = booleanPreferencesKey("upload_notifications")
@@ -51,6 +58,8 @@ class TokenManager(private val context: Context) {
         private val APP_LOCK_PASSWORD_HASH_KEY = stringPreferencesKey("app_lock_password_hash")
         private val APP_LOCK_BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("app_lock_biometric_enabled")
         private val APP_LOCK_TIMEOUT_KEY = stringPreferencesKey("app_lock_timeout")
+        private val APP_LOCK_FAILED_ATTEMPTS_KEY = intPreferencesKey("app_lock_failed_attempts")
+        private val APP_LOCK_LOCKOUT_UNTIL_KEY = longPreferencesKey("app_lock_lockout_until")
 
         // Document Filter Preferences
         private val DOCUMENT_FILTER_KEY = stringPreferencesKey("document_filter")
@@ -60,10 +69,79 @@ class TokenManager(private val context: Context) {
 
         // Server Configuration Detection
         private val SERVER_USES_CLOUDFLARE_KEY = booleanPreferencesKey("server_uses_cloudflare")
+
+        // HTTP Fallback Acceptance (user accepted insecure connection for these domains)
+        private val ACCEPTED_HTTP_HOSTS_KEY = stringPreferencesKey("accepted_http_hosts")
     }
 
-    val token: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[TOKEN_KEY]
+    /**
+     * Encrypted storage for sensitive authentication data (token).
+     * Uses Android Keystore backed AES256 encryption.
+     */
+    private val secureStorage: SecureTokenStorage by lazy {
+        SecureTokenStorage(context)
+    }
+
+    init {
+        // Perform migration from plaintext DataStore to encrypted storage
+        migrateTokenToSecureStorage()
+    }
+
+    /**
+     * Migrates token from plaintext DataStore to EncryptedSharedPreferences.
+     * This is a one-time migration that runs on first access after update.
+     *
+     * Migration flow:
+     * 1. Check if migration already completed
+     * 2. Check if plaintext token exists in DataStore
+     * 3. Copy token to encrypted storage
+     * 4. Remove plaintext token from DataStore
+     * 5. Mark migration as completed
+     */
+    private fun migrateTokenToSecureStorage() {
+        // Skip if already migrated
+        if (secureStorage.isMigrationCompleted()) {
+            return
+        }
+
+        try {
+            runBlocking {
+                val plaintextToken = context.dataStore.data.first()[TOKEN_KEY_LEGACY]
+
+                if (plaintextToken != null) {
+                    Log.i(TAG, "Migrating token from plaintext to encrypted storage...")
+
+                    // Save to encrypted storage
+                    val saved = secureStorage.saveToken(plaintextToken)
+                    if (saved) {
+                        // Remove from plaintext storage
+                        context.dataStore.edit { preferences ->
+                            preferences.remove(TOKEN_KEY_LEGACY)
+                        }
+                        Log.i(TAG, "Token migration completed successfully")
+                    } else {
+                        Log.e(TAG, "Failed to save token to encrypted storage")
+                        return@runBlocking
+                    }
+                } else {
+                    Log.d(TAG, "No plaintext token found - nothing to migrate")
+                }
+
+                // Mark migration as completed (even if no token existed)
+                secureStorage.setMigrationCompleted()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Token migration failed", e)
+            // Don't mark as completed - will retry on next app start
+        }
+    }
+
+    /**
+     * Token flow - reads from encrypted storage.
+     * Emits the current token value and updates when token changes.
+     */
+    val token: Flow<String?> = flow {
+        emit(secureStorage.getToken())
     }
 
     val serverUrl: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -159,9 +237,15 @@ class TokenManager(private val context: Context) {
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
+        // Save token to encrypted storage
+        val tokenSaved = secureStorage.saveToken(token)
+        if (!tokenSaved) {
+            Log.e(TAG, "Failed to save token to encrypted storage")
+        }
+
+        // Save server URL to DataStore (not sensitive)
         context.dataStore.edit { preferences ->
             preferences[SERVER_URL_KEY] = serverUrl.trimEnd('/')
-            preferences[TOKEN_KEY] = token
         }
     }
 
@@ -202,14 +286,22 @@ class TokenManager(private val context: Context) {
     }
 
     suspend fun clearCredentials() {
+        // Clear encrypted token storage
+        secureStorage.clearToken()
+
+        // Clear DataStore preferences
         context.dataStore.edit { preferences ->
             preferences.clear()
         }
         // Note: Cloudflare detection flag is also cleared since we clear ALL preferences
     }
 
-    fun getTokenSync(): String? = runBlocking {
-        context.dataStore.data.first()[TOKEN_KEY]
+    /**
+     * Get token synchronously from encrypted storage.
+     * Safe to call from any thread (blocking).
+     */
+    fun getTokenSync(): String? {
+        return secureStorage.getToken()
     }
 
     fun getServerUrlSync(): String? = runBlocking {
@@ -450,6 +542,34 @@ class TokenManager(private val context: Context) {
         }
     }
 
+    // App-Lock Lockout Persistence (survives app restart)
+
+    /** Get persisted app-lock failed attempts count */
+    fun getAppLockFailedAttemptsSync(): Int = runBlocking {
+        context.dataStore.data.first()[APP_LOCK_FAILED_ATTEMPTS_KEY] ?: 0
+    }
+
+    /** Get persisted app-lock lockout until timestamp */
+    fun getAppLockLockoutUntilSync(): Long = runBlocking {
+        context.dataStore.data.first()[APP_LOCK_LOCKOUT_UNTIL_KEY] ?: 0L
+    }
+
+    /** Persist app-lock lockout state */
+    suspend fun setAppLockLockoutState(failedAttempts: Int, lockoutUntil: Long) {
+        context.dataStore.edit { preferences ->
+            preferences[APP_LOCK_FAILED_ATTEMPTS_KEY] = failedAttempts
+            preferences[APP_LOCK_LOCKOUT_UNTIL_KEY] = lockoutUntil
+        }
+    }
+
+    /** Clear app-lock lockout state (on successful unlock or disable) */
+    suspend fun clearAppLockLockoutState() {
+        context.dataStore.edit { preferences ->
+            preferences[APP_LOCK_FAILED_ATTEMPTS_KEY] = 0
+            preferences[APP_LOCK_LOCKOUT_UNTIL_KEY] = 0L
+        }
+    }
+
     // Document Filter Settings
 
     /**
@@ -551,5 +671,41 @@ class TokenManager(private val context: Context) {
      */
     fun isServerUsingCloudflareSync(): Boolean = runBlocking {
         context.dataStore.data.first()[SERVER_USES_CLOUDFLARE_KEY] ?: false
+    }
+
+    // HTTP Fallback Acceptance Settings
+    // These track domains where user explicitly accepted insecure HTTP connection
+
+    /** Check if a host has been accepted for insecure HTTP connections */
+    fun isHostAcceptedForHttp(host: String): Boolean = runBlocking {
+        val acceptedHosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
+        acceptedHosts.split(",").map { it.trim().lowercase() }.contains(host.lowercase())
+    }
+
+    /** Accept a host for insecure HTTP connections (user acknowledged warning) */
+    suspend fun acceptHttpForHost(host: String) {
+        context.dataStore.edit { preferences ->
+            val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
+            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableList()
+            if (!hostList.contains(host.lowercase())) {
+                hostList.add(host.lowercase())
+            }
+            preferences[ACCEPTED_HTTP_HOSTS_KEY] = hostList.joinToString(",")
+        }
+    }
+
+    /** Remove a host from accepted HTTP hosts */
+    suspend fun removeAcceptedHttpHost(host: String) {
+        context.dataStore.edit { preferences ->
+            val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
+            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() && it.lowercase() != host.lowercase() }
+            preferences[ACCEPTED_HTTP_HOSTS_KEY] = hostList.joinToString(",")
+        }
+    }
+
+    /** Get all accepted HTTP hosts */
+    fun getAcceptedHttpHosts(): List<String> = runBlocking {
+        val hosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
+        hosts.split(",").map { it.trim() }.filter { it.isNotBlank() }
     }
 }

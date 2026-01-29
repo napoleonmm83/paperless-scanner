@@ -13,6 +13,7 @@ enum class ServerOfflineReason {
     DNS_FAILURE,        // Server hostname could not be resolved
     CONNECTION_REFUSED, // Server port not reachable
     TIMEOUT,            // Request timeout
+    SSL_ERROR,          // SSL/TLS certificate error (expired, self-signed, hostname mismatch)
     VPN_REQUIRED,       // Server requires VPN (detected via specific patterns)
     UNKNOWN             // Unknown offline reason
 }
@@ -42,6 +43,8 @@ sealed class PaperlessException(
                 "Server ist nicht erreichbar. Bitte prüfen ob der Server läuft."
             ServerOfflineReason.TIMEOUT ->
                 "Server antwortet nicht. Bitte später erneut versuchen."
+            ServerOfflineReason.SSL_ERROR ->
+                "SSL-Zertifikatsfehler. Bitte Zertifikat prüfen (abgelaufen, selbst-signiert oder Hostname-Fehler)."
             ServerOfflineReason.VPN_REQUIRED ->
                 "VPN-Verbindung erforderlich. Bitte VPN aktivieren und erneut versuchen."
             ServerOfflineReason.UNKNOWN ->

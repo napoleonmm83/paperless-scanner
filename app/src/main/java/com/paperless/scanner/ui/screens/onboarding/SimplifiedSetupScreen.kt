@@ -59,6 +59,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.ui.components.HttpFallbackWarningDialog
 import com.paperless.scanner.ui.components.SslCertificateDialog
 import com.paperless.scanner.ui.screens.login.LoginUiState
 import com.paperless.scanner.ui.screens.login.LoginViewModel
@@ -69,6 +70,16 @@ import kotlinx.coroutines.launch
 
 enum class AuthMethod {
     CREDENTIALS, TOKEN
+}
+
+/**
+ * Input length limits to prevent memory issues and match server-side constraints.
+ */
+private object InputLimits {
+    const val URL_MAX_LENGTH = 2048     // Standard URL limit
+    const val TOKEN_MAX_LENGTH = 256    // API token limit
+    const val USERNAME_MAX_LENGTH = 150 // Django default
+    const val PASSWORD_MAX_LENGTH = 128 // Standard password limit
 }
 
 sealed class SetupState {
@@ -93,6 +104,8 @@ fun SimplifiedSetupScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var setupState by remember { mutableStateOf<SetupState>(SetupState.Idle) }
     var showTokenScanner by remember { mutableStateOf(false) }
+    var showHttpFallbackDialog by remember { mutableStateOf(false) }
+    var httpFallbackAcceptedForSession by remember { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
@@ -101,6 +114,31 @@ fun SimplifiedSetupScreen(
     val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
 
     val isServerValid = serverStatus is ServerStatus.Success
+
+    // Extract host from detected server URL for HTTP fallback checking
+    val currentHost = remember(serverStatus) {
+        (serverStatus as? ServerStatus.Success)?.url?.let { url ->
+            try {
+                java.net.URI(url).host
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    // Check if HTTP fallback requires warning (not already accepted)
+    val needsHttpFallbackWarning = remember(serverStatus, httpFallbackAcceptedForSession, currentHost) {
+        val status = serverStatus as? ServerStatus.Success ?: return@remember false
+        val host = currentHost ?: return@remember false
+        status.isHttpFallback && !httpFallbackAcceptedForSession && !viewModel.isHttpAcceptedForHost(host)
+    }
+
+    // Show HTTP fallback dialog when needed
+    LaunchedEffect(needsHttpFallbackWarning) {
+        if (needsHttpFallbackWarning) {
+            showHttpFallbackDialog = true
+        }
+    }
 
     // Handle ViewModel state changes
     LaunchedEffect(uiState) {
@@ -115,6 +153,10 @@ fun SimplifiedSetupScreen(
             is LoginUiState.SslError -> {
                 // SSL error will be handled by the dialog below
                 setupState = SetupState.Idle
+            }
+            is LoginUiState.RateLimited -> {
+                // Rate limiting - show error with lockout message
+                setupState = SetupState.Error(state.message)
             }
             is LoginUiState.Idle -> {} // Do nothing
         }
@@ -180,9 +222,10 @@ fun SimplifiedSetupScreen(
             // Server URL TextField
             OutlinedTextField(
                 value = serverUrl,
-                onValueChange = {
-                    serverUrl = it
-                    viewModel.onServerUrlChanged(it)
+                onValueChange = { newValue ->
+                    val limited = newValue.take(InputLimits.URL_MAX_LENGTH)
+                    serverUrl = limited
+                    viewModel.onServerUrlChanged(limited)
                     setupState = SetupState.Idle // Reset state on input
                 },
                 label = { Text("Server URL") },
@@ -260,8 +303,8 @@ fun SimplifiedSetupScreen(
                     // Token TextField with QR Scanner
                     OutlinedTextField(
                         value = token,
-                        onValueChange = {
-                            token = it
+                        onValueChange = { newValue ->
+                            token = newValue.take(InputLimits.TOKEN_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
                         label = { Text("Authentication Token") },
@@ -318,8 +361,8 @@ fun SimplifiedSetupScreen(
                     // Username TextField
                     OutlinedTextField(
                         value = username,
-                        onValueChange = {
-                            username = it
+                        onValueChange = { newValue ->
+                            username = newValue.take(InputLimits.USERNAME_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
                         label = { Text("Username") },
@@ -345,8 +388,8 @@ fun SimplifiedSetupScreen(
                     // Password TextField
                     OutlinedTextField(
                         value = password,
-                        onValueChange = {
-                            password = it
+                        onValueChange = { newValue ->
+                            password = newValue.take(InputLimits.PASSWORD_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
                         label = { Text("Password") },
@@ -574,6 +617,26 @@ fun SimplifiedSetupScreen(
                 },
                 onCancel = {
                     viewModel.resetState()
+                }
+            )
+        }
+
+        // HTTP Fallback Warning Dialog
+        if (showHttpFallbackDialog && currentHost != null) {
+            HttpFallbackWarningDialog(
+                host = currentHost,
+                onAccept = { rememberChoice ->
+                    showHttpFallbackDialog = false
+                    httpFallbackAcceptedForSession = true
+                    if (rememberChoice) {
+                        // Store permanently
+                        viewModel.acceptHttpForHost(currentHost)
+                    }
+                },
+                onCancel = {
+                    showHttpFallbackDialog = false
+                    // Reset server status to allow user to try again with a different URL
+                    viewModel.clearServerStatus()
                 }
             )
         }

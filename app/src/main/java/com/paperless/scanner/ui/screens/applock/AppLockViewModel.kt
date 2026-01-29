@@ -47,7 +47,8 @@ class AppLockViewModel @Inject constructor(
                         _uiState.update {
                             AppLockUiState.LockedOut(
                                 isPermanent = lockedOut.isPermanent,
-                                lockoutUntil = lockedOut.lockoutUntil
+                                lockoutUntil = lockedOut.lockoutUntil,
+                                refreshTimestamp = lockedOut.refreshTimestamp
                             )
                         }
                     }
@@ -99,8 +100,30 @@ class AppLockViewModel @Inject constructor(
                         _uiState.update {
                             AppLockUiState.LockedOut(
                                 isPermanent = lockState.isPermanent,
-                                lockoutUntil = lockState.lockoutUntil
+                                lockoutUntil = lockState.lockoutUntil,
+                                refreshTimestamp = lockState.refreshTimestamp
                             )
+                        }
+                    } else {
+                        // Edge case: remainingAttempts == 0 but lockState not yet updated
+                        // Get lockout info directly from manager
+                        val lockoutUntil = appLockManager.getLockoutUntil()
+                        if (lockoutUntil > System.currentTimeMillis()) {
+                            _uiState.update {
+                                AppLockUiState.LockedOut(
+                                    isPermanent = false,
+                                    lockoutUntil = lockoutUntil
+                                    // refreshTimestamp defaults to currentTimeMillis()
+                                )
+                            }
+                        } else {
+                            // Lockout expired or no lockout - show error and allow retry
+                            _uiState.update {
+                                AppLockUiState.Error(
+                                    message = "Falsches Passwort",
+                                    remainingAttempts = 5 // Reset to max for next cycle
+                                )
+                            }
                         }
                     }
                 }
@@ -118,18 +141,60 @@ class AppLockViewModel @Inject constructor(
                 appLockManager.unlockWithBiometric()
             },
             onError = { errorMessage ->
-                _uiState.update {
-                    AppLockUiState.Error(
-                        message = errorMessage,
-                        remainingAttempts = appLockManager.getRemainingAttempts()
-                    )
+                // IMPORTANT: Preserve LockedOut state if we're in lockout!
+                val lockState = appLockManager.lockState.value
+                if (lockState is AppLockState.LockedOut && !lockState.isPermanent) {
+                    // Keep LockedOut state - biometric error doesn't change lockout
+                    _uiState.update {
+                        AppLockUiState.LockedOut(
+                            isPermanent = false,
+                            lockoutUntil = lockState.lockoutUntil,
+                            refreshTimestamp = lockState.refreshTimestamp
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        AppLockUiState.Error(
+                            message = errorMessage,
+                            remainingAttempts = appLockManager.getRemainingAttempts()
+                        )
+                    }
                 }
             },
             onFallback = {
                 // User cancelled or pressed negative button
-                _uiState.update { AppLockUiState.Idle }
+                // IMPORTANT: Preserve LockedOut state if we're in lockout!
+                val lockState = appLockManager.lockState.value
+                if (lockState is AppLockState.LockedOut && !lockState.isPermanent) {
+                    // Keep LockedOut state - user is still locked out
+                    _uiState.update {
+                        AppLockUiState.LockedOut(
+                            isPermanent = false,
+                            lockoutUntil = lockState.lockoutUntil,
+                            refreshTimestamp = lockState.refreshTimestamp
+                        )
+                    }
+                } else {
+                    _uiState.update { AppLockUiState.Idle }
+                }
             }
         )
+    }
+
+    /**
+     * Refresh lockout state - called when countdown timer reaches 0.
+     * Triggers state transition from LockedOut back to Locked/Idle.
+     */
+    fun refreshLockoutState() {
+        appLockManager.refreshLockoutState()
+    }
+
+    /**
+     * Get remaining lockout time in seconds.
+     * More reliable than computing from lockoutUntil timestamp.
+     */
+    fun getRemainingLockoutSeconds(): Int {
+        return appLockManager.getRemainingLockoutSeconds()
     }
 }
 
@@ -139,7 +204,8 @@ sealed class AppLockUiState {
     data object Unlocked : AppLockUiState()
     data class LockedOut(
         val isPermanent: Boolean,
-        val lockoutUntil: Long
+        val lockoutUntil: Long,
+        val refreshTimestamp: Long = System.currentTimeMillis()
     ) : AppLockUiState()
     data class Error(
         val message: String,

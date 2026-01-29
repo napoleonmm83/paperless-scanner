@@ -6,6 +6,9 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
+import com.paperless.scanner.util.LoginRateLimiter
+import com.paperless.scanner.util.LoginRateLimitState
+import kotlinx.coroutines.flow.MutableStateFlow
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -37,6 +40,7 @@ class LoginViewModelTest {
     private lateinit var tokenManager: TokenManager
     private lateinit var biometricHelper: BiometricHelper
     private lateinit var analyticsService: AnalyticsService
+    private lateinit var loginRateLimiter: LoginRateLimiter
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -57,11 +61,16 @@ class LoginViewModelTest {
         tokenManager = mockk(relaxed = true)
         biometricHelper = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
+        loginRateLimiter = mockk(relaxed = true)
 
         // Default mock responses
         every { tokenManager.hasStoredCredentials() } returns false
         every { tokenManager.isBiometricEnabledSync() } returns false
         every { biometricHelper.isAvailable() } returns false
+
+        // Mock rate limiter to allow logins by default
+        every { loginRateLimiter.isLoginAllowed() } returns true
+        every { loginRateLimiter.rateLimitState } returns MutableStateFlow(LoginRateLimitState.Ready())
     }
 
     @After
@@ -75,8 +84,9 @@ class LoginViewModelTest {
             context = context,
             authRepository = authRepository,
             tokenManager = tokenManager,
-            biometricHelper = biometricHelper,
-            analyticsService = analyticsService
+            analyticsService = analyticsService,
+            loginRateLimiter = loginRateLimiter,
+            biometricHelper = biometricHelper
         )
     }
 

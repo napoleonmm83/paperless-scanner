@@ -101,6 +101,9 @@ glance-material3 = { group = "androidx.glance", name = "glance-material3", versi
 # Biometric
 biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 
+# Security (Encrypted Storage)
+security-crypto = { group = "androidx.security", name = "security-crypto", version = "1.1.0-alpha06" }
+
 # Image Loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
