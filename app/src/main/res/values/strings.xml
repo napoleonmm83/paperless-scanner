@@ -328,6 +328,7 @@
     <string name="home_processing">Verarbeitung</string>
     <string name="home_processing_show_more">%d weitere anzeigen</string>
     <string name="home_processing_show_less">Weniger anzeigen</string>
+    <string name="home_dismiss_all_completed">Alle abschließen</string>
     <string name="home_refresh">Aktualisieren</string>
     <string name="home_recently_added">Zuletzt hinzugefügt</string>
     <string name="home_see_all">Alle</string>

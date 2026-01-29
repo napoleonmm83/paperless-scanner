@@ -120,6 +120,18 @@ data class HomeUiState(
      */
     val displayedProcessingTasks: List<ProcessingTask>
         get() = if (showAllProcessingTasks) processingTasks else processingTasks.take(PROCESSING_TASKS_DISPLAY_LIMIT)
+
+    /**
+     * Count of completed tasks (SUCCESS or FAILURE) that can be dismissed.
+     */
+    val completedTasksCount: Int
+        get() = processingTasks.count { it.status == TaskStatus.SUCCESS || it.status == TaskStatus.FAILURE }
+
+    /**
+     * Whether there are any completed tasks to dismiss.
+     */
+    val hasCompletedTasks: Boolean
+        get() = completedTasksCount > 0
 }
 
 @HiltViewModel
@@ -597,6 +609,49 @@ class HomeViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
+                }
+        }
+    }
+
+    /**
+     * Acknowledge all completed tasks (SUCCESS or FAILURE) at once.
+     * BULK ACTION: Dismisses all finished tasks in one API call.
+     */
+    fun acknowledgeCompletedTasks() {
+        val completedTasks = _uiState.value.processingTasks.filter {
+            it.status == TaskStatus.SUCCESS || it.status == TaskStatus.FAILURE
+        }
+
+        if (completedTasks.isEmpty()) {
+            logger.log(Level.FINE, "No completed tasks to acknowledge")
+            return
+        }
+
+        val taskIds = completedTasks.map { it.id }
+        logger.log(Level.INFO, "Acknowledging ${taskIds.size} completed tasks: $taskIds")
+
+        // Optimistic update - remove all completed tasks from UI immediately
+        _uiState.update { state ->
+            val remainingTasks = state.processingTasks.filter {
+                it.status != TaskStatus.SUCCESS && it.status != TaskStatus.FAILURE
+            }
+            state.copy(
+                processingTasks = remainingTasks,
+                // Reset showAllProcessingTasks when list becomes empty or small enough
+                showAllProcessingTasks = if (remainingTasks.size <= HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) false else state.showAllProcessingTasks
+            )
+        }
+
+        // Then acknowledge on server
+        viewModelScope.launch {
+            taskRepository.acknowledgeTasks(taskIds)
+                .onSuccess {
+                    logger.log(Level.INFO, "Successfully acknowledged ${taskIds.size} tasks")
+                }
+                .onFailure { error ->
+                    logger.log(Level.WARNING, "Failed to acknowledge tasks: ${error.message}")
+                    // Optionally: refresh tasks to restore state on failure
+                    refreshTasks()
                 }
         }
     }
