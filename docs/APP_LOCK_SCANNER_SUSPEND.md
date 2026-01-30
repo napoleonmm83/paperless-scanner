@@ -296,6 +296,5 @@ adb logcat | grep AppLockManager
 
 ## Weiterführende Dokumentation
 
-- `docs/APP_LOCK_TEST.md` - Manuelle Test-Cases
 - `docs/SECURITY_ANALYSIS.md` - Security Threat Model
 - `app/src/main/java/com/paperless/scanner/util/AppLockManager.kt` - Source Code
