@@ -116,7 +116,7 @@ jobs:
           key: build-outputs-${{ github.sha }}
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-results
@@ -124,7 +124,7 @@ jobs:
           retention-days: 7
 
       - name: Upload release APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-apk
           path: app/build/outputs/apk/release/app-release.apk
@@ -184,7 +184,7 @@ jobs:
         shell: bash
 
       - name: Upload lint results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: lint-results
@@ -281,7 +281,7 @@ jobs:
         shell: bash
 
       - name: Upload Detekt results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: detekt-results
@@ -289,7 +289,7 @@ jobs:
           retention-days: 7
 
       - name: Upload KtLint results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ktlint-results
@@ -328,7 +328,7 @@ jobs:
         shell: bash
 
       - name: Upload screenshot test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: screenshot-test-results
@@ -358,7 +358,7 @@ jobs:
         run: ./gradlew dependencyUpdates
 
       - name: Upload dependency report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dependency-updates-report
           path: build/reports/dependencyUpdates/
