@@ -379,6 +379,7 @@
     <string name="error_delete_correspondent">Korrespondent konnte nicht gelöscht werden</string>
     <string name="error_delete_document_type">Dokumenttyp konnte nicht gelöscht werden</string>
     <string name="error_delete_custom_field">Feld konnte nicht gelöscht werden</string>
+    <string name="error_deleting">Fehler beim Löschen</string>
     <string name="error_analyze_document">Dokument konnte nicht analysiert werden</string>
 
     <string name="loading">Laden...</string>

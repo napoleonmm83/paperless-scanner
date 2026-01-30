@@ -379,6 +379,7 @@
     <string name="error_delete_correspondent">Failed to delete correspondent</string>
     <string name="error_delete_document_type">Failed to delete document type</string>
     <string name="error_delete_custom_field">Failed to delete custom field</string>
+    <string name="error_deleting">Error deleting</string>
     <string name="error_analyze_document">Failed to analyze document</string>
 
     <string name="loading">Laden...</string>
