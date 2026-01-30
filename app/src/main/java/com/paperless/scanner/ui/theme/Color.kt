@@ -151,31 +151,3 @@ val md_theme_light_inversePrimary = DarkTechPrimary
 val md_theme_light_surfaceTint = LightTechPrimary
 val md_theme_light_scrim = Color(0xFF000000)
 
-// ============================================
-// Legacy Colors (kept for backwards compatibility)
-// Will be removed during screen migration
-// ============================================
-
-@Deprecated("Use MaterialTheme.colorScheme.primary instead", ReplaceWith("MaterialTheme.colorScheme.primary"))
-val BrandTeal = Color(0xFF31A2AC)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelCyan = Color(0xFFB8E8EB)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelGreen = Color(0xFFB8E8D0)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelBlue = Color(0xFFB8D8EB)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelPurple = Color(0xFFD8D0EB)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelYellow = Color(0xFFF5ECD0)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelOrange = Color(0xFFF5DCC0)
-
-@Deprecated("Use MaterialTheme.colorScheme colors instead", ReplaceWith("MaterialTheme.colorScheme.surface"))
-val PastelPink = Color(0xFFF5D0E0)
