@@ -9,6 +9,7 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
+import com.paperless.scanner.data.repository.CustomFieldRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
@@ -64,6 +65,7 @@ class UploadViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var correspondentRepository: CorrespondentRepository
+    private lateinit var customFieldRepository: CustomFieldRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var uploadWorkManager: com.paperless.scanner.worker.UploadWorkManager
     private lateinit var networkMonitor: NetworkMonitor
@@ -116,6 +118,7 @@ class UploadViewModelTest {
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
+        customFieldRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
         uploadWorkManager = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
@@ -126,10 +129,11 @@ class UploadViewModelTest {
         tokenManager = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
 
-        // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents
+        // BEST PRACTICE: Mock reactive Flows for tags, documentTypes, correspondents, customFields
         every { tagRepository.observeTags() } returns flowOf(emptyList())
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(emptyList())
         every { correspondentRepository.observeCorrespondents() } returns flowOf(emptyList())
+        every { customFieldRepository.observeCustomFields() } returns flowOf(emptyList())
 
         // Mock AI usage limits Flow
         every { aiUsageRepository.observeCurrentMonthCallCount() } returns flowOf(0)
@@ -149,6 +153,7 @@ class UploadViewModelTest {
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
@@ -186,6 +191,7 @@ class UploadViewModelTest {
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
@@ -222,6 +228,7 @@ class UploadViewModelTest {
             tagRepository = tagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
@@ -537,6 +544,7 @@ class UploadViewModelTest {
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
@@ -576,6 +584,7 @@ class UploadViewModelTest {
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,
@@ -613,6 +622,7 @@ class UploadViewModelTest {
             tagRepository = strictTagRepository,
             documentTypeRepository = documentTypeRepository,
             correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
             uploadQueueRepository = uploadQueueRepository,
             uploadWorkManager = uploadWorkManager,
             networkMonitor = networkMonitor,

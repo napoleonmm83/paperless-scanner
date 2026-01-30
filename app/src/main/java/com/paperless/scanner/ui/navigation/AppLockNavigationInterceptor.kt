@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
@@ -95,8 +96,9 @@ fun AppLockNavigationInterceptor(
 ) {
     val lockState by appLockManager.lockState.collectAsState()
 
-    // Remember the route before locking
-    var routeBeforeLock by remember { mutableStateOf<String?>(null) }
+    // Remember the route before locking - use rememberSaveable to survive configuration changes
+    // SECURITY: Prevents losing saved route during rotation while on lock screen
+    var routeBeforeLock by rememberSaveable { mutableStateOf<String?>(null) }
 
     // White-listed routes that should NOT be protected by app-lock
     val unprotectedRoutes = remember {
@@ -113,18 +115,21 @@ fun AppLockNavigationInterceptor(
         // Get the FULL route with actual argument values for saving/restoring
         val currentFullRoute = reconstructRouteWithArgs(navController.currentBackStackEntry)
 
+        // SECURITY FIX: If currentRouteTemplate is null (NavController not yet initialized),
+        // treat as protected to prevent bypassing lock screen on cold start.
+        // This is a fail-safe approach: lock when in doubt.
         val isCurrentRouteProtected = currentRouteTemplate?.let { route ->
             // Check if current route is NOT in white-list
             !unprotectedRoutes.any { unprotectedRoute ->
                 route.startsWith(unprotectedRoute)
             }
-        } ?: false
+        } ?: true  // ← SECURITY: null = assume protected (fail-safe)
 
         Log.d("AppLockInterceptor", "=== LOCK STATE CHANGED ===")
         Log.d("AppLockInterceptor", "New lockState: $lockState")
-        Log.d("AppLockInterceptor", "currentRouteTemplate: $currentRouteTemplate")
+        Log.d("AppLockInterceptor", "currentRouteTemplate: $currentRouteTemplate (null=${currentRouteTemplate == null})")
         Log.d("AppLockInterceptor", "currentFullRoute: $currentFullRoute")
-        Log.d("AppLockInterceptor", "isProtected: $isCurrentRouteProtected")
+        Log.d("AppLockInterceptor", "isProtected: $isCurrentRouteProtected (null route = assume protected)")
         Log.d("AppLockInterceptor", "==========================")
 
         when (lockState) {
@@ -133,18 +138,29 @@ fun AppLockNavigationInterceptor(
                 // App is locked - navigate to AppLockScreen if not already there
                 if (isCurrentRouteProtected && currentRouteTemplate != Screen.AppLock.route) {
                     // Save FULL route with actual arguments before locking
-                    routeBeforeLock = currentFullRoute
-                    Log.d("AppLockInterceptor", "Saved FULL route before lock: $routeBeforeLock")
+                    // If currentFullRoute is null (cold start), save Home as fallback
+                    routeBeforeLock = currentFullRoute ?: Screen.Home.route
+                    Log.d("AppLockInterceptor", "Saved FULL route before lock: $routeBeforeLock (wasNull=${currentFullRoute == null})")
 
                     Log.d("AppLockInterceptor", "Navigating to AppLock screen")
-                    navController.navigate(Screen.AppLock.route) {
-                        // Clear back stack - user must unlock
-                        popUpTo(navController.graph.startDestinationId) {
-                            // No need to save navigation state - ViewModels persist via SavedStateHandle
-                            saveState = false
+                    try {
+                        navController.navigate(Screen.AppLock.route) {
+                            // Clear back stack - user must unlock
+                            popUpTo(navController.graph.startDestinationId) {
+                                // No need to save navigation state - ViewModels persist via SavedStateHandle
+                                saveState = false
+                            }
+                            launchSingleTop = true
+                            restoreState = false
                         }
-                        launchSingleTop = true
-                        restoreState = false
+                    } catch (e: Exception) {
+                        // NavController not yet fully initialized - try simpler navigation
+                        Log.w("AppLockInterceptor", "Standard navigation failed, trying simple navigate", e)
+                        try {
+                            navController.navigate(Screen.AppLock.route)
+                        } catch (e2: Exception) {
+                            Log.e("AppLockInterceptor", "Simple navigation also failed", e2)
+                        }
                     }
                 } else {
                     Log.d("AppLockInterceptor", "NOT saving route - Already on AppLock screen or route not protected (routeBeforeLock remains: $routeBeforeLock)")
@@ -167,16 +183,26 @@ fun AppLockNavigationInterceptor(
                     // This handles app restart with preserved LockedOut state
                     if (isCurrentRouteProtected && currentRouteTemplate != Screen.AppLock.route) {
                         // Save FULL route with actual arguments before locking
-                        routeBeforeLock = currentFullRoute
-                        Log.d("AppLockInterceptor", "Saved FULL route before lock (LockedOut): $routeBeforeLock")
+                        // If currentFullRoute is null (cold start), save Home as fallback
+                        routeBeforeLock = currentFullRoute ?: Screen.Home.route
+                        Log.d("AppLockInterceptor", "Saved FULL route before lock (LockedOut): $routeBeforeLock (wasNull=${currentFullRoute == null})")
 
                         Log.d("AppLockInterceptor", "Navigating to AppLock screen (temporary lockout)")
-                        navController.navigate(Screen.AppLock.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = false
+                        try {
+                            navController.navigate(Screen.AppLock.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = false
+                                }
+                                launchSingleTop = true
+                                restoreState = false
                             }
-                            launchSingleTop = true
-                            restoreState = false
+                        } catch (e: Exception) {
+                            Log.w("AppLockInterceptor", "Standard navigation failed (LockedOut), trying simple navigate", e)
+                            try {
+                                navController.navigate(Screen.AppLock.route)
+                            } catch (e2: Exception) {
+                                Log.e("AppLockInterceptor", "Simple navigation also failed (LockedOut)", e2)
+                            }
                         }
                     } else {
                         Log.d("AppLockInterceptor", "Already on AppLock screen or route not protected")
