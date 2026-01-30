@@ -60,13 +60,13 @@ class DocumentRepository @Inject constructor(
     private val cachedTaskDao: CachedTaskDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
-    private val serverHealthMonitor: ServerHealthMonitor
+    private val serverHealthMonitor: ServerHealthMonitor,
+    private val gson: Gson
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
     }
 
-    private val gson = Gson()
     suspend fun uploadDocument(
         uri: Uri,
         title: String? = null,

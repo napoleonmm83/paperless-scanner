@@ -56,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.security.SecureRandom
@@ -90,6 +91,10 @@ object AppModule {
     fun provideApplicationScope(): CoroutineScope {
         return CoroutineScope(SupervisorJob() + Dispatchers.Default)
     }
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = GsonProvider.instance
 
     @Provides
     @Singleton
@@ -192,13 +197,14 @@ object AppModule {
     @Provides
     @Singleton
     fun providePaperlessApi(
-        okHttpClient: OkHttpClient
+        okHttpClient: OkHttpClient,
+        gson: Gson
     ): PaperlessApi {
         // Use placeholder URL - DynamicBaseUrlInterceptor will set the actual URL
         return Retrofit.Builder()
             .baseUrl("http://placeholder.local/")
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(PaperlessApi::class.java)
     }
@@ -251,13 +257,14 @@ object AppModule {
     @Provides
     @Singleton
     fun providePaperlessGptApi(
-        @PaperlessGptClient okHttpClient: OkHttpClient
+        @PaperlessGptClient okHttpClient: OkHttpClient,
+        gson: Gson
     ): PaperlessGptApi {
         // Use placeholder URL - PaperlessGptBaseUrlInterceptor will set the actual URL
         return Retrofit.Builder()
             .baseUrl("http://placeholder.local/")
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(PaperlessGptApi::class.java)
     }
@@ -277,8 +284,9 @@ object AppModule {
         cachedTagDao: CachedTagDao,
         cachedDocumentDao: CachedDocumentDao,
         pendingChangeDao: PendingChangeDao,
-        networkMonitor: NetworkMonitor
-    ): TagRepository = TagRepository(api, cachedTagDao, cachedDocumentDao, pendingChangeDao, networkMonitor)
+        networkMonitor: NetworkMonitor,
+        gson: Gson
+    ): TagRepository = TagRepository(api, cachedTagDao, cachedDocumentDao, pendingChangeDao, networkMonitor, gson)
 
     @Provides
     @Singleton
@@ -290,8 +298,9 @@ object AppModule {
         cachedTaskDao: CachedTaskDao,
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor,
-        serverHealthMonitor: ServerHealthMonitor
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor)
+        serverHealthMonitor: ServerHealthMonitor,
+        gson: Gson
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson)
 
     @Provides
     @Singleton
@@ -437,7 +446,8 @@ object AppModule {
         cachedCorrespondentDao: CachedCorrespondentDao,
         cachedDocumentTypeDao: CachedDocumentTypeDao,
         pendingChangeDao: PendingChangeDao,
-        syncMetadataDao: SyncMetadataDao
+        syncMetadataDao: SyncMetadataDao,
+        gson: Gson
     ): SyncManager = SyncManager(
         api,
         cachedDocumentDao,
@@ -445,7 +455,8 @@ object AppModule {
         cachedCorrespondentDao,
         cachedDocumentTypeDao,
         pendingChangeDao,
-        syncMetadataDao
+        syncMetadataDao,
+        gson
     )
 
     @Provides

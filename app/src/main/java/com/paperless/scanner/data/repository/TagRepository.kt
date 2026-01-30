@@ -26,9 +26,9 @@ class TagRepository @Inject constructor(
     private val cachedTagDao: CachedTagDao,
     private val cachedDocumentDao: CachedDocumentDao,
     private val pendingChangeDao: PendingChangeDao,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val gson: Gson
 ) {
-    private val gson = Gson()
     /**
      * BEST PRACTICE: Reactive Flow for automatic UI updates.
      * Observes cached tags and automatically notifies when tags are added/modified/deleted.
