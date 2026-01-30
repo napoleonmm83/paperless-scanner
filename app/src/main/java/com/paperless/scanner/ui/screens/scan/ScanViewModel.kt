@@ -111,7 +111,8 @@ class ScanViewModel @Inject constructor(
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val tokenManager: com.paperless.scanner.data.datastore.TokenManager,
     val appLockManager: com.paperless.scanner.util.AppLockManager,
-    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
+    private val gson: Gson
 ) : ViewModel() {
 
     companion object {
@@ -297,7 +298,6 @@ class ScanViewModel @Inject constructor(
                 }
 
                 // Parse custom metadata (optional)
-                val gson = Gson()
                 val metadataMap = if (!metadataString.isNullOrEmpty()) {
                     metadataString.split("|").mapNotNull { pair ->
                         try {
@@ -369,7 +369,6 @@ class ScanViewModel @Inject constructor(
             savedStateHandle[KEY_PAGE_ROTATIONS] = rotationsString
 
             // Serialize custom metadata as "id:json|..." (only pages with metadata)
-            val gson = Gson()
             val metadataString = pages
                 .filter { it.customMetadata != null }
                 .joinToString("|") { page ->

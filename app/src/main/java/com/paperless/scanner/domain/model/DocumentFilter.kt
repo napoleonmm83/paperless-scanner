@@ -1,7 +1,7 @@
 package com.paperless.scanner.domain.model
 
-import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
+import com.paperless.scanner.di.GsonProvider
 
 /**
  * Sort field options for document sorting.
@@ -197,7 +197,7 @@ data class DocumentFilter(
     }
 
     companion object {
-        private val gson = Gson()
+        private val gson = GsonProvider.instance
 
         /**
          * Empty filter (no active filters).

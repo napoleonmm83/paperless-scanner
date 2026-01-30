@@ -96,11 +96,8 @@ fun AppLockScreen(
     }
 
     // SECURITY: Prevent back button bypass - user MUST unlock
-    // Back button should NOT allow bypassing the lock screen
     BackHandler(enabled = true) {
-        // Do nothing - completely block back navigation
-        // Alternative: Move app to background instead of allowing bypass
-        // (context as? Activity)?.moveTaskToBack(true)
+        // Block back navigation - user must authenticate
     }
 
     // Auto-focus password field on screen load

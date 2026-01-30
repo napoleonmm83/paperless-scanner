@@ -4,8 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.paperless.scanner.di.GsonProvider
 
 @Entity(tableName = "pending_uploads")
 @TypeConverters(Converters::class)
@@ -34,7 +34,7 @@ enum class UploadStatus {
 }
 
 class Converters {
-    private val gson = Gson()
+    private val gson = GsonProvider.instance
 
     @TypeConverter
     fun fromIntList(value: List<Int>): String {

@@ -70,17 +70,6 @@ data class PendingDeleteEntity(
     val entityType: EntityType
 )
 
-/**
- * Legacy: State for pending label deletion with document count info.
- * @deprecated Use PendingDeleteEntity instead for multi-entity support.
- */
-@Deprecated("Use PendingDeleteEntity instead", ReplaceWith("PendingDeleteEntity"))
-data class PendingDeleteLabel(
-    val id: Int,
-    val name: String,
-    val documentCount: Int
-)
-
 data class LabelsUiState(
     val currentEntityType: EntityType = EntityType.TAG,  // NEW: Active tab
     val entities: List<EntityItem> = emptyList(),  // RENAMED from labels
@@ -97,18 +86,6 @@ data class LabelsUiState(
     val filterOption: LabelFilterOption = LabelFilterOption.ALL,
     val customFieldsAvailable: Boolean = false  // NEW: Feature flag for custom fields API
 )
-
-// Legacy type alias for backward compatibility during migration
-@Deprecated("Use entities instead", ReplaceWith("entities"))
-val LabelsUiState.labels: List<LabelItem>
-    get() = entities.filter { it.entityType == EntityType.TAG }.map {
-        LabelItem(
-            id = it.id,
-            name = it.name,
-            color = it.color ?: Color.Unspecified,
-            documentCount = it.documentCount
-        )
-    }
 
 @HiltViewModel
 class LabelsViewModel @Inject constructor(
@@ -127,19 +104,6 @@ class LabelsViewModel @Inject constructor(
     private var allCorrespondents: List<EntityItem> = emptyList()
     private var allDocumentTypes: List<EntityItem> = emptyList()
     private var allCustomFields: List<EntityItem> = emptyList()
-
-    // Legacy collection for backward compatibility during migration
-    @Deprecated("Use allTags instead", ReplaceWith("allTags"))
-    private var allLabels: List<LabelItem>
-        get() = allTags.map {
-            LabelItem(
-                id = it.id,
-                name = it.name,
-                color = it.color ?: Color.Unspecified,
-                documentCount = it.documentCount
-            )
-        }
-        set(_) {} // No-op setter for compatibility
 
     init {
         // BEST PRACTICE: Start Flow observer FIRST, then trigger API refresh
@@ -405,43 +369,6 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * LEGACY: Apply search, filter, and sort to LabelItem collections.
-     * @deprecated Use applySearchFilterSortEntities for new code.
-     */
-    @Deprecated("Use applySearchFilterSortEntities instead", ReplaceWith("applySearchFilterSortEntities(entities, state)"))
-    private fun applySearchFilterSort(
-        labels: List<LabelItem>,
-        state: LabelsUiState
-    ): List<LabelItem> {
-        // 1. Apply search
-        var result = if (state.searchQuery.isBlank()) {
-            labels
-        } else {
-            labels.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
-        }
-
-        // 2. Apply filter
-        result = when (state.filterOption) {
-            LabelFilterOption.ALL -> result
-            LabelFilterOption.WITH_DOCUMENTS -> result.filter { it.documentCount > 0 }
-            LabelFilterOption.EMPTY -> result.filter { it.documentCount == 0 }
-            LabelFilterOption.MANY_DOCUMENTS -> result.filter { it.documentCount > 5 }
-        }
-
-        // 3. Apply sort
-        result = when (state.sortOption) {
-            LabelSortOption.NAME_ASC -> result.sortedBy { it.name.lowercase() }
-            LabelSortOption.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
-            LabelSortOption.COUNT_DESC -> result.sortedByDescending { it.documentCount }
-            LabelSortOption.COUNT_ASC -> result.sortedBy { it.documentCount }
-            LabelSortOption.NEWEST -> result.sortedByDescending { it.id } // ID as proxy for creation time
-            LabelSortOption.OLDEST -> result.sortedBy { it.id }
-        }
-
-        return result
-    }
-
-    /**
      * BEST PRACTICE (Google Architecture Sample):
      * refresh() triggers API fetch for ALL entity types and updates Room caches.
      * It does NOT update _uiState.entities directly - that's done by reactive observers.
@@ -557,15 +484,6 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * LEGACY: Tag-specific create method for backward compatibility.
-     * @deprecated Use createEntity instead for multi-entity support.
-     */
-    @Deprecated("Use createEntity instead", ReplaceWith("createEntity(name, color)"))
-    fun createLabel(name: String, color: Color) {
-        createEntity(name, color)
-    }
-
-    /**
      * NEW: Unified update method for all entity types.
      * Updates entity based on currentEntityType.
      *
@@ -603,15 +521,6 @@ class LabelsViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    /**
-     * LEGACY: Tag-specific update method for backward compatibility.
-     * @deprecated Use updateEntity instead for multi-entity support.
-     */
-    @Deprecated("Use updateEntity instead", ReplaceWith("updateEntity(id, name, color)"))
-    fun updateLabel(id: Int, name: String, color: Color) {
-        updateEntity(id, name, color)
     }
 
     /**
@@ -679,42 +588,10 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * LEGACY: Tag-specific prepare delete method.
-     * @deprecated Use prepareDeleteEntity instead for multi-entity support.
-     */
-    @Deprecated("Use prepareDeleteEntity instead", ReplaceWith("prepareDeleteEntity(labelId)"))
-    fun prepareDeleteLabel(labelId: Int) {
-        prepareDeleteEntity(labelId)
-    }
-
-    /**
-     * LEGACY: Tag-specific confirm delete method.
-     * @deprecated Use confirmDeleteEntity instead for multi-entity support.
-     */
-    @Deprecated("Use confirmDeleteEntity instead", ReplaceWith("confirmDeleteEntity()"))
-    fun confirmDeleteLabel() {
-        confirmDeleteEntity()
-    }
-
-    /**
      * Clears the pending delete state (cancel deletion).
      */
     fun clearPendingDelete() {
         _uiState.update { it.copy(pendingDeleteEntity = null) }
-    }
-
-    @Deprecated("Use prepareDeleteLabel + confirmDeleteLabel instead")
-    fun deleteLabel(id: Int) {
-        viewModelScope.launch {
-            tagRepository.deleteTag(id).onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // observeTagsReactively() automatically updates UI.
-            }.onFailure { error ->
-                _uiState.update {
-                    it.copy(error = error.message ?: context.getString(R.string.error_deleting))
-                }
-            }
-        }
     }
 
     /**
@@ -763,16 +640,6 @@ class LabelsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * LEGACY: Tag-specific load documents method.
-     * @deprecated Use loadDocumentsForEntity instead for multi-entity support.
-     */
-    @Deprecated("Use loadDocumentsForEntity instead", ReplaceWith("loadDocumentsForEntity(labelId)"))
-    fun loadDocumentsForLabel(labelId: Int) {
-        loadDocumentsForEntity(labelId)
-    }
-
-
     private fun parseColor(colorString: String?): Color {
         if (colorString == null) return labelColorOptions.first()
 
@@ -807,16 +674,6 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * LEGACY: Tag-specific select method.
-     * @deprecated Use selectEntity instead for multi-entity support.
-     */
-    @Deprecated("Use selectEntity instead", ReplaceWith("selectEntity(EntityItem(label.id, label.name, label.color, label.documentCount, EntityType.TAG))"))
-    fun selectLabel(label: LabelItem) {
-        val entity = EntityItem(label.id, label.name, label.color, label.documentCount, EntityType.TAG)
-        selectEntity(entity)
-    }
-
-    /**
      * Clears the selected entity and its documents list.
      */
     fun clearSelectedEntity() {
@@ -824,28 +681,10 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * LEGACY: Clear selected label method.
-     * @deprecated Use clearSelectedEntity instead.
-     */
-    @Deprecated("Use clearSelectedEntity instead", ReplaceWith("clearSelectedEntity()"))
-    fun clearSelectedLabel() {
-        clearSelectedEntity()
-    }
-
-    /**
      * Clears only the documents list, keeping the entity selected.
      */
     fun clearDocumentsForEntity() {
         _uiState.update { it.copy(documentsForEntity = emptyList()) }
-    }
-
-    /**
-     * LEGACY: Clear documents for label method.
-     * @deprecated Use clearDocumentsForEntity instead.
-     */
-    @Deprecated("Use clearDocumentsForEntity instead", ReplaceWith("clearDocumentsForEntity()"))
-    fun clearDocumentsForLabel() {
-        clearDocumentsForEntity()
     }
 
     fun clearSearch() {
@@ -859,7 +698,10 @@ class LabelsViewModel @Inject constructor(
 
     fun resetState() {
         _uiState.update { LabelsUiState() }
-        allLabels = emptyList()
+        allTags = emptyList()
+        allCorrespondents = emptyList()
+        allDocumentTypes = emptyList()
+        allCustomFields = emptyList()
         refresh()
     }
 }

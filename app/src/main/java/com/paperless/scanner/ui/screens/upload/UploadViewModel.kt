@@ -238,11 +238,6 @@ class UploadViewModel @Inject constructor(
         }
     }
 
-    // REMOVED: loadTags(), loadDocumentTypes(), loadCorrespondents()
-    // These methods are no longer needed because reactive Flows automatically
-    // populate dropdown state via observeTagsReactively(), observeDocumentTypesReactively(),
-    // and observeCorrespondentsReactively() in init{}
-
     /**
      * Checks storage space before upload and returns error if insufficient.
      *
@@ -781,10 +776,6 @@ class UploadViewModel @Inject constructor(
         // User must manually trigger analysis again by clicking "Analyze" button
         // This provides explicit control and avoids unexpected data usage
     }
-
-    // REMOVED: autoTriggerOcrIfNeeded()
-    // This function is no longer compatible with the queue-based upload system.
-    // OCR auto-trigger should be implemented in UploadWorker in the future.
 
     /**
      * Enable or disable AI new tags feature.
