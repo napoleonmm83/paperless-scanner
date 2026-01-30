@@ -230,15 +230,6 @@ fun PaperlessNavGraph(
             )
         }
 
-        // Pending Sync Screen (deprecated - redirects to SyncCenter for backward compatibility)
-        composable(route = Screen.PendingSync.route) {
-            com.paperless.scanner.ui.screens.synccenter.SyncCenterScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
         // Smart Tagging Screen (Tinder-style swipe to tag)
         composable(
             route = Screen.SmartTagging.route,

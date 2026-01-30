@@ -8,6 +8,7 @@ import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -27,6 +28,7 @@ class TagRepositoryTest {
     private lateinit var cachedDocumentDao: CachedDocumentDao
     private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var gson: Gson
     private lateinit var tagRepository: TagRepository
 
     @Before
@@ -36,12 +38,14 @@ class TagRepositoryTest {
         cachedDocumentDao = mockk(relaxed = true)
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        gson = mockk(relaxed = true)
         tagRepository = TagRepository(
             api,
             cachedTagDao,
             cachedDocumentDao,
             pendingChangeDao,
-            networkMonitor
+            networkMonitor,
+            gson
         )
     }
 

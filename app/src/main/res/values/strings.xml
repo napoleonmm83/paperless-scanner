@@ -2,32 +2,10 @@
 <resources>
     <string name="app_name">Paperless Scanner</string>
 
-    
-    <string name="login_title">Paperless Scanner</string>
-    <string name="login_server_url">Server URL</string>
-    <string name="login_server_url_hint">https://paperless.example.com</string>
-    <string name="login_username">Username</string>
-    <string name="login_password">Password</string>
-    <string name="login_button">Login</string>
-    <string name="login_error">Login failed: %1$s</string>
-
-    
+    <!-- onboarding_back is used in TrashScreen -->
     <string name="onboarding_back">Zurück</string>
-    <string name="onboarding_login_title">Anmelden</string>
-    <string name="onboarding_login_subtitle">Melde dich mit deinem Paperless-ngx Konto an</string>
-    <string name="onboarding_filter_password">Passwort</string>
-    <string name="onboarding_filter_key">Schlüssel</string>
-    <string name="onboarding_username">Benutzername</string>
-    <string name="onboarding_username_placeholder">admin</string>
-    <string name="onboarding_password">Passwort</string>
-    <string name="onboarding_password_placeholder">••••••••</string>
-    <string name="onboarding_access_key">Zugangsschlüssel</string>
-    <string name="onboarding_access_key_placeholder">Hier einfügen...</string>
-    <string name="onboarding_token_help">Findest du in Paperless unter: Einstellungen → Mein Profil</string>
-    <string name="onboarding_scan_token">Token mit Kamera scannen</string>
-    <string name="onboarding_login_button">Anmelden</string>
 
-    
+
     <string name="scan_title">Dokument scannen</string>
     <string name="scan_button">Kamera öffnen</string>
     <string name="scan_from_gallery">Aus Galerie</string>
@@ -59,46 +37,11 @@
     <string name="upload_ai_tagging">AI Tagging</string>
     <string name="upload_tags_show_less">Weniger</string>
 
-    
-    <string name="batch_import_title">Batch Import</string>
-    <string name="batch_import_back">Zurück</string>
-    <string name="batch_import_success_single">Dokument zur Warteschlange hinzugefügt!</string>
-    <string name="batch_import_success_multiple">%1$d Dokumente zur Warteschlange hinzugefügt!</string>
-    <string name="batch_import_tag_created">Tag \"%1$s\" erstellt</string>
-    <string name="batch_import_images_selected">%1$d Bilder ausgewählt</string>
-    <string name="batch_import_mode_single">Als ein Dokument</string>
-    <string name="batch_import_mode_individual">Als einzelne Dokumente</string>
+    <!-- Batch import buttons still used in ScanScreen -->
     <string name="batch_import_button_individual">Einzeln</string>
     <string name="batch_import_button_single">Als ein Dokument</string>
-    <string name="batch_import_preview">Vorschau</string>
-    <string name="batch_import_title_label">Titel (für alle)</string>
-    <string name="batch_import_title_placeholder">z.B. Rechnungen Januar 2025</string>
-    <string name="batch_import_image_description">Bild %1$d</string>
-    <string name="batch_import_pdf_file">PDF-Datei</string>
-    <string name="batch_import_file">Datei</string>
-    <string name="batch_import_more_images">+%1$d</string>
-    <string name="batch_import_document_type">Dokumententyp (für alle)</string>
-    <string name="batch_import_correspondent">Korrespondent (für alle)</string>
-    <string name="batch_import_tags">Tags (für alle)</string>
-    <string name="batch_import_not_selected">Nicht ausgewählt</string>
-    <string name="batch_import_adding_progress">Hinzufügen: %1$d / %2$d</string>
-    <string name="batch_import_adding">Wird hinzugefügt...</string>
-    <string name="batch_import_button">Hochladen</string>
-    <string name="batch_import_tap_to_remove">Zum Entfernen tippen</string>
-    <string name="batch_import_remove">Entfernen</string>
-    <string name="batch_import_failed_title">Import fehlgeschlagen</string>
-    <string name="batch_import_retry">Erneut versuchen</string>
-    <string name="batch_import_hold_to_sort">Gedrückt halten zum Sortieren</string>
-    <string name="batch_import_add_more">Weitere hinzufügen</string>
-    <string name="batch_import_rotate">Drehen</string>
-    <string name="batch_import_drag_hint">Zum Sortieren ziehen</string>
 
-    
-    <string name="batch_metadata_title">Metadaten</string>
-    <string name="batch_metadata_mode_single_info">%1$d Dateien werden zu einem PDF zusammengefügt</string>
-    <string name="batch_metadata_mode_individual_info">%1$d Dateien werden einzeln hochgeladen</string>
 
-    
     <string name="multipage_upload_title">PDF hochladen</string>
     <string name="multipage_upload_back">Zurück</string>
     <string name="multipage_upload_success">PDF mit %1$d Seiten erfolgreich hochgeladen!</string>
@@ -159,7 +102,6 @@
     <string name="document_edit_no_document_type">Kein Dokumenttyp</string>
     <string name="document_edit_asn_label">ASN (Archivnummer)</string>
     <string name="document_edit_save">SPEICHERN</string>
-    <string name="document_edit_cancel">ABBRECHEN</string>
 
     
     <string name="labels_title">LABELS</string>
@@ -213,45 +155,10 @@
     <string name="labels_apply_button">Anwenden</string>
     <string name="labels_reset_button">Zurücksetzen</string>
 
-    
-    <string name="welcome_subtitle">Der mobile Begleiter für deine\nPaperless-ngx Installation</string>
-    <string name="welcome_feature_1">Intelligentes Scannen mit Kantenerkennung</string>
-    <string name="welcome_feature_2">Multi-Page Dokumente erstellen</string>
-    <string name="welcome_feature_3">Direkt in Paperless-ngx hochladen</string>
-    <string name="welcome_button">Los geht\'s</string>
-    <string name="welcome_footer">Du benötigst eine eigene Paperless-ngx Installation</string>
-
-    
-    <string name="server_setup_back">Zurück</string>
-    <string name="server_setup_title">Server verbinden</string>
-    <string name="server_setup_subtitle">Gib die URL deiner Paperless-ngx Installation ein</string>
-    <string name="server_setup_url_label">Server-URL</string>
-    <string name="server_setup_url_placeholder">https://paperless.example.com</string>
-    <string name="server_setup_status_idle">HTTP/HTTPS wird automatisch erkannt</string>
-    <string name="server_setup_status_checking">Server wird geprüft...</string>
-    <string name="server_setup_status_https">Sichere Verbindung (HTTPS)</string>
-    <string name="server_setup_status_http">Verbindung hergestellt (HTTP)</string>
-    <string name="server_setup_hint_title">Sichere Verbindung empfohlen</string>
-    <string name="server_setup_hint_text">Verwende HTTPS für eine verschlüsselte Verbindung zu deinem Server.</string>
-    <string name="server_setup_button">Weiter</string>
-
-    
-    <string name="success_title">Alles bereit!</string>
-    <string name="success_subtitle">Du bist verbunden und kannst jetzt\nDokumente scannen und hochladen.</string>
-    <string name="success_stat_scanned">Heute gescannt</string>
-    <string name="success_stat_connected">Verbunden</string>
-    <string name="success_tips_header">SCHNELLSTART-TIPPS</string>
-    <string name="success_tip_1">Halte das Dokument flach und gut beleuchtet</string>
-    <string name="success_tip_2">Die App erkennt die Kanten automatisch</string>
-    <string name="success_tip_3">Tags kannst du vor dem Upload auswählen</string>
-    <string name="success_button">App starten</string>
-
-    
     <string name="documents_title">DOKUMENTE</string>
     <string name="documents_count">%1$d Dokumente</string>
     <string name="documents_search_placeholder">Dokumente durchsuchen...</string>
     <string name="documents_search_clear">Clear</string>
-    <string name="documents_filter_all">Alle</string>
     <string name="documents_empty_no_results">Keine Ergebnisse</string>
     <string name="documents_empty_no_documents">Keine Dokumente</string>
     <string name="documents_empty_hint_search">Versuche einen anderen Suchbegriff</string>
@@ -346,29 +253,6 @@
     <string name="home_task_duplicate">Duplikat erkannt</string>
     <string name="home_task_duplicate_message">Dieses Dokument wurde bereits hochgeladen</string>
     <string name="home_dismiss">Ausblenden</string>
-
-    
-    <string name="pending_sync_back">Zurück</string>
-    <string name="pending_sync_title">AUSSTEHENDE SYNCS</string>
-    <string name="pending_sync_upload_queue">Upload Queue</string>
-    <string name="pending_sync_no_uploads">Keine ausstehenden Uploads</string>
-    <string name="pending_sync_pending_changes">Pending Changes</string>
-    <string name="pending_sync_no_changes">Keine ausstehenden Änderungen</string>
-    <string name="pending_sync_unnamed_document">Unbenanntes Dokument</string>
-    <string name="pending_sync_type">Typ</string>
-    <string name="pending_sync_multi_page">Multi-Page</string>
-    <string name="pending_sync_single">Single</string>
-    <string name="pending_sync_retry_count">Retry Count</string>
-    <string name="pending_sync_created">Erstellt</string>
-    <string name="pending_sync_retry">Retry</string>
-    <string name="pending_sync_delete">Delete</string>
-    <string name="pending_sync_id_new">ID: NEW</string>
-    <string name="pending_sync_sync_attempts">Sync Attempts</string>
-    <string name="pending_sync_status_pending">Pending</string>
-    <string name="pending_sync_status_uploading">Uploading</string>
-    <string name="pending_sync_status_completed">Completed</string>
-    <string name="pending_sync_status_failed">Failed</string>
-
 
     <string name="sync_center_title">SYNC CENTER</string>
     <string name="sync_center_back">Zurück</string>
@@ -496,9 +380,7 @@
     <string name="error_delete_document_type">Dokumenttyp konnte nicht gelöscht werden</string>
     <string name="error_delete_custom_field">Feld konnte nicht gelöscht werden</string>
     <string name="error_analyze_document">Dokument konnte nicht analysiert werden</string>
-    <string name="pdf_viewer_default_title">Dokument</string>
 
-    
     <string name="loading">Laden...</string>
     <string name="retry">Erneut versuchen</string>
     <string name="cancel">Abbrechen</string>
@@ -564,14 +446,7 @@
 
     
     <string name="error_loading">Fehler beim Laden</string>
-    <string name="error_creating">Fehler beim Erstellen</string>
-    <string name="error_updating">Fehler beim Aktualisieren</string>
-    <string name="error_deleting">Fehler beim Löschen</string>
-    <string name="error_downloading">Fehler beim Herunterladen</string>
-    <string name="error_no_app_found">Keine App zum Öffnen gefunden</string>
     <string name="error_note_empty">Notiz darf nicht leer sein</string>
-    <string name="error_add_note">Fehler beim Hinzufügen der Notiz</string>
-    <string name="error_delete_note">Fehler beim Löschen der Notiz</string>
     <string name="error_login_fields">Bitte alle Felder ausfüllen</string>
     <string name="error_login_failed">Login fehlgeschlagen</string>
     <string name="error_token_invalid">Token ungültig</string>
@@ -623,17 +498,12 @@
     <string name="token_scanner_hold_camera">Halte die Kamera ruhig - Automatische Erkennung läuft</string>
     <string name="token_scanner_close">Schließen</string>
 
-    
-    <string name="share_via">Teilen via</string>
-
-    
     <string name="analytics_consent_title">ANALYTICS</string>
     <string name="analytics_consent_subtitle">Hilf uns, die App zu verbessern</string>
     <string name="analytics_consent_description">Wir sammeln anonymisierte Nutzungsdaten, um die App zu verbessern. Es werden keine persönlichen Daten erfasst.</string>
     <string name="analytics_consent_bullet_1">Anonymisierte Nutzungsstatistiken</string>
     <string name="analytics_consent_bullet_2">Crash-Reports zur Fehlerbehebung</string>
     <string name="analytics_consent_bullet_3">Performance-Metriken</string>
-    <string name="analytics_consent_privacy">Datenschutzrichtlinie</string>
     <string name="analytics_consent_accept">Akzeptieren</string>
     <string name="analytics_consent_decline">Ablehnen</string>
     <string name="analytics_settings_title">Analytics &amp; Crash-Reports</string>
@@ -1033,7 +903,6 @@
     <string name="trash_document_deleted_permanently">%1$s endgültig gelöscht</string>
     <string name="trash_deleting_in_seconds">Löschen in %1$d Sekunden</string>
     <string name="trash_tap_to_undo">Tippe zum Rückgängig machen</string>
-    <string name="undo">Rückgängig</string>
     <string name="error_restore_document">Fehler beim Wiederherstellen des Dokuments</string>
     <string name="error_restore_all_documents">Fehler beim Wiederherstellen aller Dokumente</string>
     <string name="error_delete_document">Fehler beim Löschen des Dokuments</string>

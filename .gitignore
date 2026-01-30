@@ -119,7 +119,20 @@ scripts/fix-percent-escape.py
 
 # Local CI test results
 lint-results.txt
+lint-*.txt
 test-results.txt
+test-*.txt
+test-output.log
+test-results.log
+test-*.log
+
+# Crash logs
+crash*.log
+
+# Temporary files
+tmpclaude-*
+*.tmp
+*.temp
 
 # Firebase
 .firebase/
@@ -130,3 +143,8 @@ ui-debug.log
 functions/lib/
 functions/node_modules/
 functions/.runtimeconfig.json
+
+# Dropbox conflict files (global)
+*Konflikt*
+*conflict copy*
+*conflicted copy*

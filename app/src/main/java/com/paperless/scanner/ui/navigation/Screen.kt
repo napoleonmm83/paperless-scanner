@@ -49,9 +49,6 @@ sealed class Screen(val route: String) {
         }
     }
 
-    // Pending Sync Debug (deprecated - use SyncCenter)
-    data object PendingSync : Screen("pending-sync")
-
     // Sync Center (new unified sync screen)
     data object SyncCenter : Screen("sync-center")
 

@@ -10,6 +10,7 @@ import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -47,6 +48,7 @@ class DocumentRepositoryTest {
     private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
+    private lateinit var gson: Gson
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -61,6 +63,7 @@ class DocumentRepositoryTest {
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
+        gson = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
         every { context.contentResolver } returns contentResolver
@@ -74,7 +77,8 @@ class DocumentRepositoryTest {
             cachedTaskDao,
             pendingChangeDao,
             networkMonitor,
-            serverHealthMonitor
+            serverHealthMonitor,
+            gson
         )
     }
 
