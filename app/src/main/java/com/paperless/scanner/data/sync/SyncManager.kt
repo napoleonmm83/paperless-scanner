@@ -34,9 +34,9 @@ class SyncManager @Inject constructor(
     private val cachedCorrespondentDao: CachedCorrespondentDao,
     private val cachedDocumentTypeDao: CachedDocumentTypeDao,
     private val pendingChangeDao: PendingChangeDao,
-    private val syncMetadataDao: SyncMetadataDao
+    private val syncMetadataDao: SyncMetadataDao,
+    private val gson: Gson
 ) {
-    private val gson = Gson()
     private val TAG = "SyncManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
