@@ -41,10 +41,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1113,6 +1119,21 @@ private fun getTaskStyle(
     }
 }
 
+/**
+ * Processing task card with swipe-to-dismiss functionality.
+ *
+ * SWIPE BEHAVIOR:
+ * - Swipe left to dismiss (acknowledge) completed tasks
+ * - Only enabled for SUCCESS and FAILURE status
+ * - PENDING tasks cannot be swiped (still processing)
+ * - X button remains as alternative dismiss method
+ *
+ * VISUAL FEEDBACK:
+ * - Progressive background reveal during swipe
+ * - Haptic feedback when threshold is reached
+ * - 40% threshold prevents accidental dismisses
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProcessingTaskCard(
     task: ProcessingTask,
@@ -1125,6 +1146,114 @@ private fun ProcessingTaskCard(
 
     val style = getTaskStyle(task, isDuplicate)
 
+    // Only enable swipe for completed tasks (SUCCESS or FAILURE)
+    val canSwipe = task.status == TaskStatus.SUCCESS || task.status == TaskStatus.FAILURE
+
+    if (canSwipe) {
+        // Track if dismiss was already triggered for this swipe
+        var dismissTriggered by remember { mutableStateOf(false) }
+        val hapticFeedback = LocalHapticFeedback.current
+
+        val dismissState = rememberSwipeToDismissBoxState(
+            confirmValueChange = { dismissValue ->
+                if (dismissValue == SwipeToDismissBoxValue.EndToStart && !dismissTriggered) {
+                    dismissTriggered = true
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDismiss()
+                    true
+                } else {
+                    false
+                }
+            },
+            positionalThreshold = { totalDistance -> totalDistance * 0.4f }
+        )
+
+        // Reset flag when task changes
+        LaunchedEffect(task.id) {
+            dismissTriggered = false
+        }
+
+        SwipeToDismissBox(
+            state = dismissState,
+            modifier = Modifier.fillMaxWidth(),
+            backgroundContent = {
+                // Progressive visual feedback
+                val swipeProgress = dismissState.progress
+                val normalizedProgress = ((swipeProgress - 0.05f) / 0.35f).coerceIn(0f, 1f)
+                val backgroundAlpha = normalizedProgress * 0.9f + 0.1f * (if (swipeProgress > 0.05f) 1f else 0f)
+
+                val backgroundColor = if (swipeProgress > 0.05f) {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = backgroundAlpha.coerceIn(0f, 1f))
+                } else {
+                    Color.Transparent
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(backgroundColor, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    if (swipeProgress > 0.05f) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.alpha(normalizedProgress)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.home_dismiss),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            enableDismissFromStartToEnd = false,
+            enableDismissFromEndToStart = true
+        ) {
+            ProcessingTaskCardContent(
+                task = task,
+                style = style,
+                isDuplicate = isDuplicate,
+                onClick = onClick,
+                onDismiss = onDismiss,
+                showDismissButton = true
+            )
+        }
+    } else {
+        // PENDING tasks: No swipe, just show the card
+        ProcessingTaskCardContent(
+            task = task,
+            style = style,
+            isDuplicate = isDuplicate,
+            onClick = onClick,
+            onDismiss = onDismiss,
+            showDismissButton = false
+        )
+    }
+}
+
+/**
+ * Inner content of ProcessingTaskCard, extracted to avoid duplication.
+ */
+@Composable
+private fun ProcessingTaskCardContent(
+    task: ProcessingTask,
+    style: TaskStyle,
+    isDuplicate: Boolean,
+    onClick: () -> Unit,
+    onDismiss: () -> Unit,
+    showDismissButton: Boolean
+) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -1202,8 +1331,8 @@ private fun ProcessingTaskCard(
                     }
                 }
 
-                // Dismiss button for completed tasks
-                if (task.status == TaskStatus.SUCCESS || task.status == TaskStatus.FAILURE) {
+                // Dismiss button for completed tasks (alternative to swipe)
+                if (showDismissButton) {
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier.size(28.dp)

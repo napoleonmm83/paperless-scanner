@@ -870,8 +870,8 @@ class HomeViewModel @Inject constructor(
                 try {
                     val connection = URL(thumbnailUrl).openConnection()
                     connection.setRequestProperty("Authorization", "Token $authToken")
-                    connection.connectTimeout = 10000
-                    connection.readTimeout = 10000
+                    connection.connectTimeout = com.paperless.scanner.util.NetworkConfig.THUMBNAIL_TIMEOUT_MS
+                    connection.readTimeout = com.paperless.scanner.util.NetworkConfig.THUMBNAIL_TIMEOUT_MS
                     connection.getInputStream().use { inputStream ->
                         BitmapFactory.decodeStream(inputStream)
                     }

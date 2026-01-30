@@ -372,3 +372,13 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         """)
     }
 }
+
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add customFields column to pending_uploads table for Custom Fields support
+        // Stored as JSON: {"1": "value1", "2": "123"} where key = field_id, value = field value
+        database.execSQL("""
+            ALTER TABLE pending_uploads ADD COLUMN customFields TEXT NOT NULL DEFAULT '{}'
+        """)
+    }
+}

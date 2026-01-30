@@ -39,7 +39,6 @@ class AiAnalysisService @Inject constructor(
         private const val MODEL_NAME = "gemini-2.5-flash-lite"
         private const val TEMPERATURE = 0.3f
         private const val MAX_OUTPUT_TOKENS = 1024
-        private const val TIMEOUT_MS = 30_000L
         private const val NEW_TAG_CONFIDENCE_FACTOR = 0.8f
         private val DATE_PATTERN = Regex("""\d{4}-\d{2}-\d{2}""")
     }
@@ -74,7 +73,7 @@ class AiAnalysisService @Inject constructor(
         allowNewTags: Boolean = true
     ): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
-            withTimeout(TIMEOUT_MS) {
+            withTimeout(com.paperless.scanner.util.NetworkConfig.AI_ANALYSIS_TIMEOUT_MS) {
                 android.util.Log.d(TAG, "Starting AI analysis with ${availableTags.size} available tags, allowNewTags=$allowNewTags")
                 val prompt = buildPrompt(availableTags, availableCorrespondents, availableDocumentTypes)
                 android.util.Log.d(TAG, "Prompt built, sending to Gemini...")

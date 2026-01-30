@@ -160,6 +160,7 @@ class UploadWorker @AssistedInject constructor(
                         tagIds = pendingUpload.tagIds,
                         documentTypeId = pendingUpload.documentTypeId,
                         correspondentId = pendingUpload.correspondentId,
+                        customFields = pendingUpload.customFields,
                         onProgress = { progress ->
                             setProgressAsync(workDataOf(PROGRESS_KEY to progress))
                             updateNotificationProgress(
@@ -177,6 +178,7 @@ class UploadWorker @AssistedInject constructor(
                         tagIds = pendingUpload.tagIds,
                         documentTypeId = pendingUpload.documentTypeId,
                         correspondentId = pendingUpload.correspondentId,
+                        customFields = pendingUpload.customFields,
                         onProgress = { progress ->
                             setProgressAsync(workDataOf(PROGRESS_KEY to progress))
                             updateNotificationProgress(

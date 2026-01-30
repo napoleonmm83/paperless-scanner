@@ -16,11 +16,13 @@ import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
+import com.paperless.scanner.data.repository.CustomFieldRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
@@ -50,6 +52,7 @@ class UploadViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
     private val correspondentRepository: CorrespondentRepository,
+    private val customFieldRepository: CustomFieldRepository,
     private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
     private val uploadWorkManager: com.paperless.scanner.worker.UploadWorkManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
@@ -118,6 +121,12 @@ class UploadViewModel @Inject constructor(
     private val _correspondents = MutableStateFlow<List<Correspondent>>(emptyList())
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
 
+    private val _customFields = MutableStateFlow<List<CustomField>>(emptyList())
+    val customFields: StateFlow<List<CustomField>> = _customFields.asStateFlow()
+
+    private val _customFieldValues = MutableStateFlow<Map<Int, String>>(emptyMap())
+    val customFieldValues: StateFlow<Map<Int, String>> = _customFieldValues.asStateFlow()
+
     private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
     val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
 
@@ -176,6 +185,7 @@ class UploadViewModel @Inject constructor(
         observeTagsReactively()
         observeDocumentTypesReactively()
         observeCorrespondentsReactively()
+        observeCustomFieldsReactively()
         observeUsageLimits()
     }
 
@@ -214,6 +224,45 @@ class UploadViewModel @Inject constructor(
                 _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
             }
         }
+    }
+
+    /**
+     * BEST PRACTICE: Reactive Flow for custom fields.
+     * Automatically updates UI when custom fields are added/modified/deleted.
+     * Uses feature detection - silently returns empty list if server doesn't support custom fields.
+     */
+    private fun observeCustomFieldsReactively() {
+        viewModelScope.launch {
+            customFieldRepository.observeCustomFields().collect { fields ->
+                _customFields.update { fields.sortedBy { it.name.lowercase() } }
+            }
+        }
+        // Initial load
+        viewModelScope.launch(ioDispatcher) {
+            customFieldRepository.getCustomFields()
+        }
+    }
+
+    /**
+     * Set a custom field value.
+     * @param fieldId The ID of the custom field
+     * @param value The value as String (null to clear)
+     */
+    fun setCustomFieldValue(fieldId: Int, value: String?) {
+        _customFieldValues.update { current ->
+            if (value.isNullOrBlank()) {
+                current - fieldId
+            } else {
+                current + (fieldId to value)
+            }
+        }
+    }
+
+    /**
+     * Clear all custom field values (e.g., when starting a new upload).
+     */
+    fun clearCustomFieldValues() {
+        _customFieldValues.update { emptyMap() }
     }
 
     /**
@@ -279,7 +328,8 @@ class UploadViewModel @Inject constructor(
         title: String? = null,
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
-        correspondentId: Int? = null
+        correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap()
     ) {
         viewModelScope.launch(ioDispatcher) {
             analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = 1, isMultiPage = false))
@@ -326,7 +376,8 @@ class UploadViewModel @Inject constructor(
                     title = title,
                     tagIds = tagIds,
                     documentTypeId = documentTypeId,
-                    correspondentId = correspondentId
+                    correspondentId = correspondentId,
+                    customFields = customFields
                 )
 
                 // Trigger immediate upload processing
@@ -352,7 +403,8 @@ class UploadViewModel @Inject constructor(
         title: String? = null,
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
-        correspondentId: Int? = null
+        correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap()
     ) {
         viewModelScope.launch(ioDispatcher) {
             val pageCount = uris.size
@@ -421,7 +473,8 @@ class UploadViewModel @Inject constructor(
                         title = title,
                         tagIds = tagIds,
                         documentTypeId = documentTypeId,
-                        correspondentId = correspondentId
+                        correspondentId = correspondentId,
+                        customFields = customFields
                     )
                 } else {
                     // Individual: Queue each page as a separate document
@@ -438,7 +491,8 @@ class UploadViewModel @Inject constructor(
                             title = individualTitle,
                             tagIds = tagIds,
                             documentTypeId = documentTypeId,
-                            correspondentId = correspondentId
+                            correspondentId = correspondentId,
+                            customFields = customFields
                         )
                     }
                 }

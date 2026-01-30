@@ -73,6 +73,7 @@ class DocumentRepository @Inject constructor(
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
         correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
         return try {
@@ -102,12 +103,21 @@ class DocumentRepository @Inject constructor(
             val correspondentBody = correspondentId?.toString()
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
 
+            // Custom fields as JSON array: [{"field": 1, "value": "text"}, ...]
+            val customFieldsBody = if (customFields.isNotEmpty()) {
+                val customFieldsList = customFields.map { (fieldId, value) ->
+                    mapOf("field" to fieldId, "value" to value)
+                }
+                gson.toJson(customFieldsList).toRequestBody("application/json".toMediaTypeOrNull())
+            } else null
+
             val response = api.uploadDocument(
                 document = documentPart,
                 title = titleBody,
                 tags = tagsParts,
                 documentType = documentTypeBody,
-                correspondent = correspondentBody
+                correspondent = correspondentBody,
+                customFields = customFieldsBody
             )
 
             file.delete()
@@ -137,6 +147,7 @@ class DocumentRepository @Inject constructor(
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
         correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
         return try {
@@ -169,13 +180,22 @@ class DocumentRepository @Inject constructor(
             val correspondentBody = correspondentId?.toString()
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
 
+            // Custom fields as JSON array: [{"field": 1, "value": "text"}, ...]
+            val customFieldsBody = if (customFields.isNotEmpty()) {
+                val customFieldsList = customFields.map { (fieldId, value) ->
+                    mapOf("field" to fieldId, "value" to value)
+                }
+                gson.toJson(customFieldsList).toRequestBody("application/json".toMediaTypeOrNull())
+            } else null
+
             android.util.Log.d("DocumentRepository", "Starting upload...")
             val response = api.uploadDocument(
                 document = documentPart,
                 title = titleBody,
                 tags = tagsParts,
                 documentType = documentTypeBody,
-                correspondent = correspondentBody
+                correspondent = correspondentBody,
+                customFields = customFieldsBody
             )
             android.util.Log.d("DocumentRepository", "Upload complete, reading response...")
 

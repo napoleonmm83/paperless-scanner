@@ -284,8 +284,8 @@ class ServerHealthMonitor @Inject constructor(
 
         return try {
             // Use lightweight endpoint: getTags with page size 1
-            // 5-second timeout to avoid hanging
-            withTimeout(5000) {
+            // Short timeout to avoid hanging
+            withTimeout(com.paperless.scanner.util.NetworkConfig.HEALTH_CHECK_TIMEOUT_MS) {
                 api.getTags(page = 1, pageSize = 1)
             }
 

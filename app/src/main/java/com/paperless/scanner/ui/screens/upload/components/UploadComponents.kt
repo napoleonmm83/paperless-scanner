@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.upload.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -41,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,8 +54,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
+import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
@@ -320,6 +325,199 @@ fun TagSelectionSection(
                     }
                 )
             }
+        }
+    }
+}
+
+/**
+ * Section for Custom Fields input in Upload Screen.
+ * Supports various field types: string, integer, monetary, date, url, boolean.
+ * Collapsible section to reduce visual clutter when not needed.
+ */
+@Composable
+fun CustomFieldsSection(
+    customFields: List<CustomField>,
+    customFieldValues: Map<Int, String>,
+    onFieldValueChange: (fieldId: Int, value: String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    // Don't show section if no custom fields available
+    if (customFields.isEmpty()) {
+        return
+    }
+
+    var isExpanded by remember { mutableStateOf(false) }
+    val filledFieldsCount = customFieldValues.count { it.value.isNotBlank() }
+
+    Column(modifier = modifier) {
+        // Header with expand/collapse
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_fields_section),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                // Show count of filled fields if any
+                if (filledFieldsCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = filledFieldsCount.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "${customFields.size}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // Expandable content
+        if (isExpanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                customFields.forEach { field ->
+                    CustomFieldInput(
+                        field = field,
+                        value = customFieldValues[field.id] ?: "",
+                        onValueChange = { value ->
+                            onFieldValueChange(field.id, value.ifBlank { null })
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Individual custom field input based on data type.
+ */
+@Composable
+private fun CustomFieldInput(
+    field: CustomField,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (field.dataType?.lowercase()) {
+        "boolean" -> {
+            // Boolean: Switch
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = field.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Switch(
+                    checked = value.lowercase() == "true",
+                    onCheckedChange = { checked ->
+                        onValueChange(if (checked) "true" else "false")
+                    }
+                )
+            }
+        }
+        "integer", "float" -> {
+            // Number: TextField with number keyboard
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(field.name) },
+                placeholder = { Text(stringResource(R.string.custom_field_number_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = modifier.fillMaxWidth()
+            )
+        }
+        "monetary" -> {
+            // Monetary: TextField with decimal keyboard
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(field.name) },
+                placeholder = { Text(stringResource(R.string.custom_field_number_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = modifier.fillMaxWidth()
+            )
+        }
+        "url" -> {
+            // URL: TextField with URL keyboard
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(field.name) },
+                placeholder = { Text(stringResource(R.string.custom_field_url_hint)) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                modifier = modifier.fillMaxWidth()
+            )
+        }
+        "date" -> {
+            // Date: Simple text input for now (YYYY-MM-DD format)
+            // TODO: Add DatePicker dialog in future enhancement
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(field.name) },
+                placeholder = { Text(stringResource(R.string.custom_field_date_hint)) },
+                singleLine = true,
+                supportingText = { Text("Format: YYYY-MM-DD") },
+                modifier = modifier.fillMaxWidth()
+            )
+        }
+        else -> {
+            // Default: String/Text input
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(field.name) },
+                placeholder = { Text(stringResource(R.string.custom_field_text_hint)) },
+                singleLine = true,
+                modifier = modifier.fillMaxWidth()
+            )
         }
     }
 }

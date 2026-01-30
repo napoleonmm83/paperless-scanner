@@ -30,6 +30,7 @@ import com.paperless.scanner.data.database.migrations.MIGRATION_7_8
 import com.paperless.scanner.data.database.migrations.MIGRATION_8_9
 import com.paperless.scanner.data.database.migrations.MIGRATION_9_10
 import com.paperless.scanner.data.database.migrations.MIGRATION_10_11
+import com.paperless.scanner.data.database.migrations.MIGRATION_11_12
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
@@ -85,6 +86,46 @@ annotation class ApplicationScope
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
+    // ============================================================
+    // Helper Functions
+    // ============================================================
+
+    /**
+     * Creates a configured HttpLoggingInterceptor.
+     * - DEBUG builds: Log headers only (not body to avoid memory issues)
+     * - RELEASE builds: No logging
+     */
+    private fun createLoggingInterceptor(): HttpLoggingInterceptor {
+        return HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.HEADERS
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+    }
+
+    /**
+     * Applies standard timeout configuration to an OkHttpClient.Builder.
+     * Uses centralized values from NetworkConfig.
+     *
+     * @param includeWriteTimeout Whether to include write timeout (used for upload clients)
+     */
+    private fun OkHttpClient.Builder.applyTimeouts(
+        includeWriteTimeout: Boolean = true
+    ): OkHttpClient.Builder {
+        connectTimeout(com.paperless.scanner.util.NetworkConfig.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        readTimeout(com.paperless.scanner.util.NetworkConfig.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        if (includeWriteTimeout) {
+            writeTimeout(com.paperless.scanner.util.NetworkConfig.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        }
+        return this
+    }
+
+    // ============================================================
+    // Core Providers
+    // ============================================================
+
     @Provides
     @Singleton
     @ApplicationScope
@@ -109,18 +150,16 @@ object AppModule {
     ): com.paperless.scanner.util.LoginRateLimiter =
         com.paperless.scanner.util.LoginRateLimiter(context)
 
+    /**
+     * OkHttpClient for authentication and server discovery.
+     * - Custom SSL/TrustManager for self-signed certificates
+     * - No write timeout (read-only operations)
+     * - No retry interceptor (discovery should fail fast)
+     */
     @Provides
     @Singleton
     @AuthClient
     fun provideAuthOkHttpClient(tokenManager: TokenManager): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.HEADERS
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-
         // Get default TrustManager
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         trustManagerFactory.init(null as java.security.KeyStore?)
@@ -135,11 +174,10 @@ object AppModule {
         sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
 
         return OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor(createLoggingInterceptor())
             .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
             .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .applyTimeouts(includeWriteTimeout = false)
             .build()
     }
 
@@ -156,6 +194,13 @@ object AppModule {
         @ApplicationScope applicationScope: CoroutineScope
     ): CloudflareDetectionInterceptor = CloudflareDetectionInterceptor(tokenManager, applicationScope)
 
+    /**
+     * Default OkHttpClient for Paperless-ngx API.
+     * - Dynamic base URL from TokenManager
+     * - Auto-injected auth token
+     * - Cloudflare detection
+     * - Retry with exponential backoff
+     */
     @Provides
     @Singleton
     fun provideOkHttpClient(
@@ -163,16 +208,8 @@ object AppModule {
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     ): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.HEADERS
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-
         return OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor(createLoggingInterceptor())
             .addInterceptor(dynamicBaseUrlInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - runs on OkHttp thread pool, not main thread
@@ -186,11 +223,9 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
-            .addInterceptor(cloudflareDetectionInterceptor)  // Detect Cloudflare usage via cf-ray header
-            .addInterceptor(RetryInterceptor(maxRetries = 3))
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(cloudflareDetectionInterceptor)
+            .addInterceptor(RetryInterceptor(maxRetries = com.paperless.scanner.util.NetworkConfig.MAX_RETRIES))
+            .applyTimeouts()
             .build()
     }
 
@@ -217,6 +252,12 @@ object AppModule {
         tokenManager: TokenManager
     ): PaperlessGptBaseUrlInterceptor = PaperlessGptBaseUrlInterceptor(tokenManager)
 
+    /**
+     * OkHttpClient for Paperless-GPT AI integration.
+     * - Dynamic base URL for Paperless-GPT service
+     * - Uses same auth token as Paperless-ngx
+     * - Retry with exponential backoff
+     */
     @Provides
     @Singleton
     @PaperlessGptClient
@@ -224,16 +265,8 @@ object AppModule {
         tokenManager: TokenManager,
         paperlessGptBaseUrlInterceptor: PaperlessGptBaseUrlInterceptor
     ): OkHttpClient {
-        val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.HEADERS
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
-        }
-
         return OkHttpClient.Builder()
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor(createLoggingInterceptor())
             .addInterceptor(paperlessGptBaseUrlInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - uses same token as Paperless-ngx
@@ -247,10 +280,8 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
-            .addInterceptor(RetryInterceptor(maxRetries = 3))
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
+            .addInterceptor(RetryInterceptor(maxRetries = com.paperless.scanner.util.NetworkConfig.MAX_RETRIES))
+            .applyTimeouts()
             .build()
     }
 
@@ -339,7 +370,8 @@ object AppModule {
             MIGRATION_7_8,
             MIGRATION_8_9,
             MIGRATION_9_10,  // Trash feature: Added deletedAt timestamp
-            MIGRATION_10_11  // SyncCenter feature: Added sync_history table
+            MIGRATION_10_11, // SyncCenter feature: Added sync_history table
+            MIGRATION_11_12  // Custom Fields: Added customFields to pending_uploads
         )
 
         // For debug builds, allow destructive migration if migration fails
@@ -349,6 +381,20 @@ object AppModule {
 
         return builder.build()
     }
+
+    // ============================================================
+    // DAO Providers
+    // ============================================================
+    // NOTE: These providers ARE necessary for Hilt dependency injection.
+    // Room DAOs are abstract classes/interfaces, and Hilt cannot automatically
+    // resolve them from AppDatabase. Each DAO must be explicitly provided.
+    //
+    // Alternative approaches considered:
+    // - @Binds abstract methods: Don't work for Room DAOs
+    // - Direct AppDatabase injection: Forces consumers to know about database internals
+    // - @InstallIn on AppDatabase: Room doesn't support Hilt annotations on @Database
+    //
+    // Current approach is the recommended pattern for Room + Hilt.
 
     @Provides
     @Singleton

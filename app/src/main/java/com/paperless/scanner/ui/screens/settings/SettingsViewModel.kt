@@ -92,7 +92,6 @@ class SettingsViewModel @Inject constructor(
             val appLockEnabled = tokenManager.isAppLockEnabledSync()
             val appLockBiometricEnabled = tokenManager.isAppLockBiometricEnabled()
             val appLockTimeout = tokenManager.getAppLockTimeout()
-
             _uiState.value = SettingsUiState(
                 serverUrl = serverUrl,
                 isConnected = !token.isNullOrBlank(),

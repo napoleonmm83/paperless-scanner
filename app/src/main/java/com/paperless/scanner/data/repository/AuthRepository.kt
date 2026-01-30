@@ -25,14 +25,13 @@ class AuthRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "AuthRepository"
-        private const val DETECTION_TIMEOUT_SECONDS = 10L
     }
 
     // Dedicated client with shorter timeout for protocol detection
     private val detectionClient: OkHttpClient by lazy {
         client.newBuilder()
-            .connectTimeout(DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(com.paperless.scanner.util.NetworkConfig.DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(com.paperless.scanner.util.NetworkConfig.DETECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 

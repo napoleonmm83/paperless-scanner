@@ -302,10 +302,10 @@
     <string name="settings_theme">Design</string>
 
     
-    <string name="settings_debug_mode_steps_remaining">Noch %1$d Schritte bis zum Entwicklermodus</string>
-    <string name="settings_debug_mode_enabled">AI-Entwicklermodus aktiviert</string>
-    <string name="settings_debug_mode_disabled">AI-Entwicklermodus deaktiviert</string>
-    <string name="settings_debug_mode_already_enabled">Entwicklermodus ist bereits aktiviert</string>
+    <string name="settings_debug_mode_steps_remaining">%1$d more taps to enable developer mode</string>
+    <string name="settings_debug_mode_enabled">AI developer mode enabled</string>
+    <string name="settings_debug_mode_disabled">AI developer mode disabled</string>
+    <string name="settings_debug_mode_already_enabled">Developer mode is already enabled</string>
 
     <!-- Diagnostics Screen -->
     <string name="diagnostics_title">SERVER DIAGNOSTICS</string>
@@ -392,13 +392,23 @@
     <string name="widget_description">Schnellzugriff zum Scannen von Dokumenten</string>
 
     
-    <string name="upload_quality_auto">Automatisch</string>
-    <string name="upload_quality_low">Niedrig (schneller Upload)</string>
-    <string name="upload_quality_medium">Mittel</string>
-    <string name="upload_quality_high">Hoch (beste Qualität)</string>
+    <string name="upload_quality_auto">Automatic</string>
+    <string name="upload_quality_low">Low (faster upload)</string>
+    <string name="upload_quality_medium">Medium</string>
+    <string name="upload_quality_high">High (best quality)</string>
 
-    
-    <string name="time_just_now">Gerade eben</string>
+    <!-- Custom Fields -->
+    <string name="custom_fields_section">Custom Fields</string>
+    <string name="custom_fields_empty">No custom fields available</string>
+    <string name="custom_fields_not_supported">Server does not support custom fields</string>
+    <string name="custom_field_text_hint">Enter text</string>
+    <string name="custom_field_number_hint">Enter number</string>
+    <string name="custom_field_date_hint">Select date</string>
+    <string name="custom_field_url_hint">Enter URL</string>
+    <string name="custom_field_select_hint">Select option</string>
+
+
+    <string name="time_just_now">Just now</string>
     <string name="time_minutes_ago">vor %1$d Min</string>
     <string name="time_hours_ago">vor %1$d Std</string>
     <string name="time_days_ago">vor %1$d Tagen</string>

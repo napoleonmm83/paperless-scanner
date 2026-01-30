@@ -61,6 +61,7 @@ import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.launch
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
+import com.paperless.scanner.ui.screens.upload.components.CustomFieldsSection
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -82,6 +83,8 @@ fun UploadScreen(
     val tags by viewModel.tags.collectAsState()
     val documentTypes by viewModel.documentTypes.collectAsState()
     val correspondents by viewModel.correspondents.collectAsState()
+    val customFields by viewModel.customFields.collectAsState()
+    val customFieldValues by viewModel.customFieldValues.collectAsState()
     val createTagState by viewModel.createTagState.collectAsState()
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
@@ -329,6 +332,19 @@ fun UploadScreen(
                 onUpgradeToPremium = { showPremiumUpgradeSheet = true }
             )
 
+            // Custom Fields Section (collapsible)
+            if (customFields.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                CustomFieldsSection(
+                    customFields = customFields,
+                    customFieldValues = customFieldValues,
+                    onFieldValueChange = { fieldId, value ->
+                        viewModel.setCustomFieldValue(fieldId, value)
+                    }
+                )
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
             // Error Card with Retry and expandable technical details
@@ -424,7 +440,8 @@ fun UploadScreen(
                         title = title.ifBlank { null },
                         tagIds = selectedTagIds.toList(),
                         documentTypeId = selectedDocumentTypeId,
-                        correspondentId = selectedCorrespondentId
+                        correspondentId = selectedCorrespondentId,
+                        customFields = customFieldValues
                     )
                 },
                 enabled = uiState !is UploadUiState.Queuing,

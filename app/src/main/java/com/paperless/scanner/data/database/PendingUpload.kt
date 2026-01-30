@@ -23,7 +23,17 @@ data class PendingUpload(
     val createdAt: Long = System.currentTimeMillis(),
     val lastAttemptAt: Long? = null,
     val isMultiPage: Boolean = false,
-    val additionalUris: List<String> = emptyList()
+    val additionalUris: List<String> = emptyList(),
+    /**
+     * Custom fields for the document.
+     * Map of field ID to value (as String). All values are serialized as Strings:
+     * - Text fields: direct string value
+     * - Integer/Monetary: numeric string (e.g., "123", "99.99")
+     * - Date: ISO format string (e.g., "2024-01-15")
+     * - Boolean: "true" or "false"
+     * - Select: the selected option value as string
+     */
+    val customFields: Map<Int, String> = emptyMap()
 )
 
 enum class UploadStatus {
@@ -77,6 +87,21 @@ class Converters {
             UploadStatus.valueOf(value)
         } catch (e: Exception) {
             UploadStatus.PENDING
+        }
+    }
+
+    @TypeConverter
+    fun fromIntStringMap(value: Map<Int, String>): String {
+        return gson.toJson(value)
+    }
+
+    @TypeConverter
+    fun toIntStringMap(value: String): Map<Int, String> {
+        val type = object : TypeToken<Map<Int, String>>() {}.type
+        return try {
+            gson.fromJson(value, type) ?: emptyMap()
+        } catch (e: Exception) {
+            emptyMap()
         }
     }
 }

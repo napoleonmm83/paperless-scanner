@@ -184,14 +184,6 @@ class PremiumFeatureManager @Inject constructor(
         }
     }
 
-    /**
-     * Show upgrade dialog (to be implemented in UI layer).
-     * This is a placeholder for now.
-     */
-    fun showUpgradeDialog() {
-        // TODO: Emit event to show upgrade dialog
-        // Could use SharedFlow or event bus pattern
-    }
 }
 
 /**

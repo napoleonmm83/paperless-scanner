@@ -117,7 +117,8 @@ interface PaperlessApi {
         @Part("title") title: RequestBody? = null,
         @Part tags: List<MultipartBody.Part> = emptyList(),
         @Part("document_type") documentType: RequestBody? = null,
-        @Part("correspondent") correspondent: RequestBody? = null
+        @Part("correspondent") correspondent: RequestBody? = null,
+        @Part("custom_fields") customFields: RequestBody? = null
     ): ResponseBody
 
     // Document endpoints

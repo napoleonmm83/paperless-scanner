@@ -397,7 +397,17 @@
     <string name="upload_quality_medium">Mittel</string>
     <string name="upload_quality_high">Hoch (beste Qualität)</string>
 
-    
+    <!-- Custom Fields -->
+    <string name="custom_fields_section">Benutzerdefinierte Felder</string>
+    <string name="custom_fields_empty">Keine benutzerdefinierten Felder verfügbar</string>
+    <string name="custom_fields_not_supported">Server unterstützt keine benutzerdefinierten Felder</string>
+    <string name="custom_field_text_hint">Text eingeben</string>
+    <string name="custom_field_number_hint">Zahl eingeben</string>
+    <string name="custom_field_date_hint">Datum auswählen</string>
+    <string name="custom_field_url_hint">URL eingeben</string>
+    <string name="custom_field_select_hint">Option wählen</string>
+
+
     <string name="time_just_now">Gerade eben</string>
     <string name="time_minutes_ago">vor %1$d Min</string>
     <string name="time_hours_ago">vor %1$d Std</string>

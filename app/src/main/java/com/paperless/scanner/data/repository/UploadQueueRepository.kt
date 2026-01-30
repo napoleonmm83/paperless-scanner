@@ -25,7 +25,8 @@ class UploadQueueRepository @Inject constructor(
         title: String? = null,
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
-        correspondentId: Int? = null
+        correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap()
     ): Long {
         val pendingUpload = PendingUpload(
             uri = uri.toString(),
@@ -33,7 +34,8 @@ class UploadQueueRepository @Inject constructor(
             tagIds = tagIds,
             documentTypeId = documentTypeId,
             correspondentId = correspondentId,
-            isMultiPage = false
+            isMultiPage = false,
+            customFields = customFields
         )
         return pendingUploadDao.insert(pendingUpload)
     }
@@ -43,7 +45,8 @@ class UploadQueueRepository @Inject constructor(
         title: String? = null,
         tagIds: List<Int> = emptyList(),
         documentTypeId: Int? = null,
-        correspondentId: Int? = null
+        correspondentId: Int? = null,
+        customFields: Map<Int, String> = emptyMap()
     ): Long {
         if (uris.isEmpty()) {
             throw IllegalArgumentException("URIs list cannot be empty")
@@ -56,7 +59,8 @@ class UploadQueueRepository @Inject constructor(
             documentTypeId = documentTypeId,
             correspondentId = correspondentId,
             isMultiPage = true,
-            additionalUris = uris.drop(1).map { it.toString() }
+            additionalUris = uris.drop(1).map { it.toString() },
+            customFields = customFields
         )
         return pendingUploadDao.insert(pendingUpload)
     }

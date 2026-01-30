@@ -35,7 +35,7 @@ import com.paperless.scanner.data.database.entities.SyncMetadata
         AiUsageLog::class,
         SyncHistoryEntry::class
     ],
-    version = 11, // MIGRATION_10_11: Added sync_history for SyncCenter feature
+    version = 12, // MIGRATION_11_12: Added customFields to pending_uploads for Custom Fields support
     exportSchema = false
 )
 @TypeConverters(Converters::class)
