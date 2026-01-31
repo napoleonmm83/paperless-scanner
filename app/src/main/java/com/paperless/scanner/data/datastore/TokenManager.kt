@@ -47,6 +47,9 @@ class TokenManager(private val context: Context) {
         // Theme Preferences
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
 
+        // UI Preferences
+        private val SHOW_THUMBNAILS_KEY = booleanPreferencesKey("show_thumbnails")
+
         // Onboarding Preferences
         private val ONBOARDING_COMPLETED_KEY = booleanPreferencesKey("onboarding_completed")
 
@@ -160,6 +163,15 @@ class TokenManager(private val context: Context) {
         preferences[UPLOAD_QUALITY_KEY] ?: "auto"
     }
 
+    /**
+     * Whether to show document thumbnails in the documents list.
+     * Enabled by default for better UX.
+     * Users can disable to save data on metered connections.
+     */
+    val showThumbnails: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[SHOW_THUMBNAILS_KEY] ?: true // Enabled by default
+    }
+
     /** Whether user has granted analytics consent (null = not asked yet) */
     val analyticsConsent: Flow<Boolean?> = context.dataStore.data.map { preferences ->
         if (preferences[ANALYTICS_CONSENT_ASKED_KEY] == true) {
@@ -258,6 +270,17 @@ class TokenManager(private val context: Context) {
     suspend fun setUploadNotificationsEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[UPLOAD_NOTIFICATIONS_KEY] = enabled
+        }
+    }
+
+    /**
+     * Enable or disable document thumbnails in the documents list.
+     *
+     * @param enabled true to show thumbnails, false to hide (saves data)
+     */
+    suspend fun setShowThumbnails(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[SHOW_THUMBNAILS_KEY] = enabled
         }
     }
 
