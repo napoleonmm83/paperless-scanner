@@ -68,8 +68,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.paperless.scanner.R
 import com.paperless.scanner.util.DateFormatter
 import com.paperless.scanner.domain.model.Tag
@@ -108,10 +109,10 @@ fun DetailsTabContent(
                 contentAlignment = Alignment.Center
             ) {
                 if (uiState.thumbnailUrl != null && uiState.authToken != null) {
+                    // Auth header is automatically added by ImageLoader's OkHttp interceptor
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(uiState.thumbnailUrl)
-                            .addHeader("Authorization", "Token ${uiState.authToken}")
                             .crossfade(true)
                             .build(),
                         contentDescription = stringResource(R.string.document_detail_preview),

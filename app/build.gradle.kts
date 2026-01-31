@@ -230,9 +230,9 @@ dependencies {
     implementation("org.mindrot:jbcrypt:0.4")
 
     // Image Loading (Coil 3.x)
-    implementation(libs.coil) // Core library with ImageLoader
+    implementation(libs.coil)
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp) // Required for network support in Coil 3.x
+    implementation(libs.coil.network.okhttp)
 
     // Drag & Drop Reordering
     implementation(libs.reorderable)

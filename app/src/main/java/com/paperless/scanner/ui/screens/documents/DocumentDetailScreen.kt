@@ -74,8 +74,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.ServerOfflineBanner
