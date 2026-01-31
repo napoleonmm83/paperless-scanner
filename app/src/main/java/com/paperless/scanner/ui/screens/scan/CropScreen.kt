@@ -51,7 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import kotlin.math.abs
 

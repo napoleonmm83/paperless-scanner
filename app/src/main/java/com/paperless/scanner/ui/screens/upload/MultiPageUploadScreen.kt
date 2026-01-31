@@ -60,7 +60,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.launch

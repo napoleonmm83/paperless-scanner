@@ -98,7 +98,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.scan.AddMoreSourceDialog
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_JPEG
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_PDF
