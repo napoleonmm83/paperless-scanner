@@ -121,6 +121,9 @@ android {
 
     lint {
         baseline = file("lint-baseline.xml")
+        // TEMPORARY: Disable lintVital during assembleRelease due to IncompatibleClassChangeError bugs
+        // We have a separate lint job in CI that runs lintRelease with continue-on-error
+        checkReleaseBuilds = false
         abortOnError = true
         warningsAsErrors = false
     }
