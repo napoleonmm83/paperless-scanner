@@ -1,7 +1,15 @@
 package com.paperless.scanner.ui.screens.documents
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,18 +57,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import coil3.compose.AsyncImage
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +71,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.delay
@@ -79,29 +80,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.AnchoredDraggableState
-import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.anchoredDraggable
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.layout.offset
-import kotlin.math.roundToInt
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CustomSnackbarHost
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
+import kotlin.math.roundToInt
 
 data class DocumentItem(
     val id: Int,
@@ -119,8 +110,6 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pagedDocuments = viewModel.pagedDocuments.collectAsLazyPagingItems()
-    val serverUrl by viewModel.serverUrl.collectAsState()
-    val showThumbnails by viewModel.showThumbnails.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     // Pull-to-refresh state
@@ -174,21 +163,11 @@ fun DocumentsScreen(
         }
     }
 
-    // Auto-scroll to top ONLY when filter or sort actually changes (not on data refresh/delete)
-    // Track previous filter to distinguish between filter change and data refresh
-    var previousFilter by remember { mutableStateOf(uiState.currentFilter) }
-
-    LaunchedEffect(uiState.currentFilter) {
-        // Only scroll if filter actually changed (not just data refresh)
-        if (previousFilter != uiState.currentFilter) {
-            // Wait for data to load before scrolling
-            snapshotFlow { pagedDocuments.loadState.refresh }
-                .collect { loadState ->
-                    if (loadState is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
-                        gridState.animateScrollToItem(0)
-                        previousFilter = uiState.currentFilter
-                    }
-                }
+    // Auto-scroll to top when filter or sort changes
+    // Wait for LoadState.refresh to finish before scrolling to ensure new data is loaded
+    LaunchedEffect(uiState.currentFilter, pagedDocuments.loadState.refresh) {
+        if (pagedDocuments.loadState.refresh is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
+            gridState.animateScrollToItem(0)
         }
     }
 
@@ -547,8 +526,6 @@ fun DocumentsScreen(
                     if (document != null) {
                         SwipeableDocumentCard(
                             document = document,
-                            serverUrl = serverUrl,
-                            showThumbnails = showThumbnails,
                             onClick = { onDocumentClick(document.id) },
                             onDelete = { viewModel.deleteDocument(document.id, document.title) },
                             // Animate item removal for smooth Gmail-style transition
@@ -632,31 +609,29 @@ fun DocumentsScreen(
     } // Scaffold
 }
 
+// Swipe states for iOS Mail-style reveal
+private enum class DocumentSwipeState { Settled, Revealed }
+
 /**
- * Document card with swipe-to-delete functionality.
+ * Document card with iOS-style swipe-to-reveal delete action.
  *
- * MATERIAL 3 BEST PRACTICE: SwipeToDismissBox for destructive actions with undo.
- * - Swipe left to reveal delete action
- * - Red background indicates destructive action
- * - Actual deletion is handled by ViewModel (with undo via Snackbar)
+ * IOS-STYLE SWIPE-TO-REVEAL: Smooth snap-to-reveal with delete button.
+ * - Swipe left to reveal delete button (iOS Mail style)
+ * - Smooth snap animation with DampingRatioNoBouncy + StiffnessMediumLow
+ * - AnchoredDraggableState with Settled/Revealed anchors
+ * - State persistence with remember(document.id)
  *
- * GMAIL-STYLE ANIMATION: Card slides off-screen when dismissed.
- * - confirmValueChange returns true to let SwipeToDismissBox animate the dismiss
- * - Room Flow removes the item from the list after animation
+ * GMAIL-STYLE ANIMATION: Card slides off-screen smoothly when deleted.
+ * - Room Flow removes the item from the list after deletion
  * - Haptic feedback provides tactile confirmation
  *
- * SWIPE SENSITIVITY: Requires 40% of card width to trigger delete.
- * This prevents accidental deletes while scrolling through the list.
+ * SWIPE SENSITIVITY: Requires 30% of swipe to reveal delete button.
+ * This prevents accidental reveals while scrolling through the list.
  */
-// Swipe states for iOS Mail-style reveal
-private enum class SwipeState { Settled, Revealed }
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableDocumentCard(
     document: DocumentItem,
-    serverUrl: String,
-    showThumbnails: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -668,38 +643,36 @@ private fun SwipeableDocumentCard(
     // Width for revealed actions (delete button area)
     val revealedWidthPx = with(density) { 100.dp.toPx() }
 
-    // AnchoredDraggable state with snap points
-    // CRITICAL: remember with document.id key prevents state reuse when items change
+    // AnchoredDraggable state with snap points (keyed by document.id to prevent state reuse)
     val swipeState = remember(document.id) {
         AnchoredDraggableState(
-            initialValue = SwipeState.Settled,
+            initialValue = DocumentSwipeState.Settled,
             positionalThreshold = { distance: Float -> distance * 0.3f },
             velocityThreshold = { with(density) { 400.dp.toPx() } },
             snapAnimationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,  // Smooth, no bounce
-                stiffness = Spring.StiffnessMediumLow        // Slower, smoother
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
             ),
-            decayAnimationSpec = androidx.compose.animation.core.exponentialDecay()
+            decayAnimationSpec = exponentialDecay()
         ).apply {
             updateAnchors(
                 DraggableAnchors {
-                    SwipeState.Settled at 0f
-                    SwipeState.Revealed at -revealedWidthPx
+                    DocumentSwipeState.Settled at 0f
+                    DocumentSwipeState.Revealed at -revealedWidthPx
                 }
             )
         }
     }
 
-    // Reset state when document changes
+    // Reset state when document changes (uses snapAnimationSpec)
     LaunchedEffect(document.id) {
         swipeState.settle(0f)
     }
 
     Box(
-        modifier = modifier
-            .fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
-        // Background with delete button (always rendered, visible when swiped)
+        // Background with delete button
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -723,7 +696,7 @@ private fun SwipeableDocumentCard(
                 Icon(
                     imageVector = Icons.Filled.Delete,
                     contentDescription = stringResource(R.string.documents_delete_background),
-                    tint = Color.White, // High contrast: white on red
+                    tint = Color.White,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -748,8 +721,6 @@ private fun SwipeableDocumentCard(
         ) {
             DocumentCard(
                 document = document,
-                serverUrl = serverUrl,
-                showThumbnails = showThumbnails,
                 onClick = onClick
             )
         }
@@ -760,8 +731,6 @@ private fun SwipeableDocumentCard(
 @Composable
 private fun DocumentCard(
     document: DocumentItem,
-    serverUrl: String,
-    showThumbnails: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -780,63 +749,20 @@ private fun DocumentCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Document thumbnail (or icon if thumbnails disabled)
+            // Document icon
             Box(
                 modifier = Modifier
-                    .size(if (showThumbnails) 80.dp else 48.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center
             ) {
-                if (showThumbnails) {
-                    // Load thumbnail via Coil
-                    AsyncImage(
-                        model = if (serverUrl.isNotBlank()) {
-                            com.paperless.scanner.util.ThumbnailUrlBuilder.buildThumbnailUrl(
-                                serverUrl = serverUrl,
-                                documentId = document.id
-                            )
-                        } else {
-                            null // Show placeholder when serverUrl not loaded yet
-                        },
-                        contentDescription = stringResource(R.string.cd_document_thumbnail),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        // Placeholder: shown while loading
-                        placeholder = rememberVectorPainter(Icons.Filled.Description),
-                        // Error: shown on load failure
-                        error = rememberVectorPainter(Icons.Filled.Description)
-                    )
-                    // Fallback placeholder when serverUrl is empty
-                    if (serverUrl.isBlank()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Description,
-                                contentDescription = null,
-                                modifier = Modifier.size(40.dp),
-                                tint = MaterialTheme.colorScheme.onPrimary
-                            )
-                        }
-                    }
-                } else {
-                    // Thumbnails disabled - show simple icon
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Description,
-                            contentDescription = stringResource(R.string.cd_document_thumbnail),
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
-                }
+                Icon(
+                    imageVector = Icons.Filled.Description,
+                    contentDescription = stringResource(R.string.cd_document_thumbnail),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
