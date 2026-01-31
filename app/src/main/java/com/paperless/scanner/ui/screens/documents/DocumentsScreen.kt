@@ -48,6 +48,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import coil3.compose.AsyncImage
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
@@ -65,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import kotlinx.coroutines.delay
@@ -74,6 +79,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.offset
+import kotlin.math.roundToInt
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -101,6 +119,8 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pagedDocuments = viewModel.pagedDocuments.collectAsLazyPagingItems()
+    val serverUrl by viewModel.serverUrl.collectAsState()
+    val showThumbnails by viewModel.showThumbnails.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     // Pull-to-refresh state
@@ -154,11 +174,21 @@ fun DocumentsScreen(
         }
     }
 
-    // Auto-scroll to top when filter or sort changes
-    // Wait for LoadState.refresh to finish before scrolling to ensure new data is loaded
-    LaunchedEffect(uiState.currentFilter, pagedDocuments.loadState.refresh) {
-        if (pagedDocuments.loadState.refresh is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
-            gridState.animateScrollToItem(0)
+    // Auto-scroll to top ONLY when filter or sort actually changes (not on data refresh/delete)
+    // Track previous filter to distinguish between filter change and data refresh
+    var previousFilter by remember { mutableStateOf(uiState.currentFilter) }
+
+    LaunchedEffect(uiState.currentFilter) {
+        // Only scroll if filter actually changed (not just data refresh)
+        if (previousFilter != uiState.currentFilter) {
+            // Wait for data to load before scrolling
+            snapshotFlow { pagedDocuments.loadState.refresh }
+                .collect { loadState ->
+                    if (loadState is LoadState.NotLoading && pagedDocuments.itemCount > 0) {
+                        gridState.animateScrollToItem(0)
+                        previousFilter = uiState.currentFilter
+                    }
+                }
         }
     }
 
@@ -517,6 +547,8 @@ fun DocumentsScreen(
                     if (document != null) {
                         SwipeableDocumentCard(
                             document = document,
+                            serverUrl = serverUrl,
+                            showThumbnails = showThumbnails,
                             onClick = { onDocumentClick(document.id) },
                             onDelete = { viewModel.deleteDocument(document.id, document.title) },
                             // Animate item removal for smooth Gmail-style transition
@@ -616,103 +648,111 @@ fun DocumentsScreen(
  * SWIPE SENSITIVITY: Requires 40% of card width to trigger delete.
  * This prevents accidental deletes while scrolling through the list.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+// Swipe states for iOS Mail-style reveal
+private enum class SwipeState { Settled, Revealed }
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SwipeableDocumentCard(
     document: DocumentItem,
+    serverUrl: String,
+    showThumbnails: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Track if delete was already triggered for this swipe to prevent duplicates
-    var deleteTriggered by remember { mutableStateOf(false) }
-
-    // Haptic feedback for tactile confirmation
+    val density = LocalDensity.current
     val hapticFeedback = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart && !deleteTriggered) {
-                deleteTriggered = true
-                // Trigger haptic feedback for tactile confirmation
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                onDelete()
-                // Return true to let the card slide off-screen (Gmail-style)
-                true
-            } else {
-                false
-            }
-        },
-        // Require 40% of card width to trigger delete (default is ~15%)
-        // This prevents accidental deletes while scrolling
-        positionalThreshold = { totalDistance -> totalDistance * 0.4f }
-    )
+    // Width for revealed actions (delete button area)
+    val revealedWidthPx = with(density) { 100.dp.toPx() }
 
-    // Reset the flag when a new document is shown (recomposition with different document)
-    LaunchedEffect(document.id) {
-        deleteTriggered = false
+    // AnchoredDraggable state with snap points
+    // CRITICAL: remember with document.id key prevents state reuse when items change
+    val swipeState = remember(document.id) {
+        AnchoredDraggableState(
+            initialValue = SwipeState.Settled,
+            positionalThreshold = { distance: Float -> distance * 0.3f },
+            velocityThreshold = { with(density) { 400.dp.toPx() } },
+            snapAnimationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,  // Smooth, no bounce
+                stiffness = Spring.StiffnessMediumLow        // Slower, smoother
+            ),
+            decayAnimationSpec = androidx.compose.animation.core.exponentialDecay()
+        ).apply {
+            updateAnchors(
+                DraggableAnchors {
+                    SwipeState.Settled at 0f
+                    SwipeState.Revealed at -revealedWidthPx
+                }
+            )
+        }
     }
 
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        backgroundContent = {
-            // Progressive visual feedback:
-            // - Show background starting at ~5% swipe (early feedback)
-            // - Full opacity at 40% (where delete triggers)
-            // - Delete icon fades in with progress
-            val swipeProgress = dismissState.progress
+    // Reset state when document changes
+    LaunchedEffect(document.id) {
+        swipeState.settle(0f)
+    }
 
-            // Start showing at 5%, full at 40%
-            // Map 0.05-0.40 range to 0.0-1.0 alpha
-            val normalizedProgress = ((swipeProgress - 0.05f) / 0.35f).coerceIn(0f, 1f)
-
-            // Background alpha: subtle at start, full red at threshold
-            val backgroundAlpha = normalizedProgress * 0.9f + 0.1f * (if (swipeProgress > 0.05f) 1f else 0f)
-
-            val backgroundColor = if (swipeProgress > 0.05f) {
-                MaterialTheme.colorScheme.error.copy(alpha = backgroundAlpha.coerceIn(0f, 1f))
-            } else {
-                Color.Transparent
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(backgroundColor, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                // Show delete icon/text when swiping (fades in with progress)
-                if (swipeProgress > 0.05f) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.alpha(normalizedProgress)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.documents_delete_background),
-                            color = MaterialTheme.colorScheme.onError,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Icon(
-                            imageVector = Icons.Filled.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onError
-                        )
-                    }
-                }
-            }
-        },
-        enableDismissFromStartToEnd = false, // Only allow swipe from right to left
-        enableDismissFromEndToStart = true
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
     ) {
-        DocumentCard(
-            document = document,
-            // Disable clicks when delete is triggered (card is animating off-screen)
-            onClick = { if (!deleteTriggered) onClick() }
-        )
+        // Background with delete button (always rendered, visible when swiped)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(20.dp))
+                .padding(end = 16.dp),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            // Delete Action Button (high contrast)
+            IconButton(
+                onClick = {
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDelete()
+                    scope.launch {
+                        swipeState.settle(0f)
+                    }
+                },
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(MaterialTheme.colorScheme.error, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.documents_delete_background),
+                    tint = Color.White, // High contrast: white on red
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        // Foreground card (swipeable)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset {
+                    IntOffset(
+                        x = swipeState
+                            .requireOffset()
+                            .roundToInt(),
+                        y = 0
+                    )
+                }
+                .anchoredDraggable(
+                    state = swipeState,
+                    orientation = Orientation.Horizontal
+                )
+        ) {
+            DocumentCard(
+                document = document,
+                serverUrl = serverUrl,
+                showThumbnails = showThumbnails,
+                onClick = onClick
+            )
+        }
     }
 }
 
@@ -720,6 +760,8 @@ private fun SwipeableDocumentCard(
 @Composable
 private fun DocumentCard(
     document: DocumentItem,
+    serverUrl: String,
+    showThumbnails: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -738,20 +780,63 @@ private fun DocumentCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Document icon
+            // Document thumbnail (or icon if thumbnails disabled)
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(if (showThumbnails) 80.dp else 48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primary),
-                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Description,
-                    contentDescription = stringResource(R.string.cd_document_thumbnail),
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                if (showThumbnails) {
+                    // Load thumbnail via Coil
+                    AsyncImage(
+                        model = if (serverUrl.isNotBlank()) {
+                            com.paperless.scanner.util.ThumbnailUrlBuilder.buildThumbnailUrl(
+                                serverUrl = serverUrl,
+                                documentId = document.id
+                            )
+                        } else {
+                            null // Show placeholder when serverUrl not loaded yet
+                        },
+                        contentDescription = stringResource(R.string.cd_document_thumbnail),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        // Placeholder: shown while loading
+                        placeholder = rememberVectorPainter(Icons.Filled.Description),
+                        // Error: shown on load failure
+                        error = rememberVectorPainter(Icons.Filled.Description)
+                    )
+                    // Fallback placeholder when serverUrl is empty
+                    if (serverUrl.isBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Description,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                } else {
+                    // Thumbnails disabled - show simple icon
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.primary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Description,
+                            contentDescription = stringResource(R.string.cd_document_thumbnail),
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
