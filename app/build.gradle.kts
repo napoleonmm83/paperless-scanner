@@ -229,8 +229,10 @@ dependencies {
     // Password Hashing (BCrypt for App-Lock)
     implementation("org.mindrot:jbcrypt:0.4")
 
-    // Image Loading
+    // Image Loading (Coil 3.x)
+    implementation(libs.coil) // Core library with ImageLoader
     implementation(libs.coil.compose)
+    implementation(libs.coil.network.okhttp) // Required for network support in Coil 3.x
 
     // Drag & Drop Reordering
     implementation(libs.reorderable)
