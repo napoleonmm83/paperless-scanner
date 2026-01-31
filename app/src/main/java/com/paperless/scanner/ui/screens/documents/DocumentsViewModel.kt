@@ -74,6 +74,23 @@ class DocumentsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(DocumentsUiState())
     val uiState: StateFlow<DocumentsUiState> = _uiState.asStateFlow()
 
+    // Server URL for thumbnail loading
+    val serverUrl: StateFlow<String> = tokenManager.serverUrl
+        .map { it ?: "" }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ""
+        )
+
+    // Thumbnail preference
+    val showThumbnails: StateFlow<Boolean> = tokenManager.showThumbnails
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
     /**
      * BEST PRACTICE: Dual State Pattern for Search + Filter.
      *

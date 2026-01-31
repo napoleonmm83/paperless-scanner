@@ -1,6 +1,7 @@
 package com.paperless.scanner
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -17,6 +18,8 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
 import com.paperless.scanner.worker.UploadWorker
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +28,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
-class PaperlessApp : Application(), Configuration.Provider {
+class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader.Factory {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -38,6 +41,9 @@ class PaperlessApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var billingManager: BillingManager
+
+    @Inject
+    lateinit var imageLoader: ImageLoader
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -147,6 +153,14 @@ class PaperlessApp : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    /**
+     * Coil ImageLoader Factory implementation.
+     * Returns the Hilt-injected ImageLoader with Auth + SSL support.
+     */
+    override fun newImageLoader(context: Context): ImageLoader {
+        return imageLoader
+    }
 
     private fun cleanupOldCacheFiles() {
         CoroutineScope(Dispatchers.IO).launch {

@@ -88,10 +88,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CustomSnackbarHost
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
+import com.paperless.scanner.util.ThumbnailUrlBuilder
 import kotlin.math.roundToInt
 
 data class DocumentItem(
@@ -110,6 +113,8 @@ fun DocumentsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pagedDocuments = viewModel.pagedDocuments.collectAsLazyPagingItems()
+    val serverUrl by viewModel.serverUrl.collectAsState()
+    val showThumbnails by viewModel.showThumbnails.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
 
     // Pull-to-refresh state
@@ -526,6 +531,8 @@ fun DocumentsScreen(
                     if (document != null) {
                         SwipeableDocumentCard(
                             document = document,
+                            serverUrl = serverUrl,
+                            showThumbnails = showThumbnails,
                             onClick = { onDocumentClick(document.id) },
                             onDelete = { viewModel.deleteDocument(document.id, document.title) },
                             // Animate item removal for smooth Gmail-style transition
@@ -632,6 +639,8 @@ private enum class DocumentSwipeState { Settled, Revealed }
 @Composable
 private fun SwipeableDocumentCard(
     document: DocumentItem,
+    serverUrl: String,
+    showThumbnails: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -721,6 +730,8 @@ private fun SwipeableDocumentCard(
         ) {
             DocumentCard(
                 document = document,
+                serverUrl = serverUrl,
+                showThumbnails = showThumbnails,
                 onClick = onClick
             )
         }
@@ -731,6 +742,8 @@ private fun SwipeableDocumentCard(
 @Composable
 private fun DocumentCard(
     document: DocumentItem,
+    serverUrl: String,
+    showThumbnails: Boolean,
     onClick: () -> Unit
 ) {
     Card(
@@ -749,20 +762,36 @@ private fun DocumentCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Document icon
+            // Document thumbnail or icon
             Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Description,
-                    contentDescription = stringResource(R.string.cd_document_thumbnail),
-                    modifier = Modifier.size(24.dp),
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+                val thumbnailUrl = if (showThumbnails && serverUrl.isNotBlank()) {
+                    ThumbnailUrlBuilder.buildThumbnailUrl(
+                        serverUrl = serverUrl,
+                        documentId = document.id
+                    )
+                } else null
+
+                if (thumbnailUrl != null) {
+                    AsyncImage(
+                        model = thumbnailUrl,
+                        contentDescription = stringResource(R.string.cd_document_thumbnail),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Description,
+                        contentDescription = stringResource(R.string.cd_document_thumbnail),
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))

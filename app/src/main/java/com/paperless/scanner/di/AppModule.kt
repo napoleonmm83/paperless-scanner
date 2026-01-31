@@ -46,8 +46,11 @@ import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncManager
+import coil3.ImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import dagger.Module
 import dagger.Provides
+import javax.inject.Named
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
@@ -539,4 +542,65 @@ object AppModule {
         tokenManager: TokenManager
     ): com.paperless.scanner.data.billing.PremiumFeatureManager =
         com.paperless.scanner.data.billing.PremiumFeatureManager(billingManager, tokenManager)
+
+    // Coil Image Loading
+
+    /**
+     * OkHttpClient for Coil image loading (thumbnails).
+     * Combines Auth token injection + SSL trust for self-signed certificates.
+     */
+    @Provides
+    @Singleton
+    @Named("CoilOkHttpClient")
+    fun provideCoilOkHttpClient(tokenManager: TokenManager): OkHttpClient {
+        // Get default TrustManager
+        val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        trustManagerFactory.init(null as java.security.KeyStore?)
+        val trustManagers = trustManagerFactory.trustManagers
+        val defaultTrustManager = trustManagers.first { it is X509TrustManager } as X509TrustManager
+
+        // Create custom TrustManager that checks accepted hosts
+        val acceptedHostTrustManager = AcceptedHostTrustManager(tokenManager, defaultTrustManager)
+
+        // Create SSL context with custom TrustManager
+        val sslContext = SSLContext.getInstance("TLS")
+        sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
+
+        return OkHttpClient.Builder()
+            .addInterceptor(createLoggingInterceptor())
+            // Auth token interceptor for Paperless-ngx API
+            .addInterceptor { chain ->
+                val token = tokenManager.getTokenSync()
+                val request = if (token != null) {
+                    chain.request().newBuilder()
+                        .addHeader("Authorization", "Token $token")
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
+            // SSL support for self-signed certificates
+            .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
+            .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
+            .applyTimeouts()
+            .build()
+    }
+
+    /**
+     * Coil ImageLoader for AsyncImage components.
+     * Uses custom OkHttpClient with Auth + SSL support for thumbnails.
+     */
+    @Provides
+    @Singleton
+    fun provideImageLoader(
+        @ApplicationContext context: Context,
+        @Named("CoilOkHttpClient") okHttpClient: OkHttpClient
+    ): ImageLoader {
+        return ImageLoader.Builder(context)
+            .components {
+                add(OkHttpNetworkFetcherFactory(callFactory = okHttpClient))
+            }
+            .build()
+    }
 }
