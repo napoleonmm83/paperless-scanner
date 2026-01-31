@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
@@ -83,9 +84,18 @@ sealed class CreateTagState {
     data class Error(val message: String) : CreateTagState()
 }
 
+/**
+ * Tracks deleted document for undo functionality.
+ */
+data class DeletedDocumentInfo(
+    val id: Int,
+    val title: String
+)
+
 data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
     val recentDocuments: List<RecentDocument> = emptyList(),
+    val deletedDocument: DeletedDocumentInfo? = null, // For undo snackbar
     val processingTasks: List<ProcessingTask> = emptyList(),
     val allProcessingTasksCount: Int = 0,      // Total count for Hero Card (unlimited)
     val showAllProcessingTasks: Boolean = false, // Toggle for "show more" in list
@@ -182,6 +192,23 @@ class HomeViewModel @Inject constructor(
         }
         total
     }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), 0)
+
+    // Server URL for constructing thumbnail URLs
+    val serverUrl: StateFlow<String> = tokenManager.serverUrl
+        .map { it ?: "" }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = ""
+        )
+
+    // Whether to show document thumbnails (user preference)
+    val showThumbnails: StateFlow<Boolean> = tokenManager.showThumbnails
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
 
     private var tagMap: Map<Int, Tag> = emptyMap()
     private var wasOffline = false
@@ -759,6 +786,69 @@ class HomeViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun deleteRecentDocument(documentId: Int, documentTitle: String) {
+        viewModelScope.launch {
+            // Set deleted document info for undo snackbar
+            _uiState.update {
+                it.copy(deletedDocument = DeletedDocumentInfo(documentId, documentTitle))
+            }
+
+            try {
+                documentRepository.deleteDocument(documentId).onSuccess {
+                    // Recent documents list updates automatically via reactive Flow
+                    analyticsService.trackEvent(AnalyticsEvent.DocumentDeleted)
+                }.onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            deletedDocument = null,
+                            error = context.getString(R.string.error_delete_document)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        deletedDocument = null,
+                        error = context.getString(R.string.error_delete_document)
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Undo the most recent document deletion.
+     * Restores the document by clearing its soft-delete flag.
+     */
+    fun undoDelete() {
+        val deletedDoc = _uiState.value.deletedDocument ?: return
+
+        viewModelScope.launch {
+            // Clear deleted document state immediately for responsive UX
+            _uiState.update { it.copy(deletedDocument = null) }
+
+            // Restore document via repository
+            try {
+                documentRepository.restoreDocument(deletedDoc.id).onFailure {
+                    _uiState.update {
+                        it.copy(error = context.getString(R.string.error_restore_document))
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = context.getString(R.string.error_restore_document))
+                }
+            }
+        }
+    }
+
+    /**
+     * Clear the deleted document info (when undo snackbar is dismissed).
+     */
+    fun clearDeletedDocument() {
+        _uiState.update { it.copy(deletedDocument = null) }
     }
 
     private fun startNetworkMonitoring() {
