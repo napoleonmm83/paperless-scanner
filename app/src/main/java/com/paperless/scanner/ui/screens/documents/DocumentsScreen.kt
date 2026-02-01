@@ -1,15 +1,7 @@
 package com.paperless.scanner.ui.screens.documents
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.AnchoredDraggableState
-import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,7 +23,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -80,22 +70,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.layout.ContentScale
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CustomSnackbarHost
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
-import com.paperless.scanner.util.ThumbnailUrlBuilder
-import kotlin.math.roundToInt
+import com.paperless.scanner.ui.components.documentlist.SwipeableDocumentCardContainer
+import com.paperless.scanner.ui.components.documentlist.DocumentCardBase
+import com.paperless.scanner.ui.components.documentlist.DocumentListSnackbar
+import com.paperless.scanner.ui.components.documentlist.animateItemRemoval
+import com.paperless.scanner.ui.components.documentlist.rememberHybridSwipePattern
 
 data class DocumentItem(
     val id: Int,
@@ -105,7 +92,7 @@ data class DocumentItem(
     val tags: List<String> = emptyList()
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun DocumentsScreen(
     onDocumentClick: (Int) -> Unit = {},
@@ -128,45 +115,21 @@ fun DocumentsScreen(
     // LazyGrid state for scroll control
     val gridState = rememberLazyGridState()
 
+    // HYBRID PATTERN: State for coordinated swipe-to-reveal behavior
+    val swipePattern = rememberHybridSwipePattern(gridState = gridState)
+
     // Snackbar state for undo delete
     val snackbarHostState = remember { SnackbarHostState() }
-    val deletedSnackbarMessage = stringResource(R.string.documents_deleted_snackbar)
-    val undoLabel = stringResource(R.string.documents_undo)
 
-    // Show snackbar when document is deleted
-    // CRITICAL: Combined LaunchedEffect to prevent race conditions between
-    // snackbar display and auto-dismiss when multiple deletes happen quickly
-    LaunchedEffect(uiState.deletedDocument?.id) {
-        val deletedDoc = uiState.deletedDocument ?: return@LaunchedEffect
-
-        // Dismiss any existing snackbar first to prevent race conditions
-        snackbarHostState.currentSnackbarData?.dismiss()
-
-        // Launch auto-dismiss timer in parallel
-        val autoDismissJob = launch {
-            delay(8000L) // 8 seconds
-            snackbarHostState.currentSnackbarData?.dismiss()
-        }
-
-        try {
-            val result = snackbarHostState.showSnackbar(
-                message = deletedSnackbarMessage,
-                actionLabel = undoLabel,
-                duration = SnackbarDuration.Indefinite, // Prevents auto-dismiss during state changes
-                withDismissAction = true
-            )
-
-            // Cancel auto-dismiss if user interacted
-            autoDismissJob.cancel()
-
-            when (result) {
-                SnackbarResult.ActionPerformed -> viewModel.undoDelete()
-                SnackbarResult.Dismissed -> viewModel.clearDeletedDocument()
-            }
-        } finally {
-            autoDismissJob.cancel()
-        }
-    }
+    // Show undo snackbar when document is deleted (using shared component)
+    DocumentListSnackbar(
+        snackbarHostState = snackbarHostState,
+        deletedDocumentId = uiState.deletedDocument?.id,
+        message = stringResource(R.string.documents_deleted_snackbar),
+        actionLabel = stringResource(R.string.documents_undo),
+        onUndo = { viewModel.undoDelete() },
+        onDismiss = { viewModel.clearDeletedDocument() }
+    )
 
     // Auto-scroll to top when filter or sort changes
     // Wait for LoadState.refresh to finish before scrolling to ensure new data is loaded
@@ -529,15 +492,89 @@ fun DocumentsScreen(
                 ) { index ->
                     val document = pagedDocuments[index]
                     if (document != null) {
-                        SwipeableDocumentCard(
-                            document = document,
-                            serverUrl = serverUrl,
-                            showThumbnails = showThumbnails,
-                            onClick = { onDocumentClick(document.id) },
+                        // Using shared swipeable container with Hybrid Pattern
+                        SwipeableDocumentCardContainer(
+                            documentId = document.id,
+                            externallyRevealed = swipePattern.isRevealed(document.id),
+                            onRevealStateChanged = { isRevealed ->
+                                swipePattern.setRevealed(document.id, isRevealed)
+                            },
                             onDelete = { viewModel.deleteDocument(document.id, document.title) },
-                            // Animate item removal for smooth Gmail-style transition
-                            modifier = Modifier.animateItem()
-                        )
+                            modifier = animateItemRemoval()  // Gmail-style slide-off animation
+                        ) {
+                            DocumentCardBase(
+                                documentId = document.id,
+                                serverUrl = serverUrl,
+                                showThumbnails = showThumbnails,
+                                onClick = { onDocumentClick(document.id) }
+                            ) {
+                                // DocumentsScreen-specific metadata
+                                Text(
+                                    text = document.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Text(
+                                        text = document.date,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    document.correspondent?.let { correspondent ->
+                                        Text(
+                                            text = " • $correspondent",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                // Tags - FlowRow for automatic wrapping, maxVisibleTags = 5
+                                if (document.tags.isNotEmpty()) {
+                                    val maxVisibleTags = 5
+                                    FlowRow(
+                                        modifier = Modifier.padding(top = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        document.tags.take(maxVisibleTags).forEach { tag ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(MaterialTheme.colorScheme.primaryContainer)
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = tag,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                        if (document.tags.size > maxVisibleTags) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(50))
+                                                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "+${document.tags.size - maxVisibleTags}",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -614,263 +651,6 @@ fun DocumentsScreen(
         )
     }
     } // Scaffold
-}
-
-// Swipe states for iOS Mail-style reveal
-private enum class DocumentSwipeState { Settled, Revealed }
-
-/**
- * Document card with iOS-style swipe-to-reveal delete action.
- *
- * IOS-STYLE SWIPE-TO-REVEAL: Smooth snap-to-reveal with delete button.
- * - Swipe left to reveal delete button (iOS Mail style)
- * - Smooth snap animation with DampingRatioNoBouncy + StiffnessMediumLow
- * - AnchoredDraggableState with Settled/Revealed anchors
- * - State persistence with remember(document.id)
- *
- * GMAIL-STYLE ANIMATION: Card slides off-screen smoothly when deleted.
- * - Room Flow removes the item from the list after deletion
- * - Haptic feedback provides tactile confirmation
- *
- * SWIPE SENSITIVITY: Requires 30% of swipe to reveal delete button.
- * This prevents accidental reveals while scrolling through the list.
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun SwipeableDocumentCard(
-    document: DocumentItem,
-    serverUrl: String,
-    showThumbnails: Boolean,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val density = LocalDensity.current
-    val hapticFeedback = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
-
-    // Width for revealed actions (delete button area)
-    val revealedWidthPx = with(density) { 100.dp.toPx() }
-
-    // AnchoredDraggable state with snap points (keyed by document.id to prevent state reuse)
-    val swipeState = remember(document.id) {
-        AnchoredDraggableState(
-            initialValue = DocumentSwipeState.Settled,
-            positionalThreshold = { distance: Float -> distance * 0.3f },
-            velocityThreshold = { with(density) { 400.dp.toPx() } },
-            snapAnimationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
-            decayAnimationSpec = exponentialDecay()
-        ).apply {
-            updateAnchors(
-                DraggableAnchors {
-                    DocumentSwipeState.Settled at 0f
-                    DocumentSwipeState.Revealed at -revealedWidthPx
-                }
-            )
-        }
-    }
-
-    // Reset state when document changes (uses snapAnimationSpec)
-    LaunchedEffect(document.id) {
-        swipeState.settle(0f)
-    }
-
-    Box(
-        modifier = modifier.fillMaxWidth()
-    ) {
-        // Background with delete button
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(20.dp))
-                .padding(end = 16.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            // Delete Action Button (high contrast)
-            IconButton(
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onDelete()
-                    scope.launch {
-                        swipeState.settle(0f)
-                    }
-                },
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(MaterialTheme.colorScheme.error, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.documents_delete_background),
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-
-        // Foreground card (swipeable)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset {
-                    IntOffset(
-                        x = swipeState
-                            .requireOffset()
-                            .roundToInt(),
-                        y = 0
-                    )
-                }
-                .anchoredDraggable(
-                    state = swipeState,
-                    orientation = Orientation.Horizontal
-                )
-        ) {
-            DocumentCard(
-                document = document,
-                serverUrl = serverUrl,
-                showThumbnails = showThumbnails,
-                onClick = onClick
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun DocumentCard(
-    document: DocumentItem,
-    serverUrl: String,
-    showThumbnails: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Document thumbnail or icon
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                val thumbnailUrl = if (showThumbnails && serverUrl.isNotBlank()) {
-                    ThumbnailUrlBuilder.buildThumbnailUrl(
-                        serverUrl = serverUrl,
-                        documentId = document.id
-                    )
-                } else null
-
-                if (thumbnailUrl != null) {
-                    AsyncImage(
-                        model = thumbnailUrl,
-                        contentDescription = stringResource(R.string.cd_document_thumbnail),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.Description,
-                        contentDescription = stringResource(R.string.cd_document_thumbnail),
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = document.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(top = 4.dp)
-                ) {
-                    Text(
-                        text = document.date,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    document.correspondent?.let { correspondent ->
-                        Text(
-                            text = " • $correspondent",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                // Tags - FlowRow für automatisches Wrapping, maxVisibleTags = 5
-                if (document.tags.isNotEmpty()) {
-                    val maxVisibleTags = 5
-                    FlowRow(
-                        modifier = Modifier.padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        document.tags.take(maxVisibleTags).forEach { tag ->
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(MaterialTheme.colorScheme.primaryContainer)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = tag,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        if (document.tags.size > maxVisibleTags) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(50))
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "+${document.tags.size - maxVisibleTags}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(R.string.cd_open_document),
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
 }
 
 /**
