@@ -8,10 +8,12 @@ import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
 import com.android.billingclient.api.BillingFlowParams
 import com.android.billingclient.api.BillingResult
+import com.android.billingclient.api.PendingPurchasesParams
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,7 +30,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
- * Manages Premium subscription and billing with Google Play Billing Library 7.x
+ * Manages Premium subscription and billing with Google Play Billing Library 8.x
  *
  * Features:
  * - Subscription status tracking (active/inactive/expired)
@@ -120,7 +122,11 @@ class BillingManager @Inject constructor(
 
         billingClient = BillingClient.newBuilder(context)
             .setListener(purchasesUpdatedListener)
-            .enablePendingPurchases()
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder()
+                    .enableOneTimeProducts()
+                    .build()
+            )
             .build()
 
         connectToPlayBilling()
@@ -190,17 +196,24 @@ class BillingManager @Inject constructor(
             .build()
 
         suspendCancellableCoroutine { continuation ->
-            client.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
+            client.queryProductDetailsAsync(params) { billingResult, queryProductDetailsResult ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val productDetailsList = queryProductDetailsResult.productDetailsList
                     productDetailsCache = productDetailsList.associateBy { it.productId }
                     Log.d(TAG, "Product details loaded: ${productDetailsList.size} products")
+
+                    // Log unfetched products for debugging (Billing Library 8.x feature)
+                    val unfetchedProducts = queryProductDetailsResult.unfetchedProductList
+                    if (unfetchedProducts.isNotEmpty()) {
+                        Log.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
+                    }
                 } else {
                     Log.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
 
                     // Log to Crashlytics
                     try {
                         val crashlytics = FirebaseCrashlytics.getInstance()
-                            
+
                         crashlytics.log("Failed to query product details: ${billingResult.debugMessage}")
                         crashlytics.setCustomKey("billing_error_code", billingResult.responseCode)
                     } catch (e: Exception) {

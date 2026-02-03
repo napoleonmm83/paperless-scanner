@@ -39,7 +39,7 @@ coroutinesTest = "1.9.0"
 turbine = "1.2.0"
 robolectric = "4.14.1"
 reorderable = "3.0.0"
-billing = "7.1.1"
+billing = "8.3.0"
 
 [libraries]
 # AndroidX Core

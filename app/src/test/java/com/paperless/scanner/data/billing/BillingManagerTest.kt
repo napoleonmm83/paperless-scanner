@@ -16,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Unit tests for BillingManager.
  *
- * Tests Google Play Billing Library 7.x integration:
+ * Tests Google Play Billing Library 8.x integration:
  * - Connection management
  * - Product details querying
  * - Purchase flow
@@ -58,7 +58,7 @@ class BillingManagerTest {
             capturedPurchasesUpdatedListener = firstArg()
             mockBuilder
         }
-        every { mockBuilder.enablePendingPurchases() } returns mockBuilder
+        every { mockBuilder.enablePendingPurchases(any<PendingPurchasesParams>()) } returns mockBuilder
         every { mockBuilder.build() } returns mockBillingClient
 
         // Capture BillingClientStateListener
@@ -75,7 +75,7 @@ class BillingManagerTest {
     // Helper to setup billing client mocks for purchase flow tests
     private fun setupBillingClientMocks() {
         // Mock queryProductDetailsAsync to prevent hanging on retry
-        // Using coEvery for suspend-like async callbacks
+        // Billing Library 8.x uses QueryProductDetailsResult instead of List<ProductDetails>
         every {
             mockBillingClient.queryProductDetailsAsync(
                 ofType<QueryProductDetailsParams>(),
@@ -86,7 +86,11 @@ class BillingManagerTest {
             val mockResult = mockk<BillingResult> {
                 every { responseCode } returns BillingClient.BillingResponseCode.OK
             }
-            callback.onProductDetailsResponse(mockResult, emptyList())
+            val mockQueryResult = mockk<QueryProductDetailsResult> {
+                every { productDetailsList } returns emptyList()
+                every { unfetchedProductList } returns emptyList()
+            }
+            callback.onProductDetailsResponse(mockResult, mockQueryResult)
         }
 
         // Mock queryPurchasesAsync to prevent hanging
@@ -112,7 +116,7 @@ class BillingManagerTest {
 
         verify { BillingClient.newBuilder(context) }
         verify { mockBuilder.setListener(any()) }
-        verify { mockBuilder.enablePendingPurchases() }
+        verify { mockBuilder.enablePendingPurchases(any<PendingPurchasesParams>()) }
         verify { mockBuilder.build() }
         verify { mockBillingClient.startConnection(any()) }
     }
