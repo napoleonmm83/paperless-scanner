@@ -12,6 +12,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 
 /**
  * Background Worker for permanent trash document deletion.
@@ -34,16 +35,19 @@ class TrashDeleteWorker @AssistedInject constructor(
     private val documentRepository: DocumentRepository,
     private val tokenManager: TokenManager,
     private val syncHistoryRepository: SyncHistoryRepository,
-    private val cachedDocumentDao: CachedDocumentDao
+    private val cachedDocumentDao: CachedDocumentDao,
+    private val crashlyticsHelper: CrashlyticsHelper
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
         val documentId = inputData.getInt(KEY_DOCUMENT_ID, -1)
         if (documentId == -1) {
             Log.e(TAG, "No document ID provided")
+            crashlyticsHelper.logStateBreadcrumb("WORKER_TRASH_ERROR", "no document ID")
             return Result.failure()
         }
 
+        crashlyticsHelper.logActionBreadcrumb("WORKER_TRASH", "delete document $documentId")
         Log.d(TAG, "Processing pending delete for document $documentId")
 
         // Check if this delete is still pending (user may have cancelled via undo)
@@ -72,6 +76,7 @@ class TrashDeleteWorker @AssistedInject constructor(
             .fold(
                 onSuccess = {
                     Log.d(TAG, "Successfully deleted document $documentId")
+                    crashlyticsHelper.logActionBreadcrumb("WORKER_TRASH", "success, document $documentId")
 
                     // Record success in SyncHistory
                     try {
@@ -89,6 +94,7 @@ class TrashDeleteWorker @AssistedInject constructor(
                 },
                 onFailure = { error ->
                     Log.e(TAG, "Failed to delete document $documentId: ${error.message}")
+                    crashlyticsHelper.logStateBreadcrumb("WORKER_TRASH_ERROR", "document $documentId: ${error.message}")
 
                     // Record failure in SyncHistory with user-friendly and technical messages
                     try {

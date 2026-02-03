@@ -11,6 +11,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
+import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.PaperlessAnimations
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +42,9 @@ fun PaperlessNavGraph(
     startDestination: String,
     sharedUris: List<Uri> = emptyList(),
     tokenManager: TokenManager,
-    appLockManager: com.paperless.scanner.util.AppLockManager
+    appLockManager: com.paperless.scanner.util.AppLockManager,
+    analyticsService: AnalyticsService,
+    crashlyticsHelper: CrashlyticsHelper
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -49,6 +53,13 @@ fun PaperlessNavGraph(
     AppLockNavigationInterceptor(
         navController = navController,
         appLockManager = appLockManager
+    )
+
+    // Screen Tracking Interceptor for Firebase Analytics & Crashlytics
+    ScreenTrackingInterceptor(
+        navController = navController,
+        analyticsService = analyticsService,
+        crashlyticsHelper = crashlyticsHelper
     )
 
     // Handle navigation to Scan when shared URIs are present

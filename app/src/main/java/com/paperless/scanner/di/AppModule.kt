@@ -44,6 +44,8 @@ import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.health.ServerHealthMonitor
+import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncManager
 import coil3.ImageLoader
@@ -308,8 +310,9 @@ object AppModule {
     fun provideAuthRepository(
         tokenManager: TokenManager,
         @AuthClient client: OkHttpClient,
-        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
-    ): AuthRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor)
+        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
+        crashlyticsHelper: CrashlyticsHelper
+    ): AuthRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
 
     @Provides
     @Singleton
@@ -333,8 +336,9 @@ object AppModule {
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor,
         serverHealthMonitor: ServerHealthMonitor,
-        gson: Gson
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson)
+        gson: Gson,
+        crashlyticsHelper: CrashlyticsHelper
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper)
 
     @Provides
     @Singleton
@@ -525,6 +529,14 @@ object AppModule {
 
     @Provides
     fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
+
+    // Crashlytics Helper for breadcrumb logging
+
+    @Provides
+    @Singleton
+    fun provideCrashlyticsHelper(
+        analyticsService: AnalyticsService
+    ): CrashlyticsHelper = CrashlyticsHelper(analyticsService)
 
     // Premium/Billing
 

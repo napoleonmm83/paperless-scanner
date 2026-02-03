@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.health.ServerHealthMonitor
@@ -61,6 +62,7 @@ class UploadWorkerTest {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var syncHistoryRepository: SyncHistoryRepository
+    private lateinit var crashlyticsHelper: CrashlyticsHelper
 
     @Before
     fun setup() {
@@ -70,6 +72,7 @@ class UploadWorkerTest {
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
         syncHistoryRepository = mockk(relaxed = true)
+        crashlyticsHelper = mockk(relaxed = true)
 
         // Default: hasValidatedInternet returns true
         every { networkMonitor.hasValidatedInternet() } returns true
@@ -109,7 +112,8 @@ class UploadWorkerTest {
                 documentRepository = documentRepository,
                 networkMonitor = networkMonitor,
                 serverHealthMonitor = serverHealthMonitor,
-                syncHistoryRepository = syncHistoryRepository
+                syncHistoryRepository = syncHistoryRepository,
+                crashlyticsHelper = crashlyticsHelper
             )
         )
         // Mock suspend function setForeground to avoid WorkManager context issues

@@ -3,6 +3,7 @@ package com.paperless.scanner.data.repository
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
@@ -49,6 +50,7 @@ class DocumentRepositoryTest {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
     private lateinit var gson: Gson
+    private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -64,6 +66,7 @@ class DocumentRepositoryTest {
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
         gson = mockk(relaxed = true)
+        crashlyticsHelper = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
         every { context.contentResolver } returns contentResolver
@@ -78,7 +81,8 @@ class DocumentRepositoryTest {
             pendingChangeDao,
             networkMonitor,
             serverHealthMonitor,
-            gson
+            gson,
+            crashlyticsHelper
         )
     }
 

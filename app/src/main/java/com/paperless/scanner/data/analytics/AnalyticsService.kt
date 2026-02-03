@@ -128,6 +128,95 @@ class AnalyticsService @Inject constructor(
      */
     fun isAnalyticsEnabled(): Boolean = isEnabled
 
+    // ==================== Crashlytics Custom Keys ====================
+
+    /**
+     * Initialize Crashlytics custom keys after GDPR consent.
+     * Should be called once after user grants consent and is logged in.
+     *
+     * @param serverUrl Server URL (will be hashed for privacy)
+     * @param appVersion Version name (e.g., "1.5.38")
+     * @param versionCode Version code (e.g., 10538)
+     * @param subscriptionStatus Subscription status (e.g., "free", "monthly", "yearly")
+     * @param isOffline Current offline state
+     */
+    fun initializeCrashlyticsKeys(
+        serverUrl: String?,
+        appVersion: String,
+        versionCode: Int,
+        subscriptionStatus: String,
+        isOffline: Boolean
+    ) {
+        if (!isEnabled) {
+            Log.d(TAG, "Crashlytics keys skipped (analytics disabled)")
+            return
+        }
+
+        // Set all custom keys
+        setServerUrlHash(serverUrl)
+        Firebase.crashlytics.setCustomKey("app_version", appVersion)
+        Firebase.crashlytics.setCustomKey("version_code", versionCode)
+        Firebase.crashlytics.setCustomKey("subscription_status", subscriptionStatus)
+        Firebase.crashlytics.setCustomKey("is_offline", isOffline)
+
+        Log.d(TAG, "Crashlytics keys initialized: version=$appVersion, code=$versionCode, " +
+                "subscription=$subscriptionStatus, offline=$isOffline")
+    }
+
+    /**
+     * Update offline state in Crashlytics.
+     * Should be called when network connectivity changes.
+     *
+     * @param isOffline Whether the app is currently offline
+     */
+    fun updateOfflineState(isOffline: Boolean) {
+        if (!isEnabled) return
+        Firebase.crashlytics.setCustomKey("is_offline", isOffline)
+        Log.d(TAG, "Crashlytics offline state updated: $isOffline")
+    }
+
+    /**
+     * Update subscription status in Crashlytics.
+     * Should be called when subscription status changes.
+     *
+     * @param status Subscription status (e.g., "free", "monthly", "yearly")
+     */
+    fun updateCrashlyticsSubscriptionStatus(status: String) {
+        if (!isEnabled) return
+        Firebase.crashlytics.setCustomKey("subscription_status", status)
+        Log.d(TAG, "Crashlytics subscription status updated: $status")
+    }
+
+    /**
+     * Set server URL hash in Crashlytics (privacy-safe).
+     * Uses SHA-256 and only stores first 16 characters.
+     *
+     * @param serverUrl The server URL (will be hashed)
+     */
+    private fun setServerUrlHash(serverUrl: String?) {
+        val hash = hashServerUrl(serverUrl)
+        Firebase.crashlytics.setCustomKey("server_url_hash", hash)
+    }
+
+    /**
+     * Hash a server URL for privacy using SHA-256.
+     *
+     * @param url The URL to hash
+     * @return First 16 chars of SHA-256 hash, or "none" if URL is null/empty
+     */
+    private fun hashServerUrl(url: String?): String {
+        if (url.isNullOrBlank()) return "none"
+
+        return try {
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            val hashBytes = digest.digest(url.toByteArray(Charsets.UTF_8))
+            hashBytes.joinToString("") { "%02x".format(it) }.take(16)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to hash server URL", e)
+            "error"
+        }
+    }
+
     // ==================== AI-Specific User Properties ====================
 
     /**

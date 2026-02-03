@@ -18,6 +18,7 @@ import androidx.work.workDataOf
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.repository.DocumentRepository
@@ -36,7 +37,8 @@ class UploadWorker @AssistedInject constructor(
     private val documentRepository: DocumentRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
-    private val syncHistoryRepository: SyncHistoryRepository
+    private val syncHistoryRepository: SyncHistoryRepository,
+    private val crashlyticsHelper: CrashlyticsHelper
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -51,6 +53,7 @@ class UploadWorker @AssistedInject constructor(
         // Pre-check: Ensure we have validated internet before starting uploads
         if (!networkMonitor.hasValidatedInternet()) {
             Log.w(TAG, "No validated internet connection - aborting upload worker")
+            crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - no internet")
             return Result.retry() // Retry later when internet is validated
         }
 
@@ -58,11 +61,13 @@ class UploadWorker @AssistedInject constructor(
         serverHealthMonitor.checkServerHealth()
         if (!serverHealthMonitor.isServerReachable.value) {
             Log.w(TAG, "Paperless server not reachable (status: ${serverHealthMonitor.serverStatus.value}) - aborting upload worker")
+            crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - server unreachable")
             return Result.retry() // Retry later when server is reachable
         }
 
         // Zähle alle ausstehenden Uploads für Fortschrittsanzeige
         var totalUploads = uploadQueueRepository.getPendingUploadCount()
+        crashlyticsHelper.logActionBreadcrumb("WORKER_UPLOAD", "start, $totalUploads pending")
         var currentUpload = 0
         var successCount = 0
         var failCount = 0
@@ -295,6 +300,7 @@ class UploadWorker @AssistedInject constructor(
 
         showCompletionNotification(successCount, failCount)
 
+        crashlyticsHelper.logActionBreadcrumb("WORKER_UPLOAD", "done, success=$successCount, fail=$failCount")
         return if (failCount > 0 && successCount == 0) Result.failure() else Result.success()
     }
 

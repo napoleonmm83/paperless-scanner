@@ -17,11 +17,13 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 
 class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val client: OkHttpClient,
-    private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
+    private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
+    private val crashlyticsHelper: CrashlyticsHelper
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -48,6 +50,7 @@ class AuthRepository @Inject constructor(
      * @return The full URL with detected protocol (e.g., "https://paperless.example.com")
      */
     suspend fun detectServerProtocol(host: String): Result<String> {
+        crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT", host)
         // Use ServerUrlParser for comprehensive URL validation
         val parseResult = ServerUrlParser.parse(host)
 
@@ -63,12 +66,14 @@ class AuthRepository @Inject constructor(
         // Try HTTPS first (preferred)
         val httpsResult = tryProtocol("https", cleanHost)
         if (httpsResult.isSuccess) {
+            crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "https://$cleanHost")
             return httpsResult
         }
 
         // Try HTTP as fallback
         val httpResult = tryProtocol("http", cleanHost)
         if (httpResult.isSuccess) {
+            crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "http://$cleanHost")
             return httpResult
         }
 
@@ -76,6 +81,7 @@ class AuthRepository @Inject constructor(
         val httpsError = httpsResult.exceptionOrNull()
         val httpError = httpResult.exceptionOrNull()
 
+        crashlyticsHelper.logStateBreadcrumb("SERVER_DETECT_ERROR", "HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
         Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
 
         // Return the most specific error message
@@ -322,6 +328,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun login(serverUrl: String, username: String, password: String): Result<LoginResult> {
+        crashlyticsHelper.logActionBreadcrumb("LOGIN", "username=$username")
         return try {
             val normalizedUrl = serverUrl.trimEnd('/')
             val formBody = FormBody.Builder()
@@ -344,8 +351,10 @@ class AuthRepository @Inject constructor(
                 val token = json.optString("token", "")
                 if (token.isNotBlank()) {
                     tokenManager.saveCredentials(normalizedUrl, token)
+                    crashlyticsHelper.logActionBreadcrumb("LOGIN_SUCCESS")
                     Result.success(LoginResult.Success(token))
                 } else {
+                    crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "Token not found in response")
                     Result.failure(PaperlessException.ParseError("Token nicht in Antwort gefunden"))
                 }
             } else {
@@ -366,6 +375,7 @@ class AuthRepository @Inject constructor(
                 }
 
                 val errorMessage = parseLoginError(errorBody, response.code)
+                crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "HTTP ${response.code}")
                 val exception = PaperlessException.AuthError(
                     code = response.code,
                     message = errorMessage
@@ -373,8 +383,10 @@ class AuthRepository @Inject constructor(
                 Result.failure(exception)
             }
         } catch (e: IOException) {
+            crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
+            crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
         }
     }
@@ -442,6 +454,7 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun validateToken(serverUrl: String, token: String): Result<Unit> {
+        crashlyticsHelper.logActionBreadcrumb("TOKEN_VALIDATE")
         return try {
             val normalizedUrl = serverUrl.trimEnd('/')
             // Clean the token - remove any whitespace or line breaks from OCR
@@ -459,6 +472,7 @@ class AuthRepository @Inject constructor(
             Log.d(TAG, "Token validation response: ${response.code}")
 
             if (response.isSuccessful) {
+                crashlyticsHelper.logActionBreadcrumb("TOKEN_VALIDATE_SUCCESS")
                 Result.success(Unit)
             } else {
                 // Provide better error message for token validation failures
@@ -467,12 +481,15 @@ class AuthRepository @Inject constructor(
                     403 -> "Zugriff verweigert. Dieser Schlüssel hat keine Berechtigung."
                     else -> "Verbindung fehlgeschlagen (${response.code})"
                 }
+                crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "HTTP ${response.code}")
                 Result.failure(PaperlessException.AuthError(response.code, errorMessage))
             }
         } catch (e: IOException) {
+            crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             Log.e(TAG, "Token validation network error", e)
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
+            crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Log.e(TAG, "Token validation error", e)
             Result.failure(PaperlessException.from(e))
         }

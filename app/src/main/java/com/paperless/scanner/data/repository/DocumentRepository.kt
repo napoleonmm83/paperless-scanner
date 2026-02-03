@@ -36,6 +36,7 @@ import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
@@ -61,7 +62,8 @@ class DocumentRepository @Inject constructor(
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
     private val serverHealthMonitor: ServerHealthMonitor,
-    private val gson: Gson
+    private val gson: Gson,
+    private val crashlyticsHelper: CrashlyticsHelper
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -76,6 +78,7 @@ class DocumentRepository @Inject constructor(
         customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
+        crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "single-page")
         return try {
             val file = getFileFromUri(uri)
             val requestFile = ProgressRequestBody(
@@ -123,8 +126,10 @@ class DocumentRepository @Inject constructor(
             file.delete()
 
             val taskId = response.string().trim().removeSurrounding("\"")
+            crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "taskId=$taskId")
             Result.success(taskId)
         } catch (e: IOException) {
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "NetworkError: ${e.message}")
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
             val errorBody = try {
@@ -132,11 +137,14 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 null
             }
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
             android.util.Log.e("DocumentRepository", "Upload failed: HTTP ${e.code()}, body: $errorBody")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ContentError: ${e.message}")
             Result.failure(PaperlessException.ContentError(e.message ?: "Datei konnte nicht gelesen werden"))
         } catch (e: Exception) {
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
         }
     }
@@ -150,6 +158,7 @@ class DocumentRepository @Inject constructor(
         customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
+        crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "multi-page, ${uris.size} pages")
         return try {
             android.util.Log.d("DocumentRepository", "Creating PDF from ${uris.size} images...")
             val pdfFile = createPdfFromImages(uris)
@@ -203,8 +212,10 @@ class DocumentRepository @Inject constructor(
 
             val taskId = response.string().trim().removeSurrounding("\"")
             android.util.Log.d("DocumentRepository", "Task ID received: $taskId")
+            crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "multi-page, taskId=$taskId")
             Result.success(taskId)
         } catch (e: IOException) {
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "NetworkError: ${e.message}")
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
             val errorBody = try {
@@ -212,6 +223,7 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 null
             }
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
             android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: $errorBody")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
@@ -221,6 +233,7 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 "PDF konnte nicht erstellt werden"
             }
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(safeMessage))
         } catch (e: IllegalStateException) {
@@ -230,6 +243,7 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 "Bild konnte nicht verarbeitet werden"
             }
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(safeMessage))
         } catch (e: Exception) {
@@ -239,6 +253,7 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 "Unbekannter Fehler bei PDF-Erstellung"
             }
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: $safeMessage")
             android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
             Result.failure(PaperlessException.ContentError(safeMessage))
         }
@@ -310,6 +325,7 @@ class DocumentRepository @Inject constructor(
     }
 
     private fun getImageBytesFromUri(uri: Uri): ByteArray {
+        crashlyticsHelper.logActionBreadcrumb("IMAGE_PROCESS", uri.lastPathSegment ?: "unknown")
         // First pass: Get image dimensions without loading into memory
         val options = BitmapFactory.Options().apply {
             inJustDecodeBounds = true

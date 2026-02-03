@@ -15,27 +15,32 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val crashlyticsHelper: CrashlyticsHelper
 ) : CoroutineWorker(context, params) {
 
     private val TAG = "SyncWorker"
 
     override suspend fun doWork(): Result {
         Log.d(TAG, "Starting periodic sync work...")
+        crashlyticsHelper.logActionBreadcrumb("WORKER_SYNC", "start")
 
         return try {
             val result = syncManager.performFullSync()
 
             if (result.isSuccess) {
                 Log.d(TAG, "Periodic sync completed successfully")
+                crashlyticsHelper.logActionBreadcrumb("WORKER_SYNC", "success")
                 Result.success()
             } else {
                 Log.e(TAG, "Periodic sync failed: ${result.exceptionOrNull()?.message}")
+                crashlyticsHelper.logStateBreadcrumb("WORKER_SYNC_ERROR", result.exceptionOrNull()?.message)
 
                 // Retry if we haven't exceeded max attempts
                 if (runAttemptCount < MAX_RETRIES) {
@@ -48,6 +53,7 @@ class SyncWorker @AssistedInject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Periodic sync failed with exception", e)
+            crashlyticsHelper.logStateBreadcrumb("WORKER_SYNC_ERROR", "${e.javaClass.simpleName}: ${e.message}")
 
             if (runAttemptCount < MAX_RETRIES) {
                 Result.retry()

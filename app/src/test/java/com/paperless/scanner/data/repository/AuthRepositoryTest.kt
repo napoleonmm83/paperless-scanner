@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
@@ -23,6 +24,7 @@ class AuthRepositoryTest {
     private lateinit var mockWebServer: MockWebServer
     private lateinit var tokenManager: TokenManager
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
+    private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var authRepository: AuthRepository
     private lateinit var client: OkHttpClient
 
@@ -32,8 +34,9 @@ class AuthRepositoryTest {
         mockWebServer.start()
         tokenManager = mockk(relaxed = true)
         cloudflareDetectionInterceptor = mockk(relaxed = true)
+        crashlyticsHelper = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor)
+        authRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
     }
 
     @After

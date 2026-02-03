@@ -26,6 +26,8 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.components.AnalyticsConsentDialog
 import com.paperless.scanner.ui.navigation.PaperlessNavGraph
@@ -51,6 +53,9 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var appLockManager: com.paperless.scanner.util.AppLockManager
 
+    @Inject
+    lateinit var crashlyticsHelper: CrashlyticsHelper
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled silently */ }
@@ -69,6 +74,19 @@ class MainActivity : FragmentActivity() {
         // Initialize analytics based on stored consent
         val hasConsent = tokenManager.isAnalyticsConsentGrantedSync()
         analyticsService.setEnabled(hasConsent)
+
+        // Initialize Crashlytics custom keys if consent is granted
+        if (hasConsent) {
+            val serverUrl = tokenManager.getServerUrlSync()
+            val subscriptionStatus = "free" // TODO: Get from BillingManager when available
+            analyticsService.initializeCrashlyticsKeys(
+                serverUrl = serverUrl,
+                appVersion = BuildConfig.VERSION_NAME,
+                versionCode = BuildConfig.VERSION_CODE,
+                subscriptionStatus = subscriptionStatus,
+                isOffline = false // Initial state, will be updated by NetworkMonitor
+            )
+        }
 
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
@@ -116,7 +134,9 @@ class MainActivity : FragmentActivity() {
                         startDestination = startDestination,
                         sharedUris = sharedUris,
                         tokenManager = tokenManager,
-                        appLockManager = appLockManager
+                        appLockManager = appLockManager,
+                        analyticsService = analyticsService,
+                        crashlyticsHelper = crashlyticsHelper
                     )
 
                     // Show consent dialog on first launch
