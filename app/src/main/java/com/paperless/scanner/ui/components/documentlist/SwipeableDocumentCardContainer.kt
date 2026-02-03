@@ -11,7 +11,10 @@ import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -108,6 +112,9 @@ private enum class SwipeState { Settled, Revealed }
  * @param documentId Unique document ID for state persistence
  * @param externallyRevealed External control for reveal state (null = internal control only)
  * @param onRevealStateChanged Callback when reveal state changes (for Hybrid Pattern)
+ * @param swipePatternState Optional HybridSwipePatternState for coordinated animations.
+ *                          When provided, enables sequential close-then-open animations
+ *                          to prevent multi-touch race conditions (two cards visually open).
  * @param onDelete Callback when delete button is pressed
  * @param modifier Optional modifier for the container
  * @param content Card content to be displayed (swipeable foreground)
@@ -120,6 +127,7 @@ fun SwipeableDocumentCardContainer(
     modifier: Modifier = Modifier,
     externallyRevealed: Boolean? = null,
     onRevealStateChanged: ((Boolean) -> Unit)? = null,
+    swipePatternState: HybridSwipePatternState? = null,
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current
@@ -154,9 +162,41 @@ fun SwipeableDocumentCardContainer(
         }
     }
 
+    // InteractionSource for tracking drag start/stop to prevent simultaneous drags
+    val interactionSource = remember(documentId) { MutableInteractionSource() }
+
+    // SIMULTANEOUS DRAG PREVENTION:
+    // Track when this card starts/stops dragging to block other cards
+    LaunchedEffect(interactionSource, swipePatternState) {
+        if (swipePatternState != null) {
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is DragInteraction.Start -> swipePatternState.startDragging(documentId)
+                    is DragInteraction.Stop, is DragInteraction.Cancel -> swipePatternState.stopDragging(documentId)
+                }
+            }
+        }
+    }
+
     // Reset state when document changes
     LaunchedEffect(documentId) {
         externalOffset.snapTo(0f)
+    }
+
+    // MULTI-TOUCH RACE CONDITION FIX:
+    // Register this card's animatable with HybridSwipePatternState for coordinated animations.
+    // This enables the sequential close-then-open pattern via Mutex, ensuring
+    // never two cards are visually open simultaneously.
+    DisposableEffect(documentId, swipePatternState) {
+        swipePatternState?.registerCard(
+            cardId = documentId,
+            animatable = externalOffset,
+            revealedOffset = -revealedWidthPx
+        )
+        onDispose {
+            swipePatternState?.stopDragging(documentId)
+            swipePatternState?.unregisterCard(documentId)
+        }
     }
 
     // HYBRID PATTERN: External state control with custom animation (replaces deprecated settle)
@@ -165,6 +205,8 @@ fun SwipeableDocumentCardContainer(
             val targetOffset = if (externallyRevealed) -revealedWidthPx else 0f
             val targetState = if (externallyRevealed) SwipeState.Revealed else SwipeState.Settled
             val currentOffset = externalOffset.value
+
+            // Animate only if position needs to change
             if (kotlin.math.abs(currentOffset - targetOffset) > 1f) {
                 // Auto-close with haptic feedback
                 if (!externallyRevealed && currentOffset < 0f) {
@@ -177,46 +219,63 @@ fun SwipeableDocumentCardContainer(
                         stiffness = Spring.StiffnessLow
                     )
                 )
+            }
 
-                // CRITICAL: Force swipeState sync by temporarily limiting anchors
-                if (swipeState.currentValue != targetState) {
-                    swipeState.updateAnchors(
-                        DraggableAnchors {
-                            targetState at targetOffset
-                        }
-                    )
-                    // Restore both anchors
-                    swipeState.updateAnchors(
-                        DraggableAnchors {
-                            SwipeState.Settled at 0f
-                            SwipeState.Revealed at -revealedWidthPx
-                        }
-                    )
+            // CRITICAL: ALWAYS sync swipeState with external state
+            // FIX: Use dispatchRawDelta to move the internal offset to match the target,
+            // then updateAnchors to force the currentValue to match.
+            // This fixes the re-swipe bug where AnchoredDraggableState's internal offset
+            // was out of sync with externalOffset after external close animations.
+            if (swipeState.currentValue != targetState) {
+                // Step 1: Get current internal offset and calculate delta
+                val currentInternalOffset = try { swipeState.requireOffset() } catch (e: Exception) { 0f }
+                val delta = targetOffset - currentInternalOffset
+
+                // Step 2: Move internal offset to target position
+                if (kotlin.math.abs(delta) > 1f) {
+                    swipeState.dispatchRawDelta(delta)
                 }
+
+                // Step 3: Force currentValue update via anchor manipulation
+                swipeState.updateAnchors(
+                    DraggableAnchors {
+                        targetState at targetOffset
+                    }
+                )
+                swipeState.updateAnchors(
+                    DraggableAnchors {
+                        SwipeState.Settled at 0f
+                        SwipeState.Revealed at -revealedWidthPx
+                    }
+                )
             }
         }
     }
 
-    // Sync external offset with swipeState when user gestures (smooth animation)
-    LaunchedEffect(swipeState.currentValue) {
-        val targetOffset = when (swipeState.currentValue) {
-            SwipeState.Settled -> 0f
-            SwipeState.Revealed -> -revealedWidthPx
-        }
-        // Animate smoothly to match gesture state
-        externalOffset.animateTo(
-            targetValue = targetOffset,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-    }
-
-    // HYBRID PATTERN: Propagate internal state changes to parent
+    // HYBRID PATTERN: Sync external offset with swipeState and propagate state changes
+    // When swipePatternState is provided, setRevealedAnimated handles the animation
+    // When not provided, we animate directly here
     LaunchedEffect(swipeState.currentValue) {
         val isRevealed = swipeState.currentValue == SwipeState.Revealed
-        onRevealStateChanged?.invoke(isRevealed)
+        val targetOffset = if (isRevealed) -revealedWidthPx else 0f
+
+        if (swipePatternState != null) {
+            // MULTI-TOUCH RACE CONDITION FIX:
+            // Use setRevealedAnimated for Mutex-protected sequential animations
+            // This ensures close-then-open order when another card is already revealed
+            // setRevealedAnimated handles the animation internally - DON'T animate here!
+            swipePatternState.setRevealedAnimated(documentId, isRevealed)
+        } else {
+            // Fallback: Animate directly and use callback for backward compatibility
+            externalOffset.animateTo(
+                targetValue = targetOffset,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            )
+            onRevealStateChanged?.invoke(isRevealed)
+        }
     }
 
     // MULTI-TOUCH PROTECTION: Detect multi-finger gestures and auto-close to prevent state corruption
@@ -275,32 +334,36 @@ fun SwipeableDocumentCardContainer(
                         y = 0
                     )
                 }
-                // CRITICAL: Multi-touch blocking BEFORE anchoredDraggable
-                .pointerInput("multitouch_block_$documentId") {
+                // GESTURE BLOCKING: Only blocks when another card is dragging or animation running
+                // Normal gestures pass through to anchoredDraggable - NO monitoring loop!
+                // Drag state tracking is handled by interactionSource LaunchedEffect
+                .pointerInput("gesture_block_$documentId", swipePatternState) {
                     awaitEachGesture {
-                        awaitPointerEvent()
+                        val firstDown = awaitFirstDown(requireUnconsumed = false)
 
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val activePointers = event.changes.count { it.pressed }
+                        // Check if we should block this gesture
+                        val shouldBlock = swipePatternState?.let {
+                            it.isOtherCardDragging(documentId) || it.isAnimationRunning()
+                        } ?: false
 
-                            // Block ALL events when 2+ fingers detected
-                            if (activePointers >= 2) {
+                        if (shouldBlock) {
+                            // Block ALL events - consume firstDown and everything after
+                            firstDown.consume()
+                            while (true) {
+                                val event = awaitPointerEvent()
                                 event.changes.forEach { it.consume() }
-                                // Also auto-close card
-                                scope.launch {
-                                    externalOffset.snapTo(0f)
-                                    onRevealStateChanged?.invoke(false)
-                                }
+                                if (event.changes.none { it.pressed }) break
                             }
-
-                            if (activePointers == 0) break
                         }
+                        // If not blocked, just exit - let anchoredDraggable handle the gesture
                     }
                 }
                 .anchoredDraggable(
                     state = swipeState,
-                    orientation = Orientation.Horizontal
+                    orientation = Orientation.Horizontal,
+                    // SIMULTANEOUS DRAG PREVENTION: Disable when another card is being dragged
+                    enabled = swipePatternState?.isOtherCardDragging(documentId) != true,
+                    interactionSource = interactionSource
                 )
                 // TalkBack Accessibility: Custom Action for delete
                 .semantics {
@@ -315,13 +378,19 @@ fun SwipeableDocumentCardContainer(
                     )
                 }
                 // Long-Press: Auto-reveal delete button for non-TalkBack users
-                .pointerInput(documentId) {
+                .pointerInput(documentId, swipePatternState) {
                     detectTapGestures(
                         onLongPress = {
                             // Haptic feedback for long-press
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            // Auto-reveal delete button
-                            onRevealStateChanged?.invoke(true)
+                            // Auto-reveal delete button with coordinated animation
+                            scope.launch {
+                                if (swipePatternState != null) {
+                                    swipePatternState.setRevealedAnimated(documentId, true)
+                                } else {
+                                    onRevealStateChanged?.invoke(true)
+                                }
+                            }
                         }
                     )
                 }
