@@ -493,12 +493,12 @@ fun DocumentsScreen(
                     val document = pagedDocuments[index]
                     if (document != null) {
                         // Using shared swipeable container with Hybrid Pattern
+                        // MULTI-TOUCH RACE CONDITION FIX: Pass swipePatternState for
+                        // sequential close-then-open animations via Mutex
                         SwipeableDocumentCardContainer(
                             documentId = document.id,
                             externallyRevealed = swipePattern.isRevealed(document.id),
-                            onRevealStateChanged = { isRevealed ->
-                                swipePattern.setRevealed(document.id, isRevealed)
-                            },
+                            swipePatternState = swipePattern,
                             onDelete = { viewModel.deleteDocument(document.id, document.title) },
                             modifier = animateItemRemoval()  // Gmail-style slide-off animation
                         ) {
