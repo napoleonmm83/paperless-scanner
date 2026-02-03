@@ -100,17 +100,27 @@ fun AppLockScreen(
         // Block back navigation - user must authenticate
     }
 
-    // Auto-focus password field on screen load
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+    // Auto-focus password field on screen load - BUT only if biometric is not available
+    // This prevents keyboard flash when biometric unlocks instantly
+    LaunchedEffect(canUseBiometric) {
+        if (!canUseBiometric) {
+            // Only focus password field if user must type (no biometric option)
+            focusRequester.requestFocus()
+        }
     }
 
     // Handle unlock success and permanent lockout
+    // CRITICAL: Hide keyboard BEFORE navigation to prevent keyboard flash
     LaunchedEffect(uiState) {
         when (val state = uiState) {
-            is AppLockUiState.Unlocked -> onUnlocked()
+            is AppLockUiState.Unlocked -> {
+                // Hide keyboard first, then navigate
+                keyboardController?.hide()
+                onUnlocked()
+            }
             is AppLockUiState.LockedOut -> {
                 if (state.isPermanent) {
+                    keyboardController?.hide()
                     onLockedOut()
                 }
                 // Temporary lockout is handled in the UI (countdown timer)
