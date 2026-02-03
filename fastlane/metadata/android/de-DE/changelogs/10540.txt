@@ -1,0 +1,7 @@
+Version 1.5.40:
+
+🔧 Verbesserungen:
+- Bessere Absturz-Analyse durch Navigation-Breadcrumbs
+- Detailliertere Fehlerberichte bei Upload-Problemen
+- Optimierte Crash-Diagnose für schnellere Fehlerbehebung
+- Erweiterte Server-Verbindungs-Diagnostik
