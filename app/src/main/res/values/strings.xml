@@ -390,6 +390,8 @@
     
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Schnellzugriff zum Scannen von Dokumenten</string>
+    <string name="widget_tap_to_scan">Tippen zum Scannen</string>
+    <string name="widget_pending_format">%d ausstehend</string>
 
     
     <string name="upload_quality_auto">Automatisch</string>

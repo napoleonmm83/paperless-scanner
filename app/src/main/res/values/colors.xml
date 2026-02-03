@@ -14,4 +14,5 @@
     <color name="widget_background">#E8F5E9</color>
     <color name="widget_text_primary">#1B5E20</color>
     <color name="widget_text_secondary">#388E3C</color>
+    <color name="widget_badge_background">#C8E6C9</color>
 </resources>

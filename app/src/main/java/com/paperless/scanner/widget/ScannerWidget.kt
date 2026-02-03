@@ -4,6 +4,7 @@ package com.paperless.scanner.widget
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -55,8 +56,16 @@ import com.paperless.scanner.R
  *
  * Crash: "List adapter activity trampoline invoked without specifying target intent"
  * Fix: Create PendingIntent with FLAG_IMMUTABLE directly, bypassing trampoline
+ *
+ * IMPROVED (2026-02): Added multiple fallback strategies and explicit ComponentName
+ * to maximize compatibility across OEM Android implementations.
  */
 class LaunchMainActivityCallback : ActionCallback {
+
+    companion object {
+        private const val TAG = "ScannerWidget"
+    }
+
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,
@@ -65,50 +74,110 @@ class LaunchMainActivityCallback : ActionCallback {
         val crashlytics = FirebaseCrashlytics.getInstance()
 
         // Log widget click for monitoring
-        crashlytics.log("Widget clicked - launching MainActivity")
-        crashlytics.setCustomKey("widget_launch_method", "ActionCallback")
-        crashlytics.setCustomKey("device_manufacturer", Build.MANUFACTURER)
-        crashlytics.setCustomKey("device_model", Build.MODEL)
-        crashlytics.setCustomKey("android_version", Build.VERSION.SDK_INT)
+        crashlytics.log("Widget clicked - launching MainActivity (Glance)")
+        crashlytics.setCustomKey("widget_launch_method", "ActionCallback_Improved")
+        crashlytics.setCustomKey("device_info", WidgetDeviceChecker.getDeviceInfo())
 
-        try {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        // Strategy 1: Direct startActivity with explicit ComponentName (most reliable)
+        if (tryDirectLaunch(context, crashlytics)) return
+
+        // Strategy 2: PendingIntent.send() as fallback
+        if (tryPendingIntentLaunch(context, crashlytics)) return
+
+        // Strategy 3: Package manager launch as last resort
+        tryPackageManagerLaunch(context, crashlytics)
+    }
+
+    /**
+     * Strategy 1: Direct startActivity with explicit ComponentName.
+     * This bypasses any trampoline mechanisms and is the most reliable approach.
+     */
+    private fun tryDirectLaunch(context: Context, crashlytics: FirebaseCrashlytics): Boolean {
+        return try {
+            val intent = Intent().apply {
+                component = ComponentName(context.packageName, MainActivity::class.java.name)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
             }
 
-            // Create PendingIntent with FLAG_IMMUTABLE (required for Android 11+)
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                0,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+            context.startActivity(intent)
 
-            Log.d("ScannerWidget", "Launching MainActivity via PendingIntent")
-            pendingIntent.send()
-
-            crashlytics.log("Widget launch successful via PendingIntent")
+            Log.d(TAG, "Widget launch successful via direct startActivity")
+            crashlytics.log("Widget launch successful via direct startActivity")
+            crashlytics.setCustomKey("widget_launch_strategy", "direct")
+            true
 
         } catch (e: Exception) {
-            // Fallback: Direct activity launch if PendingIntent fails
-            Log.w("ScannerWidget", "PendingIntent failed, using direct startActivity", e)
-            crashlytics.recordException(e)
-            crashlytics.setCustomKey("widget_launch_fallback", true)
+            Log.w(TAG, "Direct startActivity failed", e)
+            crashlytics.log("Direct startActivity failed: ${e.message}")
+            false
+        }
+    }
 
-            try {
-                val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                context.startActivity(intent)
-
-                crashlytics.log("Widget launch successful via fallback startActivity")
-
-            } catch (fallbackException: Exception) {
-                // Both methods failed - log for debugging
-                Log.e("ScannerWidget", "Widget launch completely failed", fallbackException)
-                crashlytics.recordException(fallbackException)
-                crashlytics.setCustomKey("widget_launch_failed", true)
+    /**
+     * Strategy 2: PendingIntent with FLAG_IMMUTABLE.
+     * Works on most devices but can fail on some OEM implementations.
+     */
+    private fun tryPendingIntentLaunch(context: Context, crashlytics: FirebaseCrashlytics): Boolean {
+        return try {
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // Add unique action to ensure fresh PendingIntent
+                action = "com.paperless.scanner.WIDGET_LAUNCH_${System.currentTimeMillis()}"
             }
+
+            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                System.currentTimeMillis().toInt(),
+                intent,
+                pendingIntentFlags
+            )
+
+            pendingIntent.send()
+
+            Log.d(TAG, "Widget launch successful via PendingIntent")
+            crashlytics.log("Widget launch successful via PendingIntent")
+            crashlytics.setCustomKey("widget_launch_strategy", "pending_intent")
+            true
+
+        } catch (e: Exception) {
+            Log.w(TAG, "PendingIntent launch failed", e)
+            crashlytics.log("PendingIntent launch failed: ${e.message}")
+            crashlytics.recordException(e)
+            false
+        }
+    }
+
+    /**
+     * Strategy 3: Use PackageManager to get launch intent.
+     * Last resort - uses system's default launcher intent resolution.
+     */
+    private fun tryPackageManagerLaunch(context: Context, crashlytics: FirebaseCrashlytics) {
+        try {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            if (launchIntent != null) {
+                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                context.startActivity(launchIntent)
+
+                Log.d(TAG, "Widget launch successful via PackageManager")
+                crashlytics.log("Widget launch successful via PackageManager")
+                crashlytics.setCustomKey("widget_launch_strategy", "package_manager")
+            } else {
+                throw IllegalStateException("PackageManager returned null launch intent")
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "All widget launch strategies failed", e)
+            crashlytics.recordException(e)
+            crashlytics.setCustomKey("widget_launch_failed", true)
+            crashlytics.setCustomKey("widget_launch_strategy", "all_failed")
         }
     }
 }
