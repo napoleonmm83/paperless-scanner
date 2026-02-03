@@ -62,3 +62,19 @@
 
 # Preserve line numbers for better crash reports
 -keepattributes SourceFile,LineNumberTable
+
+# Google Play Billing Library
+# Prevent obfuscation of billing classes that may cause ProxyBillingActivity crashes
+-keep class com.android.billingclient.** { *; }
+-keep interface com.android.billingclient.** { *; }
+
+# Keep billing-related classes that use reflection
+-keepclassmembers class * implements com.android.billingclient.api.PurchasesUpdatedListener {
+    *;
+}
+-keepclassmembers class * implements com.android.billingclient.api.BillingClientStateListener {
+    *;
+}
+
+# Prevent R8 from removing billing activity
+-keep class com.android.billingclient.api.ProxyBillingActivity { *; }
