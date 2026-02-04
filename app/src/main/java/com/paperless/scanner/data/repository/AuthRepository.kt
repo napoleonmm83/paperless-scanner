@@ -19,6 +19,44 @@ import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 
+/**
+ * AuthRepository - Repository for authentication and server connection handling.
+ *
+ * **AUTHENTICATION FLOW:**
+ * 1. [detectServerProtocol] - Auto-detect HTTPS/HTTP and verify Paperless server
+ * 2. [login] - Authenticate with username/password to obtain API token
+ * 3. OR [validateToken] - Validate existing API token (for token-based auth)
+ * 4. [logout] - Clear credentials and reset connection state
+ *
+ * **SECURITY FEATURES:**
+ * - HTTPS preferred over HTTP (tries HTTPS first)
+ * - 2FA/MFA detection with user-friendly error messages
+ * - Token-based authentication for accounts with 2FA enabled
+ * - Cloudflare detection reset on logout for server switching
+ *
+ * **SERVER DETECTION:**
+ * Supports various address formats:
+ * - Domain names: `paperless.example.com`, `paperless.example.com:8000`
+ * - IPv4 addresses: `192.168.1.100`, `192.168.1.100:8000`
+ * - IPv6 addresses: `[::1]`, `[2001:db8::1]:8000`
+ *
+ * **ERROR HANDLING:**
+ * Provides localized (German) error messages for common scenarios:
+ * - Invalid credentials
+ * - 2FA requirement
+ * - SSL certificate issues
+ * - Network connectivity problems
+ * - Server not found
+ *
+ * @property tokenManager Secure storage for server URL and API token
+ * @property client OkHttpClient for network requests
+ * @property cloudflareDetectionInterceptor Handles Cloudflare-protected servers
+ * @property crashlyticsHelper Analytics breadcrumb logging
+ *
+ * @see PaperlessApi.getToken For underlying token endpoint
+ * @see TokenManager For credential persistence
+ * @see LoginViewModel For UI layer usage
+ */
 class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val client: OkHttpClient,
@@ -327,6 +365,25 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Authenticate user with username and password.
+     *
+     * **AUTHENTICATION FLOW:**
+     * 1. Sends POST to `/api/token/` with form-encoded credentials
+     * 2. On success: Saves token to [TokenManager] and returns [LoginResult.Success]
+     * 3. On failure: Returns appropriate [PaperlessException] with localized message
+     *
+     * **2FA/MFA HANDLING:**
+     * If the server requires 2FA, this method detects it and returns a
+     * user-friendly message directing users to use token-based authentication.
+     *
+     * @param serverUrl Full server URL (e.g., "https://paperless.example.com")
+     * @param username Paperless-ngx username
+     * @param password Paperless-ngx password
+     * @return [Result] containing [LoginResult.Success] with token, or failure with [PaperlessException]
+     * @see validateToken For token-based authentication (required when 2FA is enabled)
+     * @see TokenManager.saveCredentials For credential persistence
+     */
     suspend fun login(serverUrl: String, username: String, password: String): Result<LoginResult> {
         crashlyticsHelper.logActionBreadcrumb("LOGIN", "username=$username")
         return try {
@@ -453,6 +510,24 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Validate an API token against the server.
+     *
+     * **USE CASES:**
+     * - Initial token validation during token-based login
+     * - Token validation for accounts with 2FA enabled
+     * - Token obtained via OCR scan from settings page
+     *
+     * **VALIDATION METHOD:**
+     * Makes a lightweight GET request to `/api/tags/?page_size=1` with
+     * the token in the Authorization header. A 200 response confirms validity.
+     *
+     * @param serverUrl Full server URL (e.g., "https://paperless.example.com")
+     * @param token API token to validate (whitespace/newlines are automatically cleaned)
+     * @return [Result] with Unit on success, or failure with [PaperlessException]
+     * @see login For username/password authentication
+     * @see TokenManager.saveCredentials Called after successful validation
+     */
     suspend fun validateToken(serverUrl: String, token: String): Result<Unit> {
         crashlyticsHelper.logActionBreadcrumb("TOKEN_VALIDATE")
         return try {
@@ -495,6 +570,19 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Log out and clear all stored credentials.
+     *
+     * **CLEANUP ACTIONS:**
+     * 1. Resets Cloudflare detection state (allows fresh detection on next login)
+     * 2. Clears all credentials from [TokenManager] (server URL, token, settings)
+     *
+     * **IMPORTANT:** This enables server switching - after logout, the user can
+     * connect to a different Paperless-ngx instance.
+     *
+     * @see TokenManager.clearCredentials For credential cleanup details
+     * @see CloudflareDetectionInterceptor.resetDetection For Cloudflare state reset
+     */
     suspend fun logout() {
         // Reset Cloudflare detection to allow fresh detection on next login
         // (important if user switches to a different server)

@@ -8,6 +8,35 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * PendingUploadDao - Room DAO for upload queue persistence.
+ *
+ * **PURPOSE:**
+ * Persists document uploads in a queue for background processing.
+ * Enables the "queue-only" upload architecture where uploads happen
+ * asynchronously via WorkManager after user returns to home screen.
+ *
+ * **STATUS LIFECYCLE:**
+ * ```
+ * PENDING → UPLOADING → (deleted on success)
+ *              ↓
+ *           FAILED → (retry) → PENDING
+ * ```
+ *
+ * **REACTIVE PATTERNS:**
+ * - [getAllPendingUploads] returns [Flow] for queue screen updates
+ * - [getPendingCount] returns [Flow] for badge/notification display
+ *
+ * **RETRY LOGIC:**
+ * - [getPendingAndFailedUploads] includes failed uploads under retry limit
+ * - [resetFailedForRetry] resets eligible failed uploads for retry
+ * - [markAsFailed] increments retry count and records error
+ *
+ * @see PendingUpload Entity representing queued upload
+ * @see UploadQueueRepository For business logic layer
+ * @see UploadWorker For background upload processing
+ * @see UploadStatus For status enum values
+ */
 @Dao
 interface PendingUploadDao {
 

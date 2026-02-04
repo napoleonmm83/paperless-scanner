@@ -8,6 +8,24 @@ import androidx.room.Update
 import com.paperless.scanner.data.database.entities.CachedCorrespondent
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * CachedCorrespondentDao - Room DAO for correspondent cache operations.
+ *
+ * **PURPOSE:**
+ * Provides local caching of correspondents from Paperless-ngx server.
+ * Enables offline-first correspondent selection and reactive UI updates.
+ *
+ * **REACTIVE PATTERNS:**
+ * - [observeCorrespondents] returns [Flow] for automatic UI updates
+ * - Use for correspondent pickers, filters, and Labels screen
+ *
+ * **SOFT DELETE:**
+ * Correspondents use soft delete (isDeleted=1) for offline change tracking.
+ * Hard delete only during sync when removing orphaned entries.
+ *
+ * @see CachedCorrespondent Entity representing cached correspondent
+ * @see CorrespondentRepository For business logic layer
+ */
 @Dao
 interface CachedCorrespondentDao {
     // Reactive Flow - updates automatically on any DB change

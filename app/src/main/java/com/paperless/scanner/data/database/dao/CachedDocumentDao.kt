@@ -11,6 +11,33 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.paperless.scanner.data.database.entities.CachedDocument
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * CachedDocumentDao - Room DAO for document cache operations.
+ *
+ * **PURPOSE:**
+ * Provides local caching of documents from Paperless-ngx server.
+ * Enables offline-first architecture with reactive UI updates.
+ *
+ * **REACTIVE PATTERNS:**
+ * - Methods returning [Flow] update automatically when data changes
+ * - Use `observe*()` methods for UI that needs live updates
+ * - Use `get*()` suspend methods for one-shot queries
+ *
+ * **SOFT DELETE / TRASH:**
+ * Documents are soft-deleted (isDeleted=1) rather than removed.
+ * This supports the Paperless-ngx v2.20+ trash feature:
+ * - [softDelete] marks document as deleted with timestamp
+ * - [restoreDocument] recovers document from trash
+ * - [hardDelete] permanently removes from cache
+ *
+ * **PAGING 3:**
+ * [getDocumentsPagingSource] supports infinite scroll with [DocumentFilter].
+ * Uses @RawQuery for dynamic SQL - Room handles LIMIT/OFFSET automatically.
+ *
+ * @see CachedDocument Entity representing cached document
+ * @see DocumentRepository For business logic layer
+ * @see DocumentFilterQueryBuilder For building filter queries
+ */
 @Dao
 interface CachedDocumentDao {
     // Reactive Flow for recent documents (HomeScreen) - updates automatically on any DB change

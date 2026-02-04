@@ -21,6 +21,47 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
+/**
+ * TagRepository - Repository for tag management with offline-first architecture.
+ *
+ * **ARCHITECTURE:**
+ * Implements offline-first pattern with Room cache as single source of truth.
+ * Uses reactive Flows for automatic UI updates when tag data changes.
+ *
+ * **DATA FLOW:**
+ * ```
+ * UI ← Flow ← Room Cache ← Repository ← API
+ *                ↑_____________________________|
+ *                         (sync on refresh)
+ * ```
+ *
+ * **FEATURES:**
+ * - Reactive [observeTags] Flow for automatic UI updates
+ * - Offline-first with network sync on demand
+ * - Cache invalidation after CRUD operations
+ * - Cascading tag removal from cached documents on delete
+ *
+ * **USAGE:**
+ * ```kotlin
+ * // Reactive observation (preferred)
+ * tagRepository.observeTags().collect { tags ->
+ *     updateUI(tags)
+ * }
+ *
+ * // One-shot fetch with optional refresh
+ * val tags = tagRepository.getTags(forceRefresh = true)
+ * ```
+ *
+ * @property api Paperless-ngx REST API interface
+ * @property cachedTagDao Room DAO for tag cache operations
+ * @property cachedDocumentDao Room DAO for document cache (for cascading updates)
+ * @property networkMonitor Network connectivity checker
+ * @property gson JSON serializer for tag ID lists
+ *
+ * @see PaperlessApi.getTags For API endpoint
+ * @see CachedTagDao For cache operations
+ * @see Tag Domain model for tags
+ */
 class TagRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedTagDao: CachedTagDao,
@@ -30,14 +71,31 @@ class TagRepository @Inject constructor(
     private val gson: Gson
 ) {
     /**
-     * BEST PRACTICE: Reactive Flow for automatic UI updates.
-     * Observes cached tags and automatically notifies when tags are added/modified/deleted.
+     * Observe all tags reactively.
+     *
+     * **BEST PRACTICE:** Reactive Flow for automatic UI updates.
+     * Emits new list whenever tags are added, modified, or deleted.
+     *
+     * @return [Flow] emitting list of [Tag] objects on any cache change
+     * @see CachedTagDao.observeTags For underlying Room query
      */
     fun observeTags(): Flow<List<Tag>> {
         return cachedTagDao.observeTags()
             .map { cachedList -> cachedList.map { it.toCachedDomain() } }
     }
 
+    /**
+     * Get all tags with optional network refresh.
+     *
+     * **OFFLINE-FIRST STRATEGY:**
+     * 1. If not forceRefresh: Return cached tags immediately
+     * 2. If forceRefresh and online: Fetch from API, update cache, return fresh data
+     * 3. If offline: Return cached data (or empty list if no cache)
+     *
+     * @param forceRefresh If true, fetches fresh data from server (when online)
+     * @return [Result] containing list of [Tag] objects, or failure with [PaperlessException]
+     * @see observeTags For reactive alternative (preferred for UI)
+     */
     suspend fun getTags(forceRefresh: Boolean = false): Result<List<Tag>> {
         return try {
             // Offline-First: Try cache first unless forceRefresh
@@ -64,6 +122,17 @@ class TagRepository @Inject constructor(
         }
     }
 
+    /**
+     * Create a new tag on the server and cache.
+     *
+     * Immediately updates local cache after successful creation,
+     * triggering reactive Flow updates for connected UI components.
+     *
+     * @param name Tag name (must be unique)
+     * @param color Optional hex color code (e.g., "#FF5733")
+     * @return [Result] containing created [Tag] with server-assigned ID, or failure
+     * @see PaperlessApi.createTag For API endpoint
+     */
     suspend fun createTag(name: String, color: String? = null): Result<Tag> {
         return try {
             val response = api.createTag(CreateTagRequest(name = name, color = color))
@@ -79,6 +148,18 @@ class TagRepository @Inject constructor(
         }
     }
 
+    /**
+     * Update an existing tag on the server and cache.
+     *
+     * Immediately updates local cache after successful update,
+     * triggering reactive Flow updates for connected UI components.
+     *
+     * @param id Tag ID to update
+     * @param name New tag name
+     * @param color Optional new hex color code
+     * @return [Result] containing updated [Tag], or failure with [PaperlessException]
+     * @see PaperlessApi.updateTag For API endpoint
+     */
     suspend fun updateTag(id: Int, name: String, color: String? = null): Result<Tag> {
         return try {
             val response = api.updateTag(id, UpdateTagRequest(name = name, color = color))
@@ -93,6 +174,18 @@ class TagRepository @Inject constructor(
         }
     }
 
+    /**
+     * Delete a tag from the server and cache.
+     *
+     * **CASCADE BEHAVIOR:**
+     * After deletion, removes the tag ID from all cached documents
+     * to ensure UI consistency without requiring a full sync.
+     *
+     * @param id Tag ID to delete
+     * @return [Result] with Unit on success, or failure with [PaperlessException]
+     * @see PaperlessApi.deleteTag For API endpoint
+     * @see removeTagFromCachedDocuments For cascade logic
+     */
     suspend fun deleteTag(id: Int): Result<Unit> {
         return try {
             api.deleteTag(id)
@@ -144,6 +237,16 @@ class TagRepository @Inject constructor(
         }
     }
 
+    /**
+     * Get all documents that have a specific tag.
+     *
+     * Fetches directly from server (no caching) to get up-to-date
+     * document list filtered by tag.
+     *
+     * @param tagId Tag ID to filter documents by
+     * @return [Result] containing list of [Document] objects with this tag
+     * @see PaperlessApi.getDocuments For underlying API call
+     */
     suspend fun getDocumentsForTag(tagId: Int): Result<List<Document>> = safeApiCall {
         api.getDocuments(
             tagIds = tagId.toString(),

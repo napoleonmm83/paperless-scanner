@@ -8,6 +8,24 @@ import androidx.room.Update
 import com.paperless.scanner.data.database.entities.CachedDocumentType
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * CachedDocumentTypeDao - Room DAO for document type cache operations.
+ *
+ * **PURPOSE:**
+ * Provides local caching of document types from Paperless-ngx server.
+ * Enables offline-first document type selection and reactive UI updates.
+ *
+ * **REACTIVE PATTERNS:**
+ * - [observeDocumentTypes] returns [Flow] for automatic UI updates
+ * - Use for document type pickers, filters, and Labels screen
+ *
+ * **SOFT DELETE:**
+ * Document types use soft delete (isDeleted=1) for offline change tracking.
+ * Hard delete only during sync when removing orphaned entries.
+ *
+ * @see CachedDocumentType Entity representing cached document type
+ * @see DocumentTypeRepository For business logic layer
+ */
 @Dao
 interface CachedDocumentTypeDao {
     // Reactive Flow - updates automatically on any DB change

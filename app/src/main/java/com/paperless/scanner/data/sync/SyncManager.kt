@@ -26,6 +26,56 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * SyncManager - Orchestrates bidirectional synchronization with Paperless-ngx server.
+ *
+ * **SYNC ARCHITECTURE:**
+ * Implements a two-phase sync strategy:
+ * 1. **PUSH** - Upload pending local changes to server first
+ * 2. **PULL** - Download latest data from server to cache
+ *
+ * This order ensures local changes aren't overwritten by stale server data.
+ *
+ * **SYNC FLOW:**
+ * ```
+ * performFullSync()
+ *     ├── pushPendingChanges()     ← Push local edits/deletes
+ *     ├── syncTags()               ← Pull tags
+ *     ├── syncCorrespondents()     ← Pull correspondents
+ *     ├── syncDocumentTypes()      ← Pull document types
+ *     └── syncDocuments()          ← Pull all documents
+ * ```
+ *
+ * **ORPHAN DETECTION:**
+ * Each sync operation tracks which IDs exist on the server and removes
+ * locally cached items that no longer exist (deleted on server/web).
+ *
+ * **PENDING CHANGES:**
+ * Local changes made offline are queued in [PendingChangeDao] and pushed
+ * when connectivity is restored. Supports:
+ * - Document updates (title, tags, correspondent, etc.)
+ * - Document deletes (soft delete)
+ * - Trash permanent deletes
+ * - Tag/correspondent/document type deletes
+ *
+ * **ERROR HANDLING:**
+ * - Individual push failures don't abort entire sync
+ * - Retry count tracked per pending change
+ * - Failed document deletes block dependent trash deletes
+ *
+ * @property api Paperless-ngx REST API interface
+ * @property cachedDocumentDao Room DAO for document cache
+ * @property cachedTagDao Room DAO for tag cache
+ * @property cachedCorrespondentDao Room DAO for correspondent cache
+ * @property cachedDocumentTypeDao Room DAO for document type cache
+ * @property pendingChangeDao Room DAO for offline change queue
+ * @property syncMetadataDao Room DAO for sync timestamps
+ * @property gson JSON serializer for change data
+ *
+ * @see DocumentRepository For document-level operations
+ * @see PendingChangeDao For offline change persistence
+ * @see SyncMetadata For tracking last sync time
+ */
 @Singleton
 class SyncManager @Inject constructor(
     private val api: PaperlessApi,
@@ -40,7 +90,10 @@ class SyncManager @Inject constructor(
     private val TAG = "SyncManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Reactive pending changes count
+    /**
+     * Reactive count of pending changes waiting to sync.
+     * Updates every 2 seconds. Useful for sync status indicators.
+     */
     private val _pendingChangesCount = MutableStateFlow(0)
     val pendingChangesCount: StateFlow<Int> = _pendingChangesCount.asStateFlow()
 
@@ -63,6 +116,29 @@ class SyncManager @Inject constructor(
         }
     }
 
+    /**
+     * Perform a complete bidirectional sync with the server.
+     *
+     * **SYNC PHASES:**
+     * 1. Push all pending local changes to server
+     * 2. Pull and cache tags (with orphan cleanup)
+     * 3. Pull and cache correspondents (with orphan cleanup)
+     * 4. Pull and cache document types (with orphan cleanup)
+     * 5. Pull and cache all documents (with orphan cleanup)
+     * 6. Update sync metadata timestamp
+     *
+     * **USAGE:**
+     * ```kotlin
+     * val result = syncManager.performFullSync()
+     * result.onSuccess {
+     *     showMessage("Sync complete")
+     * }.onFailure { error ->
+     *     showError("Sync failed: ${error.message}")
+     * }
+     * ```
+     *
+     * @return [Result] with Unit on success, or failure with exception
+     */
     suspend fun performFullSync(): Result<Unit> {
         return try {
             Log.d(TAG, "Starting full sync...")

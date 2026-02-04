@@ -8,6 +8,24 @@ import androidx.room.Update
 import com.paperless.scanner.data.database.entities.CachedTag
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * CachedTagDao - Room DAO for tag cache operations.
+ *
+ * **PURPOSE:**
+ * Provides local caching of tags from Paperless-ngx server.
+ * Enables offline-first tag selection and reactive UI updates.
+ *
+ * **REACTIVE PATTERNS:**
+ * - [observeTags] returns [Flow] for automatic UI updates
+ * - Use for tag pickers, filters, and Labels screen
+ *
+ * **SOFT DELETE:**
+ * Tags use soft delete (isDeleted=1) for offline change tracking.
+ * Hard delete only during sync when removing orphaned entries.
+ *
+ * @see CachedTag Entity representing cached tag
+ * @see TagRepository For business logic layer
+ */
 @Dao
 interface CachedTagDao {
     // Reactive Flow - updates automatically on any DB change

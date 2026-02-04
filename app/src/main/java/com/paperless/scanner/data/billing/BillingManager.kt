@@ -30,15 +30,42 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 /**
- * Manages Premium subscription and billing with Google Play Billing Library 8.x
+ * BillingManager - Manages Premium subscription and billing with Google Play Billing Library 8.x
  *
- * Features:
- * - Subscription status tracking (active/inactive/expired)
- * - Purchase flow initiation
- * - Purchase restoration
- * - Reactive state updates via Flow
+ * **BILLING ARCHITECTURE:**
+ * - Uses Google Play Billing Library 8.3.0
+ * - Singleton lifecycle managed by Hilt
+ * - Reactive state via Kotlin Flows
+ * - Automatic purchase acknowledgement
  *
- * @see PremiumFeatureManager for feature-level access control
+ * **FEATURES:**
+ * - Subscription status tracking (active/inactive/expired/grace period)
+ * - Purchase flow initiation with trial offer support
+ * - Purchase restoration for reinstalls/device switches
+ * - Reactive state updates via [subscriptionStatus] and [isSubscriptionActive] Flows
+ * - Crashlytics integration for billing error tracking
+ *
+ * **SUBSCRIPTION PRODUCTS:**
+ * - `paperless_ai_monthly` - Monthly subscription with 7-day trial
+ * - `paperless_ai_yearly` - Yearly subscription with 14-day trial
+ *
+ * **USAGE:**
+ * ```kotlin
+ * // Initialize early in app lifecycle
+ * billingManager.initialize()
+ *
+ * // Observe subscription status
+ * billingManager.isSubscriptionActive.collect { isActive ->
+ *     updatePremiumUI(isActive)
+ * }
+ *
+ * // Launch purchase
+ * val result = billingManager.launchPurchaseFlow(activity, PRODUCT_ID_MONTHLY)
+ * ```
+ *
+ * @see PremiumFeatureManager For feature-level access control
+ * @see SubscriptionStatus For subscription state model
+ * @see PurchaseResult For purchase flow result handling
  */
 @Singleton
 class BillingManager @Inject constructor(
