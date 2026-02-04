@@ -148,3 +148,6 @@ functions/.runtimeconfig.json
 *Konflikt*
 *conflict copy*
 *conflicted copy*
+
+# Auto Claude data directory
+.auto-claude/

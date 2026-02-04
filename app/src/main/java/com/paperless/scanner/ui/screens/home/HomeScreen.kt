@@ -80,19 +80,12 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.AnchoredDraggableState
-import androidx.compose.foundation.gestures.DraggableAnchors
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.anchoredDraggable
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.layout.ContentScale
-import coil3.compose.AsyncImage
-import com.paperless.scanner.util.ThumbnailUrlBuilder
-import kotlin.math.roundToInt
+import androidx.compose.foundation.lazy.rememberLazyListState
+import com.paperless.scanner.ui.components.documentlist.SwipeableDocumentCardContainer
+import com.paperless.scanner.ui.components.documentlist.DocumentCardBase
+import com.paperless.scanner.ui.components.documentlist.DocumentListSnackbar
+import com.paperless.scanner.ui.components.documentlist.animateItemRemoval
+import com.paperless.scanner.ui.components.documentlist.rememberHybridSwipePattern
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,7 +120,6 @@ fun HomeScreen(
 
     // Snackbar for undo delete
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     // Premium Upgrade Sheet state
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
@@ -165,40 +157,15 @@ fun HomeScreen(
         }
     }
 
-    // Show undo snackbar when document is deleted
-    val deletedSnackbarMessage = stringResource(R.string.documents_deleted_snackbar)
-    val undoLabel = stringResource(R.string.documents_undo)
-    LaunchedEffect(uiState.deletedDocument?.id) {
-        val deletedDoc = uiState.deletedDocument ?: return@LaunchedEffect
-
-        // Dismiss any existing snackbar first to prevent race conditions
-        snackbarHostState.currentSnackbarData?.dismiss()
-
-        // Launch auto-dismiss timer in parallel
-        val autoDismissJob = launch {
-            delay(8000L) // 8 seconds
-            snackbarHostState.currentSnackbarData?.dismiss()
-        }
-
-        try {
-            val result = snackbarHostState.showSnackbar(
-                message = deletedSnackbarMessage,
-                actionLabel = undoLabel,
-                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
-                withDismissAction = true
-            )
-
-            // Cancel auto-dismiss if user interacted
-            autoDismissJob.cancel()
-
-            when (result) {
-                androidx.compose.material3.SnackbarResult.ActionPerformed -> viewModel.undoDelete()
-                androidx.compose.material3.SnackbarResult.Dismissed -> viewModel.clearDeletedDocument()
-            }
-        } finally {
-            autoDismissJob.cancel()
-        }
-    }
+    // Show undo snackbar when document is deleted (using shared component)
+    DocumentListSnackbar(
+        snackbarHostState = snackbarHostState,
+        deletedDocumentId = uiState.deletedDocument?.id,
+        message = stringResource(R.string.documents_deleted_snackbar),
+        actionLabel = stringResource(R.string.documents_undo),
+        onUndo = { viewModel.undoDelete() },
+        onDismiss = { viewModel.clearDeletedDocument() }
+    )
 
     // BEST PRACTICE: Pull-to-refresh for user-triggered updates
     // Refreshes stats and tasks from server to catch web/multi-device changes
@@ -215,8 +182,13 @@ fun HomeScreen(
             }
         }
     ) {
+        // HYBRID PATTERN: State for coordinated swipe-to-reveal behavior
+        val listState = rememberLazyListState()
+        val swipePattern = rememberHybridSwipePattern(listState = listState)
+
         // BEST PRACTICE: LazyColumn for entire screen enables animateItem() for smooth Gmail-style animations
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
             // Offline Indicator
@@ -491,17 +463,71 @@ fun HomeScreen(
                     key = { document -> document.id }
                 ) { doc ->
                     Column(
-                        modifier = Modifier
+                        modifier = animateItemRemoval()  // Gmail-style slide-off animation
                             .padding(horizontal = 24.dp)
-                            .animateItem()  // Animate item removal for smooth Gmail-style transition
                     ) {
-                        SwipeableRecentDocumentCard(
-                            document = doc,
-                            serverUrl = serverUrl,
-                            showThumbnails = showThumbnails,
-                            onClick = { onDocumentClick(doc.id) },
+                        // Using shared swipeable container with Hybrid Pattern
+                        // MULTI-TOUCH RACE CONDITION FIX: Pass swipePatternState for
+                        // sequential close-then-open animations via Mutex
+                        SwipeableDocumentCardContainer(
+                            documentId = doc.id,
+                            externallyRevealed = swipePattern.isRevealed(doc.id),
+                            swipePatternState = swipePattern,
                             onDelete = { viewModel.deleteRecentDocument(doc.id, doc.title) }
-                        )
+                        ) {
+                            DocumentCardBase(
+                                documentId = doc.id,
+                                serverUrl = serverUrl,
+                                showThumbnails = showThumbnails,
+                                onClick = { onDocumentClick(doc.id) }
+                            ) {
+                                // HomeScreen-specific metadata
+                                Text(
+                                    text = doc.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.AccessTime,
+                                            contentDescription = doc.timeAgo,
+                                            modifier = Modifier.size(12.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = doc.timeAgo,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    // Optional tag badge
+                                    doc.tagName?.let { tag ->
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(50))
+                                                .background(
+                                                    doc.tagColor?.let { Color(it).copy(alpha = 0.2f) }
+                                                        ?: MaterialTheme.colorScheme.primaryContainer
+                                                )
+                                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = tag,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = doc.tagColor?.let { Color(it) }
+                                                    ?: MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
@@ -1063,242 +1089,6 @@ private fun TrashCard(
                     )
                 }
             }
-        }
-    }
-}
-
-// Swipe states for iOS Mail-style reveal
-private enum class RecentDocSwipeState { Settled, Revealed }
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun SwipeableRecentDocumentCard(
-    document: RecentDocument,
-    serverUrl: String,
-    showThumbnails: Boolean,
-    onClick: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val density = LocalDensity.current
-    val hapticFeedback = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
-
-    // Width for revealed actions (delete button area)
-    val revealedWidthPx = with(density) { 100.dp.toPx() }
-
-    // AnchoredDraggable state with snap points (keyed by document.id to prevent state reuse)
-    val swipeState = remember(document.id) {
-        AnchoredDraggableState(
-            initialValue = RecentDocSwipeState.Settled,
-            positionalThreshold = { distance: Float -> distance * 0.3f },
-            velocityThreshold = { with(density) { 400.dp.toPx() } },
-            snapAnimationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            ),
-            decayAnimationSpec = androidx.compose.animation.core.exponentialDecay()
-        ).apply {
-            updateAnchors(
-                DraggableAnchors {
-                    RecentDocSwipeState.Settled at 0f
-                    RecentDocSwipeState.Revealed at -revealedWidthPx
-                }
-            )
-        }
-    }
-
-    // Reset state when document changes (uses snapAnimationSpec)
-    LaunchedEffect(document.id) {
-        swipeState.settle(0f)
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-    ) {
-        // Background with delete button
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(20.dp))
-                .padding(end = 16.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            // Delete Action Button (high contrast)
-            IconButton(
-                onClick = {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onDelete()
-                    scope.launch {
-                        swipeState.settle(0f)
-                    }
-                },
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(MaterialTheme.colorScheme.error, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = stringResource(R.string.documents_delete_background),
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-
-        // Foreground card (swipeable)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset {
-                    IntOffset(
-                        x = swipeState
-                            .requireOffset()
-                            .roundToInt(),
-                        y = 0
-                    )
-                }
-                .anchoredDraggable(
-                    state = swipeState,
-                    orientation = Orientation.Horizontal
-                )
-        ) {
-            RecentDocumentCardContent(
-                document = document,
-                serverUrl = serverUrl,
-                showThumbnails = showThumbnails,
-                onClick = onClick
-            )
-        }
-    }
-}
-
-// Backwards compatibility wrapper - delegates to SwipeableRecentDocumentCard
-@Composable
-private fun RecentDocumentCard(
-    document: RecentDocument,
-    onClick: () -> Unit
-) {
-    // TODO: Get serverUrl and showThumbnails from state
-    // For now, just show card without thumbnails/swipe
-    RecentDocumentCardContent(
-        document = document,
-        serverUrl = "",
-        showThumbnails = false,
-        onClick = onClick
-    )
-}
-
-@Composable
-private fun RecentDocumentCardContent(
-    document: RecentDocument,
-    serverUrl: String,
-    showThumbnails: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Document thumbnail or icon
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                val thumbnailUrl = if (showThumbnails && serverUrl.isNotBlank()) {
-                    ThumbnailUrlBuilder.buildThumbnailUrl(
-                        serverUrl = serverUrl,
-                        documentId = document.id
-                    )
-                } else null
-
-                if (thumbnailUrl != null) {
-                    AsyncImage(
-                        model = thumbnailUrl,
-                        contentDescription = stringResource(R.string.cd_document_thumbnail),
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.Description,
-                        contentDescription = stringResource(R.string.cd_document_thumbnail),
-                        modifier = Modifier.size(24.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = document.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.AccessTime,
-                            contentDescription = document.timeAgo,
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = document.timeAgo,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    document.tagName?.let { tag ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(
-                                    document.tagColor?.let { Color(it).copy(alpha = 0.2f) }
-                                        ?: MaterialTheme.colorScheme.primaryContainer
-                                )
-                                .padding(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = tag,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = document.tagColor?.let { Color(it) }
-                                    ?: MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(R.string.cd_expand),
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
