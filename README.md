@@ -4,9 +4,9 @@
 
 **Native Android App for Paperless-ngx with AI-Powered Document Processing**
 
-[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
+[![Version](https://img.shields.io/badge/version-1.5.44-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
 [![Android](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://www.android.com)
-[![Kotlin](https://img.shields.io/badge/kotlin-2.0-purple.svg)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/kotlin-2.1.10-purple.svg)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 
 [Features](#features) • [Screenshots](#screenshots) • [Installation](#installation) • [Setup](#setup) • [FAQ](#faq) • [Contributing](#contributing)
@@ -39,11 +39,16 @@
 |---------|-------------|
 | **📸 Smart Scanner** | MLKit-powered document scanner with automatic edge detection |
 | **⬆️ Direct Upload** | Upload directly to your Paperless-ngx instance |
-| **🏷️ Tag Management** | Select from existing tags, correspondents, and document types |
+| **📂 Document Browser** | Browse, search, and manage all documents with infinite scroll |
+| **🏷️ Label Management** | Manage tags, correspondents, and document types |
 | **📄 Multi-Page Docs** | Combine multiple scans into a single PDF document |
 | **📝 Per-Page Metadata** | Assign individual metadata (tags, title, type) to each scanned page |
 | **🎯 Smart Grouping** | Pages with identical metadata are automatically merged into single uploads |
 | **📚 Batch Import** | Upload multiple documents in one go |
+| **📋 Upload Queue** | Persistent upload queue with retry logic and progress tracking |
+| **🗑️ Trash Management** | Soft delete with restore functionality |
+| **🔒 App Lock** | Biometric/PIN protection with automatic lock |
+| **📱 Home Widget** | Quick scan access from home screen |
 | **🌙 Dark Mode** | Automatic dark/light theme following system settings |
 | **📴 Offline Mode** | Queue uploads when offline, auto-sync when connected |
 | **🔐 Secure** | Credentials stored securely with Android Keystore |
@@ -176,18 +181,20 @@ AI suggestions will now appear when you scan documents!
 
 | Component | Technology |
 |-----------|------------|
-| **Language** | Kotlin 2.0 |
+| **Language** | Kotlin 2.1.10 |
 | **UI** | Jetpack Compose + Material 3 |
 | **Dependency Injection** | Hilt |
 | **Networking** | Retrofit + OkHttp |
 | **Document Scanner** | MLKit Document Scanner |
 | **AI Processing** | Firebase AI (Gemini 2.0 Flash) |
-| **Database** | Room (for usage tracking) |
+| **Database** | Room (offline caching + upload queue) |
+| **Background Tasks** | WorkManager (queue-only uploads) |
 | **Analytics** | Firebase Analytics (opt-in) |
 | **Storage** | DataStore Preferences |
-| **Image Loading** | Coil |
-| **PDF Generation** | iText7 |
-| **Billing** | Google Play Billing Library 6.0 |
+| **Image Loading** | Coil 3.x |
+| **PDF Generation** | iText 9.x |
+| **Pagination** | Paging 3 (infinite scroll) |
+| **Billing** | Google Play Billing Library 8.3.0 |
 
 ---
 
@@ -205,18 +212,33 @@ app/src/main/java/com/paperless/scanner/
 │   │   ├── AuthRepository.kt
 │   │   ├── DocumentRepository.kt
 │   │   ├── TagRepository.kt
+│   │   ├── CorrespondentRepository.kt
+│   │   ├── DocumentTypeRepository.kt
+│   │   ├── UploadQueueRepository.kt
 │   │   └── AiRepository.kt
 │   ├── datastore/               # Preferences & Settings
 │   │   └── TokenManager.kt
-│   └── database/                # Room Database
-│       └── AiUsageDao.kt
+│   ├── database/                # Room Database (Offline-First)
+│   │   ├── dao/
+│   │   │   ├── CachedDocumentDao.kt
+│   │   │   ├── CachedTagDao.kt
+│   │   │   ├── CachedCorrespondentDao.kt
+│   │   │   ├── CachedDocumentTypeDao.kt
+│   │   │   └── PendingUploadDao.kt
+│   │   └── entities/            # Room Entities
+│   └── sync/                    # Bidirectional Sync
+│       └── SyncManager.kt
 ├── ui/
 │   ├── theme/                   # Material 3 Theme
 │   ├── navigation/              # Navigation Graph
 │   └── screens/
 │       ├── login/               # Login Screen + ViewModel
+│       ├── home/                # Home Screen (Document List)
 │       ├── scan/                # Scan Screen + ViewModel
 │       ├── upload/              # Upload Screen + ViewModel
+│       ├── documents/           # Document Details + Editor
+│       ├── labels/              # Tags, Correspondents, Types
+│       ├── queue/               # Upload Queue Management
 │       ├── settings/            # Settings Screen + ViewModel
 │       └── subscription/        # Subscription Screen + ViewModel
 ├── util/                        # Utilities & Helpers
@@ -224,7 +246,11 @@ app/src/main/java/com/paperless/scanner/
 └── PaperlessApp.kt
 ```
 
-**Architecture Pattern:** MVVM + Repository Pattern + Clean Architecture
+**Architecture Patterns:**
+- MVVM + Repository Pattern + Clean Architecture
+- Offline-First with Room cache as single source of truth
+- Queue-Only Upload via WorkManager (survives process death)
+- Reactive Kotlin Flows for automatic UI updates
 
 ---
 
@@ -446,8 +472,9 @@ See [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md) for detailed guidelines.
 | [TERMS_OF_SERVICE.md](docs/TERMS_OF_SERVICE.md) | Terms of service (DE/EN) |
 | [TECHNICAL.md](docs/TECHNICAL.md) | Technical documentation & architecture |
 | [API_REFERENCE.md](docs/API_REFERENCE.md) | Paperless-ngx API reference |
-| [ANALYTICS_DASHBOARD.md](docs/ANALYTICS_DASHBOARD.md) | Analytics & business monitoring |
+| [QUEUE_ONLY_ARCHITECTURE.md](docs/QUEUE_ONLY_ARCHITECTURE.md) | Upload queue architecture |
 | [BEST_PRACTICES.md](docs/BEST_PRACTICES.md) | Coding standards & best practices |
+| [LOCAL_CI_TESTING.md](docs/LOCAL_CI_TESTING.md) | Local CI validation guide |
 | [ROADMAP.md](docs/ROADMAP.md) | Feature roadmap & future plans |
 
 ---
@@ -459,7 +486,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ```
 MIT License
 
-Copyright (c) 2024 Paperless Scanner
+Copyright (c) 2024-2025 Paperless Scanner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
