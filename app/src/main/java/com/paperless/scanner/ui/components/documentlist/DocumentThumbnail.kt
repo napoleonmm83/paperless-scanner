@@ -53,6 +53,9 @@ import com.paperless.scanner.util.ThumbnailUrlBuilder
  * @param serverUrl Paperless-ngx server URL
  * @param showThumbnails User preference to show/hide thumbnails
  * @param modifier Optional modifier for the thumbnail box
+ *
+ * @see ThumbnailUrlBuilder For URL construction logic
+ * @see DocumentCardBase Parent component that uses this thumbnail
  */
 @Composable
 fun DocumentThumbnail(

@@ -67,6 +67,9 @@ import com.paperless.scanner.R
  * @param onClick Callback when card is clicked
  * @param modifier Optional modifier for the card
  * @param metadata Custom metadata content (receives ColumnScope for vertical layout)
+ *
+ * @see DocumentThumbnail For thumbnail rendering logic
+ * @see SwipeableDocumentCardContainer For swipe-to-delete wrapper
  */
 @Composable
 fun DocumentCardBase(

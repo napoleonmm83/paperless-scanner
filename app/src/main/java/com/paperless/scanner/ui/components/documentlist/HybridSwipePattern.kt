@@ -136,6 +136,9 @@ class HybridSwipePatternState(
 
     /**
      * Check if an animation is currently running (mutex is locked).
+     * Used by gesture blocking to prevent new swipes during ongoing animations.
+     *
+     * @return true if a swipe animation is in progress, false otherwise
      */
     fun isAnimationRunning(): Boolean = animationMutex.isLocked
 

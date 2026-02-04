@@ -77,6 +77,9 @@ import androidx.compose.ui.Modifier
  * Applies Gmail-style slide-off animation when item is removed from list.
  *
  * Note: This function must be called within LazyItemScope context.
+ *
+ * @return [Modifier] with animateItem() applied for smooth removal animation
+ * @see SwipeableDocumentCardContainer Typical usage with swipe-to-delete
  */
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyItemScope.animateItemRemoval(): Modifier = Modifier.animateItem()
@@ -86,6 +89,9 @@ fun LazyItemScope.animateItemRemoval(): Modifier = Modifier.animateItem()
  * Applies Gmail-style slide-off animation when item is removed from grid.
  *
  * Note: This function must be called within LazyGridItemScope context.
+ *
+ * @return [Modifier] with animateItem() applied for smooth removal animation
+ * @see SwipeableDocumentCardContainer Typical usage with swipe-to-delete
  */
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyGridItemScope.animateItemRemoval(): Modifier = Modifier.animateItem()

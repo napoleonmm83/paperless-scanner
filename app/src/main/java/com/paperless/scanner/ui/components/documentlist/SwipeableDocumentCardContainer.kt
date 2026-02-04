@@ -118,6 +118,10 @@ private enum class SwipeState { Settled, Revealed }
  * @param onDelete Callback when delete button is pressed
  * @param modifier Optional modifier for the container
  * @param content Card content to be displayed (swipeable foreground)
+ *
+ * @see HybridSwipePatternState For coordinated multi-card swipe management
+ * @see DocumentCardBase Typical content component for this container
+ * @see animateItemRemoval For Gmail-style removal animation
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
