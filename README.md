@@ -23,17 +23,17 @@
 
 - **📱 Native Android App** - Fast, smooth, Material 3 design
 - **🤖 AI-Powered** - Optional AI suggestions for tags, titles, and metadata (Premium)
-- **🔒 Privacy-First** - No data collection in free version, full control over your data
+- **🔒 Privacy-First** - No data collection, full control over your data
 - **⚡ Lightning Fast** - Scan, tag, and upload in seconds
 - **🌙 Beautiful UI** - Dark mode support with Material 3 design
 - **📴 Offline-Capable** - Queue uploads when offline, sync automatically
-- **🆓 Free & Open Source** - Core features completely free, Premium for power users
+- **💰 Affordable & Open Source** - Full app for just CHF 1.-, optional Premium AI
 
 ---
 
 ## ✨ Features
 
-### Free Features
+### Core Features (CHF 1.- one-time)
 
 | Feature | Description |
 |---------|-------------|
@@ -258,7 +258,7 @@ app/src/main/java/com/paperless/scanner/
 
 **Privacy First - Your Data, Your Rules:**
 
-- ✅ **No tracking in free version** - Zero analytics or data collection
+- ✅ **No tracking** - Zero analytics or data collection
 - ✅ **Opt-in analytics** - You choose if you want to help improve the app
 - ✅ **Local-first** - All credentials stored securely on your device
 - ✅ **No cloud storage** - Documents go directly to YOUR Paperless instance
@@ -280,15 +280,15 @@ app/src/main/java/com/paperless/scanner/
 ## ❓ FAQ
 
 <details>
-<summary><strong>Is this app free?</strong></summary>
+<summary><strong>How much does the app cost?</strong></summary>
 
-Yes! The core features (scanning, uploading, manual tagging) are completely free and always will be. Premium AI features are optional for users who want to save time.
+The app costs **CHF 1.- (one-time purchase)** via Google Play. This includes all core features: scanning, uploading, document management, offline mode, and more. Optional Premium AI features are available as a subscription for power users.
 </details>
 
 <details>
 <summary><strong>Do I need a subscription?</strong></summary>
 
-No, you don't need a subscription to use the app. The free version is fully functional. The Premium subscription (€4.99/month) adds AI-powered suggestions to save you time.
+No, you don't need a subscription to use the app. The one-time purchase (CHF 1.-) gives you full access to all core features. The optional Premium subscription (€4.99/month) adds AI-powered suggestions to save you time.
 </details>
 
 <details>
