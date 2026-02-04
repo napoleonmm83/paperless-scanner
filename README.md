@@ -254,24 +254,35 @@ app/src/main/java/com/paperless/scanner/
 
 ---
 
-## 🔒 Privacy & Security
+## 🔒 Privacy Model
 
-**Privacy First - Your Data, Your Rules:**
+**The base app sends your documents ONLY to your own Paperless-ngx instance.**
 
-- ✅ **No tracking** - Zero analytics or data collection
-- ✅ **Opt-in analytics** - You choose if you want to help improve the app
-- ✅ **Local-first** - All credentials stored securely on your device
-- ✅ **No cloud storage** - Documents go directly to YOUR Paperless instance
-- ✅ **AI processing** - Only when you subscribe (explicit opt-in)
-- ✅ **No permanent storage** - AI doesn't store your documents after processing
-- ✅ **Open source** - Audit the code yourself
+| Component | Where data goes |
+|-----------|-----------------|
+| Scanned documents | → YOUR Paperless server |
+| Credentials | → Android Keystore (local) |
+| Analytics | → Nowhere (zero tracking) |
+| Crash reports | → Nowhere |
 
-**Security Measures:**
+**No cloud. No LLM. No third parties.**
+
+### Premium AI Features (Optional)
+
+If you subscribe to Premium (€4.99/month):
+- Document images are sent to Gemini 2.5 Flash Lite for tag suggestions
+- You review and confirm all suggestions before upload
+- Not stored permanently (per Google's API terms)
+
+**If you don't subscribe:** The app works 100% self-hosted. Zero external services involved.
+
+### Security Measures
 
 - 🔐 Credentials encrypted with Android Keystore
 - 🔒 HTTPS enforced for remote connections
 - 🛡️ Certificate pinning support
 - 🔑 Token-based authentication (no password storage)
+- 🔓 Open source - audit the code yourself
 
 [Read our full Privacy Policy](docs/PRIVACY_POLICY.md) | [Terms of Service](docs/TERMS_OF_SERVICE.md)
 
