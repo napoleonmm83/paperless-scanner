@@ -4,7 +4,7 @@
 
 **Native Android App for Paperless-ngx with AI-Powered Document Processing**
 
-[![Version](https://img.shields.io/badge/version-1.5.44-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
+[![Version](https://img.shields.io/badge/version-1.5.50-blue.svg)](https://github.com/napoleonmm83/paperless-scanner/releases)
 [![Android](https://img.shields.io/badge/platform-Android%208.0%2B-green.svg)](https://www.android.com)
 [![Kotlin](https://img.shields.io/badge/kotlin-2.1.10-purple.svg)](https://kotlinlang.org)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
