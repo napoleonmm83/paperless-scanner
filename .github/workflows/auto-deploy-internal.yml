@@ -387,13 +387,37 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "New version: $NEW_VERSION (code: $VERSION_CODE)"
 
+      - name: Update README version badge (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $NEW_VERSION = "${{ steps.bump_version_win.outputs.NEW_VERSION }}"
+          Write-Host "Updating README version badge to $NEW_VERSION"
+
+          $readme = Get-Content README.md -Raw
+          $readme = $readme -replace 'version-[0-9]+\.[0-9]+\.[0-9]+-blue', "version-$NEW_VERSION-blue"
+          $readme | Set-Content README.md -NoNewline
+
+          Write-Host "README version badge updated"
+
+      - name: Update README version badge (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          NEW_VERSION="${{ steps.bump_version.outputs.NEW_VERSION }}"
+          echo "Updating README version badge to $NEW_VERSION"
+
+          sed -i "s/version-[0-9]\+\.[0-9]\+\.[0-9]\+-blue/version-$NEW_VERSION-blue/g" README.md
+
+          echo "README version badge updated"
+
       - name: Commit version bump (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          git add version.properties
+          git add version.properties README.md
           git commit -m "chore: bump version to ${{ steps.bump_version_win.outputs.NEW_VERSION }} for internal release [skip ci]"
           git push
 
@@ -403,7 +427,7 @@ jobs:
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          git add version.properties
+          git add version.properties README.md
           git commit -m "chore: bump version to ${{ steps.bump_version.outputs.NEW_VERSION }} for internal release [skip ci]"
           git push
 
