@@ -132,33 +132,33 @@ class AuthRepository @Inject constructor(
         val httpMsg = httpError?.message ?: ""
 
         return when {
-            // Server not found errors
-            httpsMsg.contains("nicht gefunden") -> Result.failure(httpsError!!)
-            httpMsg.contains("nicht gefunden") -> Result.failure(httpError!!)
+            // Server not found errors (English patterns - base language)
+            httpsMsg.contains("not found", ignoreCase = true) -> Result.failure(httpsError!!)
+            httpMsg.contains("not found", ignoreCase = true) -> Result.failure(httpError!!)
 
             // Not a Paperless server
-            httpsMsg.contains("Kein Paperless") -> Result.failure(httpsError!!)
-            httpMsg.contains("Kein Paperless") -> Result.failure(httpError!!)
+            httpsMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpsError!!)
+            httpMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpError!!)
 
             // SSL specific errors (prefer these as they're actionable)
-            httpsMsg.contains("SSL") || httpsMsg.contains("Zertifikat") -> Result.failure(httpsError!!)
+            httpsMsg.contains("SSL", ignoreCase = true) || httpsMsg.contains("certificate", ignoreCase = true) -> Result.failure(httpsError!!)
 
             // Connection refused (server might be down)
-            httpsMsg.contains("abgelehnt") || httpMsg.contains("abgelehnt") -> {
+            httpsMsg.contains("refused", ignoreCase = true) || httpMsg.contains("refused", ignoreCase = true) -> {
                 Result.failure(PaperlessException.NetworkError(
                     IOException(context.getString(R.string.error_connection_refused_reachable))
                 ))
             }
 
             // Timeout
-            httpsMsg.contains("Zeitüberschreitung") || httpMsg.contains("Zeitüberschreitung") -> {
+            httpsMsg.contains("timeout", ignoreCase = true) || httpMsg.contains("timeout", ignoreCase = true) -> {
                 Result.failure(PaperlessException.NetworkError(
                     IOException(context.getString(R.string.error_timeout_slow_server))
                 ))
             }
 
             // Network issues
-            httpsMsg.contains("Netzwerk") || httpMsg.contains("Netzwerk") -> {
+            httpsMsg.contains("network", ignoreCase = true) || httpMsg.contains("network", ignoreCase = true) -> {
                 Result.failure(PaperlessException.NetworkError(
                     IOException(context.getString(R.string.error_no_network))
                 ))

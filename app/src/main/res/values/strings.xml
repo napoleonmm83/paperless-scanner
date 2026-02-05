@@ -1278,4 +1278,11 @@
 
     <!-- PaperlessGptRepository Error Messages -->
     <string name="error_ocr_timeout">OCR Job Timeout (2 minutes)</string>
+
+    <!-- Purchase Flow -->
+    <string name="error_unable_launch_purchase">Unable to launch purchase flow</string>
+
+    <!-- Step-by-Step Metadata -->
+    <string name="step_metadata_no_pages">No pages available</string>
+    <string name="cd_page_preview">Page %1$d preview</string>
 </resources>

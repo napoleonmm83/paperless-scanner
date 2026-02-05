@@ -758,7 +758,7 @@ fun SettingsScreen(
                     }
                 } else {
                     android.util.Log.e("SettingsScreen", "✗ Activity is null! Cannot launch purchase")
-                    purchaseResultMessage = "Unable to launch purchase flow"
+                    purchaseResultMessage = context.getString(R.string.error_unable_launch_purchase)
                     showPremiumUpgradeSheet = false
                 }
             },

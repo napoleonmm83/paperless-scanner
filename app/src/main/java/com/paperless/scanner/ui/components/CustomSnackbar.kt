@@ -89,42 +89,31 @@ private fun CustomSnackbar(
 ) {
     val message = data.visuals.message
 
-    // Smart icon selection based on message content
+    // Smart icon selection based on message content (English patterns - base language)
     val icon = when {
         // Trash Operations
-        message.contains("wiederhergestellt", ignoreCase = true) ||
         message.contains("restored", ignoreCase = true) -> Icons.Default.RestoreFromTrash
 
-        message.contains("endgültig gelöscht", ignoreCase = true) ||
         message.contains("permanently deleted", ignoreCase = true) -> Icons.Default.DeleteForever
 
-        message.contains("wird gelöscht", ignoreCase = true) ||
         message.contains("deleting", ignoreCase = true) ||
-        message.contains("papierkorb", ignoreCase = true) ||
         message.contains("trash", ignoreCase = true) -> Icons.Default.Delete
 
         // Success
-        message.contains("erfolgreich", ignoreCase = true) ||
         message.contains("success", ignoreCase = true) ||
-        message.contains("erstellt", ignoreCase = true) ||
         message.contains("created", ignoreCase = true) -> Icons.Default.CheckCircle
 
         // Error
-        message.contains("fehler", ignoreCase = true) ||
         message.contains("error", ignoreCase = true) ||
-        message.contains("fehlgeschlagen", ignoreCase = true) ||
         message.contains("failed", ignoreCase = true) -> Icons.Default.ErrorOutline
 
         // Network
         message.contains("internet", ignoreCase = true) ||
         message.contains("offline", ignoreCase = true) ||
-        message.contains("verbindung", ignoreCase = true) ||
         message.contains("connection", ignoreCase = true) -> Icons.Default.WifiOff
 
         // Upload
-        message.contains("upload", ignoreCase = true) ||
-        message.contains("hochgeladen", ignoreCase = true) ||
-        message.contains("wird", ignoreCase = true) -> Icons.Default.CloudUpload
+        message.contains("upload", ignoreCase = true) -> Icons.Default.CloudUpload
 
         else -> Icons.Default.Info
     }

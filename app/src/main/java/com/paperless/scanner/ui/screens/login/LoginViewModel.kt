@@ -373,15 +373,14 @@ class LoginViewModel @Inject constructor(
         if (exception is com.paperless.scanner.data.api.PaperlessException.AuthError) {
             return true
         }
-        // Check for common auth error patterns in message
+        // Check for common auth error patterns in message (English - base language)
         val message = exception.message?.lowercase() ?: ""
         return message.contains("401") ||
                 message.contains("403") ||
                 message.contains("unauthorized") ||
                 message.contains("forbidden") ||
-                message.contains("ungültig") ||
-                message.contains("falsch") ||
-                message.contains("invalid")
+                message.contains("invalid") ||
+                message.contains("incorrect")
     }
 
     private fun extractHostFromUrl(url: String): String {

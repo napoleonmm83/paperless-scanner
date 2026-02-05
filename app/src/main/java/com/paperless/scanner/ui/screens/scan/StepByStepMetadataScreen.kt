@@ -142,7 +142,7 @@ fun StepByStepMetadataScreen(
                     .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No pages available")
+                Text(stringResource(R.string.step_metadata_no_pages))
             }
         } else {
             Column(
@@ -169,7 +169,7 @@ fun StepByStepMetadataScreen(
                 // Image Preview
                 AsyncImage(
                     model = currentPage.uri,
-                    contentDescription = "Page ${uiState.currentPageIndex + 1}",
+                    contentDescription = stringResource(R.string.cd_page_preview, uiState.currentPageIndex + 1),
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(0.7f)
