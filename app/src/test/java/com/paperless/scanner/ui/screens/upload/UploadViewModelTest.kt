@@ -3,6 +3,7 @@ package com.paperless.scanner.ui.screens.upload
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.paperless.scanner.R
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
@@ -115,6 +116,9 @@ class UploadViewModelTest {
         every { StorageUtil.validateFileSize(any(), any()) } returns Result.success(1000000L)  // 1MB
 
         context = mockk(relaxed = true)
+        // Mock string resources for error messages
+        every { context.getString(R.string.error_adding_to_queue) } returns "Error adding to queue"
+        every { context.getString(R.string.error_queue_add) } returns "Failed to add to queue"
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
@@ -346,8 +350,8 @@ class UploadViewModelTest {
             assertEquals(UploadUiState.Queuing, awaitItem())
             val errorState = awaitItem()
             assertTrue(errorState is UploadUiState.Error)
-            // ViewModel uses generic userMessage, original exception is in technicalDetails
-            assertEquals("Fehler beim Hinzufügen zur Warteschlange", (errorState as UploadUiState.Error).userMessage)
+            // ViewModel uses string resources - verify mocked strings are returned
+            assertEquals("Error adding to queue", (errorState as UploadUiState.Error).userMessage)
             assertEquals("Nicht genug Speicherplatz", (errorState as UploadUiState.Error).technicalDetails)
         }
     }
@@ -482,8 +486,8 @@ class UploadViewModelTest {
             assertEquals(UploadUiState.Queuing, awaitItem())
             val errorState = awaitItem()
             assertTrue(errorState is UploadUiState.Error)
-            // ViewModel uses generic userMessage, original exception is in technicalDetails
-            assertEquals("Fehler beim Hinzufügen zur Warteschlange", (errorState as UploadUiState.Error).userMessage)
+            // ViewModel uses string resources - verify mocked strings are returned
+            assertEquals("Error adding to queue", (errorState as UploadUiState.Error).userMessage)
             assertEquals("Datei nicht gefunden", (errorState as UploadUiState.Error).technicalDetails)
         }
     }

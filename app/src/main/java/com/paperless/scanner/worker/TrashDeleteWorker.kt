@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.paperless.scanner.R
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.datastore.TokenManager
@@ -62,10 +63,11 @@ class TrashDeleteWorker @AssistedInject constructor(
         }
 
         // Get document title BEFORE deletion for history entry
+        val fallbackTitle = applicationContext.getString(R.string.document_number, documentId)
         val documentTitle = try {
-            cachedDocumentDao.getDocument(documentId)?.title ?: "Dokument #$documentId"
+            cachedDocumentDao.getDocument(documentId)?.title ?: fallbackTitle
         } catch (e: Exception) {
-            "Dokument #$documentId"
+            fallbackTitle
         }
 
         // Remove from pending deletes BEFORE actual deletion
@@ -82,7 +84,7 @@ class TrashDeleteWorker @AssistedInject constructor(
                     try {
                         syncHistoryRepository.recordSuccess(
                             actionType = SyncHistoryEntry.ACTION_DELETE_TRASH,
-                            title = "Dokument endgültig gelöscht",
+                            title = applicationContext.getString(R.string.sync_document_deleted),
                             details = documentTitle,
                             documentId = documentId
                         )
@@ -107,8 +109,8 @@ class TrashDeleteWorker @AssistedInject constructor(
                         }
                         syncHistoryRepository.recordFailure(
                             actionType = SyncHistoryEntry.ACTION_DELETE_TRASH,
-                            title = "Löschen fehlgeschlagen",
-                            userMessage = syncHistoryRepository.getUserFriendlyError(httpCode, error as? Exception),
+                            title = applicationContext.getString(R.string.sync_deletion_failed),
+                            userMessage = syncHistoryRepository.getUserFriendlyError(applicationContext, httpCode, error as? Exception),
                             technicalError = syncHistoryRepository.getTechnicalError(httpCode, error.message, error as? Exception),
                             details = documentTitle,
                             documentId = documentId

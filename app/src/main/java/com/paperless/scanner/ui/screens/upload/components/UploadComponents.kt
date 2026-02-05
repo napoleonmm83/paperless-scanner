@@ -74,7 +74,7 @@ fun DocumentTypeDropdown(
 
     Column(modifier = modifier) {
         Text(
-            text = "Dokumententyp",
+            text = stringResource(R.string.upload_document_type),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -89,7 +89,7 @@ fun DocumentTypeDropdown(
                 .padding(horizontal = 16.dp)
         ) {
             OutlinedTextField(
-                value = documentTypes.find { it.id == selectedId }?.name ?: "Nicht ausgewählt",
+                value = documentTypes.find { it.id == selectedId }?.name ?: stringResource(R.string.upload_not_selected),
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -103,7 +103,7 @@ fun DocumentTypeDropdown(
                 onDismissRequest = { expanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Nicht ausgewählt") },
+                    text = { Text(stringResource(R.string.upload_not_selected)) },
                     onClick = {
                         onSelect(null)
                         expanded = false
@@ -135,7 +135,7 @@ fun CorrespondentDropdown(
 
     Column(modifier = modifier) {
         Text(
-            text = "Korrespondent",
+            text = stringResource(R.string.upload_correspondent),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -150,7 +150,7 @@ fun CorrespondentDropdown(
                 .padding(horizontal = 16.dp)
         ) {
             OutlinedTextField(
-                value = correspondents.find { it.id == selectedId }?.name ?: "Nicht ausgewählt",
+                value = correspondents.find { it.id == selectedId }?.name ?: stringResource(R.string.upload_not_selected),
                 onValueChange = {},
                 readOnly = true,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
@@ -164,7 +164,7 @@ fun CorrespondentDropdown(
                 onDismissRequest = { expanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Nicht ausgewählt") },
+                    text = { Text(stringResource(R.string.upload_not_selected)) },
                     onClick = {
                         onSelect(null)
                         expanded = false
@@ -223,7 +223,7 @@ fun TagSelectionSection(
             )
             if (tags.size > MAX_VISIBLE_TAGS) {
                 Text(
-                    text = "${tags.size} Tags",
+                    text = stringResource(R.string.upload_tags_count, tags.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -312,7 +312,7 @@ fun TagSelectionSection(
                             if (showAllTags) {
                                 stringResource(R.string.upload_tags_show_less)
                             } else {
-                                "+$hiddenCount"
+                                stringResource(R.string.upload_show_more_tags, hiddenCount)
                             }
                         )
                     },
@@ -504,7 +504,7 @@ private fun CustomFieldInput(
                 label = { Text(field.name) },
                 placeholder = { Text(stringResource(R.string.custom_field_date_hint)) },
                 singleLine = true,
-                supportingText = { Text("Format: YYYY-MM-DD") },
+                supportingText = { Text(stringResource(R.string.custom_field_date_format)) },
                 modifier = modifier.fillMaxWidth()
             )
         }
@@ -553,7 +553,7 @@ fun UploadErrorCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Upload fehlgeschlagen",
+                text = stringResource(R.string.upload_failed),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onErrorContainer
             )
@@ -579,12 +579,12 @@ fun UploadErrorCard(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Erneut versuchen")
+                        Text(stringResource(R.string.upload_retry_button))
                     }
                 }
 
                 Button(onClick = onDismiss) {
-                    Text("Schließen")
+                    Text(stringResource(R.string.upload_close))
                 }
             }
         }
@@ -609,7 +609,7 @@ fun UploadProgressIndicator(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "${(progress * 100).toInt()}%",
+                text = stringResource(R.string.upload_progress_percent, (progress * 100).toInt()),
                 style = MaterialTheme.typography.bodyMedium
             )
         } else {
@@ -619,7 +619,7 @@ fun UploadProgressIndicator(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Dokument wird hochgeladen...",
+            text = stringResource(R.string.upload_uploading_document),
             style = MaterialTheme.typography.titleMedium
         )
     }

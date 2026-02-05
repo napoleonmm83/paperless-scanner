@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.os.StatFs
-import java.io.File
+import com.paperless.scanner.R
 
 /**
  * Utility for storage checks and management.
@@ -63,13 +63,17 @@ object StorageUtil {
 
     /**
      * Formats bytes to human-readable string (e.g., "2.5 MB").
+     *
+     * @param context Android context for localized string resources
+     * @param bytes Size in bytes to format
+     * @return Localized formatted string
      */
-    fun formatBytes(bytes: Long): String {
+    fun formatBytes(context: Context, bytes: Long): String {
         return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-            else -> "%.1f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
+            bytes < 1024 -> context.getString(R.string.storage_format_bytes, bytes.toInt())
+            bytes < 1024 * 1024 -> context.getString(R.string.storage_format_kilobytes, bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> context.getString(R.string.storage_format_megabytes, bytes / (1024.0 * 1024.0))
+            else -> context.getString(R.string.storage_format_gigabytes, bytes / (1024.0 * 1024.0 * 1024.0))
         }
     }
 
@@ -84,11 +88,12 @@ object StorageUtil {
         return try {
             val fileSize = getFileSize(context, uri)
             if (fileSize > MAX_FILE_SIZE_BYTES) {
-                Result.failure(
-                    IllegalArgumentException(
-                        "Datei zu groß (${formatBytes(fileSize)}). Maximum: ${formatBytes(MAX_FILE_SIZE_BYTES)}"
-                    )
+                val errorMessage = context.getString(
+                    R.string.error_file_too_large_detail,
+                    formatBytes(context, fileSize),
+                    formatBytes(context, MAX_FILE_SIZE_BYTES)
                 )
+                Result.failure(IllegalArgumentException(errorMessage))
             } else {
                 Result.success(fileSize)
             }
@@ -103,11 +108,12 @@ object StorageUtil {
      * @param context Android context
      * @param uri URI of the file
      * @return File size in bytes
+     * @throws IllegalArgumentException if file size cannot be read
      */
     fun getFileSize(context: Context, uri: Uri): Long {
         return context.contentResolver.openInputStream(uri)?.use { stream ->
             stream.available().toLong()
-        } ?: throw IllegalArgumentException("Cannot read file size from URI: $uri")
+        } ?: throw IllegalArgumentException(context.getString(R.string.error_storage_cannot_read_file_size))
     }
 
     /**
@@ -192,14 +198,23 @@ object StorageUtil {
                 } catch (e: Exception) {
                     0L
                 }
-                "Eine Datei ist zu groß (${formatBytes(fileSize)}). Maximum pro Datei: ${formatBytes(MAX_FILE_SIZE_BYTES)}"
+                context.getString(
+                    R.string.error_file_too_large_batch,
+                    formatBytes(context, fileSize),
+                    formatBytes(context, MAX_FILE_SIZE_BYTES)
+                )
             }
             !hasEnoughSpace && availableSpace != null -> {
-                "Nicht genug Speicherplatz. Verfügbar: ${formatBytes(availableSpace)}, " +
-                "Benötigt: ${formatBytes(requiredSpace)}"
+                context.getString(
+                    R.string.error_not_enough_storage_detail,
+                    formatBytes(context, availableSpace),
+                    formatBytes(context, requiredSpace)
+                )
             }
             else -> {
-                "Speicherplatz OK: ${availableSpace?.let { formatBytes(it) } ?: "Unbekannt"}"
+                val availableFormatted = availableSpace?.let { formatBytes(context, it) }
+                    ?: context.getString(R.string.storage_unknown)
+                context.getString(R.string.storage_ok, availableFormatted)
             }
         }
 

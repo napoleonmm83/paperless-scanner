@@ -1,6 +1,8 @@
 package com.paperless.scanner.data.ai
 
 import android.content.Context
+import com.paperless.scanner.R
+import io.mockk.every
 import io.mockk.mockk
 import org.junit.Assert.*
 import org.junit.Before
@@ -23,6 +25,8 @@ class AiAnalysisServiceTest {
     @Before
     fun setup() {
         context = mockk(relaxed = true)
+        // Mock string resource for error message
+        every { context.getString(R.string.ai_error_no_json) } returns "No valid JSON found in response"
         aiAnalysisService = AiAnalysisService(context)
     }
 

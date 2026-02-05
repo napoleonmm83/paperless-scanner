@@ -8,6 +8,7 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.paperless.scanner.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -33,13 +34,16 @@ class BiometricHelper @Inject constructor(
 
     fun authenticate(
         activity: FragmentActivity,
-        title: String = "Biometrische Anmeldung",
-        subtitle: String = "Verwende deinen Fingerabdruck oder Gesicht",
-        negativeButtonText: String = "Passwort verwenden",
+        title: String? = null,
+        subtitle: String? = null,
+        negativeButtonText: String? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit,
         onFallback: () -> Unit
     ) {
+        val resolvedTitle = title ?: context.getString(R.string.biometric_title)
+        val resolvedSubtitle = subtitle ?: context.getString(R.string.biometric_subtitle)
+        val resolvedNegativeButtonText = negativeButtonText ?: context.getString(R.string.biometric_negative_button)
         Log.d("BiometricHelper", "authenticate() called with activity: ${activity::class.java.simpleName}")
         val executor = ContextCompat.getMainExecutor(context)
 
@@ -68,9 +72,9 @@ class BiometricHelper @Inject constructor(
         }
 
         val promptInfo = BiometricPrompt.PromptInfo.Builder()
-            .setTitle(title)
-            .setSubtitle(subtitle)
-            .setNegativeButtonText(negativeButtonText)
+            .setTitle(resolvedTitle)
+            .setSubtitle(resolvedSubtitle)
+            .setNegativeButtonText(resolvedNegativeButtonText)
             .setAllowedAuthenticators(BIOMETRIC_STRONG or BIOMETRIC_WEAK)
             .build()
 

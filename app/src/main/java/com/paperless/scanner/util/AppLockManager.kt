@@ -3,10 +3,12 @@ package com.paperless.scanner.util
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.StringRes
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.Lifecycle
+import com.paperless.scanner.R
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -702,10 +704,19 @@ sealed class AppLockState {
 /**
  * App-Lock Timeout Options
  */
-enum class AppLockTimeout(val displayName: String) {
-    IMMEDIATE("Sofort"),
-    ONE_MINUTE("1 Minute"),
-    FIVE_MINUTES("5 Minuten"),
-    FIFTEEN_MINUTES("15 Minuten"),
-    THIRTY_MINUTES("30 Minuten")
+enum class AppLockTimeout(@StringRes val displayNameRes: Int) {
+    IMMEDIATE(R.string.timeout_immediately),
+    ONE_MINUTE(R.string.timeout_1_minute),
+    FIVE_MINUTES(R.string.timeout_5_minutes),
+    FIFTEEN_MINUTES(R.string.timeout_15_minutes),
+    THIRTY_MINUTES(R.string.timeout_30_minutes)
+}
+
+/**
+ * Extension function to get the display name for an AppLockTimeout.
+ * @param context The context to use for getting the string resource.
+ * @return The localized display name.
+ */
+fun AppLockTimeout.getDisplayName(context: Context): String {
+    return context.getString(displayNameRes)
 }

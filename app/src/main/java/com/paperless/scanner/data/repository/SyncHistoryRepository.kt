@@ -1,5 +1,7 @@
 package com.paperless.scanner.data.repository
 
+import android.content.Context
+import com.paperless.scanner.R
 import com.paperless.scanner.data.database.dao.SyncHistoryDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import kotlinx.coroutines.flow.Flow
@@ -168,23 +170,28 @@ class SyncHistoryRepository @Inject constructor(
 
     /**
      * Get user-friendly error message for common HTTP errors.
+     *
+     * @param context Android context for accessing string resources
+     * @param httpCode HTTP status code (optional)
+     * @param exception The exception that occurred (optional)
+     * @return User-friendly localized error message
      */
-    fun getUserFriendlyError(httpCode: Int?, exception: Exception? = null): String {
+    fun getUserFriendlyError(context: Context, httpCode: Int?, exception: Exception? = null): String {
         return when (httpCode) {
-            401 -> "Nicht autorisiert - bitte erneut anmelden"
-            403 -> "Zugriff verweigert"
-            404 -> "Dokument nicht gefunden"
-            413 -> "Datei zu groß (max 50MB)"
-            429 -> "Zu viele Anfragen - bitte warten"
-            500, 502, 503, 504 -> "Serverfehler - bitte später erneut versuchen"
+            401 -> context.getString(R.string.sync_unauthorized)
+            403 -> context.getString(R.string.sync_access_denied)
+            404 -> context.getString(R.string.sync_document_not_found)
+            413 -> context.getString(R.string.sync_file_too_large_50mb)
+            429 -> context.getString(R.string.sync_too_many_requests)
+            500, 502, 503, 504 -> context.getString(R.string.sync_server_error)
             else -> when {
                 exception?.message?.contains("timeout", ignoreCase = true) == true ->
-                    "Zeitüberschreitung - Server antwortet nicht"
+                    context.getString(R.string.sync_timeout)
                 exception?.message?.contains("network", ignoreCase = true) == true ->
-                    "Keine Internetverbindung"
+                    context.getString(R.string.sync_no_internet)
                 exception?.message?.contains("ssl", ignoreCase = true) == true ->
-                    "Sicherheitsfehler - Zertifikat ungültig"
-                else -> exception?.message ?: "Unbekannter Fehler"
+                    context.getString(R.string.sync_security_error)
+                else -> exception?.message ?: context.getString(R.string.error_unknown)
             }
         }
     }

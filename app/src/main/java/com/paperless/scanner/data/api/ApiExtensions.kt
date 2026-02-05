@@ -103,7 +103,7 @@ fun <T> Result<T>.errorMessage(): String? {
     return exceptionOrNull()?.let { throwable ->
         when (throwable) {
             is PaperlessException -> throwable.userMessage
-            else -> throwable.message ?: "Unbekannter Fehler"
+            else -> throwable.message ?: "Unknown error"
         }
     }
 }

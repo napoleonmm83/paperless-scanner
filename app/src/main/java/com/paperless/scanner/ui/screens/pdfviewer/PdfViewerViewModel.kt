@@ -6,6 +6,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.data.repository.DocumentRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,7 +33,7 @@ class PdfViewerViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val documentId: Int = savedStateHandle.get<String>("documentId")?.toIntOrNull() ?: 0
-    val documentTitle: String = savedStateHandle.get<String>("documentTitle") ?: "Dokument"
+    val documentTitle: String = savedStateHandle.get<String>("documentTitle") ?: context.getString(R.string.document)
 
     private val _uiState = MutableStateFlow<PdfViewerUiState>(PdfViewerUiState.Idle)
     val uiState: StateFlow<PdfViewerUiState> = _uiState.asStateFlow()
@@ -57,7 +58,7 @@ class PdfViewerViewModel @Inject constructor(
             }.onFailure { error ->
                 _uiState.update {
                     PdfViewerUiState.Error(
-                        error.message ?: "Fehler beim Herunterladen"
+                        error.message ?: context.getString(R.string.error_download)
                     )
                 }
             }
@@ -106,7 +107,7 @@ class PdfViewerViewModel @Inject constructor(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
-            context.startActivity(Intent.createChooser(shareIntent, "Teilen via").apply {
+            context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.pdf_viewer_share_via)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         } catch (e: Exception) {
@@ -135,7 +136,7 @@ class PdfViewerViewModel @Inject constructor(
             context.startActivity(openIntent)
         } catch (e: Exception) {
             _uiState.update {
-                PdfViewerUiState.Error("Keine App zum Öffnen gefunden")
+                PdfViewerUiState.Error(context.getString(R.string.error_no_app_found))
             }
         }
     }

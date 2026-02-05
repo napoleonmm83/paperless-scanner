@@ -409,7 +409,7 @@ fun SettingsScreen(
                 SettingsClickableItem(
                     icon = Icons.Filled.Schedule,
                     title = stringResource(R.string.app_lock_timeout),
-                    value = uiState.appLockTimeout.displayName,
+                    value = stringResource(uiState.appLockTimeout.displayNameRes),
                     onClick = { showAppLockTimeoutDialog = true }
                 )
 
@@ -675,7 +675,7 @@ fun SettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = timeout.displayName,
+                                text = stringResource(timeout.displayNameRes),
                                 style = MaterialTheme.typography.bodyLarge,
                                 modifier = Modifier.weight(1f)
                             )

@@ -37,6 +37,7 @@ import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.R
 import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
@@ -142,7 +143,7 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ContentError: ${e.message}")
-            Result.failure(PaperlessException.ContentError(e.message ?: "Datei konnte nicht gelesen werden"))
+            Result.failure(PaperlessException.ContentError(R.string.error_file_read_failed))
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
@@ -228,34 +229,22 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             // Safe error message extraction (prevent secondary exceptions)
-            val safeMessage = try {
-                e.message ?: "PDF konnte nicht erstellt werden"
-            } catch (_: Exception) {
-                "PDF konnte nicht erstellt werden"
-            }
+            val safeMessage = e.message ?: context.getString(R.string.error_pdf_creation)
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
-            Result.failure(PaperlessException.ContentError(safeMessage))
+            Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
         } catch (e: IllegalStateException) {
             // Safe error message extraction (prevent secondary exceptions)
-            val safeMessage = try {
-                e.message ?: "Bild konnte nicht verarbeitet werden"
-            } catch (_: Exception) {
-                "Bild konnte nicht verarbeitet werden"
-            }
+            val safeMessage = e.message ?: context.getString(R.string.error_image_process_failed)
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
-            Result.failure(PaperlessException.ContentError(safeMessage))
+            Result.failure(PaperlessException.ContentError(R.string.error_image_process_failed))
         } catch (e: Exception) {
             // Catch-all for any unexpected exceptions (including iText7 internal errors)
-            val safeMessage = try {
-                e.message?.takeIf { it.isNotBlank() } ?: "Unbekannter Fehler bei PDF-Erstellung"
-            } catch (_: Exception) {
-                "Unbekannter Fehler bei PDF-Erstellung"
-            }
+            val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: context.getString(R.string.error_pdf_creation)
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: $safeMessage")
             android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
-            Result.failure(PaperlessException.ContentError(safeMessage))
+            Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
         }
     }
 
@@ -291,14 +280,14 @@ class DocumentRepository @Inject constructor(
                                 android.util.Log.e("DocumentRepository", "Failed to add image ${index + 1}/${uris.size} to PDF: ${e.message}", e)
                                 // If first image fails, rethrow (can't create empty PDF)
                                 if (index == 0) {
-                                    throw IllegalStateException("Erstes Bild konnte nicht verarbeitet werden", e)
+                                    throw IllegalStateException(context.getString(R.string.error_first_image_process_failed), e)
                                 }
                             }
                         }
 
                         // Verify we have at least one page
                         if (pdfDoc.numberOfPages == 0) {
-                            throw IllegalStateException("PDF konnte nicht erstellt werden - keine Seiten hinzugefügt")
+                            throw IllegalStateException(context.getString(R.string.error_pdf_no_pages))
                         }
                     }
                 }
@@ -306,7 +295,7 @@ class DocumentRepository @Inject constructor(
 
             // Verify PDF file was created and is not empty
             if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                throw IllegalStateException("PDF-Datei wurde nicht korrekt erstellt")
+                throw IllegalStateException(context.getString(R.string.error_pdf_not_created))
             }
 
             return pdfFile
@@ -319,7 +308,7 @@ class DocumentRepository @Inject constructor(
             throw when (e) {
                 is IllegalStateException -> e
                 is IllegalArgumentException -> e
-                else -> IllegalStateException("PDF-Erstellung fehlgeschlagen: ${e.message}", e)
+                else -> IllegalStateException(context.getString(R.string.error_pdf_creation_failed, e.message ?: ""), e)
             }
         }
     }
@@ -353,11 +342,11 @@ class DocumentRepository @Inject constructor(
         }
 
         val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException("Cannot open input stream for URI: $uri")
+            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
 
         val bitmap = inputStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, decodeOptions)
-                ?: throw IllegalStateException("Failed to decode image from URI: $uri")
+                ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
         }
 
         return try {
@@ -383,7 +372,7 @@ class DocumentRepository @Inject constructor(
 
     private fun getFileFromUri(uri: Uri): File {
         val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException("Cannot open input stream for URI: $uri")
+            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
 
         val fileName = "document_${System.currentTimeMillis()}.jpg"
         val tempFile = File(context.cacheDir, fileName)
@@ -549,7 +538,7 @@ class DocumentRepository @Inject constructor(
                 Result.success(response.toDomain())
             } else {
                 // Offline, no cache
-                Result.failure(PaperlessException.NetworkError(IOException("Offline, keine gecachten Daten")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline_no_cache))))
             }
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
@@ -589,7 +578,7 @@ class DocumentRepository @Inject constructor(
             if (cached != null) {
                 Result.success(cached.toCachedDomain())
             } else {
-                Result.failure(PaperlessException.ClientError(404, "Dokument nicht im Cache"))
+                Result.failure(PaperlessException.ClientError(404, context.getString(R.string.error_document_not_cached)))
             }
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
@@ -874,7 +863,7 @@ class DocumentRepository @Inject constructor(
                 if (cached != null) {
                     Result.success(cached.toCachedDomain())
                 } else {
-                    Result.failure(PaperlessException.ClientError(404, "Dokument nicht im Cache"))
+                    Result.failure(PaperlessException.ClientError(404, context.getString(R.string.error_document_not_cached)))
                 }
             }
         } catch (e: retrofit2.HttpException) {
@@ -934,7 +923,7 @@ class DocumentRepository @Inject constructor(
                 val history = api.getDocumentHistory(documentId)
                 Result.success(history.toAuditLogDomain())
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -950,7 +939,7 @@ class DocumentRepository @Inject constructor(
                 val notes = api.addNote(documentId, request)
                 Result.success(notes.map { it.toDomain() })
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -965,7 +954,7 @@ class DocumentRepository @Inject constructor(
                 val notes = api.deleteNote(documentId, noteId)
                 Result.success(notes.map { it.toDomain() })
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -982,7 +971,7 @@ class DocumentRepository @Inject constructor(
                 val response = api.getUsers()
                 Result.success(response.results)
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -997,7 +986,7 @@ class DocumentRepository @Inject constructor(
                 val response = api.getGroups()
                 Result.success(response.results)
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -1031,7 +1020,7 @@ class DocumentRepository @Inject constructor(
 
                 Result.success(updatedDocument.toDomain())
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
@@ -1103,7 +1092,7 @@ class DocumentRepository @Inject constructor(
 
                 Result.success(response.toDomain())
             } else {
-                Result.failure(PaperlessException.NetworkError(IOException("Offline")))
+                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))

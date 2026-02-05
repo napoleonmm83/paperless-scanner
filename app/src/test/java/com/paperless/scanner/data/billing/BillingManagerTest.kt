@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import app.cash.turbine.test
 import com.android.billingclient.api.*
+import com.paperless.scanner.R
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
@@ -47,6 +48,9 @@ class BillingManagerTest {
     @Before
     fun setup() {
         context = mockk(relaxed = true)
+        // Mock string resources for billing error messages
+        every { context.getString(R.string.billing_error_product_not_found) } returns "Product not found. Please try again later."
+        every { context.getString(R.string.billing_error_no_offers) } returns "No subscription offers available"
         mockActivity = mockk(relaxed = true)
         mockBillingClient = mockk(relaxed = true)
         mockBuilder = mockk(relaxed = true)

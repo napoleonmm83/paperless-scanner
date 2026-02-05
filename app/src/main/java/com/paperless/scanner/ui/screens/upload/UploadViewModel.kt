@@ -300,7 +300,7 @@ class UploadViewModel @Inject constructor(
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "storage_insufficient"))
 
             return UploadUiState.Error(
-                userMessage = "Nicht genug Speicherplatz verfügbar",
+                userMessage = context.getString(R.string.error_not_enough_storage),
                 technicalDetails = storageCheck.message,
                 isRetryable = false
             )
@@ -313,7 +313,7 @@ class UploadViewModel @Inject constructor(
                 analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "file_too_large"))
 
                 return UploadUiState.Error(
-                    userMessage = "Datei zu groß",
+                    userMessage = context.getString(R.string.error_file_too_large_short),
                     technicalDetails = e.message,
                     isRetryable = false
                 )
@@ -351,7 +351,7 @@ class UploadViewModel @Inject constructor(
                     FileUtils.copyToLocalStorage(context, uri) ?: run {
                         Log.e(TAG, "Failed to copy file for queue: $uri")
                         _uiState.update { UploadUiState.Error(
-                            userMessage = "Fehler beim Speichern",
+                            userMessage = context.getString(R.string.error_saving_file),
                             technicalDetails = context.getString(R.string.error_queue_add),
                             isRetryable = false
                         ) }
@@ -363,8 +363,8 @@ class UploadViewModel @Inject constructor(
                 if (!FileUtils.fileExists(localUri)) {
                     Log.e(TAG, "File validation failed after copy: $localUri")
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Datei konnte nicht gespeichert werden",
-                        technicalDetails = "File not accessible: ${localUri.lastPathSegment}",
+                        userMessage = context.getString(R.string.error_file_not_saved),
+                        technicalDetails = context.getString(R.string.error_file_not_accessible, localUri.lastPathSegment ?: ""),
                         isRetryable = false
                     ) }
                     return@launch
@@ -389,8 +389,8 @@ class UploadViewModel @Inject constructor(
                 Log.e(TAG, "Error queueing upload", e)
                 analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
                 _uiState.update { UploadUiState.Error(
-                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
-                    technicalDetails = e.message ?: "Unknown error",
+                    userMessage = context.getString(R.string.error_adding_to_queue),
+                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
                     isRetryable = false
                 ) }
             }
@@ -443,7 +443,7 @@ class UploadViewModel @Inject constructor(
                 if (localUris.isEmpty()) {
                     Log.e(TAG, "Failed to copy any files for queue (0/${uris.size} succeeded)")
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Fehler beim Speichern",
+                        userMessage = context.getString(R.string.error_saving_file),
                         technicalDetails = context.getString(R.string.error_queue_add),
                         isRetryable = false
                     ) }
@@ -458,8 +458,8 @@ class UploadViewModel @Inject constructor(
                         Log.e(TAG, "  Missing: $uri")
                     }
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Einige Dateien konnten nicht gespeichert werden",
-                        technicalDetails = "${missingFiles.size}/${localUris.size} files not accessible",
+                        userMessage = context.getString(R.string.error_files_not_saved),
+                        technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localUris.size),
                         isRetryable = false
                     ) }
                     return@launch
@@ -506,8 +506,8 @@ class UploadViewModel @Inject constructor(
                 Log.e(TAG, "Error queueing multi-page upload", e)
                 analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
                 _uiState.update { UploadUiState.Error(
-                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
-                    technicalDetails = e.message ?: "Unknown error",
+                    userMessage = context.getString(R.string.error_adding_to_queue),
+                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
                     isRetryable = false
                 ) }
             }
@@ -570,7 +570,7 @@ class UploadViewModel @Inject constructor(
                 if (localPages.isEmpty()) {
                     Log.e(TAG, "Failed to copy any files for queue (0/${pages.size} succeeded)")
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Fehler beim Speichern",
+                        userMessage = context.getString(R.string.error_saving_file),
                         technicalDetails = context.getString(R.string.error_queue_add),
                         isRetryable = false
                     ) }
@@ -582,8 +582,8 @@ class UploadViewModel @Inject constructor(
                 if (missingFiles.isNotEmpty()) {
                     Log.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
                     _uiState.update { UploadUiState.Error(
-                        userMessage = "Einige Dateien konnten nicht gespeichert werden",
-                        technicalDetails = "${missingFiles.size}/${localPages.size} files not accessible",
+                        userMessage = context.getString(R.string.error_files_not_saved),
+                        technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localPages.size),
                         isRetryable = false
                     ) }
                     return@launch
@@ -611,7 +611,7 @@ class UploadViewModel @Inject constructor(
                         } else {
                             // Multiple pages in group - add numbering
                             if (title.isNullOrBlank()) {
-                                "Dokument (${index + 1}/${groupPages.size})"
+                                context.getString(R.string.document_numbered, index + 1, groupPages.size)
                             } else {
                                 "$title (${index + 1}/${groupPages.size})"
                             }
@@ -636,8 +636,8 @@ class UploadViewModel @Inject constructor(
                 Log.e(TAG, "Error queueing pages with metadata", e)
                 analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
                 _uiState.update { UploadUiState.Error(
-                    userMessage = "Fehler beim Hinzufügen zur Warteschlange",
-                    technicalDetails = e.message ?: "Unknown error",
+                    userMessage = context.getString(R.string.error_adding_to_queue),
+                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
                     isRetryable = false
                 ) }
             }

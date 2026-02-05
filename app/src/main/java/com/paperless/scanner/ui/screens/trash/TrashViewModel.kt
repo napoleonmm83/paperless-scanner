@@ -300,7 +300,7 @@ class TrashViewModel @Inject constructor(
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                error = error.message ?: "Fehler beim Laden des Papierkorbs"
+                                error = error.message ?: context.getString(R.string.error_loading_trash)
                             )
                         }
                         return@launch

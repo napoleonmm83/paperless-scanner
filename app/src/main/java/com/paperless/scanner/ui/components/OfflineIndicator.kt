@@ -19,17 +19,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 
 /**
- * Offline-Modus Indikator Banner
+ * Offline Mode Indicator Banner
  *
- * Zeigt den aktuellen Offline-Status und Anzahl ausstehender Änderungen an.
+ * Shows the current offline status and number of pending changes.
  *
  * States:
- * - Offline (Rot): CloudOff Icon, "Offline-Modus"
- * - Syncing (Blau): CloudQueue Icon, "Synchronisierung läuft... (X ausstehend)"
- * - Online: Nicht sichtbar
+ * - Offline (Red): CloudOff Icon, "Offline mode"
+ * - Syncing (Blue): CloudQueue Icon, "Syncing... (X pending)"
+ * - Online: Not visible
  */
 @Composable
 fun OfflineIndicator(
@@ -68,9 +70,9 @@ fun OfflineIndicator(
                         Icons.Default.CloudQueue
                     },
                     contentDescription = if (!isOnline) {
-                        "Offline"
+                        stringResource(R.string.cd_offline)
                     } else {
-                        "Synchronisierung läuft"
+                        stringResource(R.string.syncing)
                     },
                     tint = if (!isOnline) {
                         MaterialTheme.colorScheme.onError
@@ -82,9 +84,9 @@ fun OfflineIndicator(
 
                 Text(
                     text = if (!isOnline) {
-                        "Offline-Modus - Tippen für Details"
+                        stringResource(R.string.offline_mode_tap_details)
                     } else if (pendingChanges > 0) {
-                        "Synchronisierung läuft... ($pendingChanges ausstehend) - Tippen für Details"
+                        stringResource(R.string.syncing_pending_tap_details, pendingChanges)
                     } else {
                         ""
                     },

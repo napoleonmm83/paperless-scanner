@@ -1,11 +1,14 @@
 package com.paperless.scanner.data.ai.paperlessgpt
 
+import android.content.Context
+import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.paperlessgpt.models.GenerateSuggestionsRequest
 import com.paperless.scanner.data.ai.paperlessgpt.models.DocumentSuggestion
 import com.paperless.scanner.data.ai.paperlessgpt.models.OcrJobRequest
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.datastore.TokenManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
@@ -22,6 +25,7 @@ import javax.inject.Inject
  * - Supports standalone service or integrated plugin modes
  */
 class PaperlessGptRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val api: PaperlessGptApi,
     private val tokenManager: TokenManager
 ) {
@@ -111,7 +115,7 @@ class PaperlessGptRepository @Inject constructor(
                 when (status.status) {
                     "completed" -> return Result.success(Unit) // Success!
                     "failed" -> {
-                        val errorMsg = status.error ?: "OCR Job fehlgeschlagen"
+                        val errorMsg = status.error ?: context.getString(R.string.ai_ocr_failed)
                         return Result.failure(
                             PaperlessException.ParseError(errorMsg)
                         )
@@ -127,7 +131,7 @@ class PaperlessGptRepository @Inject constructor(
                 // Last iteration reached
                 if (iteration == maxPolls - 1) {
                     return Result.failure(
-                        PaperlessException.ParseError("OCR Job Timeout (2 Minuten)")
+                        PaperlessException.ParseError(context.getString(R.string.error_ocr_timeout))
                     )
                 }
             }

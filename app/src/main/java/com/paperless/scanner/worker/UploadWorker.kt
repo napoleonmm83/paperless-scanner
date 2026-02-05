@@ -81,7 +81,7 @@ class UploadWorker @AssistedInject constructor(
         setForeground(createProgressForegroundInfo(
             currentUpload = 0,
             totalUploads = totalUploads,
-            currentDocumentName = "Vorbereitung...",
+            currentDocumentName = applicationContext.getString(R.string.notification_preparing),
             uploadProgress = 0
         ))
 
@@ -113,7 +113,7 @@ class UploadWorker @AssistedInject constructor(
             }
 
             val documentName = pendingUpload.title?.takeIf { it.isNotBlank() }
-                ?: "Dokument $currentUpload"
+                ?: applicationContext.getString(R.string.document_number, currentUpload)
 
             // Validate that files exist before attempting upload
             if (pendingUpload.isMultiPage) {
@@ -126,7 +126,7 @@ class UploadWorker @AssistedInject constructor(
                     }
                     uploadQueueRepository.markAsFailed(
                         pendingUpload.id,
-                        "Dateien nicht gefunden (${missingFiles.size}/${uris.size} fehlen)"
+                        applicationContext.getString(R.string.upload_error_files_not_found, missingFiles.size, uris.size)
                     )
                     failCount++
                     continue
@@ -136,7 +136,7 @@ class UploadWorker @AssistedInject constructor(
                 if (!FileUtils.fileExists(uri)) {
                     val fileSize = FileUtils.getFileSize(uri)
                     Log.e(TAG, "Upload ${pendingUpload.id}: File not found or not readable: $uri (size: $fileSize bytes)")
-                    uploadQueueRepository.markAsFailed(pendingUpload.id, "Datei nicht gefunden: ${uri.lastPathSegment}")
+                    uploadQueueRepository.markAsFailed(pendingUpload.id, applicationContext.getString(R.string.upload_error_file_not_found, uri.lastPathSegment ?: ""))
                     failCount++
                     continue
                 }
@@ -171,7 +171,7 @@ class UploadWorker @AssistedInject constructor(
                             updateNotificationProgress(
                                 currentUpload = currentUpload,
                                 totalUploads = totalUploads,
-                                currentDocumentName = "$documentName ($pageCount Seiten)",
+                                currentDocumentName = applicationContext.getString(R.string.notification_pages_suffix, documentName, pageCount),
                                 uploadProgress = (progress * 100).toInt()
                             )
                         }
@@ -205,11 +205,11 @@ class UploadWorker @AssistedInject constructor(
                     try {
                         val pageInfo = if (pendingUpload.isMultiPage) {
                             val uris = uploadQueueRepository.getAllUris(pendingUpload)
-                            " (${uris.size} Seiten)"
+                            applicationContext.getString(R.string.sync_history_pages_suffix, uris.size)
                         } else ""
                         syncHistoryRepository.recordSuccess(
                             actionType = SyncHistoryEntry.ACTION_UPLOAD,
-                            title = "Dokument hochgeladen",
+                            title = applicationContext.getString(R.string.sync_history_upload_success),
                             details = "${documentName}${pageInfo}"
                         )
                     } catch (historyError: Exception) {
@@ -229,10 +229,11 @@ class UploadWorker @AssistedInject constructor(
                     Log.d(TAG, "Upload ${pendingUpload.id}: Cleanup complete")
                 }.onFailure { e ->
                     // Safe error message extraction (prevent secondary exceptions)
+                    val uploadFailedMsg = applicationContext.getString(R.string.sync_history_upload_failed)
                     val safeErrorMessage = try {
-                        e.message?.takeIf { it.isNotBlank() } ?: "Upload fehlgeschlagen"
+                        e.message?.takeIf { it.isNotBlank() } ?: uploadFailedMsg
                     } catch (_: Exception) {
-                        "Upload fehlgeschlagen"
+                        uploadFailedMsg
                     }
                     Log.e(TAG, "Upload failed: ${pendingUpload.id} - $safeErrorMessage", e)
                     Log.e(TAG, "Upload failed: Exception type: ${e.javaClass.simpleName}")
@@ -249,8 +250,8 @@ class UploadWorker @AssistedInject constructor(
                         }
                         syncHistoryRepository.recordFailure(
                             actionType = SyncHistoryEntry.ACTION_UPLOAD,
-                            title = "Upload fehlgeschlagen",
-                            userMessage = syncHistoryRepository.getUserFriendlyError(httpCode, e as? Exception),
+                            title = applicationContext.getString(R.string.sync_history_upload_failed),
+                            userMessage = syncHistoryRepository.getUserFriendlyError(applicationContext, httpCode, e as? Exception),
                             technicalError = syncHistoryRepository.getTechnicalError(httpCode, e.message, e as? Exception),
                             details = documentName
                         )
@@ -274,10 +275,11 @@ class UploadWorker @AssistedInject constructor(
 
             } catch (e: Exception) {
                 // Safe error message extraction (prevent secondary exceptions)
+                val unexpectedErrorMsg = applicationContext.getString(R.string.sync_history_unexpected_error)
                 val safeErrorMessage = try {
-                    e.message?.takeIf { it.isNotBlank() } ?: "Unerwarteter Fehler"
+                    e.message?.takeIf { it.isNotBlank() } ?: unexpectedErrorMsg
                 } catch (_: Exception) {
-                    "Unerwarteter Fehler"
+                    unexpectedErrorMsg
                 }
                 Log.e(TAG, "Unexpected error during upload: ${pendingUpload.id} - $safeErrorMessage", e)
                 uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
@@ -287,8 +289,8 @@ class UploadWorker @AssistedInject constructor(
                 try {
                     syncHistoryRepository.recordFailure(
                         actionType = SyncHistoryEntry.ACTION_UPLOAD,
-                        title = "Upload fehlgeschlagen",
-                        userMessage = "Unerwarteter Fehler",
+                        title = applicationContext.getString(R.string.sync_history_upload_failed),
+                        userMessage = unexpectedErrorMsg,
                         technicalError = "${e.javaClass.simpleName}: ${e.message}",
                         details = documentName
                     )
@@ -307,10 +309,10 @@ class UploadWorker @AssistedInject constructor(
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Upload-Status",
+            applicationContext.getString(R.string.notification_channel_upload),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Zeigt den Fortschritt von Dokument-Uploads"
+            description = applicationContext.getString(R.string.notification_channel_upload_desc)
             setShowBadge(true)
         }
         notificationManager.createNotificationChannel(channel)
@@ -358,13 +360,13 @@ class UploadWorker @AssistedInject constructor(
         )
 
         val title = if (totalUploads > 1) {
-            "Upload $currentUpload von $totalUploads"
+            applicationContext.getString(R.string.notification_upload_of, currentUpload, totalUploads)
         } else {
-            "Dokument wird hochgeladen"
+            applicationContext.getString(R.string.notification_uploading_document)
         }
 
         val progressText = if (uploadProgress > 0) {
-            "$currentDocumentName • $uploadProgress%"
+            applicationContext.getString(R.string.notification_progress_percent, currentDocumentName, uploadProgress)
         } else {
             currentDocumentName
         }
@@ -373,7 +375,7 @@ class UploadWorker @AssistedInject constructor(
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentTitle(title)
             .setContentText(progressText)
-            .setSubText("Paperless Scanner")
+            .setSubText(applicationContext.getString(R.string.notification_subtext))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, uploadProgress, uploadProgress == 0)
@@ -413,20 +415,20 @@ class UploadWorker @AssistedInject constructor(
     private fun showCompletionNotification(successCount: Int, failCount: Int) {
         val (title, message, icon) = when {
             failCount == 0 && successCount > 0 -> Triple(
-                "Upload erfolgreich ✓",
-                if (successCount == 1) "Dokument wurde hochgeladen"
-                else "$successCount Dokumente wurden hochgeladen",
+                applicationContext.getString(R.string.notification_upload_successful),
+                if (successCount == 1) applicationContext.getString(R.string.notification_document_uploaded)
+                else applicationContext.getString(R.string.notification_documents_uploaded, successCount),
                 android.R.drawable.stat_sys_upload_done
             )
             failCount > 0 && successCount > 0 -> Triple(
-                "Upload teilweise erfolgreich",
-                "$successCount hochgeladen, $failCount fehlgeschlagen",
+                applicationContext.getString(R.string.notification_upload_partial),
+                applicationContext.getString(R.string.notification_uploaded_failed_count, successCount, failCount),
                 android.R.drawable.stat_notify_error
             )
             failCount > 0 -> Triple(
-                "Upload fehlgeschlagen",
-                if (failCount == 1) "Dokument konnte nicht hochgeladen werden"
-                else "$failCount Dokumente konnten nicht hochgeladen werden",
+                applicationContext.getString(R.string.notification_upload_failed),
+                if (failCount == 1) applicationContext.getString(R.string.notification_document_not_uploaded)
+                else applicationContext.getString(R.string.notification_documents_not_uploaded, failCount),
                 android.R.drawable.stat_notify_error
             )
             else -> return
@@ -447,7 +449,7 @@ class UploadWorker @AssistedInject constructor(
             .setSmallIcon(icon)
             .setContentTitle(title)
             .setContentText(message)
-            .setSubText("Paperless Scanner")
+            .setSubText(applicationContext.getString(R.string.notification_subtext))
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

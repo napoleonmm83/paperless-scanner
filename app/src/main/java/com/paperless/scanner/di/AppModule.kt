@@ -308,11 +308,12 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAuthRepository(
+        @ApplicationContext context: Context,
         tokenManager: TokenManager,
         @AuthClient client: OkHttpClient,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         crashlyticsHelper: CrashlyticsHelper
-    ): AuthRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
+    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
 
     @Provides
     @Singleton
@@ -486,9 +487,10 @@ object AppModule {
     @Provides
     @Singleton
     fun providePaperlessGptRepository(
+        @ApplicationContext context: Context,
         api: PaperlessGptApi,
         tokenManager: TokenManager
-    ): PaperlessGptRepository = PaperlessGptRepository(api, tokenManager)
+    ): PaperlessGptRepository = PaperlessGptRepository(context, api, tokenManager)
 
     @Provides
     @Singleton

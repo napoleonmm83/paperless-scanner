@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
-import java.net.URI
+import androidx.annotation.StringRes
+import com.paperless.scanner.R
 import java.util.Locale
 
 /**
@@ -52,8 +53,10 @@ object ServerUrlParser {
 
         /**
          * Parsing failed with specific error.
+         * @param messageResId String resource ID for the error message.
+         *                     Caller must resolve using context.getString().
          */
-        data class Error(val message: String) : ParseResult()
+        data class Error(@StringRes val messageResId: Int) : ParseResult()
     }
 
     // Valid port range
@@ -80,7 +83,7 @@ object ServerUrlParser {
         val cleaned = input.replace(Regex("\\s+"), "")
 
         if (cleaned.isBlank()) {
-            return ParseResult.Error("Server-Adresse fehlt")
+            return ParseResult.Error(R.string.error_server_address_missing)
         }
 
         // Step 2: Remove protocol prefix
@@ -92,7 +95,7 @@ object ServerUrlParser {
         val hostPortPart = extractHostPort(withoutProtocol)
 
         if (hostPortPart.isBlank()) {
-            return ParseResult.Error("Ungültige Server-Adresse")
+            return ParseResult.Error(R.string.error_invalid_server_address)
         }
 
         // Step 4: Parse host and port based on format
@@ -140,20 +143,20 @@ object ServerUrlParser {
      */
     private fun parseIpv6(input: String): ParseResult {
         val match = IPV6_BRACKET_PATTERN.matchEntire(input)
-            ?: return ParseResult.Error("Ungültiges IPv6-Format. Verwende: [2001:db8::1] oder [::1]:8000")
+            ?: return ParseResult.Error(R.string.error_invalid_ipv6_format)
 
         val address = match.groupValues[1]
         val portStr = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }
 
         // Validate IPv6 address
         if (!isValidIpv6(address)) {
-            return ParseResult.Error("Ungültige IPv6-Adresse")
+            return ParseResult.Error(R.string.error_invalid_ipv6_address)
         }
 
         // Validate port if present
         val port = portStr?.let { validatePort(it) }
         if (portStr != null && port == null) {
-            return ParseResult.Error("Ungültiger Port. Gültig sind Werte von 1-65535.")
+            return ParseResult.Error(R.string.error_invalid_port)
         }
 
         return ParseResult.Success(
@@ -168,20 +171,20 @@ object ServerUrlParser {
      */
     private fun parseIpv4(input: String): ParseResult {
         val match = IPV4_WITH_PORT_PATTERN.matchEntire(input)
-            ?: return ParseResult.Error("Ungültiges IPv4-Format")
+            ?: return ParseResult.Error(R.string.error_invalid_ipv4_format)
 
         val address = match.groupValues[1]
         val portStr = match.groupValues.getOrNull(2)?.takeIf { it.isNotEmpty() }
 
         // Validate IPv4 octets
         if (!isValidIpv4(address)) {
-            return ParseResult.Error("Ungültige IPv4-Adresse. Oktett-Werte müssen 0-255 sein.")
+            return ParseResult.Error(R.string.error_invalid_ipv4_address)
         }
 
         // Validate port if present
         val port = portStr?.let { validatePort(it) }
         if (portStr != null && port == null) {
-            return ParseResult.Error("Ungültiger Port. Gültig sind Werte von 1-65535.")
+            return ParseResult.Error(R.string.error_invalid_port)
         }
 
         return ParseResult.Success(
@@ -197,12 +200,12 @@ object ServerUrlParser {
     private fun parseDomain(input: String): ParseResult {
         // Check for empty port (domain:)
         if (input.endsWith(":")) {
-            return ParseResult.Error("Port fehlt nach Doppelpunkt")
+            return ParseResult.Error(R.string.error_port_missing)
         }
 
         // Check for invalid characters
         if (input.contains(" ") || input.contains("\t") || input.contains("\n")) {
-            return ParseResult.Error("Ungültige Zeichen in Server-Adresse")
+            return ParseResult.Error(R.string.error_invalid_characters)
         }
 
         // Split domain and port
@@ -215,18 +218,18 @@ object ServerUrlParser {
 
         // Validate domain
         if (domain.isBlank() || domain.length < 1) {
-            return ParseResult.Error("Server-Adresse zu kurz")
+            return ParseResult.Error(R.string.error_address_too_short)
         }
 
         // Check for invalid port (non-numeric)
         if (portStr != null && !portStr.all { it.isDigit() }) {
-            return ParseResult.Error("Port muss eine Zahl sein")
+            return ParseResult.Error(R.string.error_port_not_number)
         }
 
         // Validate port if present
         val port = portStr?.let { validatePort(it) }
         if (portStr != null && port == null) {
-            return ParseResult.Error("Ungültiger Port. Gültig sind Werte von 1-65535.")
+            return ParseResult.Error(R.string.error_invalid_port)
         }
 
         // Normalize domain to lowercase

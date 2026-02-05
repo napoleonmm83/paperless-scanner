@@ -223,13 +223,13 @@ class SuggestionOrchestrator @Inject constructor(
         if (mergedAnalysis.suggestedTags.isEmpty() && aiAttempted && aiError != null) {
             val errorMessage = when {
                 aiError?.message?.contains("PERMISSION_DENIED") == true ->
-                    "Firebase AI nicht konfiguriert. Bitte aktiviere Vertex AI in der Firebase Console."
+                    "Firebase AI not configured. Please enable Vertex AI in Firebase Console."
                 aiError?.message?.contains("timeout") == true ->
-                    "AI-Analyse Timeout. Bitte versuche es erneut."
+                    "AI analysis timeout. Please try again."
                 aiError?.message?.contains("quota") == true ->
-                    "AI-Kontingent erschöpft. Bitte versuche es später erneut."
+                    "AI quota exhausted. Please try again later."
                 else ->
-                    "AI-Analyse fehlgeschlagen: ${aiError?.message ?: "Unbekannter Fehler"}"
+                    "AI analysis failed: ${aiError?.message ?: "Unknown error"}"
             }
             Log.e(TAG, "All suggestion sources failed. AI error: ${aiError?.message}")
             return@withContext SuggestionResult.Error(errorMessage, aiError)

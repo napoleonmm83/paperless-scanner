@@ -6,9 +6,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
-import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
+import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.domain.model.Tag
@@ -84,7 +84,7 @@ class AiAnalysisService @Inject constructor(
                 }
 
                 val response = generativeModel.generateContent(content)
-                val responseText = response.text ?: throw IllegalStateException("Empty AI response")
+                val responseText = response.text ?: throw IllegalStateException(context.getString(R.string.ai_error_empty_response))
 
                 android.util.Log.d(TAG, "AI Response received: $responseText")
 
@@ -107,7 +107,7 @@ class AiAnalysisService @Inject constructor(
     ): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
             val bitmap = loadBitmapFromUri(uri)
-                ?: throw IllegalArgumentException("Could not load image from URI")
+                ?: throw IllegalArgumentException(context.getString(R.string.ai_error_load_image))
 
             analyzeImage(bitmap, availableTags, availableCorrespondents, availableDocumentTypes, allowNewTags)
                 .getOrThrow()
@@ -135,56 +135,36 @@ class AiAnalysisService @Inject constructor(
                 "${tag.name}$desc"
             }
         } else {
-            "keine Tags verfügbar"
+            context.getString(R.string.ai_no_tags_available)
         }
 
         val correspondentList = if (availableCorrespondents.isNotEmpty()) {
             availableCorrespondents.joinToString(", ")
         } else {
-            "keine Korrespondenten verfügbar"
+            context.getString(R.string.ai_no_correspondents_available)
         }
 
         val docTypeList = if (availableDocumentTypes.isNotEmpty()) {
             availableDocumentTypes.joinToString(", ")
         } else {
-            "keine Dokumenttypen verfügbar"
+            context.getString(R.string.ai_no_document_types_available)
         }
 
-        return """
-            |Analysiere dieses Dokument und extrahiere Metadaten.
-            |
-            |VERFÜGBARE TAGS: $tagList
-            |VERFÜGBARE KORRESPONDENTEN: $correspondentList
-            |VERFÜGBARE DOKUMENTTYPEN: $docTypeList
-            |
-            |Antworte NUR mit einem JSON-Objekt im folgenden Format:
-            |{
-            |  "title": "Kurzer, beschreibender Titel des Dokuments",
-            |  "tags": ["tag1", "tag2"],
-            |  "correspondent": "Name des Absenders/Korrespondenten oder null",
-            |  "document_type": "Dokumenttyp oder null",
-            |  "date": "YYYY-MM-DD oder null",
-            |  "confidence": 0.0-1.0,
-            |  "new_tags": ["vorgeschlagene neue Tags die noch nicht existieren"]
-            |}
-            |
-            |REGELN:
-            |1. Wähle passende Tags aus der Liste der verfügbaren Tags (falls vorhanden)
-            |2. WICHTIG: Schlage IMMER mindestens 2-3 neue Tags in "new_tags" vor, die das Dokument kategorisieren!
-            |   Beispiele für sinnvolle Tags:
-            |   - Dokumentart: Rechnung, Vertrag, Brief, Anleitung, Etikett, Garantie
-            |   - Kategorie: Finanzen, Technik, Hardware, Versicherung, Gesundheit
-            |   - Firma/Marke: Samsung, Amazon, Telekom (wenn erkennbar)
-            |   - Status: Wichtig, Archiv, Ablage
-            |3. Der Titel sollte kurz und beschreibend sein (max 50 Zeichen)
-            |4. Erkenne Datum, Absender und Dokumenttyp aus dem Inhalt
-            |5. Bei Rechnungen: Suche nach Rechnungsnummer, Betrag, Firma
-            |6. Confidence gibt an, wie sicher die Analyse ist (0.0 = unsicher, 1.0 = sicher)
-            |
-            |WICHTIG: Das Feld "new_tags" sollte NIEMALS leer sein! Schlage immer relevante Tags vor.
-            |
-            |Antworte NUR mit dem JSON, keine weitere Erklärung.
-        """.trimMargin()
+        return buildString {
+            appendLine(context.getString(R.string.ai_prompt_analyze_document))
+            appendLine()
+            appendLine(context.getString(R.string.ai_prompt_available_tags, tagList))
+            appendLine(context.getString(R.string.ai_prompt_available_correspondents, correspondentList))
+            appendLine(context.getString(R.string.ai_prompt_available_document_types, docTypeList))
+            appendLine()
+            appendLine(context.getString(R.string.ai_prompt_response_format))
+            appendLine()
+            appendLine(context.getString(R.string.ai_prompt_rules))
+            appendLine()
+            appendLine(context.getString(R.string.ai_prompt_new_tags_important))
+            appendLine()
+            append(context.getString(R.string.ai_prompt_json_only))
+        }
     }
 
     private fun parseResponse(responseText: String, availableTags: List<Tag>, allowNewTags: Boolean): DocumentAnalysis {
@@ -257,7 +237,7 @@ class AiAnalysisService @Inject constructor(
         return if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
             text.substring(jsonStart, jsonEnd + 1)
         } else {
-            throw IllegalStateException("No valid JSON found in response")
+            throw IllegalStateException(context.getString(R.string.ai_error_no_json))
         }
     }
 }

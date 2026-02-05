@@ -1,9 +1,12 @@
 package com.paperless.scanner.ui.screens.applock
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.util.AppLockManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SetupAppLockViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val appLockManager: AppLockManager
 ) : ViewModel() {
 
@@ -34,7 +38,7 @@ class SetupAppLockViewModel @Inject constructor(
             // Validate password length
             if (password.length < MIN_PASSWORD_LENGTH) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Das Passwort muss mindestens $MIN_PASSWORD_LENGTH Zeichen lang sein")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_min_length, MIN_PASSWORD_LENGTH))
                 }
                 return@launch
             }
@@ -42,7 +46,7 @@ class SetupAppLockViewModel @Inject constructor(
             // Validate passwords match
             if (password != confirmPassword) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Die Passwörter stimmen nicht überein")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_passwords_mismatch))
                 }
                 return@launch
             }
@@ -52,7 +56,7 @@ class SetupAppLockViewModel @Inject constructor(
                 _uiState.update { SetupAppLockUiState.Success }
             } catch (e: Exception) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Fehler beim Einrichten: ${e.localizedMessage}")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_setup, e.localizedMessage ?: ""))
                 }
             }
         }
@@ -69,7 +73,7 @@ class SetupAppLockViewModel @Inject constructor(
             // Validate current password not empty
             if (currentPassword.isBlank()) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Bitte gib dein aktuelles Passwort ein")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_enter_current))
                 }
                 return@launch
             }
@@ -77,7 +81,7 @@ class SetupAppLockViewModel @Inject constructor(
             // Validate new password length
             if (newPassword.length < MIN_PASSWORD_LENGTH) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Das neue Passwort muss mindestens $MIN_PASSWORD_LENGTH Zeichen lang sein")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_min_length, MIN_PASSWORD_LENGTH))
                 }
                 return@launch
             }
@@ -85,7 +89,7 @@ class SetupAppLockViewModel @Inject constructor(
             // Validate passwords match
             if (newPassword != confirmPassword) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Die Passwörter stimmen nicht überein")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_passwords_mismatch))
                 }
                 return@launch
             }
@@ -96,12 +100,12 @@ class SetupAppLockViewModel @Inject constructor(
                     _uiState.update { SetupAppLockUiState.Success }
                 } else {
                     _uiState.update {
-                        SetupAppLockUiState.Error("Aktuelles Passwort ist falsch")
+                        SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_current_incorrect))
                     }
                 }
             } catch (e: Exception) {
                 _uiState.update {
-                    SetupAppLockUiState.Error("Fehler beim Ändern: ${e.localizedMessage}")
+                    SetupAppLockUiState.Error(context.getString(R.string.app_lock_error_change, e.localizedMessage ?: ""))
                 }
             }
         }

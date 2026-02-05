@@ -1,10 +1,10 @@
 package com.paperless.scanner.ui.screens.applock
 
 import android.content.Context
-import androidx.compose.runtime.Composable
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.util.AppLockManager
 import com.paperless.scanner.util.AppLockState
 import com.paperless.scanner.util.BiometricHelper
@@ -89,7 +89,7 @@ class AppLockViewModel @Inject constructor(
                 if (remainingAttempts > 0) {
                     _uiState.update {
                         AppLockUiState.Error(
-                            message = "Falsches Passwort",
+                            message = context.getString(R.string.app_lock_error_wrong_password),
                             remainingAttempts = remainingAttempts
                         )
                     }
@@ -120,7 +120,7 @@ class AppLockViewModel @Inject constructor(
                             // Lockout expired or no lockout - show error and allow retry
                             _uiState.update {
                                 AppLockUiState.Error(
-                                    message = "Falsches Passwort",
+                                    message = context.getString(R.string.app_lock_error_wrong_password),
                                     remainingAttempts = 5 // Reset to max for next cycle
                                 )
                             }
@@ -134,9 +134,9 @@ class AppLockViewModel @Inject constructor(
     fun showBiometricPrompt(activity: FragmentActivity) {
         biometricHelper.authenticate(
             activity = activity,
-            title = "App entsperren",
-            subtitle = "Verwende deine Biometrie",
-            negativeButtonText = "Abbrechen",
+            title = context.getString(R.string.biometric_unlock_title),
+            subtitle = context.getString(R.string.biometric_unlock_subtitle),
+            negativeButtonText = context.getString(R.string.biometric_cancel),
             onSuccess = {
                 appLockManager.unlockWithBiometric()
             },

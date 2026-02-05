@@ -1,7 +1,10 @@
 package com.paperless.scanner.data.repository
 
+import android.content.Context
 import android.util.Log
+import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.util.ServerUrlParser
@@ -58,6 +61,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
  * @see LoginViewModel For UI layer usage
  */
 class AuthRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val tokenManager: TokenManager,
     private val client: OkHttpClient,
     private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
@@ -95,7 +99,7 @@ class AuthRepository @Inject constructor(
         val cleanHost = when (parseResult) {
             is ServerUrlParser.ParseResult.Success -> parseResult.toHostString()
             is ServerUrlParser.ParseResult.Error -> {
-                return Result.failure(PaperlessException.ContentError(parseResult.message))
+                return Result.failure(PaperlessException.ContentError(parseResult.messageResId))
             }
         }
 
@@ -142,28 +146,28 @@ class AuthRepository @Inject constructor(
             // Connection refused (server might be down)
             httpsMsg.contains("abgelehnt") || httpMsg.contains("abgelehnt") -> {
                 Result.failure(PaperlessException.NetworkError(
-                    IOException("Verbindung abgelehnt. Prüfe ob der Server läuft und erreichbar ist.")
+                    IOException(context.getString(R.string.error_connection_refused_reachable))
                 ))
             }
 
             // Timeout
             httpsMsg.contains("Zeitüberschreitung") || httpMsg.contains("Zeitüberschreitung") -> {
                 Result.failure(PaperlessException.NetworkError(
-                    IOException("Zeitüberschreitung. Server ist nicht erreichbar oder zu langsam.")
+                    IOException(context.getString(R.string.error_timeout_slow_server))
                 ))
             }
 
             // Network issues
             httpsMsg.contains("Netzwerk") || httpMsg.contains("Netzwerk") -> {
                 Result.failure(PaperlessException.NetworkError(
-                    IOException("Keine Netzwerkverbindung. Prüfe deine Internetverbindung.")
+                    IOException(context.getString(R.string.error_no_network))
                 ))
             }
 
             // Fallback with more context
             else -> Result.failure(
                 PaperlessException.NetworkError(
-                    IOException("Server nicht erreichbar unter \"$cleanHost\". Prüfe die Adresse und Netzwerkverbindung.")
+                    IOException(context.getString(R.string.error_server_unreachable_at, cleanHost))
                 )
             )
         }
@@ -203,22 +207,22 @@ class AuthRepository @Inject constructor(
                     404 -> {
                         Log.d(TAG, "$protocol - /api/ not found")
                         return Result.failure(PaperlessException.NetworkError(
-                            IOException("Kein Paperless-Server. Die /api/ Schnittstelle wurde nicht gefunden.")
+                            IOException(context.getString(R.string.error_not_paperless_server))
                         ))
                     }
                     502 -> {
                         return Result.failure(PaperlessException.NetworkError(
-                            IOException("Server antwortet nicht (Bad Gateway). Ist Paperless gestartet?")
+                            IOException(context.getString(R.string.error_bad_gateway_paperless))
                         ))
                     }
                     503 -> {
                         return Result.failure(PaperlessException.NetworkError(
-                            IOException("Server vorübergehend nicht verfügbar. Bitte später erneut versuchen.")
+                            IOException(context.getString(R.string.error_service_unavailable))
                         ))
                     }
                     504 -> {
                         return Result.failure(PaperlessException.NetworkError(
-                            IOException("Server-Timeout. Der Server braucht zu lange zum Antworten.")
+                            IOException(context.getString(R.string.error_server_timeout))
                         ))
                     }
                     else -> {
@@ -235,46 +239,46 @@ class AuthRepository @Inject constructor(
         } catch (e: UnknownHostException) {
             Log.e(TAG, "$protocol - Unknown host: ${e.message}")
             val suggestion = if (host.contains(".local") || !host.contains(".")) {
-                "Server \"$host\" nicht gefunden. Prüfe, ob du im richtigen Netzwerk bist."
+                context.getString(R.string.error_server_not_found_local, host)
             } else {
-                "Server \"$host\" nicht gefunden. Prüfe die Adresse auf Tippfehler."
+                context.getString(R.string.error_server_not_found_typo, host)
             }
             Result.failure(PaperlessException.NetworkError(IOException(suggestion)))
         } catch (e: SSLHandshakeException) {
             Log.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
             Result.failure(PaperlessException.NetworkError(
-                IOException("SSL-Zertifikat ungültig oder abgelaufen. Prüfe die Server-Konfiguration.")
+                IOException(context.getString(R.string.error_ssl_invalid))
             ))
         } catch (e: SSLException) {
             Log.d(TAG, "$protocol - SSL error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
-                message.contains("handshake") -> "SSL-Verbindung fehlgeschlagen. Server unterstützt möglicherweise kein HTTPS."
-                message.contains("certificate") -> "SSL-Zertifikat konnte nicht überprüft werden."
-                else -> "Sichere Verbindung nicht möglich. Prüfe die SSL-Konfiguration."
+                message.contains("handshake") -> context.getString(R.string.error_ssl_handshake)
+                message.contains("certificate") -> context.getString(R.string.error_ssl_verify)
+                else -> context.getString(R.string.error_ssl_not_possible)
             }
             Result.failure(PaperlessException.NetworkError(IOException(errorText)))
         } catch (e: SocketTimeoutException) {
             Log.d(TAG, "$protocol - Timeout: ${e.message}")
             Result.failure(PaperlessException.NetworkError(
-                IOException("Zeitüberschreitung. Server antwortet nicht oder ist zu langsam.")
+                IOException(context.getString(R.string.error_timeout_slow))
             ))
         } catch (e: ConnectException) {
             Log.d(TAG, "$protocol - Connection refused: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
-                message.contains("refused") -> "Verbindung abgelehnt. Läuft der Server auf diesem Port?"
-                message.contains("reset") -> "Verbindung zurückgesetzt. Der Server hat die Verbindung unterbrochen."
-                else -> "Verbindung fehlgeschlagen. Prüfe ob der Server läuft."
+                message.contains("refused") -> context.getString(R.string.error_connection_refused_port)
+                message.contains("reset") -> context.getString(R.string.error_connection_reset)
+                else -> context.getString(R.string.error_connection_check_server)
             }
             Result.failure(PaperlessException.NetworkError(IOException(errorText)))
         } catch (e: IOException) {
             Log.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
-                message.contains("network") -> "Keine Netzwerkverbindung. Prüfe deine Internetverbindung."
-                message.contains("host") -> "Server-Adresse ungültig."
-                else -> "Verbindungsfehler: ${e.message ?: "Unbekannter Fehler"}"
+                message.contains("network") -> context.getString(R.string.error_no_network)
+                message.contains("host") -> context.getString(R.string.error_invalid_address)
+                else -> context.getString(R.string.error_connection_generic, e.message ?: context.getString(R.string.error_unknown))
             }
             Result.failure(PaperlessException.NetworkError(IOException(errorText)))
         }
@@ -334,7 +338,7 @@ class AuthRepository @Inject constructor(
                         } else {
                             Log.d(TAG, "$protocol - /api/documents/ exists but wrong format")
                             Result.failure(PaperlessException.NetworkError(
-                                IOException("Server hat eine /api/ Schnittstelle, aber es ist kein Paperless-ngx Server.")
+                                IOException(context.getString(R.string.error_not_paperless_has_api))
                             ))
                         }
                     }
@@ -346,13 +350,13 @@ class AuthRepository @Inject constructor(
                     404 -> {
                         Log.d(TAG, "$protocol - /api/documents/ not found - not Paperless")
                         Result.failure(PaperlessException.NetworkError(
-                            IOException("Server hat eine /api/ Schnittstelle, aber es ist kein Paperless-ngx Server.")
+                            IOException(context.getString(R.string.error_not_paperless_has_api))
                         ))
                     }
                     else -> {
                         Log.d(TAG, "$protocol - Unexpected documents response: ${response.code}")
                         Result.failure(PaperlessException.NetworkError(
-                            IOException("Unerwartete Antwort vom Server (${response.code}). Ist dies ein Paperless-ngx Server?")
+                            IOException(context.getString(R.string.error_unexpected_response_code, response.code))
                         ))
                     }
                 }
@@ -360,7 +364,7 @@ class AuthRepository @Inject constructor(
         } catch (e: IOException) {
             Log.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(
-                IOException("Verbindungsfehler bei der Server-Überprüfung.")
+                IOException(context.getString(R.string.error_connection_verification))
             ))
         }
     }
@@ -412,7 +416,7 @@ class AuthRepository @Inject constructor(
                     Result.success(LoginResult.Success(token))
                 } else {
                     crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "Token not found in response")
-                    Result.failure(PaperlessException.ParseError("Token nicht in Antwort gefunden"))
+                    Result.failure(PaperlessException.ParseError(context.getString(R.string.error_token_not_in_response)))
                 }
             } else {
                 val errorBody = response.body?.string() ?: ""
@@ -426,7 +430,7 @@ class AuthRepository @Inject constructor(
                 if (mfaErrorMessage != null) {
                     val exception = PaperlessException.AuthError(
                         code = response.code,
-                        message = mfaErrorMessage
+                        customMessage = mfaErrorMessage
                     )
                     return Result.failure(exception)
                 }
@@ -435,7 +439,7 @@ class AuthRepository @Inject constructor(
                 crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "HTTP ${response.code}")
                 val exception = PaperlessException.AuthError(
                     code = response.code,
-                    message = errorMessage
+                    customMessage = errorMessage
                 )
                 Result.failure(exception)
             }
@@ -468,7 +472,7 @@ class AuthRepository @Inject constructor(
             val requires2FA = json.optBoolean("requires_2fa", false)
             if (requires2FA) {
                 Log.d(TAG, "2FA required - requires_2fa flag found")
-                return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+                return context.getString(R.string.error_2fa_enabled)
             }
 
             // Method 2: Check for MFA-related errors in non_field_errors
@@ -481,13 +485,13 @@ class AuthRepository @Inject constructor(
                         // Check for explicit MFA messages
                         if (error.contains("mfa") || error.contains("totp") || error.contains("code is required")) {
                             Log.d(TAG, "2FA required - MFA error message found: $error")
-                            return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+                            return context.getString(R.string.error_2fa_enabled)
                         }
 
                         // Some Paperless-ngx versions return generic "Unable to log in" when MFA is active
                         if (error.contains("unable to log in")) {
                             Log.d(TAG, "2FA potentially required - generic login error with MFA possible: $error")
-                            return "Du hast einen zusätzlichen Anmeldeschutz aktiviert. Bitte wechsle oben auf 'Token' und melde dich mit deinem Token an."
+                            return context.getString(R.string.error_2fa_enabled)
                         }
                     }
                 }
@@ -505,8 +509,8 @@ class AuthRepository @Inject constructor(
      */
     private fun parseLoginError(errorBody: String, responseCode: Int): String {
         return when (responseCode) {
-            401, 403 -> "Benutzername oder Passwort ist falsch"
-            else -> "Anmeldung fehlgeschlagen"
+            401, 403 -> context.getString(R.string.error_username_password_incorrect)
+            else -> context.getString(R.string.error_login_failed)
         }
     }
 
@@ -552,12 +556,12 @@ class AuthRepository @Inject constructor(
             } else {
                 // Provide better error message for token validation failures
                 val errorMessage = when (response.code) {
-                    401 -> "Schlüssel ungültig. Bitte prüfe, ob du den richtigen Schlüssel verwendest."
-                    403 -> "Zugriff verweigert. Dieser Schlüssel hat keine Berechtigung."
-                    else -> "Verbindung fehlgeschlagen (${response.code})"
+                    401 -> context.getString(R.string.error_token_invalid_check)
+                    403 -> context.getString(R.string.error_token_no_permission)
+                    else -> context.getString(R.string.error_connection_failed_code, response.code)
                 }
                 crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "HTTP ${response.code}")
-                Result.failure(PaperlessException.AuthError(response.code, errorMessage))
+                Result.failure(PaperlessException.AuthError(response.code, customMessage = errorMessage))
             }
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")

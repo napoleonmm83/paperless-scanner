@@ -16,6 +16,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.paperless.scanner.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -349,7 +350,7 @@ class BillingManager @Inject constructor(
                 Log.w(TAG, "Failed to log to Crashlytics", e)
             }
 
-            return PurchaseResult.Error("Billing service not ready. Please wait a moment and try again.")
+            return PurchaseResult.Error(context.getString(R.string.billing_error_not_ready))
         }
 
         Log.d(TAG, "✓ BillingClient is ready")
@@ -357,7 +358,7 @@ class BillingManager @Inject constructor(
         // Check if there's already a pending purchase
         if (pendingPurchaseContinuation != null) {
             Log.e(TAG, "✗ Purchase already in progress!")
-            return PurchaseResult.Error("Purchase already in progress")
+            return PurchaseResult.Error(context.getString(R.string.billing_error_purchase_in_progress))
         }
 
         // Edge Case: ProductDetails cache might be empty if initial query failed
@@ -392,7 +393,7 @@ class BillingManager @Inject constructor(
                     Log.w(TAG, "Failed to log missing product to Crashlytics", e)
                 }
 
-                return PurchaseResult.Error("Product not found. Please try again later.")
+                return PurchaseResult.Error(context.getString(R.string.billing_error_product_not_found))
             } else {
                 Log.d(TAG, "✓ Product loaded successfully after retry")
             }
@@ -404,7 +405,7 @@ class BillingManager @Inject constructor(
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
         if (offerToken == null) {
             Log.e(TAG, "✗ No subscription offers available!")
-            return PurchaseResult.Error("No subscription offers available")
+            return PurchaseResult.Error(context.getString(R.string.billing_error_no_offers))
         }
 
         Log.d(TAG, "✓ Offer token found")
@@ -462,7 +463,7 @@ class BillingManager @Inject constructor(
                 }
 
                 pendingPurchaseContinuation = null
-                continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: "Failed to launch billing flow"))
+                continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: context.getString(R.string.billing_error_launch_failed)))
             } else {
                 Log.d(TAG, "✓ Billing flow launched successfully")
                 Log.d(TAG, "Waiting for purchasesUpdatedListener callback...")
@@ -668,7 +669,7 @@ class BillingManager @Inject constructor(
 
                 // Determine product name
                 val isMonthly = productId == PRODUCT_ID_MONTHLY
-                val productName = if (isMonthly) "Monatlich" else "Jährlich"
+                val productName = if (isMonthly) context.getString(R.string.billing_monthly) else context.getString(R.string.billing_yearly)
 
                 // Calculate renewal date (purchaseTime + subscription period)
                 // Note: Google Play doesn't provide exact renewal date in Purchase object
@@ -716,7 +717,7 @@ class BillingManager @Inject constructor(
         pendingPurchaseContinuation?.let {
             Log.w(TAG, "Cancelling pending purchase continuation on destroy")
             try {
-                it.resume(PurchaseResult.Error("Billing service disconnected"))
+                it.resume(PurchaseResult.Error(context.getString(R.string.billing_error_disconnected)))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to resume continuation on destroy", e)
             }
@@ -770,7 +771,7 @@ sealed class RestoreResult {
  */
 data class SubscriptionInfo(
     val productId: String,                    // "paperless_ai_monthly" or "paperless_ai_yearly"
-    val productName: String,                  // "Monatlich" or "Jährlich"
+    val productName: String,                  // "Monthly" or "Yearly"
     val price: String,                        // "2,99 €/Monat" or "29,99 €/Jahr"
     val renewalDateMs: Long?,                 // Next renewal date in milliseconds (null if unknown)
     val status: SubscriptionInfoStatus,       // ACTIVE, PAUSED, CANCELLED, EXPIRED

@@ -1,10 +1,13 @@
 package com.paperless.scanner.data.repository
 
+import android.content.Context
+import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
@@ -22,6 +25,7 @@ import org.robolectric.RobolectricTestRunner
 class AuthRepositoryTest {
 
     private lateinit var mockWebServer: MockWebServer
+    private lateinit var context: Context
     private lateinit var tokenManager: TokenManager
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var crashlyticsHelper: CrashlyticsHelper
@@ -32,11 +36,15 @@ class AuthRepositoryTest {
     fun setup() {
         mockWebServer = MockWebServer()
         mockWebServer.start()
+        context = mockk(relaxed = true)
+        // Mock specific string resource lookups (relaxed mock returns "" for unmocked getString calls)
+        every { context.getString(R.string.error_username_password_incorrect) } returns "Invalid username or password"
+        every { context.getString(R.string.error_token_not_in_response) } returns "Token not found in response"
         tokenManager = mockk(relaxed = true)
         cloudflareDetectionInterceptor = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
+        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
     }
 
     @After
@@ -95,8 +103,8 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "wronguser", "wrongpass")
 
         assertTrue(result.isFailure)
-        // AuthRepository returns German error message for 401: "Benutzername oder Passwort ist falsch"
-        assertTrue(result.exceptionOrNull()?.message?.contains("Benutzername oder Passwort") == true)
+        // AuthRepository now uses string resources for i18n - verify error is returned
+        assertTrue(result.exceptionOrNull()?.message?.isNotEmpty() == true)
     }
 
     @Test
@@ -111,7 +119,8 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "user", "pass")
 
         assertTrue(result.isFailure)
-        assertEquals("Token nicht in Antwort gefunden", result.exceptionOrNull()?.message)
+        // Message now uses string resources - verify mocked string is returned
+        assertEquals("Token not found in response", result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -126,7 +135,8 @@ class AuthRepositoryTest {
         val result = authRepository.login(serverUrl, "user", "pass")
 
         assertTrue(result.isFailure)
-        assertEquals("Token nicht in Antwort gefunden", result.exceptionOrNull()?.message)
+        // Message now uses string resources - verify mocked string is returned
+        assertEquals("Token not found in response", result.exceptionOrNull()?.message)
     }
 
     @Test

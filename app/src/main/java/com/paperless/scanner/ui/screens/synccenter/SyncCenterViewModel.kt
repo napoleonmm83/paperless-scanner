@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.synccenter
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.R
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
@@ -9,6 +11,7 @@ import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,6 +71,7 @@ data class SyncCenterUiState(
  */
 @HiltViewModel
 class SyncCenterViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val uploadQueueRepository: UploadQueueRepository,
     private val pendingChangeDao: PendingChangeDao,
     private val syncHistoryRepository: SyncHistoryRepository
@@ -116,7 +120,7 @@ class SyncCenterViewModel @Inject constructor(
                 uploadQueueRepository.markAsUploading(uploadId)
                 // UploadWorker will pick it up automatically
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Wiederholen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_retry)) }
             }
         }
     }
@@ -129,7 +133,7 @@ class SyncCenterViewModel @Inject constructor(
             try {
                 uploadQueueRepository.deleteUpload(uploadId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Löschen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_delete)) }
             }
         }
     }
@@ -147,7 +151,7 @@ class SyncCenterViewModel @Inject constructor(
                     pendingChangeDao.delete(change)
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Löschen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_delete)) }
             }
         }
     }
@@ -162,7 +166,7 @@ class SyncCenterViewModel @Inject constructor(
             try {
                 syncHistoryRepository.deleteEntry(entryId)
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Löschen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_delete)) }
             }
         }
     }
@@ -175,7 +179,7 @@ class SyncCenterViewModel @Inject constructor(
             try {
                 syncHistoryRepository.clearFailed()
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Löschen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_delete)) }
             }
         }
     }
@@ -188,7 +192,7 @@ class SyncCenterViewModel @Inject constructor(
             try {
                 syncHistoryRepository.clearAll()
             } catch (e: Exception) {
-                _uiState.update { it.copy(error = e.message ?: "Fehler beim Löschen") }
+                _uiState.update { it.copy(error = e.message ?: context.getString(R.string.error_delete)) }
             }
         }
     }
