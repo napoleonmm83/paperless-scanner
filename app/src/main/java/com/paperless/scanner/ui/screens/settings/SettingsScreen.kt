@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CardMembership
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
@@ -55,6 +56,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -94,6 +98,8 @@ fun SettingsScreen(
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
     var showSubscriptionManagementSheet by remember { mutableStateOf(false) }
     var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
+    var showAuthDebugReportDialog by remember { mutableStateOf(false) }
+    val authDebugReport by viewModel.hasAuthDebugReport.collectAsState()
 
     // 7-tap Easter egg for AI debug mode activation
     var versionTapCount by remember { mutableIntStateOf(0) }
@@ -505,6 +511,21 @@ fun SettingsScreen(
                 value = stringResource(R.string.settings_open_source_licenses),
                 onClick = { showLicensesDialog = true }
             )
+
+            // Auth Debug Report - only show if there's a report available
+            if (authDebugReport != null) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+
+                SettingsClickableItem(
+                    icon = Icons.Filled.BugReport,
+                    title = stringResource(R.string.auth_debug_report_title),
+                    value = stringResource(R.string.auth_debug_report_available),
+                    onClick = { showAuthDebugReportDialog = true }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -819,6 +840,39 @@ fun SettingsScreen(
                             purchaseResultMessage = context.getString(R.string.premium_restore_error, result.message)
                         }
                     }
+                }
+            }
+        )
+    }
+
+    // Auth Debug Report Dialog
+    if (showAuthDebugReportDialog) {
+        AlertDialog(
+            onDismissRequest = { showAuthDebugReportDialog = false },
+            title = { Text(stringResource(R.string.auth_debug_report_dialog_title)) },
+            text = { Text(stringResource(R.string.auth_debug_report_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val shareableReport = viewModel.getShareableAuthDebugReport()
+                        val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Auth Debug Report", shareableReport)
+                        clipboardManager.setPrimaryClip(clip)
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.auth_debug_report_copied),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        viewModel.clearAuthDebugReport()
+                        showAuthDebugReportDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.auth_debug_report_copy))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAuthDebugReportDialog = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

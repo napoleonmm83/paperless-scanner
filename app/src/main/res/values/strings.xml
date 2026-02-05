@@ -307,6 +307,16 @@
     <string name="settings_debug_mode_disabled">AI developer mode disabled</string>
     <string name="settings_debug_mode_already_enabled">Developer mode is already enabled</string>
 
+    <!-- Auth Debug Report -->
+    <string name="auth_debug_report_title">Login Debug Report</string>
+    <string name="auth_debug_report_subtitle">Help diagnose login issues</string>
+    <string name="auth_debug_report_available">Debug report available</string>
+    <string name="auth_debug_report_dialog_title">Copy Debug Report?</string>
+    <string name="auth_debug_report_dialog_message">A debug report was created for your recent login attempt. This anonymized report helps us diagnose issues.\n\nNo passwords or personal data are included.\n\nCopy the report to paste it in a GitHub issue.</string>
+    <string name="auth_debug_report_copy">Copy to Clipboard</string>
+    <string name="auth_debug_report_copied">Debug report copied to clipboard</string>
+    <string name="auth_debug_report_no_report">No debug report available</string>
+
     <!-- Diagnostics Screen -->
     <string name="diagnostics_title">SERVER DIAGNOSTICS</string>
     <string name="diagnostics_section_version">Version</string>

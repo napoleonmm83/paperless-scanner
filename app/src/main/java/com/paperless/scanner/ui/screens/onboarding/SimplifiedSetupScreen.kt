@@ -56,9 +56,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.material.icons.filled.BugReport
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.HttpFallbackWarningDialog
@@ -109,10 +115,12 @@ fun SimplifiedSetupScreen(
     var showHttpFallbackDialog by remember { mutableStateOf(false) }
     var httpFallbackAcceptedForSession by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val serverStatus by viewModel.serverStatus.collectAsState()
+    val authDebugReport by viewModel.hasAuthDebugReport.collectAsState()
     val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
 
     val isServerValid = serverStatus is ServerStatus.Success
@@ -568,6 +576,45 @@ fun SimplifiedSetupScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             )
+                        }
+
+                        // Debug Report Button - only show when there's a report available
+                        if (authDebugReport != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Button(
+                                onClick = {
+                                    val shareableReport = viewModel.getShareableAuthDebugReport()
+                                    val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    val clip = ClipData.newPlainText("Auth Debug Report", shareableReport)
+                                    clipboardManager.setPrimaryClip(clip)
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.auth_debug_report_copied),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    viewModel.clearAuthDebugReport()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.BugReport,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(R.string.auth_debug_report_copy),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }

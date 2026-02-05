@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.AuthDebugReport
+import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PurchaseResult
@@ -66,7 +68,8 @@ class SettingsViewModel @Inject constructor(
     private val api: PaperlessApi,
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
-    private val premiumFeatureManager: PremiumFeatureManager
+    private val premiumFeatureManager: PremiumFeatureManager,
+    private val authDebugService: AuthDebugService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -354,5 +357,26 @@ class SettingsViewModel @Inject constructor(
                 // Network error or other exception - silently fail
             }
         }
+    }
+
+    // ==================== Auth Debug Report Methods ====================
+
+    /**
+     * Observe if there's a last auth debug report available.
+     */
+    val hasAuthDebugReport = authDebugService.lastReport
+
+    /**
+     * Get a shareable debug report string for GitHub issues.
+     */
+    fun getShareableAuthDebugReport(): String {
+        return authDebugService.createShareableReport()
+    }
+
+    /**
+     * Clear the last auth debug report.
+     */
+    fun clearAuthDebugReport() {
+        authDebugService.clearLastReport()
     }
 }

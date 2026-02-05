@@ -2,6 +2,7 @@ package com.paperless.scanner.data.repository
 
 import android.content.Context
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.TokenManager
@@ -29,6 +30,7 @@ class AuthRepositoryTest {
     private lateinit var tokenManager: TokenManager
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private lateinit var authDebugService: AuthDebugService
     private lateinit var authRepository: AuthRepository
     private lateinit var client: OkHttpClient
 
@@ -43,8 +45,9 @@ class AuthRepositoryTest {
         tokenManager = mockk(relaxed = true)
         cloudflareDetectionInterceptor = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
+        authDebugService = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper)
+        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService)
     }
 
     @After

@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
@@ -32,6 +33,7 @@ class SettingsViewModelTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
+    private lateinit var authDebugService: AuthDebugService
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -43,6 +45,7 @@ class SettingsViewModelTest {
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
+        authDebugService = mockk(relaxed = true)
 
         // Default mock responses
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
@@ -80,7 +83,8 @@ class SettingsViewModelTest {
             api = api,
             analyticsService = analyticsService,
             billingManager = billingManager,
-            premiumFeatureManager = premiumFeatureManager
+            premiumFeatureManager = premiumFeatureManager,
+            authDebugService = authDebugService
         )
     }
 

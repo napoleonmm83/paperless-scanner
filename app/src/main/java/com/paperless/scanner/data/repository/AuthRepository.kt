@@ -20,6 +20,8 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
+import com.paperless.scanner.data.analytics.AuthDebugReport
+import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 
 /**
@@ -65,7 +67,8 @@ class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val client: OkHttpClient,
     private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
-    private val crashlyticsHelper: CrashlyticsHelper
+    private val crashlyticsHelper: CrashlyticsHelper,
+    private val authDebugService: AuthDebugService
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -125,6 +128,20 @@ class AuthRepository @Inject constructor(
 
         crashlyticsHelper.logStateBreadcrumb("SERVER_DETECT_ERROR", "HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
         Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
+
+        // Log server detection failure to auth debug service
+        authDebugService.logAuthFailure(
+            authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+            serverUrl = cleanHost,
+            errorType = "SERVER_DETECT_FAILED",
+            errorMessage = "HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}",
+            serverDetection = AuthDebugReport.ServerDetectionInfo(
+                httpsAttempted = true,
+                httpsResult = httpsError?.message,
+                httpAttempted = true,
+                httpResult = httpError?.message
+            )
+        )
 
         // Return the most specific error message
         // Priority: specific errors > generic errors
@@ -422,6 +439,17 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.body?.string() ?: ""
                 Log.d(TAG, "Login error - Code: ${response.code}, Body: $errorBody")
 
+                // Log to auth debug service with full context
+                authDebugService.logAuthFailure(
+                    authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+                    serverUrl = normalizedUrl,
+                    httpStatusCode = response.code,
+                    errorType = "HTTP_${response.code}",
+                    errorMessage = errorBody.take(200),
+                    response = response,
+                    responseBody = errorBody
+                )
+
                 // Check if error indicates 2FA requirement - if so, return specific message
                 val mfaErrorMessage = check2FARequirement(
                     errorBody = errorBody,
@@ -445,9 +473,23 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
+            // Log network errors to auth debug service
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+                serverUrl = serverUrl,
+                errorType = e.javaClass.simpleName,
+                errorMessage = e.message
+            )
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
+            // Log unexpected errors to auth debug service
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+                serverUrl = serverUrl,
+                errorType = e.javaClass.simpleName,
+                errorMessage = e.message
+            )
             Result.failure(PaperlessException.from(e))
         }
     }
@@ -554,6 +596,19 @@ class AuthRepository @Inject constructor(
                 crashlyticsHelper.logActionBreadcrumb("TOKEN_VALIDATE_SUCCESS")
                 Result.success(Unit)
             } else {
+                val errorBody = response.body?.string() ?: ""
+
+                // Log to auth debug service with full context
+                authDebugService.logAuthFailure(
+                    authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+                    serverUrl = normalizedUrl,
+                    httpStatusCode = response.code,
+                    errorType = "HTTP_${response.code}",
+                    errorMessage = errorBody.take(200),
+                    response = response,
+                    responseBody = errorBody
+                )
+
                 // Provide better error message for token validation failures
                 val errorMessage = when (response.code) {
                     401 -> context.getString(R.string.error_token_invalid_check)
@@ -566,10 +621,24 @@ class AuthRepository @Inject constructor(
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             Log.e(TAG, "Token validation network error", e)
+            // Log network errors to auth debug service
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+                serverUrl = serverUrl,
+                errorType = e.javaClass.simpleName,
+                errorMessage = e.message
+            )
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Log.e(TAG, "Token validation error", e)
+            // Log unexpected errors to auth debug service
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+                serverUrl = serverUrl,
+                errorType = e.javaClass.simpleName,
+                errorMessage = e.message
+            )
             Result.failure(PaperlessException.from(e))
         }
     }
