@@ -46,7 +46,7 @@ suspend fun <T> safeApiResponse(
             response.body()?.let { body ->
                 Result.success(body)
             } ?: Result.failure(
-                PaperlessException.ParseError("Leere Serverantwort")
+                PaperlessException.ParseError("Empty server response")
             )
         } else {
             val errorBody = response.errorBody()?.string()
