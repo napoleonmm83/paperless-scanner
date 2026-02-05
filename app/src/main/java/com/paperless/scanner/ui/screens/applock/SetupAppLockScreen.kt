@@ -20,9 +20,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,9 +70,9 @@ fun SetupAppLockScreen(
                 title = {
                     Text(
                         text = if (isChangingPassword) {
-                            "Passwort ändern"
+                            stringResource(R.string.setup_applock_title_change)
                         } else {
-                            "App-Sperre einrichten"
+                            stringResource(R.string.setup_applock_title_setup)
                         },
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
@@ -80,7 +82,7 @@ fun SetupAppLockScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Zurück"
+                            contentDescription = stringResource(R.string.cd_back)
                         )
                     }
                 },
@@ -104,9 +106,9 @@ fun SetupAppLockScreen(
             // Info Text
             Text(
                 text = if (isChangingPassword) {
-                    "Gib dein aktuelles Passwort ein und wähle ein neues Passwort."
+                    stringResource(R.string.setup_applock_change_info)
                 } else {
-                    "Wähle ein Passwort zum Schutz deiner App. Das Passwort muss mindestens 4 Zeichen lang sein."
+                    stringResource(R.string.setup_applock_setup_info)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -120,7 +122,7 @@ fun SetupAppLockScreen(
                     value = currentPassword,
                     onValueChange = { currentPassword = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Aktuelles Passwort") },
+                    label = { Text(stringResource(R.string.setup_applock_current_password)) },
                     visualTransformation = if (currentPasswordVisible) {
                         VisualTransformation.None
                     } else {
@@ -135,9 +137,9 @@ fun SetupAppLockScreen(
                                     Icons.Default.VisibilityOff
                                 },
                                 contentDescription = if (currentPasswordVisible) {
-                                    "Passwort verbergen"
+                                    stringResource(R.string.app_lock_password_hide)
                                 } else {
-                                    "Passwort anzeigen"
+                                    stringResource(R.string.app_lock_password_show)
                                 }
                             )
                         }
@@ -165,8 +167,8 @@ fun SetupAppLockScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(passwordFocusRequester),
-                label = { Text(if (isChangingPassword) "Neues Passwort" else "Passwort") },
-                placeholder = { Text("Mindestens 4 Zeichen") },
+                label = { Text(if (isChangingPassword) stringResource(R.string.setup_applock_new_password) else stringResource(R.string.setup_applock_password)) },
+                placeholder = { Text(stringResource(R.string.setup_applock_min_chars)) },
                 visualTransformation = if (passwordVisible) {
                     VisualTransformation.None
                 } else {
@@ -181,9 +183,9 @@ fun SetupAppLockScreen(
                                 Icons.Default.VisibilityOff
                             },
                             contentDescription = if (passwordVisible) {
-                                "Passwort verbergen"
+                                stringResource(R.string.app_lock_password_hide)
                             } else {
-                                "Passwort anzeigen"
+                                stringResource(R.string.app_lock_password_show)
                             }
                         )
                     }
@@ -211,8 +213,8 @@ fun SetupAppLockScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(confirmPasswordFocusRequester),
-                label = { Text("Passwort bestätigen") },
-                placeholder = { Text("Passwort wiederholen") },
+                label = { Text(stringResource(R.string.setup_applock_confirm)) },
+                placeholder = { Text(stringResource(R.string.setup_applock_confirm_placeholder)) },
                 visualTransformation = if (confirmPasswordVisible) {
                     VisualTransformation.None
                 } else {
@@ -227,9 +229,9 @@ fun SetupAppLockScreen(
                                 Icons.Default.VisibilityOff
                             },
                             contentDescription = if (confirmPasswordVisible) {
-                                "Passwort verbergen"
+                                stringResource(R.string.app_lock_password_hide)
                             } else {
-                                "Passwort anzeigen"
+                                stringResource(R.string.app_lock_password_show)
                             }
                         )
                     }
@@ -302,7 +304,7 @@ fun SetupAppLockScreen(
                     )
                 } else {
                     Text(
-                        text = if (isChangingPassword) "Passwort ändern" else "Aktivieren",
+                        text = if (isChangingPassword) stringResource(R.string.setup_applock_button_change) else stringResource(R.string.setup_applock_button_activate),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(vertical = 4.dp)

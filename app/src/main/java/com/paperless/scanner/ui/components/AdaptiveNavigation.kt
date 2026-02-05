@@ -147,14 +147,15 @@ private fun NavigationRailContent(
                 NavItem.Scan -> currentRoute.startsWith(Screen.Scan.routeBase)
                 else -> currentRoute == item.screen.route
             }
+            val label = stringResource(item.labelResId)
             NavigationRailItem(
                 icon = {
                     Icon(
                         imageVector = if (isSelected) item.iconFilled else item.iconOutlined,
-                        contentDescription = item.label
+                        contentDescription = label
                     )
                 },
-                label = { Text(item.label) },
+                label = { Text(label) },
                 selected = isSelected,
                 onClick = { onNavigate(item.screen) }
             )
@@ -180,7 +181,7 @@ private fun NavigationDrawerContent(
         ) {
             // App header
             Text(
-                text = "Paperless Scanner",
+                text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)
@@ -207,7 +208,7 @@ private fun NavigationDrawerContent(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Neuer Scan",
+                        text = stringResource(R.string.nav_new_scan),
                         color = MaterialTheme.colorScheme.onPrimary,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -222,14 +223,15 @@ private fun NavigationDrawerContent(
                     NavItem.Scan -> currentRoute.startsWith(Screen.Scan.routeBase)
                     else -> currentRoute == item.screen.route
                 }
+                val label = stringResource(item.labelResId)
                 NavigationDrawerItem(
                     icon = {
                         Icon(
                             imageVector = if (isSelected) item.iconFilled else item.iconOutlined,
-                            contentDescription = item.label
+                            contentDescription = label
                         )
                     },
-                    label = { Text(item.label) },
+                    label = { Text(label) },
                     selected = isSelected,
                     onClick = { onNavigate(item.screen) },
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)

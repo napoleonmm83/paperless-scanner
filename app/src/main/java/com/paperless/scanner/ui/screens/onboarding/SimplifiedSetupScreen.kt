@@ -56,9 +56,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.HttpFallbackWarningDialog
 import com.paperless.scanner.ui.components.SslCertificateDialog
 import com.paperless.scanner.ui.screens.login.LoginUiState
@@ -178,7 +180,7 @@ fun SimplifiedSetupScreen(
         ) {
             // Title
             Text(
-                text = if (isEditMode) "Server-Einstellungen ändern" else "Connect to Paperless",
+                text = if (isEditMode) stringResource(R.string.setup_title_edit) else stringResource(R.string.setup_title_connect),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.ExtraBold
                 ),
@@ -190,9 +192,9 @@ fun SimplifiedSetupScreen(
 
             Text(
                 text = if (isEditMode)
-                    "Server-URL, Token oder Anmeldedaten anpassen"
+                    stringResource(R.string.setup_subtitle_edit)
                 else
-                    "Enter your server details to get started",
+                    stringResource(R.string.setup_subtitle_connect),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -208,12 +210,12 @@ fun SimplifiedSetupScreen(
                 Tab(
                     selected = authMethod == AuthMethod.TOKEN,
                     onClick = { authMethod = AuthMethod.TOKEN },
-                    text = { Text("Token") }
+                    text = { Text(stringResource(R.string.setup_tab_token)) }
                 )
                 Tab(
                     selected = authMethod == AuthMethod.CREDENTIALS,
                     onClick = { authMethod = AuthMethod.CREDENTIALS },
-                    text = { Text("Password") }
+                    text = { Text(stringResource(R.string.setup_tab_password)) }
                 )
             }
 
@@ -228,19 +230,19 @@ fun SimplifiedSetupScreen(
                     viewModel.onServerUrlChanged(limited)
                     setupState = SetupState.Idle // Reset state on input
                 },
-                label = { Text("Server URL") },
-                placeholder = { Text("https://paperless.example.com") },
+                label = { Text(stringResource(R.string.setup_server_url)) },
+                placeholder = { Text(stringResource(R.string.setup_server_url_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
                 supportingText = {
                     Text(
                         text = when (serverStatus) {
-                            is ServerStatus.Idle -> "Enter your Paperless-ngx server URL"
-                            is ServerStatus.Checking -> "Checking server..."
+                            is ServerStatus.Idle -> stringResource(R.string.setup_server_url_hint)
+                            is ServerStatus.Checking -> stringResource(R.string.setup_checking_server)
                             is ServerStatus.Success -> {
                                 if ((serverStatus as ServerStatus.Success).isHttps) {
-                                    "✓ HTTPS connection verified"
+                                    stringResource(R.string.setup_https_verified)
                                 } else {
-                                    "⚠ HTTP connection (unencrypted)"
+                                    stringResource(R.string.setup_http_unencrypted)
                                 }
                             }
                             is ServerStatus.Error -> (serverStatus as ServerStatus.Error).message
@@ -264,14 +266,14 @@ fun SimplifiedSetupScreen(
                             val status = serverStatus as ServerStatus.Success
                             Icon(
                                 imageVector = if (status.isHttps) Icons.Default.Lock else Icons.Default.LockOpen,
-                                contentDescription = if (status.isHttps) "HTTPS" else "HTTP",
+                                contentDescription = if (status.isHttps) stringResource(R.string.setup_https) else stringResource(R.string.setup_http),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         is ServerStatus.Error -> {
                             Icon(
                                 imageVector = Icons.Default.Error,
-                                contentDescription = "Error",
+                                contentDescription = stringResource(R.string.setup_error),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -307,8 +309,8 @@ fun SimplifiedSetupScreen(
                             token = newValue.take(InputLimits.TOKEN_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
-                        label = { Text("Authentication Token") },
-                        placeholder = { Text("Your API token") },
+                        label = { Text(stringResource(R.string.setup_auth_token)) },
+                        placeholder = { Text(stringResource(R.string.setup_auth_token_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = if (tokenVisible) {
                             VisualTransformation.None
@@ -320,7 +322,7 @@ fun SimplifiedSetupScreen(
                                 IconButton(onClick = { showTokenScanner = true }) {
                                     Icon(
                                         imageVector = Icons.Default.QrCodeScanner,
-                                        contentDescription = "Scan QR code"
+                                        contentDescription = stringResource(R.string.setup_scan_qr)
                                     )
                                 }
                                 IconButton(onClick = { tokenVisible = !tokenVisible }) {
@@ -330,7 +332,7 @@ fun SimplifiedSetupScreen(
                                         } else {
                                             Icons.Default.Visibility
                                         },
-                                        contentDescription = if (tokenVisible) "Hide token" else "Show token"
+                                        contentDescription = if (tokenVisible) stringResource(R.string.setup_hide_token) else stringResource(R.string.setup_show_token)
                                     )
                                 }
                             }
@@ -365,8 +367,8 @@ fun SimplifiedSetupScreen(
                             username = newValue.take(InputLimits.USERNAME_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
-                        label = { Text("Username") },
-                        placeholder = { Text("Your username") },
+                        label = { Text(stringResource(R.string.setup_username)) },
+                        placeholder = { Text(stringResource(R.string.setup_username_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Text,
@@ -392,8 +394,8 @@ fun SimplifiedSetupScreen(
                             password = newValue.take(InputLimits.PASSWORD_MAX_LENGTH)
                             setupState = SetupState.Idle
                         },
-                        label = { Text("Password") },
-                        placeholder = { Text("Your password") },
+                        label = { Text(stringResource(R.string.setup_password)) },
+                        placeholder = { Text(stringResource(R.string.setup_password_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
                         visualTransformation = if (passwordVisible) {
                             VisualTransformation.None
@@ -408,7 +410,7 @@ fun SimplifiedSetupScreen(
                                     } else {
                                         Icons.Default.Visibility
                                     },
-                                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                                    contentDescription = if (passwordVisible) stringResource(R.string.setup_hide_password) else stringResource(R.string.setup_show_password)
                                 )
                             }
                         },
@@ -464,7 +466,7 @@ fun SimplifiedSetupScreen(
                         )
                     ) {
                         Text(
-                            text = "Connect",
+                            text = stringResource(R.string.setup_connect),
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.Bold
                             )
@@ -501,7 +503,7 @@ fun SimplifiedSetupScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Success",
+                            contentDescription = stringResource(R.string.setup_success),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(32.dp)
                         )
@@ -527,7 +529,7 @@ fun SimplifiedSetupScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Error,
-                                    contentDescription = "Error",
+                                    contentDescription = stringResource(R.string.setup_error),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -561,7 +563,7 @@ fun SimplifiedSetupScreen(
                             )
                         ) {
                             Text(
-                                text = "Retry",
+                                text = stringResource(R.string.setup_retry),
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 )
@@ -576,8 +578,8 @@ fun SimplifiedSetupScreen(
             // Help text
             Text(
                 text = when (authMethod) {
-                    AuthMethod.TOKEN -> "Find your token in Paperless Settings → API Tokens\nOr scan it with the QR code scanner"
-                    AuthMethod.CREDENTIALS -> "Use your Paperless-ngx username and password"
+                    AuthMethod.TOKEN -> stringResource(R.string.setup_token_help)
+                    AuthMethod.CREDENTIALS -> stringResource(R.string.setup_password_help)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

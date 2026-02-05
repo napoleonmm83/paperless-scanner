@@ -24,9 +24,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 
 /**
  * Animated shimmer placeholder for thumbnail loading state.
@@ -118,7 +120,7 @@ fun ErrorThumbnailPlaceholder(
         ) {
             Icon(
                 imageVector = Icons.Filled.BrokenImage,
-                contentDescription = "Thumbnail error",
+                contentDescription = stringResource(R.string.thumbnail_error),
                 modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.error
             )
@@ -131,7 +133,7 @@ fun ErrorThumbnailPlaceholder(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Refresh,
-                        contentDescription = "Retry",
+                        contentDescription = stringResource(R.string.thumbnail_retry),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary // Neon yellow
                     )
@@ -170,6 +172,7 @@ fun DocTypeThumbnailPlaceholder(
         else -> Icons.Filled.Description
     }
 
+    val typeDescription = mimeType ?: fileName ?: stringResource(R.string.thumbnail_unknown)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -183,7 +186,7 @@ fun DocTypeThumbnailPlaceholder(
     ) {
         Icon(
             imageVector = icon,
-            contentDescription = "Document type: ${mimeType ?: fileName ?: "unknown"}",
+            contentDescription = stringResource(R.string.thumbnail_document_type, typeDescription),
             modifier = Modifier.size(40.dp),
             tint = MaterialTheme.colorScheme.onPrimary
         )
@@ -195,14 +198,15 @@ fun DocTypeThumbnailPlaceholder(
  *
  * Used for initial loading state before thumbnail fetch starts.
  *
- * @param text Loading text (default: "Loading...")
+ * @param text Loading text (default: localized "Loading...")
  * @param modifier Modifier for the placeholder
  */
 @Composable
 fun LoadingThumbnailPlaceholder(
-    text: String = "Loading...",
+    text: String? = null,
     modifier: Modifier = Modifier
 ) {
+    val displayText = text ?: stringResource(R.string.loading)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -215,7 +219,7 @@ fun LoadingThumbnailPlaceholder(
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = text,
+            text = displayText,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

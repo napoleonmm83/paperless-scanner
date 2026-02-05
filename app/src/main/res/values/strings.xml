@@ -921,4 +921,82 @@
     <string name="error_delete_document">Fehler beim Löschen des Dokuments</string>
     <string name="error_empty_trash">Fehler beim Leeren des Papierkorbs</string>
     <string name="unknown">Unbekannt</string>
+
+    <!-- SSL Certificate Dialog -->
+    <string name="ssl_warning">SSL-Warnung</string>
+    <string name="ssl_certificate_detected">Selbstsigniertes Zertifikat erkannt</string>
+    <string name="ssl_certificate_message">Der Server \"%1$s\" verwendet ein selbstsigniertes SSL-Zertifikat, das nicht verifiziert werden kann.</string>
+    <string name="ssl_error_details">Fehlerdetails:</string>
+    <string name="ssl_security_warning">⚠️ Sicherheitswarnung</string>
+    <string name="ssl_security_warning_message">Das Akzeptieren dieses Zertifikats ermöglicht ungeprüfte Verbindungen zu diesem Server. Fahre nur fort, wenn du diesem Server vertraust und die Sicherheitsrisiken verstehst.</string>
+    <string name="ssl_accept_anyway">Trotzdem akzeptieren</string>
+
+    <!-- App Lock Screen - Additional -->
+    <string name="app_lock_too_many_attempts">Zu viele Fehlversuche</string>
+    <string name="app_lock_input_locked_for">Passwort-Eingabe gesperrt für</string>
+    <string name="app_lock_biometric_still_available">Du kannst weiterhin biometrisch entsperren</string>
+    <string name="app_lock_max_attempts_reached">Maximale Fehlversuche erreicht</string>
+    <string name="app_lock_logging_out">Du wirst ausgeloggt...</string>
+    <string name="app_lock_locked">Gesperrt</string>
+
+    <!-- Navigation Labels -->
+    <string name="nav_home">Home</string>
+    <string name="nav_documents">Dokumente</string>
+    <string name="nav_scan">Scan</string>
+    <string name="nav_labels">Labels</string>
+    <string name="nav_settings">Einstellungen</string>
+    <string name="nav_new_scan">Neuer Scan</string>
+
+    <!-- Setup Screen -->
+    <string name="setup_title_edit">Server-Einstellungen ändern</string>
+    <string name="setup_title_connect">Mit Paperless verbinden</string>
+    <string name="setup_subtitle_edit">Server-URL, Token oder Anmeldedaten anpassen</string>
+    <string name="setup_subtitle_connect">Gib deine Server-Details ein, um zu starten</string>
+    <string name="setup_tab_token">Token</string>
+    <string name="setup_tab_password">Passwort</string>
+    <string name="setup_server_url">Server-URL</string>
+    <string name="setup_server_url_placeholder">https://paperless.example.com</string>
+    <string name="setup_server_url_hint">Gib deine Paperless-ngx Server-URL ein</string>
+    <string name="setup_checking_server">Server wird geprüft...</string>
+    <string name="setup_https_verified">✓ HTTPS-Verbindung verifiziert</string>
+    <string name="setup_http_unencrypted">⚠ HTTP-Verbindung (unverschlüsselt)</string>
+    <string name="setup_https">HTTPS</string>
+    <string name="setup_http">HTTP</string>
+    <string name="setup_error">Fehler</string>
+    <string name="setup_auth_token">Authentifizierungs-Token</string>
+    <string name="setup_auth_token_placeholder">Dein API-Token</string>
+    <string name="setup_scan_qr">QR-Code scannen</string>
+    <string name="setup_hide_token">Token verbergen</string>
+    <string name="setup_show_token">Token anzeigen</string>
+    <string name="setup_username">Benutzername</string>
+    <string name="setup_username_placeholder">Dein Benutzername</string>
+    <string name="setup_hide_password">Passwort verbergen</string>
+    <string name="setup_show_password">Passwort anzeigen</string>
+    <string name="setup_connect">Verbinden</string>
+    <string name="setup_success">Erfolgreich</string>
+    <string name="setup_retry">Erneut versuchen</string>
+    <string name="setup_token_help">Token findest du unter Paperless Einstellungen → API-Tokens\nOder scanne ihn mit dem QR-Code-Scanner</string>
+    <string name="setup_password_help">Verwende deinen Paperless-ngx Benutzernamen und Passwort</string>
+    <string name="setup_password">Passwort</string>
+    <string name="setup_password_placeholder">Dein Passwort</string>
+
+    <!-- Setup App Lock Screen -->
+    <string name="setup_applock_title_change">Passwort ändern</string>
+    <string name="setup_applock_title_setup">App-Sperre einrichten</string>
+    <string name="setup_applock_change_info">Gib dein aktuelles Passwort ein und wähle ein neues Passwort.</string>
+    <string name="setup_applock_setup_info">Wähle ein Passwort zum Schutz deiner App. Das Passwort muss mindestens 4 Zeichen lang sein.</string>
+    <string name="setup_applock_current_password">Aktuelles Passwort</string>
+    <string name="setup_applock_new_password">Neues Passwort</string>
+    <string name="setup_applock_password">Passwort</string>
+    <string name="setup_applock_min_chars">Mindestens 4 Zeichen</string>
+    <string name="setup_applock_confirm">Passwort bestätigen</string>
+    <string name="setup_applock_confirm_placeholder">Passwort wiederholen</string>
+    <string name="setup_applock_button_change">Passwort ändern</string>
+    <string name="setup_applock_button_activate">Aktivieren</string>
+
+    <!-- Thumbnail Placeholders -->
+    <string name="thumbnail_error">Vorschaufehler</string>
+    <string name="thumbnail_retry">Erneut laden</string>
+    <string name="thumbnail_document_type">Dokumenttyp: %1$s</string>
+    <string name="thumbnail_unknown">unbekannt</string>
 </resources>

@@ -22,8 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.paperless.scanner.R
 
 @Composable
 fun SslCertificateDialog(
@@ -37,14 +39,14 @@ fun SslCertificateDialog(
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
-                contentDescription = "SSL Warning",
+                contentDescription = stringResource(R.string.ssl_warning),
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.error
             )
         },
         title = {
             Text(
-                text = "Self-Signed Certificate Detected",
+                text = stringResource(R.string.ssl_certificate_detected),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -56,7 +58,7 @@ fun SslCertificateDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "The server \"$host\" is using a self-signed SSL certificate that cannot be verified.",
+                    text = stringResource(R.string.ssl_certificate_message, host),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
@@ -73,7 +75,7 @@ fun SslCertificateDialog(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Error Details:",
+                            text = stringResource(R.string.ssl_error_details),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
@@ -87,14 +89,14 @@ fun SslCertificateDialog(
                 }
 
                 Text(
-                    text = "⚠️ Security Warning",
+                    text = stringResource(R.string.ssl_security_warning),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.error
                 )
 
                 Text(
-                    text = "Accepting this certificate allows unverified connections to this server. Only proceed if you trust this server and understand the security implications.",
+                    text = stringResource(R.string.ssl_security_warning_message),
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -106,7 +108,7 @@ fun SslCertificateDialog(
                 onClick = onAccept
             ) {
                 Text(
-                    text = "Accept Anyway",
+                    text = stringResource(R.string.ssl_accept_anyway),
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Bold
                 )
@@ -117,7 +119,7 @@ fun SslCertificateDialog(
                 onClick = onCancel
             ) {
                 Text(
-                    text = "Cancel",
+                    text = stringResource(R.string.cancel),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }

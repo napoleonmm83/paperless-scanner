@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.navigation.Screen
 
@@ -45,13 +46,13 @@ enum class NavItem(
     val screen: Screen,
     val iconFilled: ImageVector,
     val iconOutlined: ImageVector,
-    val label: String
+    @StringRes val labelResId: Int
 ) {
-    Home(Screen.Home, Icons.Filled.Home, Icons.Outlined.Home, "Home"),
-    Documents(Screen.Documents, Icons.Filled.Description, Icons.Outlined.Description, "Dokumente"),
-    Scan(Screen.Scan, Icons.Filled.Add, Icons.Filled.Add, "Scan"),
-    Labels(Screen.Labels, Icons.Filled.Tag, Icons.Outlined.Tag, "Labels"),
-    Settings(Screen.Settings, Icons.Filled.Settings, Icons.Outlined.Settings, "Einstellungen")
+    Home(Screen.Home, Icons.Filled.Home, Icons.Outlined.Home, R.string.nav_home),
+    Documents(Screen.Documents, Icons.Filled.Description, Icons.Outlined.Description, R.string.nav_documents),
+    Scan(Screen.Scan, Icons.Filled.Add, Icons.Filled.Add, R.string.nav_scan),
+    Labels(Screen.Labels, Icons.Filled.Tag, Icons.Outlined.Tag, R.string.nav_labels),
+    Settings(Screen.Settings, Icons.Filled.Settings, Icons.Outlined.Settings, R.string.nav_settings)
 }
 
 @Composable
@@ -105,6 +106,7 @@ private fun NavButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
+    val label = stringResource(item.labelResId)
     Column(
         modifier = Modifier
             .clip(CircleShape)
@@ -118,7 +120,7 @@ private fun NavButton(
     ) {
         Icon(
             imageVector = if (isSelected) item.iconFilled else item.iconOutlined,
-            contentDescription = item.label,
+            contentDescription = label,
             modifier = Modifier.size(24.dp),
             tint = if (isSelected)
                 MaterialTheme.colorScheme.primary
@@ -126,7 +128,7 @@ private fun NavButton(
                 MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
-            text = item.label,
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
             color = if (isSelected)
@@ -170,7 +172,7 @@ private fun ScanNavButton(
             )
         }
         Text(
-            text = "Scan",
+            text = stringResource(R.string.nav_scan),
             style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.Center,
             color = if (isSelected)

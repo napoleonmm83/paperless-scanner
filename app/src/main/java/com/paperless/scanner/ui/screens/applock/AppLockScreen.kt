@@ -49,9 +49,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 
 @Composable
 fun AppLockScreen(
@@ -176,7 +178,7 @@ fun AppLockScreen(
 
                 // Title
                 Text(
-                    text = "App gesperrt",
+                    text = stringResource(R.string.app_lock_screen_title),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -193,7 +195,7 @@ fun AppLockScreen(
                         )
                         if (state.remainingAttempts > 0) {
                             Text(
-                                text = "Verbleibende Versuche: ${state.remainingAttempts}",
+                                text = stringResource(R.string.app_lock_remaining_attempts, state.remainingAttempts),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -206,14 +208,14 @@ fun AppLockScreen(
                             val minutes = remainingSeconds / 60
                             val seconds = remainingSeconds % 60
                             Text(
-                                text = "Zu viele Fehlversuche",
+                                text = stringResource(R.string.app_lock_too_many_attempts),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Passwort-Eingabe gesperrt für",
+                                text = stringResource(R.string.app_lock_input_locked_for),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -226,7 +228,7 @@ fun AppLockScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Du kannst weiterhin biometrisch entsperren",
+                                text = stringResource(R.string.app_lock_biometric_still_available),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 textAlign = TextAlign.Center
@@ -234,14 +236,14 @@ fun AppLockScreen(
                         } else {
                             // Permanent lockout
                             Text(
-                                text = "Maximale Fehlversuche erreicht",
+                                text = stringResource(R.string.app_lock_max_attempts_reached),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "Du wirst ausgeloggt...",
+                                text = stringResource(R.string.app_lock_logging_out),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -250,7 +252,7 @@ fun AppLockScreen(
                     }
                     else -> {
                         Text(
-                            text = "Gib dein Passwort ein, um fortzufahren",
+                            text = stringResource(R.string.app_lock_screen_subtitle),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
@@ -271,8 +273,8 @@ fun AppLockScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .focusRequester(focusRequester),
-                    label = { Text("Passwort") },
-                    placeholder = { Text(if (isLockedOut) "Gesperrt" else "Passwort eingeben") },
+                    label = { Text(stringResource(R.string.app_lock_password)) },
+                    placeholder = { Text(if (isLockedOut) stringResource(R.string.app_lock_locked) else stringResource(R.string.app_lock_password_enter)) },
                     visualTransformation = if (passwordVisible) {
                         VisualTransformation.None
                     } else {
@@ -287,9 +289,9 @@ fun AppLockScreen(
                                     Icons.Default.VisibilityOff
                                 },
                                 contentDescription = if (passwordVisible) {
-                                    "Passwort verbergen"
+                                    stringResource(R.string.app_lock_password_hide)
                                 } else {
-                                    "Passwort anzeigen"
+                                    stringResource(R.string.app_lock_password_show)
                                 }
                             )
                         }
@@ -333,9 +335,9 @@ fun AppLockScreen(
                 ) {
                     Text(
                         text = when {
-                            uiState is AppLockUiState.Unlocking -> "Entsperren..."
-                            isLockedOut -> "Gesperrt"
-                            else -> "Entsperren"
+                            uiState is AppLockUiState.Unlocking -> stringResource(R.string.app_lock_unlocking)
+                            isLockedOut -> stringResource(R.string.app_lock_locked)
+                            else -> stringResource(R.string.app_lock_unlock)
                         },
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold,
@@ -360,7 +362,7 @@ fun AppLockScreen(
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(
-                            text = "Biometrisch entsperren",
+                            text = stringResource(R.string.app_lock_unlock_biometric),
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium
                         )
