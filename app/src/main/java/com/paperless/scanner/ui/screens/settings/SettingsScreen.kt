@@ -236,12 +236,13 @@ fun SettingsScreen(
                             }
                         }
                     }
+                    val expiryDate = uiState.premiumExpiryDate
                     Text(
                         text = if (uiState.isPremiumActive) {
-                            if (uiState.premiumExpiryDate != null)
-                                stringResource(R.string.premium_status_active, uiState.premiumExpiryDate!!)
+                            if (!expiryDate.isNullOrBlank())
+                                stringResource(R.string.premium_status_active, expiryDate)
                             else
-                                stringResource(R.string.premium_status_active, "∞")
+                                stringResource(R.string.premium_status_active_no_date)
                         } else {
                             stringResource(R.string.premium_status_inactive)
                         },

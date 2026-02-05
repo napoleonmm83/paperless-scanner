@@ -10,6 +10,10 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
+import com.paperless.scanner.data.billing.SubscriptionStatus
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
@@ -100,7 +104,7 @@ class SettingsViewModel @Inject constructor(
                 analyticsEnabled = analyticsConsent,
                 themeMode = themeMode,
                 isPremiumActive = isPremiumActive,
-                premiumExpiryDate = null, // TODO: Get from BillingManager when available
+                premiumExpiryDate = null, // Will be updated by subscriptionStatus observer
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
                 aiNewTagsEnabled = aiNewTagsEnabled,
                 aiWifiOnly = aiWifiOnly,
@@ -110,10 +114,15 @@ class SettingsViewModel @Inject constructor(
                 appLockTimeout = appLockTimeout
             )
 
-            // Observe Premium status changes
+            // Observe Premium status changes with expiry date
             launch {
-                billingManager.isSubscriptionActive.collect { isPremium ->
-                    _uiState.update { it.copy(isPremiumActive = isPremium) }
+                billingManager.subscriptionStatus.collect { status ->
+                    val isPremium = status is SubscriptionStatus.ACTIVE || status is SubscriptionStatus.GRACE_PERIOD
+                    val expiryDate = when (status) {
+                        is SubscriptionStatus.ACTIVE -> formatExpiryDate(status.expiryDateMs)
+                        else -> null
+                    }
+                    _uiState.update { it.copy(isPremiumActive = isPremium, premiumExpiryDate = expiryDate) }
                 }
             }
 
@@ -247,6 +256,19 @@ class SettingsViewModel @Inject constructor(
 
     suspend fun restorePurchases(): RestoreResult {
         return billingManager.restorePurchases()
+    }
+
+    /**
+     * Format expiry date from milliseconds to user-friendly string.
+     */
+    private fun formatExpiryDate(expiryDateMs: Long): String {
+        return try {
+            val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+            dateFormat.format(Date(expiryDateMs))
+        } catch (e: Exception) {
+            // Fallback if formatting fails
+            ""
+        }
     }
 
     /**
