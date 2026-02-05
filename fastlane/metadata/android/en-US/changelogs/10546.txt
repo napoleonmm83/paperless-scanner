@@ -1,0 +1,11 @@
+Version 1.5.46:
+
+🌍 Internationalization:
+- All UI texts now translatable
+- Analytics dialog in 16 languages
+- SSL dialogs fully localized
+- App lock texts translated
+- Navigation labels dynamic
+
+🐛 Bug Fixes:
+- Fix: German texts shown to non-German users
