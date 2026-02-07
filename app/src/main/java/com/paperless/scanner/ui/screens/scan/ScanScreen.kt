@@ -60,6 +60,8 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import com.paperless.scanner.ui.components.SnackbarIcon
+import com.paperless.scanner.ui.components.showTypedSnackbar
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
@@ -265,8 +267,9 @@ fun ScanScreen(
     // Handle undo snackbar for removed pages
     LaunchedEffect(uiState.lastRemovedPage) {
         uiState.lastRemovedPage?.let { removedInfo ->
-            val result = snackbarHostState.showSnackbar(
+            val result = snackbarHostState.showTypedSnackbar(
                 message = context.getString(R.string.scan_page_removed, removedInfo.page.pageNumber),
+                icon = SnackbarIcon.INFO,
                 actionLabel = context.getString(R.string.scan_undo),
                 withDismissAction = true
             )
@@ -296,8 +299,9 @@ fun ScanScreen(
             .addOnFailureListener { e ->
                 // No need to resume here - we never suspended in this failure path
                 scope.launch {
-                    snackbarHostState.showSnackbar(
-                        context.getString(R.string.scan_scanner_error, e.message ?: "")
+                    snackbarHostState.showTypedSnackbar(
+                        message = context.getString(R.string.scan_scanner_error, e.message ?: ""),
+                        icon = SnackbarIcon.ERROR
                     )
                 }
             }

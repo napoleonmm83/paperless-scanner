@@ -3,6 +3,8 @@ package com.paperless.scanner.ui.components.documentlist
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import com.paperless.scanner.ui.components.SnackbarIcon
+import com.paperless.scanner.ui.components.TypedSnackbarVisuals
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
@@ -81,10 +83,13 @@ fun DocumentListSnackbar(
 
         try {
             val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = actionLabel,
-                duration = SnackbarDuration.Indefinite, // Prevents auto-dismiss during state changes
-                withDismissAction = true
+                TypedSnackbarVisuals(
+                    message = message,
+                    icon = SnackbarIcon.DELETE,
+                    actionLabel = actionLabel,
+                    duration = SnackbarDuration.Indefinite, // Prevents auto-dismiss during state changes
+                    withDismissAction = true
+                )
             )
 
             // Cancel auto-dismiss if user interacted

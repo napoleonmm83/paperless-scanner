@@ -68,6 +68,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CustomSnackbarHost
+import com.paperless.scanner.ui.components.SnackbarIcon
+import com.paperless.scanner.ui.components.showTypedSnackbar
 import com.paperless.scanner.ui.theme.PaperlessAnimations
 
 /**
@@ -100,7 +102,7 @@ fun TrashScreen(
     // Show error as Snackbar
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
-            snackbarHostState.showSnackbar(error)
+            snackbarHostState.showTypedSnackbar(error, SnackbarIcon.ERROR)
             viewModel.clearError()
         }
     }

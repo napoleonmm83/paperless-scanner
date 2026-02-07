@@ -42,6 +42,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import com.paperless.scanner.ui.components.CustomSnackbarHost
+import com.paperless.scanner.ui.components.SnackbarIcon
+import com.paperless.scanner.ui.components.showTypedSnackbar
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -156,11 +158,11 @@ fun MultiPageUploadScreen(
         when (val state = uiState) {
             is UploadUiState.Queued -> {
                 // Non-blocking snackbar: show message in background, navigate immediately
-                launch { snackbarHostState.showSnackbar(queuedMessage) }
+                launch { snackbarHostState.showTypedSnackbar(queuedMessage, SnackbarIcon.UPLOAD) }
                 onUploadSuccess() // Navigate back immediately
             }
             is UploadUiState.Error -> {
-                snackbarHostState.showSnackbar(state.userMessage)
+                snackbarHostState.showTypedSnackbar(state.userMessage, SnackbarIcon.ERROR)
             }
             else -> {}
         }
@@ -172,10 +174,10 @@ fun MultiPageUploadScreen(
                 selectedTagIds.add(tagState.tag.id)
                 showCreateTagDialog = false
                 viewModel.resetCreateTagState()
-                snackbarHostState.showSnackbar(tagCreatedMessage.format(tagState.tag.name))
+                snackbarHostState.showTypedSnackbar(tagCreatedMessage.format(tagState.tag.name), SnackbarIcon.SUCCESS)
             }
             is CreateTagState.Error -> {
-                snackbarHostState.showSnackbar(tagState.message)
+                snackbarHostState.showTypedSnackbar(tagState.message, SnackbarIcon.ERROR)
                 viewModel.resetCreateTagState()
             }
             else -> {}
