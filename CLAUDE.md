@@ -867,58 +867,56 @@ Bei JEDER Implementierung:
 - **Room Flow für Datenbank-Beobachtung verwenden**
 - **GitHub Releases MÜSSEN strukturiert sein** (siehe "GitHub Release Dokumentation")
 
-### 🌍 AUTOMATISCHE ÜBERSETZUNG (HYBRID: LOKAL + GEMINI)
+### 🌍 AUTOMATISCHE ÜBERSETZUNG (ENGLISH BASE + GEMINI)
 
-**Zweistufiges Übersetzungs-System:**
-1. **Lokal (im Projekt):** DE + EN
-2. **Automatisch (Play Console):** 14 weitere Sprachen via Gemini
+**Einstufiges Übersetzungs-System:**
+- **Lokal (im Projekt):** NUR Englisch als Basis
+- **Automatisch (Play Console):** 15+ Sprachen via Gemini (inkl. Deutsch)
 
 #### System
-- **Basis-Sprachen (lokal im Projekt):**
-  - `app/src/main/res/values/strings.xml` (Deutsch)
-  - `app/src/main/res/values-en/strings.xml` (Englisch)
-- **Automatische Übersetzungen (via Gemini):** 14 weitere Sprachen
+- **Basis-Sprache (lokal im Projekt):**
+  - `app/src/main/res/values/strings.xml` (Englisch - Single Source of Truth)
+- **KEINE manuellen Übersetzungsdateien** (values-en, values-de entfernt)
+- **Automatische Übersetzungen (via Gemini):** 15+ Sprachen inkl. Deutsch
 - **Ort der Auto-Übersetzungen:** Play Console, automatisch in App-Bundle integriert beim Upload
 
 #### Unterstützte Sprachen
 
 **Lokal (manuell):**
-- DE (Deutsch) - `values/strings.xml`
-- EN (Englisch) - `values-en/strings.xml`
+- EN (Englisch) - `values/strings.xml` (EINZIGE lokale Datei!)
 
-**Automatisch via Gemini (14 Sprachen):**
+**Automatisch via Gemini (15+ Sprachen inkl. Deutsch):**
 | Code | Sprache | Code | Sprache |
 |------|---------|------|---------|
-| fr | Französisch | da | Dänisch |
-| es | Spanisch | no | Norwegisch |
-| it | Italienisch | fi | Finnisch |
-| pt | Portugiesisch | cs | Tschechisch |
-| nl | Niederländisch | hu | Ungarisch |
-| pl | Polnisch | el | Griechisch |
-| sv | Schwedisch | ro | Rumänisch |
-| tr | Türkisch | |  |
+| de | Deutsch | da | Dänisch |
+| fr | Französisch | no | Norwegisch |
+| es | Spanisch | fi | Finnisch |
+| it | Italienisch | cs | Tschechisch |
+| pt | Portugiesisch | hu | Ungarisch |
+| nl | Niederländisch | el | Griechisch |
+| pl | Polnisch | ro | Rumänisch |
+| sv | Schwedisch | tr | Türkisch |
 
 #### Workflow bei neuen/geänderten Strings
 
-1. **Strings in `values/strings.xml` hinzufügen/ändern** (Deutsch)
-2. **SOFORT auch in `values-en/strings.xml` übersetzen** (Englisch)
-3. **Commit und Push auf `main`**
-4. **Gemini übersetzt automatisch** die restlichen 14 Sprachen beim App-Bundle Upload
-5. **Preview in Play Console** möglich vor Release
+1. **Strings in `values/strings.xml` hinzufügen/ändern** (Englisch)
+2. **Commit und Push auf `main`**
+3. **Gemini übersetzt automatisch** ALLE 15+ Sprachen (inkl. Deutsch!) beim App-Bundle Upload
+4. **Preview in Play Console** möglich vor Release
 
 #### Gemini Aktivierung (einmalig, manuell im Play Console)
 
 1. **Play Console öffnen** → App auswählen
 2. **Navigation:** Grow users → Translations → App strings
 3. **"Get started" klicken** → "Add languages"
-4. **14 Sprachen aktivieren** (siehe Tabelle oben - NICHT DE/EN!)
+4. **15+ Sprachen aktivieren** (siehe Tabelle oben - inkl. Deutsch!)
 5. **Fertig!** Ab jetzt automatisch bei jedem Bundle-Upload
 
 #### Besonderheiten
 
 **Override-Verhalten:**
-- Gemini überschreibt NUR die 14 aktivierten Sprachen (nicht DE/EN)
-- Lokale `values/` und `values-en/` bleiben unberührt
+- Gemini übersetzt ALLE aktivierten Sprachen (inkl. Deutsch)
+- Nur `values/strings.xml` (EN) wird lokal gepflegt
 - Übersetzungen werden "nahtlos in das App-Bundle integriert"
 
 **Kontrolle behalten:**
@@ -932,10 +930,15 @@ Bei JEDER Implementierung:
 - Ändern sich nur bei geändertem Source-Text
 
 #### WICHTIG
-- **IMMER** beide Dateien pflegen: `values/strings.xml` (DE) + `values-en/strings.xml` (EN)
-- **NIEMALS** andere `values-*` Verzeichnisse manuell erstellen (außer DE/EN)
-- **GEMINI** übersetzt automatisch die restlichen 14 Sprachen
+- **NUR** `values/strings.xml` (EN) pflegen - KEINE anderen values-* Verzeichnisse!
+- **GEMINI** übersetzt automatisch ALLE anderen Sprachen inkl. Deutsch
 - Bei Problemen: Gemini-Status in Play Console prüfen
+
+#### Localization Patterns in Code
+
+- **Compose UI:** `stringResource(R.string.key)`
+- **ViewModels mit @ApplicationContext:** `context.getString(R.string.key)`
+- **Data Layer (Repositories, etc.):** Error-Codes zurückgeben, String-Auflösung in UI Layer
 
 ---
 

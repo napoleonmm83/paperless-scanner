@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background -->
     <item>
         <shape android:shape="rectangle">
             <solid android:color="@color/widget_background" />
@@ -9,6 +10,7 @@
             <corners android:radius="20dp" />
         </shape>
     </item>
+    <!-- Document scanner icon centered -->
     <item
         android:gravity="center"
         android:width="48dp"

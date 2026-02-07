@@ -403,6 +403,21 @@
     <string name="widget_description">Quick access to scan documents</string>
     <string name="widget_tap_to_scan">Tap to scan</string>
     <string name="widget_pending_format">%d pending</string>
+    <string name="widget_config_title">Configure Widget</string>
+    <string name="widget_type_quick_scan">Quick Scan</string>
+    <string name="widget_type_status">Status</string>
+    <string name="widget_type_combined">Combined</string>
+    <string name="widget_config_save">Save</string>
+    <string name="widget_config_show_pending">Show pending uploads</string>
+    <string name="widget_config_show_server">Show server status</string>
+    <string name="widget_action_camera">Camera</string>
+    <string name="widget_action_gallery">Gallery</string>
+    <string name="widget_action_file">File</string>
+    <string name="widget_status_online">Connected</string>
+    <string name="widget_status_offline">Offline</string>
+    <string name="widget_pending_uploads">%d pending</string>
+    <string name="widget_last_sync">Last sync: %s</string>
+    <string name="widget_no_pending">No pending uploads</string>
 
 
     <string name="upload_quality_auto">Automatic</string>

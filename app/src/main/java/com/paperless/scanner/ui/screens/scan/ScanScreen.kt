@@ -72,6 +72,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,6 +120,7 @@ private const val MAX_PAGES = 100
 @Composable
 fun ScanScreen(
     initialPageUris: List<Uri> = emptyList(),
+    initialScanAction: String? = null,
     navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
@@ -299,6 +301,33 @@ fun ScanScreen(
                     )
                 }
             }
+    }
+
+    // Auto-trigger scan action from deep link (widget tap)
+    // Uses rememberSaveable to ensure action fires only once, even across recompositions
+    var deepLinkActionConsumed by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(initialScanAction, deepLinkActionConsumed) {
+        if (initialScanAction != null && !deepLinkActionConsumed && !uiState.hasPages) {
+            deepLinkActionConsumed = true
+            android.util.Log.d("ScanScreen", "Auto-triggering scan action from deep link: $initialScanAction")
+            when (initialScanAction) {
+                "camera" -> startScanner()
+                "gallery" -> {
+                    viewModel.appLockManager.suspendForFilePicker()
+                    photoPickerLauncher.launch(
+                        androidx.activity.result.PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                    )
+                }
+                "file" -> {
+                    viewModel.appLockManager.suspendForFilePicker()
+                    filePickerLauncher.launch(
+                        arrayOf("application/pdf", "image/*")
+                    )
+                }
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

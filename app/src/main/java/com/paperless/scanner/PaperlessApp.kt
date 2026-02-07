@@ -87,6 +87,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                     // App entered foreground - start polling every 30s
                     serverHealthMonitor.onForeground()
                     Log.d(TAG, "Server health monitoring: Foreground mode (30s interval)")
+
+                    // Refresh widget data when app comes to foreground
+                    com.paperless.scanner.widget.WidgetUpdateWorker.enqueue(this@PaperlessApp)
                 }
 
                 override fun onStop(owner: LifecycleOwner) {

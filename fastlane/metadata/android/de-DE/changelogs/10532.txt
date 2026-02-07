@@ -1,0 +1,14 @@
+Version 1.5.32:
+
+✨ Neue Features:
+- Dokument-Thumbnails in der Liste (80x80dp, 3-Stufen-Cache)
+- "Thumbnails anzeigen" Einstellung für Datensparen
+
+🐛 Fehlerbehebungen:
+- Fix: HTTP 400 bei Thumbnail-Anfragen
+- Fix: Thumbnails laden jetzt in der Liste (nicht nur in Details)
+
+🔧 Verbesserungen:
+- Coil ImageLoader mit Auth + Caching (Memory 25% RAM, Disk 250MB)
+- Optimierte Performance für große Listen (100+ Docs)
+- Crossfade-Animation (200ms) für sanfte Übergänge

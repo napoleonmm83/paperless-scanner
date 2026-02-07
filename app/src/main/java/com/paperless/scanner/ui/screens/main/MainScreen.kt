@@ -17,6 +17,7 @@ fun MainScreen(
     navController: NavHostController,
     currentRoute: String,
     scanPageUris: List<Uri> = emptyList(),
+    scanAction: String? = null,
     scanBackStackEntry: NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
@@ -67,6 +68,7 @@ fun MainScreen(
             )
             Screen.Scan.routeBase -> ScanScreen(
                 initialPageUris = scanPageUris,
+                initialScanAction = scanAction,
                 navBackStackEntry = scanBackStackEntry,
                 onDocumentScanned = onDocumentScanned,
                 onMultipleDocumentsScanned = onMultipleDocumentsScanned,

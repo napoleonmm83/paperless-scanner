@@ -10,9 +10,13 @@
     <color name="splash_background">#0A0A0A</color>
     <color name="ic_launcher_background">#0A0A0A</color>
 
-    <!-- Widget Colors -->
-    <color name="widget_background">#E8F5E9</color>
-    <color name="widget_text_primary">#1B5E20</color>
-    <color name="widget_text_secondary">#388E3C</color>
-    <color name="widget_badge_background">#C8E6C9</color>
+    <!-- Widget Colors (Dark Tech Precision Pro) -->
+    <color name="widget_background">#141414</color>
+    <color name="widget_surface">#1F1F1F</color>
+    <color name="widget_text_primary">#E1FF8D</color>
+    <color name="widget_text_secondary">#A1A1AA</color>
+    <color name="widget_badge_background">#1F1F1F</color>
+    <color name="widget_border">#27272A</color>
+    <color name="widget_icon_tint">#E1FF8D</color>
+    <color name="widget_text_on_accent">#0A0A0A</color>
 </resources>

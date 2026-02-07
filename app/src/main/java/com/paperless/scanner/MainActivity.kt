@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,7 +36,11 @@ import com.paperless.scanner.ui.navigation.Screen
 import com.paperless.scanner.ui.theme.LocalWindowSizeClass
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import com.paperless.scanner.ui.theme.ThemeMode
+import com.paperless.scanner.util.DeepLinkAction
+import com.paperless.scanner.util.DeepLinkHandler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -56,6 +61,15 @@ class MainActivity : FragmentActivity() {
     @Inject
     lateinit var crashlyticsHelper: CrashlyticsHelper
 
+    /** Pending deep link action from widget or external source. Consumed once by NavGraph. */
+    private val _pendingDeepLink = MutableStateFlow<DeepLinkAction?>(null)
+    val pendingDeepLink = _pendingDeepLink.asStateFlow()
+
+    /** Consume the pending deep link (called after navigation handles it). */
+    fun consumeDeepLink() {
+        _pendingDeepLink.value = null
+    }
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled silently */ }
@@ -70,6 +84,10 @@ class MainActivity : FragmentActivity() {
         requestNotificationPermission()
 
         val sharedUris = handleShareIntent(intent)
+
+        // Parse deep link from launch intent (widget taps)
+        _pendingDeepLink.value = DeepLinkHandler.parseIntent(intent)
+        Log.d("MainActivity", "onCreate: pendingDeepLink=${_pendingDeepLink.value}")
 
         // Initialize analytics based on stored consent
         val hasConsent = tokenManager.isAnalyticsConsentGrantedSync()
@@ -129,10 +147,14 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
+                    val pendingDeepLinkAction by pendingDeepLink.collectAsState()
+
                     PaperlessNavGraph(
                         navController = navController,
                         startDestination = startDestination,
                         sharedUris = sharedUris,
+                        pendingDeepLink = pendingDeepLinkAction,
+                        onDeepLinkConsumed = { consumeDeepLink() },
                         tokenManager = tokenManager,
                         appLockManager = appLockManager,
                         analyticsService = analyticsService,
@@ -160,6 +182,16 @@ class MainActivity : FragmentActivity() {
                 }
             }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Handle deep links when app is already running (singleTask launch mode)
+        val deepLinkAction = DeepLinkHandler.parseIntent(intent)
+        if (deepLinkAction != null) {
+            Log.d("MainActivity", "onNewIntent: deepLinkAction=$deepLinkAction")
+            _pendingDeepLink.value = deepLinkAction
         }
     }
 

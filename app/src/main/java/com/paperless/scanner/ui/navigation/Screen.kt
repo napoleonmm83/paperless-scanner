@@ -19,7 +19,7 @@ sealed class Screen(val route: String) {
     // Main navigation screens (bottom nav)
     data object Home : Screen("home")
     data object Documents : Screen("documents")
-    data object Scan : Screen("scan?pageUris={pageUris}") {
+    data object Scan : Screen("scan?pageUris={pageUris}&scanAction={scanAction}") {
         // Route without params for mode selection
         const val routeBase = "scan"
 
@@ -28,6 +28,11 @@ sealed class Screen(val route: String) {
             if (pageUris.isEmpty()) return routeBase
             val encodedUris = pageUris.joinToString("|") { Uri.encode(it.toString()) }
             return "scan?pageUris=$encodedUris"
+        }
+
+        // Route with a specific scan action (for deep links: camera, gallery, file)
+        fun createRouteWithAction(scanAction: String): String {
+            return "scan?scanAction=$scanAction"
         }
     }
     data object Labels : Screen("labels")

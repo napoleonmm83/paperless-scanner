@@ -1,8 +1,10 @@
 package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -15,6 +17,8 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.PaperlessAnimations
+import com.paperless.scanner.util.AppLockState
+import com.paperless.scanner.util.DeepLinkAction
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +45,8 @@ fun PaperlessNavGraph(
     navController: NavHostController,
     startDestination: String,
     sharedUris: List<Uri> = emptyList(),
+    pendingDeepLink: DeepLinkAction? = null,
+    onDeepLinkConsumed: () -> Unit = {},
     tokenManager: TokenManager,
     appLockManager: com.paperless.scanner.util.AppLockManager,
     analyticsService: AnalyticsService,
@@ -70,6 +76,69 @@ fun PaperlessNavGraph(
                 popUpTo(Screen.Home.route) { inclusive = false }
             }
         }
+    }
+
+    // Handle deep link navigation (from widgets)
+    // CRITICAL: Must wait until AppLock is unlocked before navigating
+    val lockState by appLockManager.lockState.collectAsState()
+    LaunchedEffect(pendingDeepLink, lockState, currentRoute) {
+        if (pendingDeepLink == null) return@LaunchedEffect
+
+        // Don't navigate if user is not logged in (on Welcome/onboarding screens)
+        if (startDestination == Screen.Welcome.route) {
+            Log.d("NavGraph", "Deep link ignored: user not logged in")
+            onDeepLinkConsumed()
+            return@LaunchedEffect
+        }
+
+        // Don't navigate while AppLock is active - deep link will be handled after unlock
+        if (lockState is AppLockState.Locked || lockState is AppLockState.LockedOut) {
+            Log.d("NavGraph", "Deep link deferred: app is locked (lockState=$lockState)")
+            return@LaunchedEffect
+        }
+
+        // Don't navigate if we're still on the AppLock screen (unlock animation in progress)
+        if (currentRoute == Screen.AppLock.route) {
+            Log.d("NavGraph", "Deep link deferred: still on AppLock screen")
+            return@LaunchedEffect
+        }
+
+        Log.d("NavGraph", "Executing deep link: $pendingDeepLink")
+
+        when (pendingDeepLink) {
+            DeepLinkAction.SCAN -> {
+                navController.navigate(Screen.Scan.routeBase) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            DeepLinkAction.SCAN_CAMERA -> {
+                navController.navigate(Screen.Scan.createRouteWithAction("camera")) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            DeepLinkAction.SCAN_GALLERY -> {
+                navController.navigate(Screen.Scan.createRouteWithAction("gallery")) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            DeepLinkAction.SCAN_FILE -> {
+                navController.navigate(Screen.Scan.createRouteWithAction("file")) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+            DeepLinkAction.STATUS -> {
+                navController.navigate(Screen.SyncCenter.route) {
+                    popUpTo(Screen.Home.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
+        }
+
+        onDeepLinkConsumed()
     }
 
     NavHost(
@@ -120,6 +189,11 @@ fun PaperlessNavGraph(
                             type = NavType.StringType
                             nullable = true
                             defaultValue = null
+                        },
+                        navArgument("scanAction") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
                         }
                     )
                 ) { backStackEntry ->
@@ -132,10 +206,13 @@ fun PaperlessNavGraph(
                         }
                     } ?: emptyList()
 
+                    val scanAction = backStackEntry.arguments?.getString("scanAction")
+
                     MainScreen(
                         navController = navController,
                         currentRoute = Screen.Scan.routeBase,
                         scanPageUris = pageUris,
+                        scanAction = scanAction,
                         scanBackStackEntry = backStackEntry,
                         onDocumentScanned = { uri ->
                             navController.navigate(Screen.Upload.createRoute(uri))

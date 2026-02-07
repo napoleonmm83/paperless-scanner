@@ -25,6 +25,7 @@ import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
+import com.paperless.scanner.widget.WidgetUpdateWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.delay
@@ -301,6 +302,9 @@ class UploadWorker @AssistedInject constructor(
         }
 
         showCompletionNotification(successCount, failCount)
+
+        // Trigger widget update to reflect new pending count
+        WidgetUpdateWorker.enqueue(applicationContext)
 
         crashlyticsHelper.logActionBreadcrumb("WORKER_UPLOAD", "done, success=$successCount, fail=$failCount")
         return if (failCount > 0 && successCount == 0) Result.failure() else Result.success()

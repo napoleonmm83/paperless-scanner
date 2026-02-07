@@ -1,0 +1,14 @@
+Version 1.5.32:
+
+✨ New Features:
+- Document thumbnails in list (80x80dp, 3-tier cache)
+- "Show Thumbnails" setting for data saving
+
+🐛 Bug Fixes:
+- Fix: HTTP 400 errors on thumbnail requests
+- Fix: Thumbnails now load in list (not only in details)
+
+🔧 Improvements:
+- Coil ImageLoader with auth + caching (Memory 25% RAM, Disk 250MB)
+- Optimized performance for large lists (100+ docs)
+- Crossfade animation (200ms) for smooth transitions

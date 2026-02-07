@@ -13,17 +13,19 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:contentDescription="@string/widget_name"
-        android:src="@drawable/ic_document_scanner" />
+        android:src="@drawable/ic_document_scanner"
+        android:tint="@color/widget_icon_tint" />
 
     <TextView
         android:id="@+id/widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="@string/app_name"
+        android:text="PAPERLESS"
         android:textColor="@color/widget_text_primary"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1" />
 
     <TextView
         android:id="@+id/widget_subtitle"
@@ -50,7 +52,8 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:contentDescription="@null"
-            android:src="@drawable/ic_cloud_upload" />
+            android:src="@drawable/ic_cloud_upload"
+            android:tint="@color/widget_icon_tint" />
 
         <TextView
             android:id="@+id/widget_pending_count"

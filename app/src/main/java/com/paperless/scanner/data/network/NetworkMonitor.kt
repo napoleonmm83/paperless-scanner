@@ -89,6 +89,9 @@ class NetworkMonitor @Inject constructor(
                 Log.d(TAG, "Online status changed: $isOnlineNow (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
                 _isOnline.value = isOnlineNow
 
+                // Update widgets with new connectivity status
+                com.paperless.scanner.widget.WidgetUpdateWorker.enqueue(context)
+
                 // Trigger uploads and sync ONLY when transitioning to validated online state
                 if (!wasOnline && isOnlineNow) {
                     Log.d(TAG, "Validated internet now available - triggering upload queue and sync")
