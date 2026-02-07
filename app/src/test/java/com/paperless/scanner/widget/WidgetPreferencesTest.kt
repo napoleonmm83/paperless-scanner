@@ -1,7 +1,6 @@
 package com.paperless.scanner.widget
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,8 +38,6 @@ class WidgetPreferencesTest {
         val config = widgetPreferences.getWidgetConfig(99999)
 
         assertEquals(WidgetType.QUICK_SCAN, config.type)
-        assertTrue(config.showPendingCount)
-        assertEquals(false, config.showServerStatus)
     }
 
     @Test
@@ -49,8 +46,6 @@ class WidgetPreferencesTest {
         val defaultConfig = WidgetConfig()
 
         assertEquals(defaultConfig.type, config.type)
-        assertEquals(defaultConfig.showPendingCount, config.showPendingCount)
-        assertEquals(defaultConfig.showServerStatus, config.showServerStatus)
     }
 
     // ==================== Roundtrip tests for each WidgetType ====================
@@ -58,52 +53,34 @@ class WidgetPreferencesTest {
     @Test
     fun `setWidgetConfig and getWidgetConfig roundtrip for QUICK_SCAN`() {
         val widgetId = 1
-        val config = WidgetConfig(
-            type = WidgetType.QUICK_SCAN,
-            showPendingCount = false,
-            showServerStatus = true
-        )
+        val config = WidgetConfig(type = WidgetType.QUICK_SCAN)
 
         widgetPreferences.setWidgetConfig(widgetId, config)
         val retrieved = widgetPreferences.getWidgetConfig(widgetId)
 
         assertEquals(config.type, retrieved.type)
-        assertEquals(config.showPendingCount, retrieved.showPendingCount)
-        assertEquals(config.showServerStatus, retrieved.showServerStatus)
     }
 
     @Test
     fun `setWidgetConfig and getWidgetConfig roundtrip for STATUS`() {
         val widgetId = 2
-        val config = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = true,
-            showServerStatus = true
-        )
+        val config = WidgetConfig(type = WidgetType.STATUS)
 
         widgetPreferences.setWidgetConfig(widgetId, config)
         val retrieved = widgetPreferences.getWidgetConfig(widgetId)
 
         assertEquals(config.type, retrieved.type)
-        assertEquals(config.showPendingCount, retrieved.showPendingCount)
-        assertEquals(config.showServerStatus, retrieved.showServerStatus)
     }
 
     @Test
     fun `setWidgetConfig and getWidgetConfig roundtrip for COMBINED`() {
         val widgetId = 3
-        val config = WidgetConfig(
-            type = WidgetType.COMBINED,
-            showPendingCount = false,
-            showServerStatus = false
-        )
+        val config = WidgetConfig(type = WidgetType.COMBINED)
 
         widgetPreferences.setWidgetConfig(widgetId, config)
         val retrieved = widgetPreferences.getWidgetConfig(widgetId)
 
         assertEquals(config.type, retrieved.type)
-        assertEquals(config.showPendingCount, retrieved.showPendingCount)
-        assertEquals(config.showServerStatus, retrieved.showServerStatus)
     }
 
     @Test
@@ -111,26 +88,16 @@ class WidgetPreferencesTest {
         val widgetId = 4
 
         // Set initial config
-        val initialConfig = WidgetConfig(
-            type = WidgetType.QUICK_SCAN,
-            showPendingCount = true,
-            showServerStatus = false
-        )
+        val initialConfig = WidgetConfig(type = WidgetType.QUICK_SCAN)
         widgetPreferences.setWidgetConfig(widgetId, initialConfig)
 
         // Overwrite with new config
-        val updatedConfig = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = false,
-            showServerStatus = true
-        )
+        val updatedConfig = WidgetConfig(type = WidgetType.STATUS)
         widgetPreferences.setWidgetConfig(widgetId, updatedConfig)
 
         // Verify the updated config is returned
         val retrieved = widgetPreferences.getWidgetConfig(widgetId)
         assertEquals(updatedConfig.type, retrieved.type)
-        assertEquals(updatedConfig.showPendingCount, retrieved.showPendingCount)
-        assertEquals(updatedConfig.showServerStatus, retrieved.showServerStatus)
     }
 
     // ==================== removeWidgetConfig tests ====================
@@ -140,11 +107,7 @@ class WidgetPreferencesTest {
         val widgetId = 5
 
         // Save a config
-        val config = WidgetConfig(
-            type = WidgetType.COMBINED,
-            showPendingCount = false,
-            showServerStatus = true
-        )
+        val config = WidgetConfig(type = WidgetType.COMBINED)
         widgetPreferences.setWidgetConfig(widgetId, config)
 
         // Verify it was saved
@@ -157,8 +120,6 @@ class WidgetPreferencesTest {
         // Verify defaults are returned
         val afterRemoval = widgetPreferences.getWidgetConfig(widgetId)
         assertEquals(WidgetType.QUICK_SCAN, afterRemoval.type)
-        assertTrue(afterRemoval.showPendingCount)
-        assertEquals(false, afterRemoval.showServerStatus)
     }
 
     @Test
@@ -178,16 +139,8 @@ class WidgetPreferencesTest {
         val widgetId1 = 10
         val widgetId2 = 20
 
-        val config1 = WidgetConfig(
-            type = WidgetType.QUICK_SCAN,
-            showPendingCount = true,
-            showServerStatus = false
-        )
-        val config2 = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = false,
-            showServerStatus = true
-        )
+        val config1 = WidgetConfig(type = WidgetType.QUICK_SCAN)
+        val config2 = WidgetConfig(type = WidgetType.STATUS)
 
         widgetPreferences.setWidgetConfig(widgetId1, config1)
         widgetPreferences.setWidgetConfig(widgetId2, config2)
@@ -197,13 +150,9 @@ class WidgetPreferencesTest {
 
         // Verify widget 1 config
         assertEquals(WidgetType.QUICK_SCAN, retrieved1.type)
-        assertTrue(retrieved1.showPendingCount)
-        assertEquals(false, retrieved1.showServerStatus)
 
         // Verify widget 2 config
         assertEquals(WidgetType.STATUS, retrieved2.type)
-        assertEquals(false, retrieved2.showPendingCount)
-        assertTrue(retrieved2.showServerStatus)
     }
 
     @Test

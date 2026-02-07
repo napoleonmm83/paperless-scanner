@@ -69,32 +69,12 @@ class WidgetTypeTest {
         assertEquals(WidgetType.QUICK_SCAN, config.type)
     }
 
-    @Test
-    fun `WidgetConfig default showPendingCount is true`() {
-        val config = WidgetConfig()
-        assertTrue(config.showPendingCount)
-    }
-
-    @Test
-    fun `WidgetConfig default showServerStatus is false`() {
-        val config = WidgetConfig()
-        assertEquals(false, config.showServerStatus)
-    }
-
     // ==================== WidgetConfig equality tests ====================
 
     @Test
     fun `WidgetConfig equality with same values`() {
-        val config1 = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = false,
-            showServerStatus = true
-        )
-        val config2 = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = false,
-            showServerStatus = true
-        )
+        val config1 = WidgetConfig(type = WidgetType.STATUS)
+        val config2 = WidgetConfig(type = WidgetType.STATUS)
         assertEquals(config1, config2)
     }
 
@@ -106,55 +86,17 @@ class WidgetTypeTest {
     }
 
     @Test
-    fun `WidgetConfig inequality with different showPendingCount`() {
-        val config1 = WidgetConfig(showPendingCount = true)
-        val config2 = WidgetConfig(showPendingCount = false)
-        assertNotEquals(config1, config2)
-    }
-
-    @Test
-    fun `WidgetConfig inequality with different showServerStatus`() {
-        val config1 = WidgetConfig(showServerStatus = true)
-        val config2 = WidgetConfig(showServerStatus = false)
-        assertNotEquals(config1, config2)
-    }
-
-    @Test
     fun `WidgetConfig copy with modified type`() {
         val original = WidgetConfig(type = WidgetType.QUICK_SCAN)
         val copied = original.copy(type = WidgetType.COMBINED)
 
         assertEquals(WidgetType.COMBINED, copied.type)
-        assertEquals(original.showPendingCount, copied.showPendingCount)
-        assertEquals(original.showServerStatus, copied.showServerStatus)
-    }
-
-    @Test
-    fun `WidgetConfig copy preserves unchanged fields`() {
-        val original = WidgetConfig(
-            type = WidgetType.STATUS,
-            showPendingCount = false,
-            showServerStatus = true
-        )
-        val copied = original.copy(type = WidgetType.COMBINED)
-
-        assertEquals(WidgetType.COMBINED, copied.type)
-        assertEquals(false, copied.showPendingCount)
-        assertEquals(true, copied.showServerStatus)
     }
 
     @Test
     fun `WidgetConfig hashCode is consistent for equal objects`() {
-        val config1 = WidgetConfig(
-            type = WidgetType.COMBINED,
-            showPendingCount = true,
-            showServerStatus = true
-        )
-        val config2 = WidgetConfig(
-            type = WidgetType.COMBINED,
-            showPendingCount = true,
-            showServerStatus = true
-        )
+        val config1 = WidgetConfig(type = WidgetType.COMBINED)
+        val config2 = WidgetConfig(type = WidgetType.COMBINED)
         assertEquals(config1.hashCode(), config2.hashCode())
     }
 

@@ -14,9 +14,7 @@ enum class WidgetType {
 }
 
 data class WidgetConfig(
-    val type: WidgetType = WidgetType.QUICK_SCAN,
-    val showPendingCount: Boolean = true,
-    val showServerStatus: Boolean = false
+    val type: WidgetType = WidgetType.QUICK_SCAN
 )
 
 /**
@@ -42,8 +40,6 @@ class WidgetPreferences @Inject constructor(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun widgetTypeKey(widgetId: Int) = "widget_type_$widgetId"
-    private fun showPendingCountKey(widgetId: Int) = "show_pending_count_$widgetId"
-    private fun showServerStatusKey(widgetId: Int) = "show_server_status_$widgetId"
 
     fun getWidgetConfig(widgetId: Int): WidgetConfig {
         val typeString = prefs.getString(widgetTypeKey(widgetId), null)
@@ -53,11 +49,9 @@ class WidgetPreferences @Inject constructor(
             Log.w(TAG, "Invalid widget type '$typeString' for widget $widgetId, using default")
             WidgetType.QUICK_SCAN
         }
-        val showPendingCount = prefs.getBoolean(showPendingCountKey(widgetId), true)
-        val showServerStatus = prefs.getBoolean(showServerStatusKey(widgetId), false)
 
-        Log.d(TAG, "getWidgetConfig: id=$widgetId, type=$type, pending=$showPendingCount, server=$showServerStatus")
-        return WidgetConfig(type, showPendingCount, showServerStatus)
+        Log.d(TAG, "getWidgetConfig: id=$widgetId, type=$type")
+        return WidgetConfig(type)
     }
 
     /**
@@ -67,8 +61,6 @@ class WidgetPreferences @Inject constructor(
     fun setWidgetConfig(widgetId: Int, config: WidgetConfig) {
         val success = prefs.edit()
             .putString(widgetTypeKey(widgetId), config.type.name)
-            .putBoolean(showPendingCountKey(widgetId), config.showPendingCount)
-            .putBoolean(showServerStatusKey(widgetId), config.showServerStatus)
             .commit() // commit() not apply() - ensures synchronous write before widget renders
 
         Log.d(TAG, "setWidgetConfig: id=$widgetId, type=${config.type}, success=$success")
@@ -77,8 +69,6 @@ class WidgetPreferences @Inject constructor(
     fun removeWidgetConfig(widgetId: Int) {
         prefs.edit()
             .remove(widgetTypeKey(widgetId))
-            .remove(showPendingCountKey(widgetId))
-            .remove(showServerStatusKey(widgetId))
             .apply()
 
         Log.d(TAG, "removeWidgetConfig: id=$widgetId")

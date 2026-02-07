@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.AppWidgetId
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
@@ -13,16 +14,18 @@ import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,8 +40,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,6 +73,8 @@ class WidgetConfigActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        enableEdgeToEdge()
 
         // Set canceled result by default (user backs out)
         setResult(RESULT_CANCELED)
@@ -163,13 +166,12 @@ private fun WidgetConfigScreen(
     onCancel: () -> Unit
 ) {
     var selectedType by remember { mutableStateOf(WidgetType.QUICK_SCAN) }
-    var showPendingCount by remember { mutableStateOf(true) }
-    var showServerStatus by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(DarkTechBackground)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
     ) {
@@ -213,35 +215,12 @@ private fun WidgetConfigScreen(
             onClick = { selectedType = WidgetType.COMBINED }
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Toggle Options
-        ToggleOptionCard(
-            title = stringResource(R.string.widget_config_show_pending),
-            checked = showPendingCount,
-            onCheckedChange = { showPendingCount = it }
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ToggleOptionCard(
-            title = stringResource(R.string.widget_config_show_server),
-            checked = showServerStatus,
-            onCheckedChange = { showServerStatus = it }
-        )
-
         Spacer(modifier = Modifier.height(32.dp))
 
         // Save Button
         Button(
             onClick = {
-                onSave(
-                    WidgetConfig(
-                        type = selectedType,
-                        showPendingCount = showPendingCount,
-                        showServerStatus = showServerStatus
-                    )
-                )
+                onSave(WidgetConfig(type = selectedType))
             },
             modifier = Modifier
                 .fillMaxWidth()
@@ -319,47 +298,3 @@ private fun WidgetTypeCard(
     }
 }
 
-@Composable
-private fun ToggleOptionCard(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = DarkTechSurface
-        ),
-        border = BorderStroke(1.dp, DarkTechOutline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = title,
-                color = DarkTechOnSurface,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
-
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = DarkTechBackground,
-                    checkedTrackColor = DarkTechPrimary,
-                    uncheckedThumbColor = DarkTechOnSurfaceMuted,
-                    uncheckedTrackColor = DarkTechSurface,
-                    uncheckedBorderColor = DarkTechOutline
-                )
-            )
-        }
-    }
-}
