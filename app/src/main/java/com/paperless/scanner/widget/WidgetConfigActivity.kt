@@ -1,5 +1,6 @@
 package com.paperless.scanner.widget
 
+import android.annotation.SuppressLint
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
@@ -98,6 +99,7 @@ class WidgetConfigActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("RestrictedApi")
     private fun saveConfigAndFinish(config: WidgetConfig) {
         Log.d(TAG, "Saving widget config: id=$appWidgetId, type=${config.type}")
 

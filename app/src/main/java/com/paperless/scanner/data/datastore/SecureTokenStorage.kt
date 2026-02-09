@@ -5,8 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import java.io.IOException
-import java.security.GeneralSecurityException
+import java.security.KeyStore
 
 /**
  * Secure storage for sensitive authentication data using EncryptedSharedPreferences.
@@ -19,7 +18,7 @@ import java.security.GeneralSecurityException
  * - AES256 encryption for all stored values
  * - Hardware-backed key storage (Android Keystore)
  * - Automatic migration from plaintext DataStore storage
- * - Fallback to in-memory storage if encryption fails (rare edge case)
+ * - Automatic recovery from corrupted keystore (AEADBadTagException)
  *
  * @param context Application context for accessing Android Keystore
  */
@@ -30,34 +29,83 @@ class SecureTokenStorage(private val context: Context) {
         private const val ENCRYPTED_PREFS_FILE = "paperless_secure_prefs"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_MIGRATION_COMPLETED = "migration_completed"
+        private const val MASTER_KEY_ALIAS = "_androidx_security_master_key_"
     }
 
-    private val masterKey: MasterKey by lazy {
-        try {
-            MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create MasterKey", e)
-            throw SecurityException("Cannot initialize secure storage: ${e.message}", e)
+    @Volatile
+    private var cachedPrefs: SharedPreferences? = null
+
+    private fun getOrCreateEncryptedPrefs(): SharedPreferences? {
+        cachedPrefs?.let { return it }
+
+        synchronized(this) {
+            cachedPrefs?.let { return it }
+
+            return try {
+                createEncryptedPrefs().also { cachedPrefs = it }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create EncryptedSharedPreferences, attempting recovery", e)
+                recoverCorruptedStorage()
+            }
         }
     }
 
-    private val encryptedPrefs: SharedPreferences by lazy {
+    private fun createEncryptedPrefs(): SharedPreferences {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            context,
+            ENCRYPTED_PREFS_FILE,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    /**
+     * Recovers from corrupted Android Keystore / EncryptedSharedPreferences.
+     *
+     * This handles AEADBadTagException and similar crypto failures by:
+     * 1. Deleting the corrupted SharedPreferences file
+     * 2. Removing the master key from Android Keystore
+     * 3. Recreating both from scratch
+     *
+     * The stored token is lost - user will need to re-authenticate.
+     */
+    private fun recoverCorruptedStorage(): SharedPreferences? {
+        Log.w(TAG, "Recovering corrupted encrypted storage - stored token will be lost")
+
         try {
-            EncryptedSharedPreferences.create(
-                context,
-                ENCRYPTED_PREFS_FILE,
-                masterKey,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: GeneralSecurityException) {
-            Log.e(TAG, "Security exception creating EncryptedSharedPreferences", e)
-            throw SecurityException("Cannot create encrypted storage: ${e.message}", e)
-        } catch (e: IOException) {
-            Log.e(TAG, "IO exception creating EncryptedSharedPreferences", e)
-            throw SecurityException("Cannot access encrypted storage: ${e.message}", e)
+            // 1. Delete the corrupted SharedPreferences file
+            context.deleteSharedPreferences(ENCRYPTED_PREFS_FILE)
+            Log.d(TAG, "Deleted corrupted SharedPreferences file")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete corrupted prefs file", e)
+        }
+
+        try {
+            // 2. Remove the corrupted master key from Android Keystore
+            val keyStore = KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
+                keyStore.deleteEntry(MASTER_KEY_ALIAS)
+                Log.d(TAG, "Deleted corrupted master key from Keystore")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete master key from Keystore", e)
+        }
+
+        // 3. Recreate fresh EncryptedSharedPreferences
+        return try {
+            createEncryptedPrefs().also {
+                cachedPrefs = it
+                Log.i(TAG, "Successfully recovered encrypted storage - user must re-authenticate")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Recovery failed - encrypted storage unavailable", e)
+            null
         }
     }
 
@@ -69,9 +117,9 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun saveToken(token: String): Boolean {
         return try {
-            encryptedPrefs.edit()
-                .putString(KEY_AUTH_TOKEN, token)
-                .commit() // Use commit() for immediate write
+            getOrCreateEncryptedPrefs()?.edit()
+                ?.putString(KEY_AUTH_TOKEN, token)
+                ?.commit() ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save token", e)
             false
@@ -85,7 +133,7 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun getToken(): String? {
         return try {
-            encryptedPrefs.getString(KEY_AUTH_TOKEN, null)
+            getOrCreateEncryptedPrefs()?.getString(KEY_AUTH_TOKEN, null)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to retrieve token", e)
             null
@@ -99,7 +147,7 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun hasToken(): Boolean {
         return try {
-            encryptedPrefs.contains(KEY_AUTH_TOKEN)
+            getOrCreateEncryptedPrefs()?.contains(KEY_AUTH_TOKEN) ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to check token existence", e)
             false
@@ -113,9 +161,9 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun clearToken(): Boolean {
         return try {
-            encryptedPrefs.edit()
-                .remove(KEY_AUTH_TOKEN)
-                .commit()
+            getOrCreateEncryptedPrefs()?.edit()
+                ?.remove(KEY_AUTH_TOKEN)
+                ?.commit() ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear token", e)
             false
@@ -127,7 +175,7 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun isMigrationCompleted(): Boolean {
         return try {
-            encryptedPrefs.getBoolean(KEY_MIGRATION_COMPLETED, false)
+            getOrCreateEncryptedPrefs()?.getBoolean(KEY_MIGRATION_COMPLETED, false) ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to check migration status", e)
             false
@@ -139,9 +187,9 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun setMigrationCompleted(): Boolean {
         return try {
-            encryptedPrefs.edit()
-                .putBoolean(KEY_MIGRATION_COMPLETED, true)
-                .commit()
+            getOrCreateEncryptedPrefs()?.edit()
+                ?.putBoolean(KEY_MIGRATION_COMPLETED, true)
+                ?.commit() ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set migration completed", e)
             false
@@ -154,9 +202,9 @@ class SecureTokenStorage(private val context: Context) {
      */
     fun clearAll(): Boolean {
         return try {
-            encryptedPrefs.edit()
-                .clear()
-                .commit()
+            getOrCreateEncryptedPrefs()?.edit()
+                ?.clear()
+                ?.commit() ?: false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear all secure storage", e)
             false

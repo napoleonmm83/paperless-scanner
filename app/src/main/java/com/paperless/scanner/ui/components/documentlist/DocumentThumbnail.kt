@@ -1,11 +1,14 @@
 package com.paperless.scanner.ui.components.documentlist
 
+import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -14,48 +17,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.paperless.scanner.R
 import com.paperless.scanner.util.ThumbnailUrlBuilder
 
 /**
  * DocumentThumbnail - Reusable thumbnail component for document previews.
  *
- * **FEATURES:**
- * - Authenticated thumbnail loading via Coil 3 ImageLoader (configured globally)
- * - Automatic fallback to generic document icon when thumbnails are disabled
- * - Consistent styling (48.dp box, 12.dp corner radius, surfaceVariant background)
- * - Uses global ThumbnailUrlBuilder for URL construction
- *
- * **THUMBNAIL SYSTEM:**
- * - Thumbnails are loaded from Paperless-ngx API: `/api/documents/{id}/thumb/`
- * - Authentication handled globally via Coil ImageLoader (see AppModule.kt)
- * - 250MB disk cache for fast repeated loads
- * - SSL/TLS support for self-signed certificates
- *
- * **FALLBACK BEHAVIOR:**
- * - If showThumbnails = false: Shows generic document icon
- * - If serverUrl is blank: Shows generic document icon
- * - If thumbnail load fails: Coil handles error state (shows placeholder)
- *
- * **USAGE:**
- * ```kotlin
- * DocumentThumbnail(
- *     documentId = 123,
- *     serverUrl = "https://paperless.example.com",
- *     showThumbnails = true
- * )
- * ```
+ * Loads thumbnails from Paperless-ngx API: `/api/documents/{id}/thumb/`
+ * Authentication handled globally via Coil ImageLoader (see AppModule.kt).
  *
  * @param documentId Document ID for thumbnail URL construction
  * @param serverUrl Paperless-ngx server URL
  * @param showThumbnails User preference to show/hide thumbnails
  * @param modifier Optional modifier for the thumbnail box
- *
- * @see ThumbnailUrlBuilder For URL construction logic
- * @see DocumentCardBase Parent component that uses this thumbnail
  */
 @Composable
 fun DocumentThumbnail(
@@ -79,12 +60,37 @@ fun DocumentThumbnail(
         } else null
 
         if (thumbnailUrl != null) {
-            AsyncImage(
-                model = thumbnailUrl,
-                contentDescription = stringResource(R.string.cd_document_thumbnail),
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+            val context = LocalContext.current
+            val painter = rememberAsyncImagePainter(
+                model = ImageRequest.Builder(context)
+                    .data(thumbnailUrl)
+                    .crossfade(true)
+                    .build()
             )
+
+            when (val state = painter.state) {
+                is AsyncImagePainter.State.Error -> {
+                    Log.e(
+                        "DocumentThumbnail",
+                        "Failed to load doc $documentId from $thumbnailUrl: ${state.result.throwable.message}",
+                        state.result.throwable
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.BrokenImage,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+                else -> {
+                    Image(
+                        painter = painter,
+                        contentDescription = stringResource(R.string.cd_document_thumbnail),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
         } else {
             Icon(
                 imageVector = Icons.Filled.Description,

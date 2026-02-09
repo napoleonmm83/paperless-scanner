@@ -1,5 +1,6 @@
 package com.paperless.scanner.widget
 
+import android.annotation.SuppressLint
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
@@ -81,6 +82,7 @@ class WidgetUpdateWorker @AssistedInject constructor(
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
+    @SuppressLint("RestrictedApi")
     private suspend fun updateGlanceWidgets(pendingCount: Int, isOnline: Boolean) {
         try {
             val manager = GlanceAppWidgetManager(context)
