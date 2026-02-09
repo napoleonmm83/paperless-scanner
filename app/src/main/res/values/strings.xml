@@ -720,6 +720,7 @@
     <string name="premium_restore_success">%1$d purchases restored</string>
     <string name="premium_restore_none">No purchases found</string>
     <string name="premium_restore_error">Restore error: %1$s</string>
+    <string name="billing_error_activity_finishing">Purchase failed because the app is closing. Please try again.</string>
 
     <!-- Subscription Management -->
     <string name="subscription_price_label">Price</string>

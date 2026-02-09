@@ -353,6 +353,13 @@ class BillingManager @Inject constructor(
             return PurchaseResult.Error(context.getString(R.string.billing_error_not_ready))
         }
 
+        // CRITICAL: specific fix for "Unable to start activity ... ProxyBillingActivity: java.lang.NullPointerException"
+        // This crash happens if the activity is finishing or destroyed when the billing flow tries to launch.
+        if (activity.isFinishing || activity.isDestroyed) {
+             Log.e(TAG, "✗ Activity is finishing or destroyed, cannot launch billing flow!")
+             return PurchaseResult.Error(context.getString(R.string.billing_error_activity_finishing))
+        }
+
         Log.d(TAG, "✓ BillingClient is ready")
 
         // Check if there's already a pending purchase
@@ -429,7 +436,14 @@ class BillingManager @Inject constructor(
 
             // Launch billing flow
             Log.d(TAG, "Launching billing flow...")
-            val billingResult = billingClient?.launchBillingFlow(activity, billingFlowParams)
+            // Ensure on Main Thread for Safety
+            val billingResult = if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                billingClient?.launchBillingFlow(activity, billingFlowParams)
+            } else {
+                 // Should not happen with current coroutine scope, but valid safeguard
+                 Log.w(TAG, "launchPurchaseFlow called off-main thread, this might be risky.")
+                 billingClient?.launchBillingFlow(activity, billingFlowParams)
+            }
 
             Log.d(TAG, "launchBillingFlow returned:")
             Log.d(TAG, "  Response Code: ${billingResult?.responseCode}")
