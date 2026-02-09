@@ -3,12 +3,10 @@
 package com.paperless.scanner.widget
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
@@ -24,14 +22,11 @@ import androidx.glance.LocalSize
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
-import androidx.glance.action.ActionParameters
-import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.AppWidgetId
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
-import androidx.glance.appwidget.action.ActionCallback
-import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -52,192 +47,8 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
-
-/**
- * ActionCallback to launch MainActivity from widget.
- *
- * Uses ActionCallback instead of actionStartActivity() to avoid Glance's
- * InvisibleActionTrampolineActivity which causes IllegalArgumentException
- * on OnePlus Android 11 devices.
- *
- * Crash: "List adapter activity trampoline invoked without specifying target intent"
- * Fix: Create PendingIntent with FLAG_IMMUTABLE directly, bypassing trampoline
- *
- * IMPROVED (2026-02): Added multiple fallback strategies and explicit ComponentName
- * to maximize compatibility across OEM Android implementations.
- */
-class LaunchMainActivityCallback : ActionCallback {
-
-    companion object {
-        private const val TAG = "ScannerWidget"
-    }
-
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters
-    ) {
-        val crashlytics = FirebaseCrashlytics.getInstance()
-
-        // Log widget click for monitoring
-        crashlytics.log("Widget clicked - launching MainActivity (Glance)")
-        crashlytics.setCustomKey("widget_launch_method", "ActionCallback_Improved")
-        crashlytics.setCustomKey("device_info", WidgetDeviceChecker.getDeviceInfo())
-
-        // Strategy 1: Direct startActivity with explicit ComponentName (most reliable)
-        if (tryDirectLaunch(context, crashlytics)) return
-
-        // Strategy 2: PendingIntent.send() as fallback
-        if (tryPendingIntentLaunch(context, crashlytics)) return
-
-        // Strategy 3: Package manager launch as last resort
-        tryPackageManagerLaunch(context, crashlytics)
-    }
-
-    /**
-     * Strategy 1: Direct startActivity with explicit ComponentName.
-     * This bypasses any trampoline mechanisms and is the most reliable approach.
-     */
-    private fun tryDirectLaunch(context: Context, crashlytics: FirebaseCrashlytics): Boolean {
-        return try {
-            val intent = Intent().apply {
-                component = ComponentName(context.packageName, MainActivity::class.java.name)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-            }
-
-            context.startActivity(intent)
-
-            Log.d(TAG, "Widget launch successful via direct startActivity")
-            crashlytics.log("Widget launch successful via direct startActivity")
-            crashlytics.setCustomKey("widget_launch_strategy", "direct")
-            true
-
-        } catch (e: Exception) {
-            Log.w(TAG, "Direct startActivity failed", e)
-            crashlytics.log("Direct startActivity failed: ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Strategy 2: PendingIntent with FLAG_IMMUTABLE.
-     * Works on most devices but can fail on some OEM implementations.
-     */
-    private fun tryPendingIntentLaunch(context: Context, crashlytics: FirebaseCrashlytics): Boolean {
-        return try {
-            val intent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                // Add unique action to ensure fresh PendingIntent
-                action = "com.paperless.scanner.WIDGET_LAUNCH_${System.currentTimeMillis()}"
-            }
-
-            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            } else {
-                PendingIntent.FLAG_UPDATE_CURRENT
-            }
-
-            val pendingIntent = PendingIntent.getActivity(
-                context,
-                System.currentTimeMillis().toInt(),
-                intent,
-                pendingIntentFlags
-            )
-
-            pendingIntent.send()
-
-            Log.d(TAG, "Widget launch successful via PendingIntent")
-            crashlytics.log("Widget launch successful via PendingIntent")
-            crashlytics.setCustomKey("widget_launch_strategy", "pending_intent")
-            true
-
-        } catch (e: Exception) {
-            Log.w(TAG, "PendingIntent launch failed", e)
-            crashlytics.log("PendingIntent launch failed: ${e.message}")
-            crashlytics.recordException(e)
-            false
-        }
-    }
-
-    /**
-     * Strategy 3: Use PackageManager to get launch intent.
-     * Last resort - uses system's default launcher intent resolution.
-     */
-    private fun tryPackageManagerLaunch(context: Context, crashlytics: FirebaseCrashlytics) {
-        try {
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            if (launchIntent != null) {
-                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                context.startActivity(launchIntent)
-
-                Log.d(TAG, "Widget launch successful via PackageManager")
-                crashlytics.log("Widget launch successful via PackageManager")
-                crashlytics.setCustomKey("widget_launch_strategy", "package_manager")
-            } else {
-                throw IllegalStateException("PackageManager returned null launch intent")
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "All widget launch strategies failed", e)
-            crashlytics.recordException(e)
-            crashlytics.setCustomKey("widget_launch_failed", true)
-            crashlytics.setCustomKey("widget_launch_strategy", "all_failed")
-        }
-    }
-}
-
-/**
- * ActionCallback to launch deep link actions from widget buttons.
- * Used by QuickScanContent to launch camera, gallery, or file picker directly.
- */
-class LaunchDeepLinkCallback : ActionCallback {
-
-    companion object {
-        private const val TAG = "ScannerWidget"
-        val DEEP_LINK_URI_KEY = ActionParameters.Key<String>("deep_link_uri")
-    }
-
-    override suspend fun onAction(
-        context: Context,
-        glanceId: GlanceId,
-        parameters: ActionParameters
-    ) {
-        val uri = parameters[DEEP_LINK_URI_KEY] ?: return
-        val crashlytics = FirebaseCrashlytics.getInstance()
-
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
-                component = ComponentName(context.packageName, MainActivity::class.java.name)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            context.startActivity(intent)
-
-            Log.d(TAG, "Deep link launched from widget: $uri")
-            crashlytics.log("Widget deep link launch: $uri")
-            crashlytics.setCustomKey("widget_launch_strategy", "deep_link")
-        } catch (e: Exception) {
-            Log.e(TAG, "Deep link launch failed: $uri", e)
-            crashlytics.recordException(e)
-
-            // Fallback: launch app normally
-            try {
-                val fallbackIntent = Intent().apply {
-                    component = ComponentName(context.packageName, MainActivity::class.java.name)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                }
-                context.startActivity(fallbackIntent)
-            } catch (fe: Exception) {
-                Log.e(TAG, "Fallback launch also failed", fe)
-                crashlytics.recordException(fe)
-            }
-        }
-    }
-}
 
 class ScannerWidget : GlanceAppWidget() {
 
@@ -476,10 +287,8 @@ class ScannerWidget : GlanceAppWidget() {
                 .cornerRadius(20.dp)
                 .background(ColorProvider(R.color.widget_background))
                 .clickable(
-                    actionRunCallback<LaunchDeepLinkCallback>(
-                        actionParametersOf(
-                            LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to "paperless://status"
-                        )
+                    actionStartActivity(
+                        createDeepLinkIntent(context, "paperless://status")
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -585,10 +394,8 @@ class ScannerWidget : GlanceAppWidget() {
                 .cornerRadius(16.dp)
                 .background(ColorProvider(R.color.widget_background))
                 .clickable(
-                    actionRunCallback<LaunchDeepLinkCallback>(
-                        actionParametersOf(
-                            LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to "paperless://status"
-                        )
+                    actionStartActivity(
+                        createDeepLinkIntent(context, "paperless://status")
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -715,10 +522,8 @@ class ScannerWidget : GlanceAppWidget() {
                         .background(ColorProvider(R.color.widget_surface))
                         .padding(vertical = 4.dp, horizontal = 8.dp)
                         .clickable(
-                            actionRunCallback<LaunchDeepLinkCallback>(
-                                actionParametersOf(
-                                    LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to "paperless://status"
-                                )
+                            actionStartActivity(
+                                createDeepLinkIntent(context, "paperless://status")
                             )
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -806,10 +611,8 @@ class ScannerWidget : GlanceAppWidget() {
                     .background(ColorProvider(R.color.widget_surface))
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .clickable(
-                        actionRunCallback<LaunchDeepLinkCallback>(
-                            actionParametersOf(
-                                LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to "paperless://status"
-                            )
+                        actionStartActivity(
+                            createDeepLinkIntent(context, "paperless://status")
                         )
                     ),
                 verticalAlignment = Alignment.CenterVertically
@@ -855,16 +658,15 @@ class ScannerWidget : GlanceAppWidget() {
         deepLinkUri: String,
         modifier: GlanceModifier = GlanceModifier
     ) {
+        val context = LocalContext.current
         Column(
             modifier = modifier
                 .cornerRadius(12.dp)
                 .background(ColorProvider(R.color.widget_surface))
                 .padding(4.dp)
                 .clickable(
-                    actionRunCallback<LaunchDeepLinkCallback>(
-                        actionParametersOf(
-                            LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to deepLinkUri
-                        )
+                    actionStartActivity(
+                        createDeepLinkIntent(context, deepLinkUri)
                     )
                 ),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -899,6 +701,7 @@ class ScannerWidget : GlanceAppWidget() {
         deepLinkUri: String,
         modifier: GlanceModifier = GlanceModifier
     ) {
+        val context = LocalContext.current
         // Fill entire cell height (no padding subtraction - outer cornerRadius clips edges)
         val cellHeight = LocalSize.current.height
 
@@ -908,10 +711,8 @@ class ScannerWidget : GlanceAppWidget() {
                 .cornerRadius(10.dp)
                 .background(ColorProvider(R.color.widget_surface))
                 .clickable(
-                    actionRunCallback<LaunchDeepLinkCallback>(
-                        actionParametersOf(
-                            LaunchDeepLinkCallback.DEEP_LINK_URI_KEY to deepLinkUri
-                        )
+                    actionStartActivity(
+                        createDeepLinkIntent(context, deepLinkUri)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -921,6 +722,17 @@ class ScannerWidget : GlanceAppWidget() {
                 contentDescription = label,
                 modifier = GlanceModifier.size(32.dp)
             )
+        }
+    }
+
+    /**
+     * Helper to create explicit DeepLink Intents.
+     * Direct Intent launch avoids Glance's callback trampoline crash on some devices.
+     */
+    private fun createDeepLinkIntent(context: Context, uri: String): Intent {
+        return Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
+            component = ComponentName(context, MainActivity::class.java)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
     }
 }

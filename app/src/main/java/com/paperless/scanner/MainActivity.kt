@@ -87,7 +87,6 @@ class MainActivity : FragmentActivity() {
 
         // Parse deep link from launch intent (widget taps)
         _pendingDeepLink.value = DeepLinkHandler.parseIntent(intent)
-        Log.d("MainActivity", "onCreate: pendingDeepLink=${_pendingDeepLink.value}")
 
         // Initialize analytics based on stored consent
         val hasConsent = tokenManager.isAnalyticsConsentGrantedSync()
