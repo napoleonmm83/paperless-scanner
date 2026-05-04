@@ -1,0 +1,191 @@
+# CodeRabbit Configuration — Paperless Scanner
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+#
+# Purpose: Continuous AI-powered code review on every PR.
+# Complements the structured deep review in docs/code-reviews/.
+
+language: en-US
+tone_instructions: |
+  Professional, concise, technical. Match the senior Android engineer audience.
+  Reference CLAUDE.md conventions and MEMORY.md gotchas where relevant.
+  No filler praise. Focus on actionable findings.
+
+early_access: false
+
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  sequence_diagrams: true
+  changed_files_summary: true
+  labeling_instructions:
+    - label: "area:security"
+      instructions: "Apply when changes touch auth, tokens, keystore, biometrics, encryption, or AppLock."
+    - label: "area:ui"
+      instructions: "Apply when changes touch Compose screens, theme, or UI components."
+    - label: "area:data"
+      instructions: "Apply when changes touch repositories, DataStore, Room, or API layer."
+    - label: "area:widget"
+      instructions: "Apply when changes touch app/src/main/java/com/paperless/scanner/widget/."
+    - label: "area:worker"
+      instructions: "Apply when changes touch WorkManager workers."
+    - label: "area:tooling"
+      instructions: "Apply when changes touch .github/, scripts/, fastlane/, gradle/, or build files."
+
+  path_filters:
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!app/build/**"
+    - "!app/release/**"
+    - "!app/schemas/**"
+    - "!**/*.lock"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.jpeg"
+    - "!**/*.webp"
+    - "!**/*.aab"
+    - "!**/*.apk"
+    - "!**/*.keystore"
+    - "!**/*.jks"
+    - "!**/google-services.json"
+
+  path_instructions:
+    - path: "app/src/main/java/com/paperless/scanner/ui/**/*.kt"
+      instructions: |
+        Enforce Dark Tech Precision Pro style guide (CLAUDE.md):
+        - Primary `#E1FF8D` (neon-yellow), Background `#0A0A0A`, Surface `#141414`, Outline `#27272A`
+        - Cards: 20dp corner, 1dp outline border, NO elevation/shadow
+        - Headlines ExtraBold + Uppercase; Labels Medium + Uppercase + 0.1em tracking
+        Compose conventions: stateless composables preferred, state hoisting, `remember`/`rememberSaveable` correctly,
+        Material 3 components, NO hardcoded strings (use `stringResource(R.string.X)`).
+        Flag any inline color hex outside the theme tokens.
+
+    - path: "app/src/main/java/com/paperless/scanner/data/repository/**/*.kt"
+      instructions: |
+        Repository-pattern conventions (CLAUDE.md "Best Practice Mandate"):
+        - Prefer reactive `Flow<T>` over `suspend fun get*` for observable data.
+        - Return `Result<T>` from repository methods; do not throw across boundary.
+        - Resolve string error messages in UI layer, not data layer.
+        - Watch for God-classes >500 LOC and propose split candidates.
+
+    - path: "app/src/main/java/com/paperless/scanner/data/datastore/**/*.kt"
+      instructions: |
+        Security: never log token/password/key values. EncryptedSharedPreferences or
+        Android Keystore expected for sensitive material. Watch for plaintext fallbacks
+        and AEADBadTagException recovery paths (see commit 30305c0).
+
+    - path: "app/src/main/java/com/paperless/scanner/data/billing/**/*.kt"
+      instructions: |
+        Billing: ensure activity-state checks before launching purchase flow (see commit cc0b331).
+        Main-thread requirement for billing client — flag any background-thread launches.
+        Verify purchase state before granting entitlements. Idempotent acknowledge calls.
+
+    - path: "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt"
+      instructions: |
+        AppLock dual-SavedStateHandle pattern (CLAUDE.md): both ViewModel SavedStateHandle
+        and BackStackEntry SavedStateHandle must be kept in sync, otherwise either
+        Process Death recovery or AppLock route reconstruction breaks. Verify both writes.
+
+    - path: "app/src/main/java/com/paperless/scanner/widget/**/*.kt"
+      instructions: |
+        Glance widget gotchas (MEMORY.md):
+        - Widget config uses SharedPreferences (`widget_config`), NOT DataStore (silent failures).
+        - `setWidgetConfig()` must use `.commit()` (synchronous) before widget renders.
+        - `defaultWeight()` is RowScope/ColumnScope-scoped — call inside Row{} lambda.
+        - Use `SizeMode.Exact` not `SizeMode.Responsive` for correct height.
+        - Widget type MUST be controlled via Glance State (`WIDGET_TYPE_KEY`) for reactivity.
+        - Sync SharedPrefs → Glance State in `provideGlance` every call.
+
+    - path: "app/src/main/java/com/paperless/scanner/data/api/**/*.kt"
+      instructions: |
+        Paperless-ngx API quirk: `POST /api/documents/post_document/` returns plain string
+        (task UUID), NOT JSON. Use `ResponseBody` and parse via
+        `response.string().trim().removeSurrounding("\"")`. Do not introduce JSON deserializers
+        for that endpoint.
+
+    - path: "app/src/main/res/values/strings.xml"
+      instructions: |
+        Translation policy: ONLY English in this file (Single Source of Truth).
+        Gemini auto-translates 15+ languages including German on Play Console upload.
+        Reject additions to other `values-XX/strings.xml` directories — they were
+        deliberately removed and should NOT come back.
+
+    - path: "fastlane/metadata/android/*/changelogs/*.txt"
+      instructions: |
+        Google Play Store hard limit: 500 chars per changelog file.
+        Reject if `wc -m` would exceed 500. No `Co-Authored-By` lines.
+        Use abbreviations (Auto-Sync not Automatische Synchronisierung).
+
+    - path: "**/*Test.kt"
+      instructions: |
+        Tests should hit real DB / fakes — avoid heavy mocking of internal collaborators.
+        Coroutine tests must use `runTest` and `TestDispatcher` (not `runBlocking`).
+        Flow tests should use Turbine. Verify state transitions, not internal calls.
+
+    - path: ".github/workflows/*.yml"
+      instructions: |
+        Workflows must use RELEASE variants (testReleaseUnitTest, lintRelease, assembleRelease) —
+        NOT debug. JDK 21 required (not 24+). Path filters must exclude version.properties
+        bumps to prevent deploy loops.
+
+    - path: "scripts/**/*.sh"
+      instructions: |
+        Shell scripts: use `set -euo pipefail`, quote all variables, prefer arrays for
+        argument lists. Document exit codes. Cross-platform note: project runs on Win11
+        + WSL/Git-Bash — avoid GNU-only flags without fallbacks.
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+    auto_incremental_review: true
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+
+  tools:
+    ktlint:
+      enabled: true
+    detekt:
+      enabled: true
+    languagetool:
+      enabled: true
+      level: default
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    checkov:
+      enabled: false
+    semgrep:
+      enabled: true
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
+  web_search:
+    enabled: true

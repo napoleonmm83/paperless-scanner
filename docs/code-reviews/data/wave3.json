@@ -1,0 +1,298 @@
+{
+  "review_date": "2026-05-04",
+  "wave": 3,
+  "description": "Wave 3 — Testing + Performance + Tooling + Style Guide + I18N",
+  "findings": [
+    {
+      "id": "F-109",
+      "wave": 3,
+      "title": "Duplicate values-en/strings.xml violates English-only policy",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "i18n",
+      "file": "app/src/main/res/values-en/strings.xml",
+      "lines": "—",
+      "target": null,
+      "problem": "Both `values/strings.xml` (5444 bytes) and `values-en/strings.xml` (81427 bytes) exist. CLAUDE.md mandates a single source: English-only `values/strings.xml`, with Gemini auto-translating 15+ languages (incl. German) on Play Console upload. The duplicate `values-en/` directory was supposed to be removed and would shadow the auto-translation pipeline.",
+      "proposed_fix": "Delete `app/src/main/res/values-en/strings.xml`. Verify all string keys present in `values-en/` are also present in `values/strings.xml`; merge any unique keys. Confirm Gemini still produces English output (it is the source — should be unchanged). Add a CI check to fail builds if any `values-en/` or `values-de/` directory is reintroduced.",
+      "acceptance_criteria": [
+        "values-en/strings.xml removed",
+        "All keys consolidated to values/strings.xml",
+        "CI check rejects re-introducing values-en/ or values-de/ directories",
+        "Play Console upload still produces 15+ translations"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/136",
+      "markdown_path": "docs/code-reviews/findings/F-109-duplicate-values-en-strings-xml-violates-english-only-policy.md"
+    },
+    {
+      "id": "F-110",
+      "wave": 3,
+      "title": "Repository tests mock DAOs — violates CLAUDE.md \"don't mock the database\" rule",
+      "severity": "high",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/data/repository/DocumentRepositoryTest.kt",
+      "lines": "L10-L40",
+      "target": "DocumentRepositoryTest, AuthRepositoryTest, CorrespondentRepositoryTest, etc.",
+      "problem": "All repository tests use `mockk(relaxed = true)` for Room DAOs (CachedDocumentDao, CachedTagDao, PendingChangeDao, …). CLAUDE.md is explicit: integration tests must hit a real database, not mocks (rooted in a past incident where mocked tests passed but a prod migration broke). Current setup defeats integration coverage and lets DAO/migration bugs slip.",
+      "proposed_fix": "Migrate repository tests to use an in-memory Room database via `Room.inMemoryDatabaseBuilder(...)` + the real DAO. Keep only network/API mocks. Tag pure unit tests `@SmallTest` (mocked) and integration tests `@LargeTest` (real DB) so intent is explicit. Update CLAUDE.md if the boundary needs clarification.",
+      "acceptance_criteria": [
+        "Repository tests run against in-memory Room DB",
+        "DAO mocks removed from existing tests",
+        "Tests categorized @SmallTest vs @LargeTest",
+        "CI runs both categories"
+      ],
+      "effort": "L",
+      "related": [
+        "F-051",
+        "F-052",
+        "F-053"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/137",
+      "markdown_path": "docs/code-reviews/findings/F-110-repository-tests-mock-daos-violates-claude-md-don-t-mock-the.md"
+    },
+    {
+      "id": "F-111",
+      "wave": 3,
+      "title": "ScanViewModel, AppLockManager, TokenManager have zero unit tests",
+      "severity": "critical",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/",
+      "lines": "—",
+      "target": "ScanViewModel, AppLockManager, TokenManager",
+      "problem": "Three high-risk classes lack any tests: ScanViewModel (908 LOC, scan flow), AppLockManager (722 LOC, biometric/PIN security), TokenManager (734 LOC, auth token + Keystore recovery). Comparison: HomeViewModel + UploadViewModel both have tests. Bugs in security/auth paths are most likely to ship undetected.",
+      "proposed_fix": "Add `ScanViewModelTest`, `AppLockManagerTest`, `TokenManagerTest`. Use `runTest {}` + `MainDispatcherRule` for VMs; mock biometric APIs for AppLockManager; use real DataStore (in-memory file) for TokenManager + simulate AEADBadTagException recovery (commit 30305c0). Aim ≥ 80% line coverage per file.",
+      "acceptance_criteria": [
+        "Three new test files exist + run in CI",
+        "Each ≥ 80% line coverage",
+        "AppLockManager test covers lockout, biometric, dual-SavedStateHandle paths",
+        "TokenManager test covers Keystore corruption + recovery"
+      ],
+      "effort": "L",
+      "related": [
+        "F-052",
+        "F-110"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/138",
+      "markdown_path": "docs/code-reviews/findings/F-111-scanviewmodel-applockmanager-tokenmanager-have-zero-unit-tes.md"
+    },
+    {
+      "id": "F-112",
+      "wave": 3,
+      "title": "SyncWorker, TrashDeleteWorker, WidgetUpdateWorker lack tests",
+      "severity": "high",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/main/java/com/paperless/scanner/data/sync/SyncWorker.kt",
+      "lines": "—",
+      "target": "SyncWorker, TrashDeleteWorker, WidgetUpdateWorker",
+      "problem": "Only UploadWorker has a test file. The three other workers run critical background flows (sync queue, trash retention, widget refresh) but have no coverage for retry / failure / scheduling. Regressions surface only in production.",
+      "proposed_fix": "Add `SyncWorkerTest`, `TrashDeleteWorkerTest`, `WidgetUpdateWorkerTest` using `TestWorkerBuilder` or manual stubbing. Mock repository + network monitor; cover Result.success / retry / failure paths. Mirror existing UploadWorker test layout.",
+      "acceptance_criteria": [
+        "Three new worker test files",
+        "Each covers success / retry / failure / network-timeout",
+        "Tests run < 1s per file",
+        "CI runs all four workers"
+      ],
+      "effort": "M",
+      "related": [
+        "F-101",
+        "F-102"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/139",
+      "markdown_path": "docs/code-reviews/findings/F-112-syncworker-trashdeleteworker-widgetupdateworker-lack-tests.md"
+    },
+    {
+      "id": "F-113",
+      "wave": 3,
+      "title": "AuthRepository uses !! on potentially-null error variables — NPE risk on login",
+      "severity": "high",
+      "area": "data",
+      "subarea": "error-handling",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/AuthRepository.kt",
+      "lines": "L55-L80",
+      "target": "AuthRepository.detectServerProtocol",
+      "problem": "Five `!!` usages on `httpsError` / `httpError` inside when-branches. Variables are assigned only when an exception is caught; if neither call throws but a logical failure occurs, the variables stay null and the `!!` crashes the app at login time — a critical user path.",
+      "proposed_fix": "Initialize errors with non-null fallback (`Exception(\"Unknown HTTP error\")`) OR replace `!!` with elvis: `httpsError ?: someFallback`. Ensure each when-branch handles the null case explicitly. Add unit tests for all branches including the both-succeed-but-validation-fails scenario.",
+      "acceptance_criteria": [
+        "No `!!` operators in AuthRepository error handling",
+        "Unit tests cover null-error branches",
+        "No NPE possible at login"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/140",
+      "markdown_path": "docs/code-reviews/findings/F-113-authrepository-uses-on-potentially-null-error-variables-npe-.md"
+    },
+    {
+      "id": "F-114",
+      "wave": 3,
+      "title": "MainActivity.onCreate runBlocks on tokenManager.token.first() — startup-blocking",
+      "severity": "high",
+      "area": "performance",
+      "subarea": "threading",
+      "file": "app/src/main/java/com/paperless/scanner/MainActivity.kt",
+      "lines": "L126-L130",
+      "target": "MainActivity.onCreate",
+      "problem": "`runBlocking { tokenManager.token.first() }` blocks the UI thread during Activity creation to decide initial navigation route. The comment claims this avoids race conditions on recreation, but it directly increases Time-to-Interactive and is an Android anti-pattern.",
+      "proposed_fix": "Set the start destination to a Splash/Loading composable. Inside Compose use `LaunchedEffect(Unit) { tokenManager.token.first() }` to load + then navigate. Or move token resolution to `Application.onCreate()` cached into an `AtomicReference<String?>` (see F-006/F-097) so MainActivity reads it without suspending.",
+      "acceptance_criteria": [
+        "No runBlocking in MainActivity.onCreate",
+        "Startup token loaded asynchronously (Splash + LaunchedEffect or Application cache)",
+        "Profiler shows reduced TTI",
+        "No visible jank"
+      ],
+      "effort": "M",
+      "related": [
+        "F-006",
+        "F-097"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/141",
+      "markdown_path": "docs/code-reviews/findings/F-114-mainactivity-oncreate-runblocks-on-tokenmanager-token-first-.md"
+    },
+    {
+      "id": "F-115",
+      "wave": 3,
+      "title": "BillingManager owns custom CoroutineScope without lifecycle cleanup",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "threading",
+      "file": "app/src/main/java/com/paperless/scanner/data/billing/BillingManager.kt",
+      "lines": "scope init",
+      "target": "BillingManager.scope",
+      "problem": "`private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)` lives for the singleton's lifetime with no `cancel()` exposed. Audited similar issues in `ServerHealthMonitor` (`pollingJob`) and `NetworkMonitor`. Long-lived scopes accumulate work + leak when the manager is recreated or the app process is recycled.",
+      "proposed_fix": "Add `fun cancel()` (or override `Closeable.close()`) calling `scope.cancel()`. Tie to the consuming Activity/ViewModel lifecycle via Hilt or expose to `PaperlessApplication.onTerminate`. Long-term: prefer using `@ApplicationScope` injected `CoroutineScope` from a Hilt module so cleanup is centralized.",
+      "acceptance_criteria": [
+        "BillingManager exposes cancel() and is wired to lifecycle",
+        "ServerHealthMonitor + NetworkMonitor reviewed similarly",
+        "Leak canary (or test) confirms no leaked job after teardown"
+      ],
+      "effort": "S",
+      "related": [
+        "F-007"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/142",
+      "markdown_path": "docs/code-reviews/findings/F-115-billingmanager-owns-custom-coroutinescope-without-lifecycle-.md"
+    },
+    {
+      "id": "F-116",
+      "wave": 3,
+      "title": "AiAnalysisIntegrationTest uses 6 relaxed MockK mocks — false integration confidence",
+      "severity": "medium",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/data/ai/AiAnalysisIntegrationTest.kt",
+      "lines": "test setup",
+      "target": "AiAnalysisIntegrationTest",
+      "problem": "Test name says \"Integration\" but the setup creates 6+ `mockk(relaxed = true)` collaborators (Context, tagRepository, documentTypeRepository, suggestionsService, etc.). Relaxed mocks return defaults silently for unspecified interactions; they hide missing behavior and mask integration bugs.",
+      "proposed_fix": "Either rename to `AiAnalysisServiceTest` and accept unit-test mocking, OR replace relaxed mocks with strict mocks + explicit `coEvery { … } returns …`, OR wire real fakes (in-memory repositories). Document intent in the class kdoc.",
+      "acceptance_criteria": [
+        "Test name matches its nature",
+        "Mocks either strict or replaced with fakes / real instances",
+        "Class kdoc explains scope"
+      ],
+      "effort": "S",
+      "related": [
+        "F-110"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/143",
+      "markdown_path": "docs/code-reviews/findings/F-116-aianalysisintegrationtest-uses-6-relaxed-mockk-mocks-false-i.md"
+    },
+    {
+      "id": "F-117",
+      "wave": 3,
+      "title": "Six untracked TODOs in production code",
+      "severity": "low",
+      "area": "architecture",
+      "subarea": "code-smell",
+      "file": "app/src/main/java/com/paperless/scanner/",
+      "lines": "MainActivity.kt, LabelsScreen.kt, StepByStepMetadataScreen.kt, UploadComponents.kt, UploadViewModel.kt",
+      "target": null,
+      "problem": "Six TODOs without GitHub issue references: Get subscriptionStatus from BillingManager, isCreating state on labels VM, tag-creation dialog in step-by-step metadata, DatePicker dialog in UploadComponents, OCR text extraction, premium implementation gate. Without tracking these become invisible tech debt.",
+      "proposed_fix": "Convert each TODO into a GitHub issue (label `tech-debt`); replace the TODO comment with an issue number reference (`// TODO(#NNN): …`). Add a `Known Debt` section in `docs/KNOWN_ISSUES.md` linking each.",
+      "acceptance_criteria": [
+        "All 6 TODOs reference an open GitHub issue number",
+        "docs/KNOWN_ISSUES.md updated",
+        "CI lints fail when TODO without issue ref is added"
+      ],
+      "effort": "XS",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/144",
+      "markdown_path": "docs/code-reviews/findings/F-117-six-untracked-todos-in-production-code.md"
+    },
+    {
+      "id": "F-118",
+      "wave": 3,
+      "title": "ProGuard rules over-keep iText classes — APK size + obfuscation cost",
+      "severity": "low",
+      "area": "tooling",
+      "subarea": "proguard",
+      "file": "app/proguard-rules.pro",
+      "lines": "L46-L61",
+      "target": "iText keep rules",
+      "problem": "`-keep class com.itextpdf.** { *; }` keeps every iText class fully unobfuscated. The companion `-keep abstract class com.itextpdf.** { *; }` is redundant. Net effect: larger DEX, slower R8 pass.",
+      "proposed_fix": "Replace blanket keeps with targeted `-keepclassmembers` rules for the entry points actually invoked from the app (likely PdfDocument, PdfWriter, ImageDataFactory). Run R8 with `-printseeds` / `-printusage` to identify the real surface area. Measure APK size before/after.",
+      "acceptance_criteria": [
+        "iText keep rules narrowed to required entry points",
+        "R8 build succeeds without iText runtime crashes",
+        "APK size delta documented"
+      ],
+      "effort": "XS",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/145",
+      "markdown_path": "docs/code-reviews/findings/F-118-proguard-rules-over-keep-itext-classes-apk-size-obfuscation-.md"
+    },
+    {
+      "id": "F-119",
+      "wave": 3,
+      "title": "ViewModel tests don't use Turbine — Flow/StateFlow assertions implicit",
+      "severity": "medium",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/ui/screens/upload/UploadViewModelTest.kt",
+      "lines": "—",
+      "target": "ViewModel tests in general",
+      "problem": "ViewModel tests rely on `runTest { … advanceUntilIdle() }` then assert the latest `uiState.value`. Intermediate emissions are not captured, so a Flow that emits in the wrong order can still pass.",
+      "proposed_fix": "Add `app.cash.turbine` to test dependencies. Convert StateFlow assertions to `viewModel.uiState.test { assertThat(awaitItem()).isEqualTo(...) }`. Document the pattern in `docs/TECHNICAL.md` test section.",
+      "acceptance_criteria": [
+        "Turbine added as test dependency",
+        "All ViewModel tests use Turbine for Flow assertions",
+        "Intermediate state changes verified",
+        "Pattern documented for new tests"
+      ],
+      "effort": "M",
+      "related": [
+        "F-051",
+        "F-053"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/146",
+      "markdown_path": "docs/code-reviews/findings/F-119-viewmodel-tests-don-t-use-turbine-flow-stateflow-assertions-.md"
+    },
+    {
+      "id": "F-120",
+      "wave": 3,
+      "title": "VERIFY git hooks are actually committed (CLAUDE.md vs. inspection drift)",
+      "severity": "low",
+      "area": "tooling",
+      "subarea": "hooks",
+      "file": ".git/hooks/pre-push, .git/hooks/pre-commit",
+      "lines": "—",
+      "target": null,
+      "problem": "CLAUDE.md (Lokale CI-Checks) describes a pre-push hook that auto-rebases and runs the full release CI, plus a pre-commit hook for syntax checks. A subagent inspecting the repo claimed only the standard sample hooks exist. Either (a) the hooks live under `.git/hooks/` (not in the repo, so each clone re-installs them — risky) or (b) they were lost. Worth confirming + making them install-on-clone.",
+      "proposed_fix": "Move the hook scripts into a versioned `.githooks/` directory at the repo root. Configure `git config core.hooksPath .githooks` in a one-time bootstrap script (run on `./scripts/setup.sh`). Document the install step in README + CLAUDE.md.",
+      "acceptance_criteria": [
+        "Hooks live in `.githooks/` (versioned)",
+        "Bootstrap script switches `core.hooksPath`",
+        "README documents the setup step",
+        "Fresh clone runs hooks after bootstrap"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/147",
+      "markdown_path": "docs/code-reviews/findings/F-120-verify-git-hooks-are-actually-committed-claude-md-vs-inspect.md"
+    }
+  ]
+}

@@ -1,0 +1,1448 @@
+{
+  "review_date": "2026-05-04",
+  "wave": 1,
+  "description": "Wave 1 — Security + Architecture + DocumentRepository God-class + ViewModels",
+  "findings": [
+    {
+      "id": "F-001",
+      "wave": 1,
+      "title": "allowBackup enabled — sensitive data may leak via Android Backup",
+      "severity": "high",
+      "area": "security",
+      "subarea": "manifest",
+      "file": "app/src/main/AndroidManifest.xml",
+      "lines": "L24",
+      "target": null,
+      "problem": "The manifest sets `android:allowBackup=\"true\"` globally. This allows backup/restore of sensitive data (auth tokens, AppLock hash, server URL) via adb/recovery. While EncryptedSharedPreferences provides encryption, the Android backup mechanism can extract data during device-compromise scenarios.",
+      "proposed_fix": "Set `android:allowBackup=\"false\"` in AndroidManifest. If legitimate backup of UI prefs is desired, implement a `BackupAgent` that explicitly excludes sensitive SharedPreferences/DataStore files. See Android Security Guide / Data Storage / Backup.",
+      "acceptance_criteria": [
+        "android:allowBackup is false OR a BackupAgent excludes encrypted/secure storage",
+        "No sensitive files appear in `bmgr backupnow` output for this app",
+        "Existing tests still pass; `validate-ci.sh` green"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/28",
+      "markdown_path": "docs/code-reviews/findings/F-001-allowbackup-enabled-sensitive-data-may-leak-via-android-back.md"
+    },
+    {
+      "id": "F-002",
+      "wave": 1,
+      "title": "AppLock lockout constants hardcoded — not configurable, no audit log",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt",
+      "lines": "L108-L112",
+      "target": "AppLockManager.Companion",
+      "problem": "Security-critical brute-force constants (MAX_FAILED_ATTEMPTS=5, LOCKOUT_DURATION_MILLIS=1_800_000, MAX_TOTAL_ATTEMPTS=15) are hardcoded private constants. They cannot be tuned without recompile, and lockout events are never logged for security audits.",
+      "proposed_fix": "Move constants to TokenManager-backed DataStore prefs with sensible defaults, OR document them explicitly. Emit an INFO-level log (no PII / hash) when a lockout threshold is reached so security audits have a trail.",
+      "acceptance_criteria": [
+        "Constants documented or moved to DataStore with defaults",
+        "Lockout-threshold reached emits an audit log without sensitive data",
+        "Tests still pass"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/29",
+      "markdown_path": "docs/code-reviews/findings/F-002-applock-lockout-constants-hardcoded-not-configurable-no-audi.md"
+    },
+    {
+      "id": "F-003",
+      "wave": 1,
+      "title": "AppLock route reconstruction vulnerable to dual SavedStateHandle desync",
+      "severity": "high",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/ui/navigation/AppLockNavigationInterceptor.kt",
+      "lines": "L27-L67",
+      "target": "AppLockNavigationInterceptor.reconstructRouteWithArgs",
+      "problem": "`reconstructRouteWithArgs` reads URIs from Navigation BackStackEntry SavedStateHandle, but ViewModel SavedStateHandle is the other half of CLAUDE.md's dual-sync pattern. If they desync, route reconstruction loses data on AppLock unlock OR Process Death recovery fails — depending which handle is stale.",
+      "proposed_fix": "Introduce a `SavedStateBridge` helper that writes to both handles atomically on every URI/page change. Add debug-build assertion that detects desync at reconstruction time and logs it. Reference CLAUDE.md \"AppLock & SavedStateHandle Pattern\". Long-term: collapse to a single source of truth (ViewModel SavedStateHandle) and have the interceptor read via a stable accessor.",
+      "acceptance_criteria": [
+        "Atomic dual-write helper used in ScanViewModel + UploadViewModel + DocumentDetailViewModel",
+        "Debug assertion catches desync at AppLock unlock",
+        "Integration test: lock during scan, unlock — pages preserved",
+        "Tests still pass"
+      ],
+      "effort": "M",
+      "related": [
+        "F-045",
+        "F-047",
+        "F-054"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/30",
+      "markdown_path": "docs/code-reviews/findings/F-003-applock-route-reconstruction-vulnerable-to-dual-savedstateha.md"
+    },
+    {
+      "id": "F-004",
+      "wave": 1,
+      "title": "network_security_config permits cleartext HTTP for ALL domains",
+      "severity": "high",
+      "area": "security",
+      "subarea": "network",
+      "file": "app/src/main/res/xml/network_security_config.xml",
+      "lines": "L1-L8",
+      "target": null,
+      "problem": "Base config sets `cleartextTrafficPermitted=\"true\"` globally. The comment mentions self-hosted Paperless without HTTPS, but this allows MITM downgrade for ANY domain. The TokenManager `acceptedHttpHosts` allowlist is only a UI warning — not enforced at the network layer.",
+      "proposed_fix": "Set base `cleartextTrafficPermitted=\"false\"`. Maintain cleartext only via per-`<domain>` overrides for explicitly accepted hosts. Source the allowlist from DataStore at startup and apply via a `NetworkSecurityConfig.Builder`-like mechanism, OR validate in an OkHttp `Interceptor` before connect. Log HTTP usage at WARN (no URLs).",
+      "acceptance_criteria": [
+        "Base cleartext disabled in network_security_config.xml",
+        "Per-host allowlist enforced (manifest overrides or interceptor)",
+        "HTTP requests to non-allowlisted hosts fail closed",
+        "Tests verify both allow + deny paths"
+      ],
+      "effort": "L",
+      "related": [
+        "F-010"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/31",
+      "markdown_path": "docs/code-reviews/findings/F-004-network-security-config-permits-cleartext-http-for-all-domai.md"
+    },
+    {
+      "id": "F-005",
+      "wave": 1,
+      "title": "Biometric unlock has no rate limit; bypasses PIN brute-force lockout",
+      "severity": "high",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt",
+      "lines": "L230-L250",
+      "target": "AppLockManager.unlockWithBiometric",
+      "problem": "`unlockWithBiometric()` resets failed-attempt counters on success without rate limiting, and biometric succeeds during a temporary PIN lockout. An attacker who triggers biometric repeatedly (or on a device with biometric-spoof flaws) can bypass the 30-minute PIN lockout entirely.",
+      "proposed_fix": "(1) Throttle biometric attempts (e.g., one per 5 seconds). (2) On rapid spam, escalate to the same lockout state. (3) Verify BiometricPrompt is configured with `BIOMETRIC_STRONG` and `DEVICE_CREDENTIAL` fallback. (4) Log unlock attempts with timestamp only. Document the trade-off in CLAUDE.md.",
+      "acceptance_criteria": [
+        "Biometric unlock throttled to N per second",
+        "Spam triggers temporary lockout shared with PIN path",
+        "BiometricPrompt configured with STRONG + credential fallback",
+        "Tests verify throttle + escalation"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/32",
+      "markdown_path": "docs/code-reviews/findings/F-005-biometric-unlock-has-no-rate-limit-bypasses-pin-brute-force-.md"
+    },
+    {
+      "id": "F-006",
+      "wave": 1,
+      "title": "TokenManager *Sync() functions runBlocking from OkHttp interceptor — thread starvation risk",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "tokens",
+      "file": "app/src/main/java/com/paperless/scanner/data/datastore/TokenManager.kt",
+      "lines": "L114-L137, L609-L734",
+      "target": "TokenManager.getTokenSync, TokenManager.migrateTokenToSecureStorage",
+      "problem": "`*Sync()` functions wrap async DataStore calls in `runBlocking`. Called from `DynamicBaseUrlInterceptor`, they block OkHttp dispatcher threads. If DataStore IO contends or crypto stalls, the OkHttp thread pool can be starved.",
+      "proposed_fix": "Cache server URL + token at app startup in an in-process volatile holder with synchronous read. Keep `runBlocking` only in true init/migration paths; never in request interceptors. Expose async `Flow<String?>` for UI. Annotate remaining sync APIs with `@WorkerThread`.",
+      "acceptance_criteria": [
+        "Server URL + token cached at startup, accessed without runBlocking from interceptors",
+        "@WorkerThread annotation on remaining sync calls",
+        "Stress test: rapid request bursts don't hang the dispatcher",
+        "Tests still pass"
+      ],
+      "effort": "L",
+      "related": [
+        "F-014"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/33",
+      "markdown_path": "docs/code-reviews/findings/F-006-tokenmanager-sync-functions-runblocking-from-okhttp-intercep.md"
+    },
+    {
+      "id": "F-007",
+      "wave": 1,
+      "title": "BillingManager state machine missing — null-safety + init race risks",
+      "severity": "high",
+      "area": "security",
+      "subarea": "billing",
+      "file": "app/src/main/java/com/paperless/scanner/data/billing/BillingManager.kt",
+      "lines": "L68-L100, L258",
+      "target": "BillingManager.initialize, BillingManager.launchPurchaseFlow",
+      "problem": "`launchPurchaseFlow()` accesses `billingClient?.launchBillingFlow` without verifying init succeeded. `queryProducts/Purchases` only check `isReady`. If init fails silently the app sits in a half-broken state. Commit cc0b331 fixed crashes via activity-state checks but the underlying state machine is still implicit.",
+      "proposed_fix": "Introduce explicit `BillingState` enum (UNINITIALIZED/INITIALIZING/READY/FAILED). `initialize()` retries with backoff or transitions to FAILED. All public methods fail fast if not READY and emit an analytics event. Add unit tests for init failure / race scenarios.",
+      "acceptance_criteria": [
+        "BillingState enum + transitions encapsulated in BillingManager",
+        "launchPurchaseFlow rejects when not READY (no NPE risk)",
+        "Init failure path tested (no leaked listeners, idempotent retry)",
+        "Tests still pass"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/34",
+      "markdown_path": "docs/code-reviews/findings/F-007-billingmanager-state-machine-missing-null-safety-init-race-r.md"
+    },
+    {
+      "id": "F-008",
+      "wave": 1,
+      "title": "AppLock password hash stored without BCrypt format validation",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt",
+      "lines": "L185-L197",
+      "target": "AppLockManager.setupAppLock",
+      "problem": "BCrypt hash is stored without sanity checking that the value persists in `$2a$/$2b$/$2y$` format. If DataStore is corrupted or replaced via backup, `BCrypt.checkpw()` silently returns false and the user is locked out without any indication of corruption vs. wrong password.",
+      "proposed_fix": "Validate BCrypt prefix on write and on read. On format mismatch, log a WARN audit event and force re-setup. Add a migration check at startup. Reference OWASP Password Storage Cheat Sheet.",
+      "acceptance_criteria": [
+        "Format validation present on setup + unlock paths",
+        "Hash corruption detected → user re-setup flow",
+        "Tests verify good / bad hash behavior"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/35",
+      "markdown_path": "docs/code-reviews/findings/F-008-applock-password-hash-stored-without-bcrypt-format-validatio.md"
+    },
+    {
+      "id": "F-009",
+      "wave": 1,
+      "title": "AppLockManager init race with TokenManager migration",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt",
+      "lines": "L124-L168",
+      "target": "AppLockManager.init, AppLockManager.shouldLockSync",
+      "problem": "`shouldLockSync()` calls `tokenManager.hasStoredCredentials()` during init. If TokenManager's plaintext→encrypted migration is still running (or Hilt initialized AppLockManager first), this can return false transiently and AppLock is bypassed even though credentials exist.",
+      "proposed_fix": "Block until `tokenManager.isMigrationCompleted()` returns true before computing `shouldLockSync()`. Add a debug-build `require()` to fail fast on race. Document the dependency in Hilt module ordering / kdoc.",
+      "acceptance_criteria": [
+        "AppLockManager init waits for TokenManager migration completion",
+        "Debug build asserts migration completed when shouldLockSync runs",
+        "Integration test: kill app mid-migration, verify state on relaunch"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/83",
+      "markdown_path": "docs/code-reviews/findings/F-009-applockmanager-init-race-with-tokenmanager-migration.md"
+    },
+    {
+      "id": "F-010",
+      "wave": 1,
+      "title": "No certificate pinning for user-provided Paperless servers (MITM risk)",
+      "severity": "high",
+      "area": "security",
+      "subarea": "network",
+      "file": "app/src/main/res/xml/network_security_config.xml",
+      "lines": "L1-L8",
+      "target": null,
+      "problem": "The app talks to user-provided Paperless servers and trusts system + user CAs. No TLS pinning means a malicious CA / corporate proxy / on-path attacker can intercept tokens and document content over HTTPS.",
+      "proposed_fix": "Add optional Trust-On-First-Use (TOFU) certificate pinning: capture cert SHA-256 on first successful login (showing fingerprint to user), persist in encrypted storage, and configure OkHttp `CertificatePinner`. Detect cert changes on subsequent connections and surface a warning UI requiring explicit re-trust.",
+      "acceptance_criteria": [
+        "TOFU pinning UI on first login (cert fingerprint displayed)",
+        "Pinned hash stored encrypted; OkHttp CertificatePinner enforces it",
+        "Cert change triggers a blocking warning dialog",
+        "Tests verify pinning + change detection"
+      ],
+      "effort": "L",
+      "related": [
+        "F-004"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/84",
+      "markdown_path": "docs/code-reviews/findings/F-010-no-certificate-pinning-for-user-provided-paperless-servers-m.md"
+    },
+    {
+      "id": "F-011",
+      "wave": 1,
+      "title": "SecureTokenStorage swallows exceptions, masking crypto failures",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "keystore",
+      "file": "app/src/main/java/com/paperless/scanner/data/datastore/SecureTokenStorage.kt",
+      "lines": "L64-L90, L145-L171",
+      "target": "SecureTokenStorage.getToken, SecureTokenStorage.saveToken",
+      "problem": "`getToken()` and `saveToken()` catch all exceptions and return null/false silently. Real failures (`AEADBadTagException`, permission denial, library bug) are indistinguishable from \"no token yet\". Recovery (`recoverCorruptedStorage`) deletes keystore + prefs non-atomically — partial failure leaves inconsistent state.",
+      "proposed_fix": "Distinguish exception types: AEAD/corruption → `recoverAndRehydrate()`; PermissionDenied → log security event + propagate; transient → retry with backoff. Make recovery atomic (snapshot + restore on failure). Surface a `Result<T>` to TokenManager so UI can show \"please re-login\".",
+      "acceptance_criteria": [
+        "Exception taxonomy implemented (recoverable vs hard-fail vs retry)",
+        "Recovery is atomic — partial failure is rolled back",
+        "Result<T> bubbles to UI for non-recoverable cases",
+        "Tests cover each taxonomy branch"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/37",
+      "markdown_path": "docs/code-reviews/findings/F-011-securetokenstorage-swallows-exceptions-masking-crypto-failur.md"
+    },
+    {
+      "id": "F-012",
+      "wave": 1,
+      "title": "AppLock state can become inconsistent on logout crash",
+      "severity": "medium",
+      "area": "security",
+      "subarea": "applock",
+      "file": "app/src/main/java/com/paperless/scanner/util/AppLockManager.kt",
+      "lines": "L512-L522",
+      "target": "AppLockManager.handleFailedAttempt",
+      "problem": "When MAX_TOTAL_ATTEMPTS is reached, the code clears credentials + AppLock settings in DataStore but only clears `failedAttempts/lockoutUntil` in-memory. A crash between the two leaves inconsistent state: on next launch, no credentials but `LockedOut(permanent=true)` may be reconstructed from stale flags.",
+      "proposed_fix": "Wrap logout in a single atomic flow that clears DataStore-side state AND in-memory counters in one call. Add an init-time invariant check: if no credentials exist, force Unlocked state and log if a stale LockedOut was found.",
+      "acceptance_criteria": [
+        "Single atomic logout clears all relevant state",
+        "Init-time invariant detects + repairs inconsistency",
+        "Crash-during-logout test passes"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/38",
+      "markdown_path": "docs/code-reviews/findings/F-012-applock-state-can-become-inconsistent-on-logout-crash.md"
+    },
+    {
+      "id": "F-013",
+      "wave": 1,
+      "title": "BillingManager debug logs reveal product IDs/offer tokens in release",
+      "severity": "low",
+      "area": "security",
+      "subarea": "logging",
+      "file": "app/src/main/java/com/paperless/scanner/data/billing/BillingManager.kt",
+      "lines": "L131-L150, L221-L237",
+      "target": "BillingManager.purchasesUpdatedListener, BillingManager.launchPurchaseFlow",
+      "problem": "Extensive `Log.d()` calls log product IDs, offer tokens, response codes. While not strictly secret, in release builds these can be captured via Logcat by other apps with READ_LOGS or via ADB on dev devices.",
+      "proposed_fix": "Gate all `Log.d` behind `BuildConfig.DEBUG` (or use Timber with a release tree that strips DEBUG). Keep ERROR logs always-on but redact tokens. Run `proguard-rules.pro` rule to strip Log.d from release.",
+      "acceptance_criteria": [
+        "Log.d calls compiled out / no-op in release build",
+        "ProGuard rule confirms Log.d stripped (verify with apkanalyzer)",
+        "ERROR logging continues to redact sensitive payloads"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/39",
+      "markdown_path": "docs/code-reviews/findings/F-013-billingmanager-debug-logs-reveal-product-ids-offer-tokens-in.md"
+    },
+    {
+      "id": "F-014",
+      "wave": 1,
+      "title": "Sync TokenManager APIs lack @WorkerThread — IDE can't warn against main-thread misuse",
+      "severity": "low",
+      "area": "security",
+      "subarea": "logging",
+      "file": "app/src/main/java/com/paperless/scanner/data/datastore/TokenManager.kt",
+      "lines": "L609-L734",
+      "target": "TokenManager.*Sync",
+      "problem": "All `*Sync()` blocking helpers lack `@WorkerThread` annotations, so the IDE/lint cannot flag accidental main-thread use, increasing ANR risk for future contributors.",
+      "proposed_fix": "Add `@WorkerThread` from `androidx.annotation` to every blocking API and document blocking semantics in kdoc.",
+      "acceptance_criteria": [
+        "@WorkerThread annotation on all sync APIs",
+        "Lint passes; no main-thread call sites flagged"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-006"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/40",
+      "markdown_path": "docs/code-reviews/findings/F-014-sync-tokenmanager-apis-lack-workerthread-ide-can-t-warn-agai.md"
+    },
+    {
+      "id": "F-015",
+      "wave": 1,
+      "title": "UI ViewModels import PaperlessApi directly — Clean Architecture violation",
+      "severity": "critical",
+      "area": "architecture",
+      "subarea": "layering",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/diagnostics/DiagnosticsViewModel.kt",
+      "lines": "imports section",
+      "target": "DiagnosticsViewModel, SettingsViewModel",
+      "problem": "Diagnostics + Settings ViewModels import `com.paperless.scanner.data.api.PaperlessApi` directly. UI must not depend on Retrofit interfaces — that breaks dependency inversion, prevents swapping implementations, and complicates testing.",
+      "proposed_fix": "Introduce thin domain repositories (e.g. `ServerStatusRepository`, `DiagnosticsRepository`) that wrap the PaperlessApi calls and return `Result<T>`/`Flow<T>`. Inject those into the ViewModels. Remove all `data.api.*` imports from `ui/`.",
+      "acceptance_criteria": [
+        "No data.api.* imports under ui/",
+        "Each removed call is wrapped in a repository method",
+        "Repository methods return Result<T> or Flow<T>",
+        "Tests still pass"
+      ],
+      "effort": "M",
+      "related": [
+        "F-019"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/41",
+      "markdown_path": "docs/code-reviews/findings/F-015-ui-viewmodels-import-paperlessapi-directly-clean-architectur.md"
+    },
+    {
+      "id": "F-016",
+      "wave": 1,
+      "title": "UploadViewModel constructor explosion (16 dependencies) — SRP violation",
+      "severity": "high",
+      "area": "di",
+      "subarea": "hilt",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/UploadViewModel.kt",
+      "lines": "L49-L65",
+      "target": "UploadViewModel.<init>",
+      "problem": "UploadViewModel takes 16 constructor dependencies (Context, SavedStateHandle, 4 entity repositories, queue + worker manager, network + server-health monitors, analytics, suggestion orchestrator, AI usage repo, premium feature manager, token manager, dispatcher). This is a clear God-VM signal.",
+      "proposed_fix": "Extract a `UploadCoordinator`/`PerformUploadUseCase` that owns orchestration (queue + workers + analytics + monitors). Reduce VM to 4–5 dependencies (coordinator, suggestion source, premium gate, dispatchers). Move dispatcher injection behind a `CoroutineDispatchers` bundle.",
+      "acceptance_criteria": [
+        "UploadViewModel constructor ≤ 5 params",
+        "Upload orchestration moved to UseCase/Coordinator class with own tests",
+        "All UploadScreen flows still pass UI tests"
+      ],
+      "effort": "L",
+      "related": [
+        "F-049"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/42",
+      "markdown_path": "docs/code-reviews/findings/F-016-uploadviewmodel-constructor-explosion-16-dependencies-srp-vi.md"
+    },
+    {
+      "id": "F-017",
+      "wave": 1,
+      "title": "Repositories return suspend Result<T> for observable data — should be Flow",
+      "severity": "high",
+      "area": "data",
+      "subarea": "repository",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L441-L920",
+      "target": "DocumentRepository.getDocuments / getDocument / searchDocuments / updateDocument",
+      "problem": "List/detail getters use `suspend fun ... Result<T>` requiring callers to manually re-fetch on changes. CLAUDE.md mandates reactive Flow / Room Flow for observable data.",
+      "proposed_fix": "Convert read paths to `fun observeX(): Flow<...>` backed by Room Flow. Reserve `suspend` for pure-side-effect operations (login, upload). Use `stateIn(scope, SharingStarted.WhileSubscribed(5_000), initial)` to share state across collectors.",
+      "acceptance_criteria": [
+        "Document list + detail expose Flow",
+        "Caching uses Room Flow not manual suspend fetch+update",
+        "ViewModels removed manual refresh hacks",
+        "Tests verify reactive update on DB write"
+      ],
+      "effort": "L",
+      "related": [
+        "F-029",
+        "F-031"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/43",
+      "markdown_path": "docs/code-reviews/findings/F-017-repositories-return-suspend-result-t-for-observable-data-sho.md"
+    },
+    {
+      "id": "F-018",
+      "wave": 1,
+      "title": "AppModule uses @Provides for all bindings — no @Binds for interfaces",
+      "severity": "medium",
+      "area": "di",
+      "subarea": "hilt",
+      "file": "app/src/main/java/com/paperless/scanner/di/AppModule.kt",
+      "lines": "L135-L260",
+      "target": "AppModule.providePaperlessApi, provideOkHttpClient, provideGson",
+      "problem": "All Hilt bindings use `@Provides` returning concrete types (Retrofit `PaperlessApi`, Gson, OkHttpClient). No interface seams → tests must rebuild full HTTP stack to inject fakes.",
+      "proposed_fix": "Extract `PaperlessApiClient` interface (or a domain-shaped façade). Use `@Binds abstract fun bindApi(impl: PaperlessApiImpl): PaperlessApiClient`. Test module overrides binding with fake. Same for OkHttp configuration where helpful.",
+      "acceptance_criteria": [
+        "PaperlessApi hidden behind interface, repositories depend on interface",
+        "Test module successfully swaps in a fake implementation",
+        "No direct concrete-class injection in production repositories"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/44",
+      "markdown_path": "docs/code-reviews/findings/F-018-appmodule-uses-provides-for-all-bindings-no-binds-for-interf.md"
+    },
+    {
+      "id": "F-019",
+      "wave": 1,
+      "title": "Navigation routes use untyped string concatenation — typo-prone",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "navigation",
+      "file": "app/src/main/java/com/paperless/scanner/ui/navigation/Screen.kt",
+      "lines": "L22-L55, L75",
+      "target": "Screen.Scan.createRoute and call sites",
+      "problem": "Routes like `\"scan?pageUris={pageUris}\"` are strings; missing URL encoding silently fails, typos compile. Hardcoded literal strings appear at navigate() call sites.",
+      "proposed_fix": "Adopt typed Navigation 2.8+ with `@Serializable` route data classes, OR centralize route construction via factory functions on each `Screen` and forbid raw string literals at call sites (lint rule).",
+      "acceptance_criteria": [
+        "All navigate() calls use typed/factory routes — no raw strings in screens",
+        "URL encode/decode centralized + tested",
+        "Migration plan documented for any deferred routes"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/45",
+      "markdown_path": "docs/code-reviews/findings/F-019-navigation-routes-use-untyped-string-concatenation-typo-pron.md"
+    },
+    {
+      "id": "F-020",
+      "wave": 1,
+      "title": "Upload endpoint plain-string parsing fragile — no defensive helper / test",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "api",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/PaperlessApi.kt",
+      "lines": "L248-L280",
+      "target": "PaperlessApi.uploadDocument, uploadMultiPageDocument",
+      "problem": "Paperless-ngx returns the upload task UUID as a plain string (with optional surrounding quotes). Current parsing relies on `response.string().trim().removeSurrounding(\"\\\"\")` inline at call sites. No dedicated parser, no test pinning the format.",
+      "proposed_fix": "Add `fun parseUploadTaskId(body: ResponseBody): Result<String>` with explicit nullability + format checks. Add unit test pinned against a captured raw response. Reference CLAUDE.md API quirks section.",
+      "acceptance_criteria": [
+        "Dedicated parser used at all upload call sites",
+        "Test fixture for the known plain-string response format",
+        "Malformed body returns Failure with diagnostic message"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/46",
+      "markdown_path": "docs/code-reviews/findings/F-020-upload-endpoint-plain-string-parsing-fragile-no-defensive-he.md"
+    },
+    {
+      "id": "F-021",
+      "wave": 1,
+      "title": "ViewModel resolves user-facing strings via injected Context — UI concern leaked into VM",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "layering",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/UploadViewModel.kt",
+      "lines": "scattered (context.getString call sites)",
+      "target": "UploadViewModel",
+      "problem": "ViewModels inject `@ApplicationContext` and call `context.getString(R.string.X)` to produce error strings. CLAUDE.md mandates: error codes from data layer, string resolution in UI layer (`stringResource`).",
+      "proposed_fix": "Replace VM error states with sealed `UploadError` types carrying string-resource IDs. Composables resolve via `stringResource(error.messageRes)`. Reserve VM-side Context only for non-localized work (file URIs, settings).",
+      "acceptance_criteria": [
+        "No context.getString in VM error paths",
+        "UploadError sealed type carries @StringRes ids",
+        "Compose layer resolves all user-facing strings"
+      ],
+      "effort": "M",
+      "related": [
+        "F-029"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/47",
+      "markdown_path": "docs/code-reviews/findings/F-021-viewmodel-resolves-user-facing-strings-via-injected-context-.md"
+    },
+    {
+      "id": "F-022",
+      "wave": 1,
+      "title": "AuthRepository builds raw OkHttp requests — bypasses Retrofit layer",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "api",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/AuthRepository.kt",
+      "lines": "L65-L80, L300+",
+      "target": "AuthRepository.<init>, AuthRepository.detectServerProtocol",
+      "problem": "AuthRepository injects OkHttpClient directly to do dynamic protocol detection (raw `okhttp3.Request`). This creates a parallel HTTP layer with its own timeout/retry, inconsistent with the Retrofit-based API surface.",
+      "proposed_fix": "Extract a `ProtocolDetector` service that owns the raw HTTP probe with explicit short timeout. AuthRepository becomes a façade: detection → server URL set → Retrofit calls. Centralize timeout configuration.",
+      "acceptance_criteria": [
+        "ProtocolDetector class with single responsibility",
+        "AuthRepository no longer references OkHttpClient directly",
+        "Probe timeouts documented + tested"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/48",
+      "markdown_path": "docs/code-reviews/findings/F-022-authrepository-builds-raw-okhttp-requests-bypasses-retrofit-.md"
+    },
+    {
+      "id": "F-023",
+      "wave": 1,
+      "title": "Dual SavedStateHandle sync pattern lacks compile-time safety",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "domain",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanScreen.kt",
+      "lines": "manual sync sites in ScanScreen, BatchImportScreen, MultiPageUploadScreen",
+      "target": "ScanScreen, BatchImportScreen, MultiPageUploadScreen",
+      "problem": "CLAUDE.md documents two SavedStateHandles (ViewModel + Navigation BackStackEntry) that must be kept manually in sync via `LaunchedEffect`. Any forgotten sync silently breaks AppLock OR Process Death recovery.",
+      "proposed_fix": "Centralize behind a `rememberDualSavedState(viewModel, backStackEntry, key)` helper that asserts both writes happen atomically. Long-term consider a single source of truth + a stable accessor used by AppLockNavigationInterceptor.",
+      "acceptance_criteria": [
+        "rememberDualSavedState helper + tests",
+        "All screens migrated to helper, no raw LaunchedEffect copies",
+        "Process death + AppLock paths tested per screen"
+      ],
+      "effort": "L",
+      "related": [
+        "F-003",
+        "F-045",
+        "F-047",
+        "F-054"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/49",
+      "markdown_path": "docs/code-reviews/findings/F-023-dual-savedstatehandle-sync-pattern-lacks-compile-time-safety.md"
+    },
+    {
+      "id": "F-024",
+      "wave": 1,
+      "title": "Repositories lack stateIn / shareIn — re-collection re-queries DB",
+      "severity": "low",
+      "area": "data",
+      "subarea": "repository",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/TagRepository.kt",
+      "lines": "varies",
+      "target": "TagRepository, CorrespondentRepository, DocumentTypeRepository, etc.",
+      "problem": "Suspend `getAll()` getters re-execute on every call. Even where a Flow exists, no `stateIn`/`shareIn` means each collector pays the DB round-trip on recomposition.",
+      "proposed_fix": "Convert to `fun observeAll(): StateFlow<List<T>>` shared with `stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())`. Document the sharing strategy.",
+      "acceptance_criteria": [
+        "Hot-cached entity flows use stateIn or shareIn",
+        "Recomposition no longer triggers redundant DB queries",
+        "Tests verify cached emission to late subscribers"
+      ],
+      "effort": "M",
+      "related": [
+        "F-017"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/50",
+      "markdown_path": "docs/code-reviews/findings/F-024-repositories-lack-statein-sharein-re-collection-re-queries-d.md"
+    },
+    {
+      "id": "F-025",
+      "wave": 1,
+      "title": "DocumentRepository is a 1349-line God-class with 40+ mixed responsibilities",
+      "severity": "critical",
+      "area": "refactor",
+      "subarea": "god-class",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L57-L1405",
+      "target": "DocumentRepository",
+      "problem": "Single class spans PDF creation, image compression, document CRUD, paging, search, trash, permissions, notes, history, user/group management, tag operations and pending-change tracking. SRP and testability are wrecked.",
+      "proposed_fix": "Decompose per the Decomposition Plan in `docs/code-reviews/REFACTOR_DOCUMENT_REPOSITORY.md`: 8 specialized repositories + 3 service classes (ImageProcessor, PdfGenerator, DocumentSerializer). Use 5-phase migration with façade for backward compat.",
+      "acceptance_criteria": [
+        "DocumentRepository becomes a delegating façade",
+        "Each new repo ≤ 250 LOC, single responsibility",
+        "Existing callers compile unchanged via façade",
+        "Each new repo has dedicated tests",
+        "Phased migration documented + executed"
+      ],
+      "effort": "XL",
+      "related": [
+        "F-026",
+        "F-027",
+        "F-028",
+        "F-029",
+        "F-030",
+        "F-031",
+        "F-032",
+        "F-033",
+        "F-034",
+        "F-035",
+        "F-036",
+        "F-037",
+        "F-038",
+        "F-039",
+        "F-040",
+        "F-041"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/51",
+      "markdown_path": "docs/code-reviews/findings/F-025-documentrepository-is-a-1349-line-god-class-with-40-mixed-re.md"
+    },
+    {
+      "id": "F-026",
+      "wave": 1,
+      "title": "Upload pipeline couples PDF creation, compression, IO, API in single 80-line method",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "srp",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L73-L249, L251-L395",
+      "target": "DocumentRepository.uploadDocument, uploadMultiPageDocument, createPdfFromImages, getImageBytesFromUri",
+      "problem": "Upload functions mix multipart form construction, iText PDF creation, bitmap sampling/compression, file IO, error mapping. Each block could change independently but is fused.",
+      "proposed_fix": "Extract `ImageProcessorService` (sampling + compression + URI→bytes), `PdfGeneratorService` (iText), and a thin `DocumentUploadRepository` that orchestrates them. Each service ≤ 100 LOC.",
+      "acceptance_criteria": [
+        "ImageProcessorService + PdfGeneratorService extracted with own tests",
+        "DocumentUploadRepository orchestrates and maps results to Result<T>",
+        "Existing upload flow tests still green"
+      ],
+      "effort": "L",
+      "related": [
+        "F-025"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/52",
+      "markdown_path": "docs/code-reviews/findings/F-026-upload-pipeline-couples-pdf-creation-compression-io-api-in-s.md"
+    },
+    {
+      "id": "F-027",
+      "wave": 1,
+      "title": "Query/paging/filter logic inlined and duplicated across 5 functions",
+      "severity": "high",
+      "area": "data",
+      "subarea": "srp",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L395-L606",
+      "target": "DocumentRepository.observeDocuments, getDocumentsPaged, getDocuments, searchDocuments, observeCountWithFilter",
+      "problem": "Five list/count functions duplicate paging math + filter joining + cache fallback inline. `DocumentFilterQueryBuilder` is invoked per-call with manual tag-string building (L523).",
+      "proposed_fix": "Create `DocumentListRepository` with unified `observeDocuments(filter, page, pageSize): Flow<PagingData<Document>>`. Move tag filtering into a `TagFilterStrategy`. Push raw query building into the DAO layer.",
+      "acceptance_criteria": [
+        "Five functions consolidated behind a DocumentListRepository façade",
+        "No raw tag-string concatenation in repository",
+        "Paging size parameter is documented + injectable"
+      ],
+      "effort": "M",
+      "related": [
+        "F-025"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/53",
+      "markdown_path": "docs/code-reviews/findings/F-027-query-paging-filter-logic-inlined-and-duplicated-across-5-fu.md"
+    },
+    {
+      "id": "F-028",
+      "wave": 1,
+      "title": "Trash/restore/permanent-delete duplicated across single + bulk variants",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "srp",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L1042-L1405",
+      "target": "DocumentRepository.observeTrashDocuments, observeTrashCount, getTrashDocuments, restoreDocument, restoreDocuments, permanentlyDeleteDocument, permanentlyDeleteDocuments",
+      "problem": "Single + bulk variants for restore (57 + 60 LOC) and permanent delete (58 + 60 LOC) duplicate state-clearing and sync logic. Trash domain doesn't belong in DocumentRepository.",
+      "proposed_fix": "Extract `TrashRepository` exposing observe + restore (single+bulk) + permanently-delete (single+bulk) + retention helpers. Deduplicate state mutation via private `ensureDeletionStateCleared()` and `syncDeletedIdsWithServer()`.",
+      "acceptance_criteria": [
+        "TrashRepository encapsulates all trash flows",
+        "No duplicate sync/state-clearing logic between single + bulk paths",
+        "Retention window parameterized + tested"
+      ],
+      "effort": "M",
+      "related": [
+        "F-025"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/54",
+      "markdown_path": "docs/code-reviews/findings/F-028-trash-restore-permanent-delete-duplicated-across-single-bulk.md"
+    },
+    {
+      "id": "F-029",
+      "wave": 1,
+      "title": "Repository resolves user-facing error strings via Context.getString",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "error-handling",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L136-L144, L222-L244, L353, L374",
+      "target": "DocumentRepository.uploadDocument, uploadMultiPageDocument",
+      "problem": "Repository calls `context.getString(R.string.error_*)` directly. This couples data layer to Android resources, violates Clean Architecture, and breaks unit testability without Robolectric.",
+      "proposed_fix": "Refactor `PaperlessException` to carry typed error codes only. Move string resolution to ViewModel/UI. Inject `@StringRes` IDs via the exception or sealed error type.",
+      "acceptance_criteria": [
+        "No context.getString call in DocumentRepository",
+        "UI layer maps exceptions to localized strings",
+        "Repository unit tests no longer require Context"
+      ],
+      "effort": "M",
+      "related": [
+        "F-021"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/55",
+      "markdown_path": "docs/code-reviews/findings/F-029-repository-resolves-user-facing-error-strings-via-context-ge.md"
+    },
+    {
+      "id": "F-030",
+      "wave": 1,
+      "title": "Permissions/users/groups (~75 LOC) belong in their own access-control repository",
+      "severity": "medium",
+      "area": "refactor",
+      "subarea": "srp",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L968-L1040",
+      "target": "DocumentRepository.getUsers, getGroups, updateDocumentPermissions",
+      "problem": "User/group/permission methods are bundled into DocumentRepository for convenience but represent a different domain — access control. They are pure API pass-throughs without document logic.",
+      "proposed_fix": "Extract `PermissionRepository` with these three methods. Document mutations import it for permission resolution; dependency direction Document→Permission only.",
+      "acceptance_criteria": [
+        "PermissionRepository owns user/group/permission methods",
+        "DocumentMetadataRepository depends on PermissionRepository, not vice versa",
+        "Tests for both repositories independent"
+      ],
+      "effort": "S",
+      "related": [
+        "F-025"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/56",
+      "markdown_path": "docs/code-reviews/findings/F-030-permissions-users-groups-75-loc-belong-in-their-own-access-c.md"
+    },
+    {
+      "id": "F-031",
+      "wave": 1,
+      "title": "Audit/notes endpoints are thin API wrappers — extract to AuditRepository",
+      "severity": "medium",
+      "area": "refactor",
+      "subarea": "srp",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L920-L967",
+      "target": "DocumentRepository.getDocumentHistory, addNote, deleteNote",
+      "problem": "History + note functions have no caching/sync logic — just API call + map. Logically belong with audit/annotation operations, not document CRUD.",
+      "proposed_fix": "Move into `AuditRepository`. Keep contract Result<T> + suspend (no offline behavior since audit is server-only).",
+      "acceptance_criteria": [
+        "AuditRepository contains history + notes",
+        "DocumentRepository façade delegates",
+        "Tests for AuditRepository independent"
+      ],
+      "effort": "S",
+      "related": [
+        "F-025"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/57",
+      "markdown_path": "docs/code-reviews/findings/F-031-audit-notes-endpoints-are-thin-api-wrappers-extract-to-audit.md"
+    },
+    {
+      "id": "F-032",
+      "wave": 1,
+      "title": "Online/offline branching mixed into CRUD methods — sync coupling",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L800-L877",
+      "target": "DocumentRepository.updateDocument",
+      "problem": "`updateDocument()` checks `serverHealthMonitor.isServerReachable.value`, branches into either API call or pending-change insertion with manual JSON. Same pattern repeats for delete/restore. CRUD intent mixed with sync state machine.",
+      "proposed_fix": "Extract `DocumentSyncRepository.executeOrQueue(operation, entityId, payload)`. CRUD methods delegate to it. Centralize PendingChange serialization (use Gson, see F-033) + queue management.",
+      "acceptance_criteria": [
+        "CRUD methods stop touching ServerHealthMonitor directly",
+        "DocumentSyncRepository owns branching + queue",
+        "Offline mutation returns optimistic cached result",
+        "Sync-on-reconnect flushes queue"
+      ],
+      "effort": "M",
+      "related": [
+        "F-025",
+        "F-033"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/58",
+      "markdown_path": "docs/code-reviews/findings/F-032-online-offline-branching-mixed-into-crud-methods-sync-coupli.md"
+    },
+    {
+      "id": "F-033",
+      "wave": 1,
+      "title": "Pending-change JSON built via manual buildString — fragile, untyped",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L825-L845",
+      "target": "DocumentRepository.updateDocument",
+      "problem": "Manual JSON construction with `buildString { append(\"{...}\") }` and trailing-comma trimming is error-prone. No type safety; sync-time deserialization can silently drop fields.",
+      "proposed_fix": "Define typed `PendingChangeRequest` data class mirroring `UpdateDocumentRequest`. Use injected Gson for serialize/deserialize. Reuse model types between live request + queued change.",
+      "acceptance_criteria": [
+        "Manual JSON construction removed",
+        "PendingChangeRequest typed and shared with API request type",
+        "Round-trip test asserts no field loss"
+      ],
+      "effort": "S",
+      "related": [
+        "F-032"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/59",
+      "markdown_path": "docs/code-reviews/findings/F-033-pending-change-json-built-via-manual-buildstring-fragile-unt.md"
+    },
+    {
+      "id": "F-034",
+      "wave": 1,
+      "title": "Crashlytics breadcrumbs scattered across upload paths with hardcoded strings",
+      "severity": "low",
+      "area": "architecture",
+      "subarea": "error-handling",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L76, L130, L157, L214-L240",
+      "target": "DocumentRepository.uploadDocument, uploadMultiPageDocument",
+      "problem": "Breadcrumb labels (\"UPLOAD_START\", \"UPLOAD_SUCCESS\", \"UPLOAD_ERROR\") are hardcoded inline at multiple call sites. Refactoring upload code drifts breadcrumbs out of sync.",
+      "proposed_fix": "Introduce `UploadMetricsTracker` with named methods (`logStart(pageCount)`, `logSuccess(taskId)`, `logError(errorType)`). Inject Crashlytics helper. Single source of truth for breadcrumb labels.",
+      "acceptance_criteria": [
+        "UploadMetricsTracker centralizes breadcrumb logging",
+        "No hardcoded breadcrumb strings in DocumentRepository",
+        "Tests verify tracker calls via mock"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/60",
+      "markdown_path": "docs/code-reviews/findings/F-034-crashlytics-breadcrumbs-scattered-across-upload-paths-with-h.md"
+    },
+    {
+      "id": "F-035",
+      "wave": 1,
+      "title": "Custom-field + tag JSON serialization scattered with TypeToken duplication",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L112-L118, L195-L201, L879-L893",
+      "target": "DocumentRepository.uploadDocument, uploadMultiPageDocument, getOldTagIds",
+      "problem": "Gson serialization for custom fields and tag lists is duplicated in upload paths. `TypeToken<List<Int>>()` appears once but the pattern is fragile and reused inconsistently.",
+      "proposed_fix": "Create `DocumentSerializer` with `serializeCustomFields/serializeTagList/deserializeTagList` etc. Centralize Gson dependency.",
+      "acceptance_criteria": [
+        "DocumentSerializer encapsulates custom field + tag serialization",
+        "No TypeToken instantiation in repository code",
+        "Reused across upload, update, sync paths"
+      ],
+      "effort": "S",
+      "related": [
+        "F-026"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/61",
+      "markdown_path": "docs/code-reviews/findings/F-035-custom-field-tag-json-serialization-scattered-with-typetoken.md"
+    },
+    {
+      "id": "F-036",
+      "wave": 1,
+      "title": "Five count functions with divergent strategies — no unified count API",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L414-L463, L620-L645, L667-L672, L1053-L1062",
+      "target": "DocumentRepository.observeCountWithFilter, observeUntaggedDocumentsCount, getDocumentCount, getUntaggedCount, observeTrashCount",
+      "problem": "Five count functions each take different inputs, sometimes call DAO, sometimes raw query builder, sometimes accept `forceRefresh`. Caching strategy differs per function.",
+      "proposed_fix": "Create `DocumentCountRepository` exposing a single `observeCount(filter, searchQuery, forceRefresh): Flow<Int>` with thin wrappers for trash/untagged. Push query construction down to DAO.",
+      "acceptance_criteria": [
+        "DocumentCountRepository owns all counts",
+        "Single primary method + thin wrappers",
+        "Cache strategy uniform across counts"
+      ],
+      "effort": "S",
+      "related": [
+        "F-025",
+        "F-027"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/62",
+      "markdown_path": "docs/code-reviews/findings/F-036-five-count-functions-with-divergent-strategies-no-unified-co.md"
+    },
+    {
+      "id": "F-037",
+      "wave": 1,
+      "title": "Suspend scope ownership unclear — long upload jobs cancel with VM",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "threading",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L73, L153, L441, L488 (and many more)",
+      "target": "DocumentRepository (all suspend functions)",
+      "problem": "Suspend functions inherit caller scope. Upload from `viewModelScope` cancels when the user navigates away. Long-running operations (multi-page upload, batch restore) silently abort with no resume strategy.",
+      "proposed_fix": "Document scope ownership per public method (kdoc). For long-running mutations move to a WorkManager job or `applicationScope`. Persist intent before suspending so reconnect can resume.",
+      "acceptance_criteria": [
+        "Scope ownership documented per method",
+        "Long uploads survive screen navigation (Worker or applicationScope)",
+        "Pending changes flushed on reconnect even after VM cancellation",
+        "Tests verify cancellation behavior"
+      ],
+      "effort": "M",
+      "related": [
+        "F-032"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/63",
+      "markdown_path": "docs/code-reviews/findings/F-037-suspend-scope-ownership-unclear-long-upload-jobs-cancel-with.md"
+    },
+    {
+      "id": "F-038",
+      "wave": 1,
+      "title": "No retry/backoff on API calls — transient errors fail immediately",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "error-handling",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L118-L127, L202-L211, L675-L710, L800-L877, L920-L933",
+      "target": "DocumentRepository.uploadDocument, uploadMultiPageDocument, downloadDocument, updateDocument, getDocumentHistory",
+      "problem": "API calls use plain try/catch with no exponential backoff or retry policy. Transient 5xx + timeout errors fail immediately. Large multi-page uploads have no resume support.",
+      "proposed_fix": "Introduce `RetryPolicy` (max 3 retries, exponential backoff with jitter, retry only idempotent ops + 429/5xx). Wrap API calls via a helper `apiWithRetry { ... }`. For uploads consider partial-PDF resume.",
+      "acceptance_criteria": [
+        "RetryPolicy used for idempotent operations",
+        "Non-idempotent ops not retried (avoid duplicate uploads)",
+        "Tests simulate transient failures + verify retry count"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/64",
+      "markdown_path": "docs/code-reviews/findings/F-038-no-retry-backoff-on-api-calls-transient-errors-fail-immediat.md"
+    },
+    {
+      "id": "F-039",
+      "wave": 1,
+      "title": "Tag-count sync not transactional — stale tag counts on partial failure",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L837-L842, L898-L918",
+      "target": "DocumentRepository.updateTagDocumentCounts, getOldTagIds",
+      "problem": "`updateTagDocumentCounts()` mutates tag counts without a Room transaction wrapping the document update. Partial DAO failure leaves counts diverged. `getOldTagIds()` returns `emptyList()` on JSON parse failure, silently losing history.",
+      "proposed_fix": "Wrap document + tag-count mutations in a single `@Transaction` Room method. Log + propagate JSON parse failures rather than swallowing them. Optionally extract `TagSyncService` for clarity.",
+      "acceptance_criteria": [
+        "Document + tag-count update happens in single Room transaction",
+        "JSON parse failures logged + surfaced (no silent emptyList)",
+        "Test verifies atomic rollback on tag DAO failure"
+      ],
+      "effort": "S",
+      "related": [
+        "F-033",
+        "F-035"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/65",
+      "markdown_path": "docs/code-reviews/findings/F-039-tag-count-sync-not-transactional-stale-tag-counts-on-partial.md"
+    },
+    {
+      "id": "F-040",
+      "wave": 1,
+      "title": "Class- and method-level kdoc absent for cache/offline-first semantics",
+      "severity": "low",
+      "area": "architecture",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/data/repository/DocumentRepository.kt",
+      "lines": "L57-L1405 (class header + key methods)",
+      "target": "DocumentRepository, observeDocuments, getDocuments, updateDocument",
+      "problem": "Kdoc references \"offline-first\" and \"BEST PRACTICE\" but never explains cache TTL, invalidation triggers, soft-delete inclusion semantics, or pending-change interaction.",
+      "proposed_fix": "Add class-level kdoc covering: cache hierarchy, TTL/refresh policy, soft-delete query rules, pending-change behavior. Per public method: when does it refresh from server? Is cached data filtered for soft deletes?",
+      "acceptance_criteria": [
+        "Class kdoc explains cache hierarchy + TTL",
+        "Each Flow function documents refresh + soft-delete rules",
+        "Pending change behavior documented at method level"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-025",
+        "F-032"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/66",
+      "markdown_path": "docs/code-reviews/findings/F-040-class-and-method-level-kdoc-absent-for-cache-offline-first-s.md"
+    },
+    {
+      "id": "F-041",
+      "wave": 1,
+      "title": "Decomposition plan reference (refactor roadmap)",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-class",
+      "file": "docs/code-reviews/REFACTOR_DOCUMENT_REPOSITORY.md",
+      "lines": "—",
+      "target": "DocumentRepository decomposition",
+      "problem": "DocumentRepository must be split into 8 specialized repositories + 3 services. Without a phased plan, decomposition risks introducing regressions and breaking façade contracts.",
+      "proposed_fix": "Follow the 5-phase migration documented in `docs/code-reviews/REFACTOR_DOCUMENT_REPOSITORY.md` (services → reactive repos → specialized repos → permission repo → façade + caller migration). Total ~13 dev-days; sprintable.",
+      "acceptance_criteria": [
+        "Phase 1 (services) merged + green",
+        "Phase 2 (reactive repos) merged + green",
+        "Phase 3 (specialized repos) merged + green",
+        "Phase 4 (permission repo) merged + green",
+        "Phase 5 (façade + caller migration) merged + green"
+      ],
+      "effort": "XL",
+      "related": [
+        "F-025",
+        "F-026",
+        "F-027",
+        "F-028",
+        "F-030",
+        "F-031",
+        "F-032",
+        "F-036"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/67",
+      "markdown_path": "docs/code-reviews/findings/F-041-decomposition-plan-reference-refactor-roadmap.md"
+    },
+    {
+      "id": "F-042",
+      "wave": 1,
+      "title": "HomeViewModel.tagMap is mutable shared state without thread safety",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeViewModel.kt",
+      "lines": "L255-L258",
+      "target": "HomeViewModel.observeTagsReactively",
+      "problem": "`tagMap = tags.associateBy { it.id }` writes to a shared mutable var read by multiple reactive flows. No synchronization — concurrent collectors can read partial maps, causing null tag refs.",
+      "proposed_fix": "Convert to `private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())`. Replace direct assignment with `.update {}`. Consumers collect from the StateFlow; combine where needed.",
+      "acceptance_criteria": [
+        "tagMap is a private StateFlow",
+        "All updates use .update { } block syntax",
+        "Consumers collect via Flow not direct field access",
+        "Test verifies concurrent updates do not lose entries"
+      ],
+      "effort": "S",
+      "related": [
+        "F-051"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/68",
+      "markdown_path": "docs/code-reviews/findings/F-042-homeviewmodel-tagmap-is-mutable-shared-state-without-thread-.md"
+    },
+    {
+      "id": "F-043",
+      "wave": 1,
+      "title": "HomeViewModel: 17+ viewModelScope.launch with inconsistent error handling",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "reactive",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeViewModel.kt",
+      "lines": "L255-L1264",
+      "target": "HomeViewModel.observeTagsReactively, observeRecentDocumentsReactively, observeProcessingTasksReactively, etc.",
+      "problem": "~15 separate launch{collect{}} blocks each handle errors differently — log/swallow/null-update. One repository throwing = silent failure or inconsistent UI state.",
+      "proposed_fix": "Wrap repo flows with a shared helper that maps to `Result<T>` (e.g. `Flow<T>.asUiResult()`). Centralize error UI state into a single `_errorState: StateFlow<HomeError?>`. Standardize onError handling.",
+      "acceptance_criteria": [
+        "All observe* flows funnel into a shared Result<T> helper",
+        "Single error StateFlow owns user-visible errors",
+        "Tests verify error propagation + recovery"
+      ],
+      "effort": "L",
+      "related": [
+        "F-044",
+        "F-048"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/85",
+      "markdown_path": "docs/code-reviews/findings/F-043-homeviewmodel-17-viewmodelscope-launch-with-inconsistent-err.md"
+    },
+    {
+      "id": "F-044",
+      "wave": 1,
+      "title": "ScanViewModel uses imperative .toMutableList() outside StateFlow.update",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanViewModel.kt",
+      "lines": "L544-L577",
+      "target": "ScanViewModel.undoRemovePage, ScanViewModel.movePage",
+      "problem": "Page mutations create intermediate `MutableList` outside the StateFlow update block, then sync to SavedStateHandle separately. Forgetting the sync silently loses pages on Process Death/AppLock.",
+      "proposed_fix": "Move all mutations inside `_uiState.update { state -> state.copy(pages = ...) }`. Consolidate SavedStateHandle sync into a helper invoked from a single update path.",
+      "acceptance_criteria": [
+        "No .toMutableList outside .update {}",
+        "Single helper updates state + syncs SavedStateHandle atomically",
+        "Tests verify atomic mutation"
+      ],
+      "effort": "M",
+      "related": [
+        "F-045"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/69",
+      "markdown_path": "docs/code-reviews/findings/F-044-scanviewmodel-uses-imperative-tomutablelist-outside-stateflo.md"
+    },
+    {
+      "id": "F-045",
+      "wave": 1,
+      "title": "ScanViewModel does not sync pages to Navigation BackStackEntry SavedStateHandle",
+      "severity": "critical",
+      "area": "architecture",
+      "subarea": "saved-state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanViewModel.kt",
+      "lines": "L128-L168, L349-L385",
+      "target": "ScanViewModel.pageUrisStateFlow, syncPagesToSavedState",
+      "problem": "Pages are written only to ViewModel SavedStateHandle. Per CLAUDE.md AppLock & SavedStateHandle Pattern, the Navigation BackStackEntry SavedStateHandle must also be updated, otherwise AppLock route reconstruction loses pages.",
+      "proposed_fix": "Centralize via `updatePagesAndSync(pages)` that updates `_uiState`, ViewModel SavedStateHandle, AND Navigation BackStackEntry SavedStateHandle (passed in via screen LaunchedEffect). Provide a `rememberDualSavedState` Compose helper.",
+      "acceptance_criteria": [
+        "Both SavedStateHandles updated on every page mutation",
+        "AppLock unlock test: scan, lock, unlock — pages restored",
+        "Process Death test: same pages survive",
+        "Tests pass"
+      ],
+      "effort": "M",
+      "related": [
+        "F-003",
+        "F-023",
+        "F-044"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/86",
+      "markdown_path": "docs/code-reviews/findings/F-045-scanviewmodel-does-not-sync-pages-to-navigation-backstackent.md"
+    },
+    {
+      "id": "F-046",
+      "wave": 1,
+      "title": "UploadViewModel race: setDocumentUris vs reactive documentUrisStateFlow",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "reactive",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/UploadViewModel.kt",
+      "lines": "L75-L98, L104-L110",
+      "target": "UploadViewModel.setDocumentUris, documentUrisStateFlow",
+      "problem": "Screen calls `setDocumentUris()` after VM creation, but reactive `documentUrisStateFlow` reads from SavedStateHandle. Order of operations means flow may emit empty list before manual set, racing dependent flows.",
+      "proposed_fix": "Pass URIs into VM via assisted-injection / Hilt @AssistedFactory or read from BackStackEntry args inside the VM at init. Remove `setDocumentUris`. Alternatively expose a single source of truth `MutableStateFlow` written atomically with the SavedStateHandle.",
+      "acceptance_criteria": [
+        "URIs set during VM construction (no post-init mutator)",
+        "No race between manual set and reactive read",
+        "Tests verify URI availability before any dependent flow emits"
+      ],
+      "effort": "M",
+      "related": [
+        "F-045",
+        "F-047"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/70",
+      "markdown_path": "docs/code-reviews/findings/F-046-uploadviewmodel-race-setdocumenturis-vs-reactive-documenturi.md"
+    },
+    {
+      "id": "F-047",
+      "wave": 1,
+      "title": "UploadViewModel does not sync document URIs to Navigation BackStackEntry SavedStateHandle",
+      "severity": "critical",
+      "area": "architecture",
+      "subarea": "saved-state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/UploadViewModel.kt",
+      "lines": "L75-L98",
+      "target": "UploadViewModel.documentUrisStateFlow",
+      "problem": "Same pattern as F-045: VM writes to ViewModel SavedStateHandle only; Navigation BackStackEntry is untouched. AppLock unlock loses URIs.",
+      "proposed_fix": "Use the `rememberDualSavedState` helper (F-023). Sync both handles on every URI change.",
+      "acceptance_criteria": [
+        "Dual SavedStateHandle updated on every URI mutation",
+        "AppLock + Process Death tests cover URI persistence",
+        "Tests pass"
+      ],
+      "effort": "M",
+      "related": [
+        "F-003",
+        "F-023",
+        "F-045",
+        "F-054"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/71",
+      "markdown_path": "docs/code-reviews/findings/F-047-uploadviewmodel-does-not-sync-document-uris-to-navigation-ba.md"
+    },
+    {
+      "id": "F-048",
+      "wave": 1,
+      "title": "HomeViewModel is a 1328-line God-VM with 11+ reactive flows",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-vm",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeViewModel.kt",
+      "lines": "L148-L1328",
+      "target": "HomeViewModel",
+      "problem": "Single VM owns: stats, recent docs, processing tasks, untagged + deleted counts, trash retention, pending changes, active uploads, failed syncs, tag creation, suggestions, AI, network/health monitors. 1328 LOC; mocking requires 15+ deps.",
+      "proposed_fix": "Split into composable sub-VMs (DocumentStatsViewModel, ProcessingTasksViewModel, TagManagementViewModel, ServerHealthViewModel) and have HomeViewModel become a thin coordinator. Or use `composable<Route>` + scoped sub-VMs per section.",
+      "acceptance_criteria": [
+        "HomeViewModel ≤ 600 LOC",
+        "Each sub-VM ≤ 300 LOC and unit-testable in isolation",
+        "All HomeScreen sections still functional"
+      ],
+      "effort": "XL",
+      "related": [
+        "F-043"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/72",
+      "markdown_path": "docs/code-reviews/findings/F-048-homeviewmodel-is-a-1328-line-god-vm-with-11-reactive-flows.md"
+    },
+    {
+      "id": "F-049",
+      "wave": 1,
+      "title": "DocumentDetailViewModel uses local mutable lists in async coroutines",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentDetailViewModel.kt",
+      "lines": "L522-L523",
+      "target": "DocumentDetailViewModel.loadAvailableUsers",
+      "problem": "Two `mutableListOf()` populated asynchronously, then assigned to state. Concurrent calls can interleave + duplicate entries. No thread safety.",
+      "proposed_fix": "Combine fetches in a single suspend function returning `Pair<List<UserInfo>, List<GroupInfo>>` and update state atomically with `_uiState.update { it.copy(...) }`.",
+      "acceptance_criteria": [
+        "No mutableListOf created inside coroutines for shared state",
+        "Single suspend function returns immutable result",
+        "Atomic state update"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/73",
+      "markdown_path": "docs/code-reviews/findings/F-049-documentdetailviewmodel-uses-local-mutable-lists-in-async-co.md"
+    },
+    {
+      "id": "F-050",
+      "wave": 1,
+      "title": "LabelsViewModel exposes mutable vars (allTags, allCorrespondents, …) with race risk",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsViewModel.kt",
+      "lines": "L105-L108",
+      "target": "LabelsViewModel.allTags / allCorrespondents / allDocumentTypes / allCustomFields",
+      "problem": "Four `private var` lists are updated inside reactive flows but read by other methods (`getActiveEntities`, `applyCurrentFilters`). Read-during-write races; late subscribers don't replay last value.",
+      "proposed_fix": "Convert each to `MutableStateFlow<List<EntityItem>>`. All mutations go through `.update {}`. Expose a derived `displayedEntities: StateFlow<List<EntityItem>>` that filters/applies search reactively.",
+      "acceptance_criteria": [
+        "Four mutable vars replaced with StateFlow",
+        "displayedEntities is derived via combine() with no manual triggers",
+        "Tests verify reactive filter updates"
+      ],
+      "effort": "M",
+      "related": [
+        "F-042"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/74",
+      "markdown_path": "docs/code-reviews/findings/F-050-labelsviewmodel-exposes-mutable-vars-alltags-allcorresponden.md"
+    },
+    {
+      "id": "F-051",
+      "wave": 1,
+      "title": "HomeViewModelTest covers <20% of reactive flows",
+      "severity": "medium",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/ui/screens/home/HomeViewModelTest.kt",
+      "lines": "—",
+      "target": null,
+      "problem": "Existing test file is small (~200 LOC) compared to a 1328-LOC VM. 15+ reactive flows lack coverage for error paths, SavedStateHandle sync, tagMap races, and flow cancellation.",
+      "proposed_fix": "Add `@OptIn(ExperimentalCoroutinesApi)` tests with `UnconfinedTestDispatcher`. Use `Turbine` for Flow assertions. Replace mocks with fakes per CLAUDE.md \"don't mock the database\" guidance.",
+      "acceptance_criteria": [
+        "≥ 90% coverage on observe* methods",
+        "Tests cover error + success + cancellation paths",
+        "Fakes used in place of repository mocks"
+      ],
+      "effort": "L",
+      "related": [
+        "F-042",
+        "F-043"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/75",
+      "markdown_path": "docs/code-reviews/findings/F-051-homeviewmodeltest-covers-20-of-reactive-flows.md"
+    },
+    {
+      "id": "F-052",
+      "wave": 1,
+      "title": "ScanViewModel has no tests for SavedStateHandle sync",
+      "severity": "medium",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/ui/screens/scan/",
+      "lines": "—",
+      "target": null,
+      "problem": "ScanViewModel performs critical SavedStateHandle sync but no unit tests verify pages survive process death, sync writes happen on every mutation, or sync failures don't corrupt state.",
+      "proposed_fix": "Create `ScanViewModelTest` with fixtures using `SavedStateHandle()` directly. Verify: pages restored from initial state, syncPagesToSavedState is called on every mutation, page move + remove preserve metadata.",
+      "acceptance_criteria": [
+        "≥ 80% coverage on page mutation + sync",
+        "Tests verify SavedStateHandle reflects ViewModel state",
+        "Refactors of L4 (F-045) gated on these tests"
+      ],
+      "effort": "M",
+      "related": [
+        "F-044",
+        "F-045"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/76",
+      "markdown_path": "docs/code-reviews/findings/F-052-scanviewmodel-has-no-tests-for-savedstatehandle-sync.md"
+    },
+    {
+      "id": "F-053",
+      "wave": 1,
+      "title": "UploadViewModel test does not cover documentUris dual-state sync",
+      "severity": "medium",
+      "area": "testing",
+      "subarea": "test-coverage",
+      "file": "app/src/test/java/com/paperless/scanner/ui/screens/upload/UploadViewModelTest.kt",
+      "lines": "—",
+      "target": null,
+      "problem": "Existing UploadViewModelTest (686 LOC) does not assert: URIs restored after process death, setDocumentUris() syncs to SavedStateHandle, race between manual set + reactive read.",
+      "proposed_fix": "Add fixtures: `documentUrisRestoredFromSavedState`, `setDocumentUris_writesToSavedStateHandle`, `documentUris_raceCondition_holds`.",
+      "acceptance_criteria": [
+        "Tests cover setDocumentUris → SavedStateHandle path",
+        "Process Death restoration test passes",
+        "Race condition test passes"
+      ],
+      "effort": "M",
+      "related": [
+        "F-046",
+        "F-047"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/77",
+      "markdown_path": "docs/code-reviews/findings/F-053-uploadviewmodel-test-does-not-cover-documenturis-dual-state-.md"
+    },
+    {
+      "id": "F-054",
+      "wave": 1,
+      "title": "DocumentDetailViewModel does not sync documentId to Navigation BackStackEntry",
+      "severity": "critical",
+      "area": "architecture",
+      "subarea": "saved-state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentDetailViewModel.kt",
+      "lines": "L138, L236-L252",
+      "target": "DocumentDetailViewModel.documentIdStateFlow, observeDocumentIdChanges",
+      "problem": "Reactive `documentIdStateFlow` reads from ViewModel SavedStateHandle. Navigation BackStackEntry SavedStateHandle is never updated → AppLock unlock loses the documentId.",
+      "proposed_fix": "Use the dual-sync helper from F-023. Update both handles whenever documentId changes.",
+      "acceptance_criteria": [
+        "Both handles updated on documentId change",
+        "AppLock unlock test passes",
+        "Process Death test passes"
+      ],
+      "effort": "S",
+      "related": [
+        "F-003",
+        "F-023",
+        "F-045",
+        "F-047"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/78",
+      "markdown_path": "docs/code-reviews/findings/F-054-documentdetailviewmodel-does-not-sync-documentid-to-navigati.md"
+    },
+    {
+      "id": "F-055",
+      "wave": 1,
+      "title": "HomeViewModel: tagMap-dependent flow can race with tag-load flow → null tag refs",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "reactive",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeViewModel.kt",
+      "lines": "L272-L275",
+      "target": "HomeViewModel.observeRecentDocumentsReactively",
+      "problem": "If `observeRecentDocumentsReactively` emits before `observeTagsReactively` populates tagMap, `firstTagId?.let { tagMap[it] }` returns null intermittently. Order depends on launch timing.",
+      "proposed_fix": "Use `combine(tagRepository.observeTags(), documentRepository.observeRecentDocuments(...)) { tags, docs -> ... }` so both sources are guaranteed before mapping.",
+      "acceptance_criteria": [
+        "Tag-dependent flows use combine() instead of separate observers + map",
+        "Tests verify no null tag references under varied launch order"
+      ],
+      "effort": "M",
+      "related": [
+        "F-042",
+        "F-043"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/79",
+      "markdown_path": "docs/code-reviews/findings/F-055-homeviewmodel-tagmap-dependent-flow-can-race-with-tag-load-f.md"
+    },
+    {
+      "id": "F-056",
+      "wave": 1,
+      "title": "ScanViewModel + UploadViewModel: repeated withContext context switches inside one coroutine",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "threading",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanViewModel.kt",
+      "lines": "L494, L504, L605, L621 (Scan); UploadViewModel L241, L334, L409, L524, L658, L704",
+      "target": "ScanViewModel.cropPage and similar; UploadViewModel.* upload methods",
+      "problem": "Multiple `withContext(Dispatchers.IO)` ↔ `Dispatchers.Main` switches inside the same coroutine cost dispatcher hops without benefit.",
+      "proposed_fix": "Establish IO context once at function entry; switch to Main only at the final state-update step. Or push state updates through `MutableStateFlow` (thread-safe, no context switch needed).",
+      "acceptance_criteria": [
+        "≤ 2 context switches per coroutine",
+        "IO boundary established at function start",
+        "Profiler confirms reduction in dispatcher hops"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/80",
+      "markdown_path": "docs/code-reviews/findings/F-056-scanviewmodel-uploadviewmodel-repeated-withcontext-context-s.md"
+    },
+    {
+      "id": "F-057",
+      "wave": 1,
+      "title": "HomeViewModel polls server health instead of observing reactive monitor",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "reactive",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeViewModel.kt",
+      "lines": "L462-L520",
+      "target": "HomeViewModel.startServerHealthPolling",
+      "problem": "Polls in a `while(true) { delay; healthCheck() }` loop despite `serverHealthMonitor.isServerReachable` already being a reactive StateFlow.",
+      "proposed_fix": "Drop the polling job. Collect `serverHealthMonitor.isServerReachable` directly. If polling is needed, do it inside the monitor — not in every consumer.",
+      "acceptance_criteria": [
+        "No polling loop in HomeViewModel",
+        "Server health observed via reactive Flow",
+        "Tests verify reactive update without polling"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/81",
+      "markdown_path": "docs/code-reviews/findings/F-057-homeviewmodel-polls-server-health-instead-of-observing-react.md"
+    },
+    {
+      "id": "F-058",
+      "wave": 1,
+      "title": "All ViewModels: viewModelScope coroutines lack timeouts — UI hangs on slow repos",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "threading",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/",
+      "lines": "—",
+      "target": "All five ViewModels (~80 launch{} call sites)",
+      "problem": "Repository flows have no timeout. If the Flow hangs (network, deadlock), the coroutine sits forever, UI never recovers.",
+      "proposed_fix": "Wrap loading paths in `withTimeoutOrNull(REASONABLE_TIMEOUT)` or use `Flow<T>.timeout(...)`. On timeout emit a typed error so UI can show a retry CTA.",
+      "acceptance_criteria": [
+        "Loading flows have timeouts (config per use case)",
+        "Timeout produces a user-visible error + retry option",
+        "Tests verify timeout path"
+      ],
+      "effort": "M",
+      "related": [
+        "F-043"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/82",
+      "markdown_path": "docs/code-reviews/findings/F-058-all-viewmodels-viewmodelscope-coroutines-lack-timeouts-ui-ha.md"
+    },
+    {
+      "id": "F-059",
+      "wave": 1,
+      "title": "LabelsViewModel.init triggers refresh() synchronously without error capture",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "reactive",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsViewModel.kt",
+      "lines": "L123",
+      "target": "LabelsViewModel.<init>",
+      "problem": "`init { refresh() }` runs at construction. Any exception thrown propagates from constructor; observers never see an error state.",
+      "proposed_fix": "Move refresh into an observer-first path: have refreshing be a side effect of starting reactive flows, OR `init { viewModelScope.launch { refresh() } }` wrapped in try/catch that updates `_uiState` with a failure.",
+      "acceptance_criteria": [
+        "VM construction no longer throws on refresh error",
+        "Failure surfaces as UI error state",
+        "Tests verify error path"
+      ],
+      "effort": "S",
+      "related": [
+        "F-043"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/87",
+      "markdown_path": "docs/code-reviews/findings/F-059-labelsviewmodel-init-triggers-refresh-synchronously-without-.md"
+    }
+  ]
+}

@@ -1,0 +1,1164 @@
+{
+  "review_date": "2026-05-04",
+  "wave": 2,
+  "description": "Wave 2 — Large Compose Screens + Widget + API + Workers",
+  "findings": [
+    {
+      "id": "F-060",
+      "wave": 2,
+      "title": "Inline Color literals bypass theme tokens (ScanScreen)",
+      "severity": "high",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanScreen.kt",
+      "lines": "L546, L556",
+      "target": "ScanScreen",
+      "problem": "Hardcoded `Color(0xFF8DD7FF)` and `Color(0xFFB88DFF)` instead of theme tokens. Combined with `contentColor = Color.Black` this assumes a light background and breaks dark mode. CLAUDE.md mandates Dark Tech Precision Pro: Primary `#E1FF8D`, Surface `#141414`, Background `#0A0A0A`.",
+      "proposed_fix": "Replace inline colors with `MaterialTheme.colorScheme.*` or a typed semantic palette (e.g. `LocalScanCategoryColors`). Verify WCAG AA contrast in both light + dark modes.",
+      "acceptance_criteria": [
+        "No `Color(0x...)` literals in ScanScreen",
+        "Colors resolved from MaterialTheme or design-system palette",
+        "Dark Tech Precision Pro tokens used",
+        "Renders correctly in light + dark mode"
+      ],
+      "effort": "S",
+      "related": [
+        "F-068",
+        "F-080"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/88",
+      "markdown_path": "docs/code-reviews/findings/F-060-inline-color-literals-bypass-theme-tokens-scanscreen.md"
+    },
+    {
+      "id": "F-061",
+      "wave": 2,
+      "title": "LaunchedEffect(Unit) re-runs on every recomposition",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "recomposition",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt",
+      "lines": "L1024",
+      "target": "CreateLabelSheet",
+      "problem": "`LaunchedEffect(Unit) { ... HSV→Color conversion }` has no meaningful key — it executes on every recomposition. Even if idempotent, it adds work and obscures intent.",
+      "proposed_fix": "Use the actual dependency: `LaunchedEffect(editingLabel?.color) { ... }`. For initialization-only logic prefer `remember(editingLabel?.color) { computeColor() }`.",
+      "acceptance_criteria": [
+        "LaunchedEffect uses explicit dependency keys",
+        "No unintended re-execution on recomposition",
+        "Behavior unchanged"
+      ],
+      "effort": "XS",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/89",
+      "markdown_path": "docs/code-reviews/findings/F-061-launchedeffect-unit-re-runs-on-every-recomposition.md"
+    },
+    {
+      "id": "F-062",
+      "wave": 2,
+      "title": "Decorative-vs-functional Icon contentDescription audit needed across screens",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "accessibility",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/",
+      "lines": "many; see DocumentsScreen L286-L412 and SettingsScreen L263, L1103, L1237 as anchors",
+      "target": null,
+      "problem": "Multiple Icon composables use `contentDescription = null`. Some are decorative (acceptable), others are action icons (edit / delete / filter buttons) where TalkBack must announce purpose. The mix is currently undocumented.",
+      "proposed_fix": "Audit every `contentDescription = null` site. For functional icons use `stringResource(R.string.cd_*)`. For decorative ones add a code comment explaining intent. Add a lint rule (e.g. ktlint custom or detekt) to flag null contentDescription without an annotation.",
+      "acceptance_criteria": [
+        "Functional icons have meaningful contentDescription",
+        "Decorative icons documented with `// decorative-only` comment",
+        "Lint check enforces the rule going forward"
+      ],
+      "effort": "M",
+      "related": [
+        "F-073",
+        "F-074"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/90",
+      "markdown_path": "docs/code-reviews/findings/F-062-decorative-vs-functional-icon-contentdescription-audit-neede.md"
+    },
+    {
+      "id": "F-063",
+      "wave": 2,
+      "title": "LabelsScreen is a 1495-line god-composable",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-composable",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt",
+      "lines": "L106-L1495",
+      "target": "LabelsScreen",
+      "problem": "Single Compose file owns LabelCard, SortFilterSheet, CreateLabelSheet, DeleteDialog, ColorPickerDialog with intermingled state. Recomposition cost is large; previews + tests are brittle.",
+      "proposed_fix": "Extract per-sub-component files (`LabelCard.kt`, `SortFilterSheet.kt`, `CreateLabelSheet.kt`, `DeleteLabelDialog.kt`, `LabelColorPicker.kt`). Hoist state to `LabelsViewModel` with SavedStateHandle. Keep `LabelsScreen` ≤ 300 LOC orchestrator.",
+      "acceptance_criteria": [
+        "LabelsScreen ≤ 300 LOC",
+        "Each child composable in its own file with @Preview",
+        "State managed by LabelsViewModel",
+        "No regressions in label CRUD UX"
+      ],
+      "effort": "L",
+      "related": [
+        "F-050"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/91",
+      "markdown_path": "docs/code-reviews/findings/F-063-labelsscreen-is-a-1495-line-god-composable.md"
+    },
+    {
+      "id": "F-064",
+      "wave": 2,
+      "title": "ScanScreen is a 1450-line god-composable",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-composable",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanScreen.kt",
+      "lines": "L1-L1450",
+      "target": "ScanScreen",
+      "problem": "Owns scan-init, option selection, gallery + files pickers, multi-page upload, sheets and dialogs in one file. Recomposition surface is enormous and tests cannot isolate sections.",
+      "proposed_fix": "Extract `ScanOptionCard`, `GalleryPicker`, `FilesPicker`, `MultiPageReviewSheet` into dedicated files. Lift state to `ScanViewModel` (already exists) with proper SavedStateHandle wiring (cf. F-045).",
+      "acceptance_criteria": [
+        "ScanScreen ≤ 300 LOC",
+        "Pickers extracted with previews",
+        "All scan flows pass UI tests",
+        "Process death restores correctly (links to F-045)"
+      ],
+      "effort": "L",
+      "related": [
+        "F-045"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/92",
+      "markdown_path": "docs/code-reviews/findings/F-064-scanscreen-is-a-1450-line-god-composable.md"
+    },
+    {
+      "id": "F-065",
+      "wave": 2,
+      "title": "HomeScreen is a 1414-line god-composable",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-composable",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeScreen.kt",
+      "lines": "L1-L1414",
+      "target": "HomeScreen",
+      "problem": "Combines document list, tag suggestions, premium dialogs, FAB logic. Multiple `remember { mutableStateOf(...) }` blocks (L119-L128) manage UI-only state alongside view-model-bound state.",
+      "proposed_fix": "Extract `SmartTaggingCard`, `DocumentListCard`, `PremiumUpgradeCard`. Move state into HomeViewModel sub-VMs (see F-048). Use State Hoisting + stateless composables.",
+      "acceptance_criteria": [
+        "HomeScreen ≤ 300 LOC",
+        "Each section extracted, with previews",
+        "VM split landed (F-048)",
+        "No regressions in home features"
+      ],
+      "effort": "L",
+      "related": [
+        "F-048"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/93",
+      "markdown_path": "docs/code-reviews/findings/F-065-homescreen-is-a-1414-line-god-composable.md"
+    },
+    {
+      "id": "F-066",
+      "wave": 2,
+      "title": "DocumentTabs is a 1327-line god-composable",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-composable",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentTabs.kt",
+      "lines": "L1-L1327",
+      "target": "DocumentTabs",
+      "problem": "Inbox / Uploaded / Archived tabs with shared filter logic all live in one file. Tab content is not extracted; switching costs unnecessary recomposition.",
+      "proposed_fix": "Extract `InboxTabContent`, `UploadedTabContent`, `ArchivedTabContent`. Share filter state via parent ViewModel. Use Material `TabRow` with stateless content composables.",
+      "acceptance_criteria": [
+        "DocumentTabs ≤ 300 LOC",
+        "Tab content composables each in own file",
+        "Filter behavior unchanged"
+      ],
+      "effort": "L",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/94",
+      "markdown_path": "docs/code-reviews/findings/F-066-documenttabs-is-a-1327-line-god-composable.md"
+    },
+    {
+      "id": "F-067",
+      "wave": 2,
+      "title": "SettingsScreen is a 1292-line god-composable",
+      "severity": "high",
+      "area": "refactor",
+      "subarea": "god-composable",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/settings/SettingsScreen.kt",
+      "lines": "L1-L1292",
+      "target": "SettingsScreen",
+      "problem": "Mixes settings sections, dialogs, and sub-flows in one file. Multiple icons with `contentDescription = null` (L263, L1103, L1237) need accessibility audit.",
+      "proposed_fix": "Extract section composables (`GeneralSettingsSection`, `AdvancedSettingsSection`, `AboutSection`). Address contentDescription audit (F-062).",
+      "acceptance_criteria": [
+        "SettingsScreen ≤ 300 LOC",
+        "Each section extracted",
+        "All icons documented or labelled"
+      ],
+      "effort": "M",
+      "related": [
+        "F-062"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/95",
+      "markdown_path": "docs/code-reviews/findings/F-067-settingsscreen-is-a-1292-line-god-composable.md"
+    },
+    {
+      "id": "F-068",
+      "wave": 2,
+      "title": "Hardcoded color in SuggestionsSection breaks dark mode",
+      "severity": "high",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/components/SuggestionsSection.kt",
+      "lines": "L138",
+      "target": "SuggestionsSection",
+      "problem": "`Color(0xFF00BCD4)` is used with comment \"Cyan/teal for light mode\". Hardcoded color violates theme mandate and renders wrong in dark mode.",
+      "proposed_fix": "Replace with `MaterialTheme.colorScheme.tertiaryContainer` (or a custom semantic role). Verify in both light + dark previews.",
+      "acceptance_criteria": [
+        "No hardcoded colors in SuggestionsSection",
+        "Theme tokens used",
+        "Dark mode preview matches design"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-060",
+        "F-080"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/96",
+      "markdown_path": "docs/code-reviews/findings/F-068-hardcoded-color-in-suggestionssection-breaks-dark-mode.md"
+    },
+    {
+      "id": "F-069",
+      "wave": 2,
+      "title": "DocumentCard in TagSuggestionsSheet missing 1dp outline border",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/TagSuggestionsSheet.kt",
+      "lines": "L363-L370",
+      "target": "DocumentCard",
+      "problem": "Card has 20dp shape and 0dp elevation (correct) but no 1dp outline. Style Guide: \"Cards: 20dp corner, 1dp outline, NO elevation/shadow\".",
+      "proposed_fix": "Add `border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)` to the Card.",
+      "acceptance_criteria": [
+        "1dp outline present on the Card",
+        "Outline color is theme `outline` token (no alpha override)"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-070",
+        "F-072"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/97",
+      "markdown_path": "docs/code-reviews/findings/F-069-documentcard-in-tagsuggestionssheet-missing-1dp-outline-bord.md"
+    },
+    {
+      "id": "F-070",
+      "wave": 2,
+      "title": "SuggestionsSection Card uses 12dp corner + primary-tinted border (style-guide drift)",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/components/SuggestionsSection.kt",
+      "lines": "L485-L495",
+      "target": "SuggestionsSection",
+      "problem": "Card uses `RoundedCornerShape(12.dp)` (should be 20dp) and `BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))` instead of `outline` token.",
+      "proposed_fix": "Set corner to 20dp; use `MaterialTheme.colorScheme.outline` without alpha.",
+      "acceptance_criteria": [
+        "Corner radius is 20dp",
+        "Border uses outline token without alpha"
+      ],
+      "effort": "S",
+      "related": [
+        "F-069",
+        "F-072"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/98",
+      "markdown_path": "docs/code-reviews/findings/F-070-suggestionssection-card-uses-12dp-corner-primary-tinted-bord.md"
+    },
+    {
+      "id": "F-071",
+      "wave": 2,
+      "title": "LazyColumn items missing key parameter — recomposition + state corruption risk",
+      "severity": "high",
+      "area": "performance",
+      "subarea": "recomposition",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentFilterSheet.kt",
+      "lines": "L104-L130",
+      "target": "DocumentFilterSheet",
+      "problem": "LazyColumn around L104 declares items without explicit `key = { it.id }`. On filter changes Compose can mismatch item state (selection, scroll position).",
+      "proposed_fix": "Add `key` to every `items()` call. Audit other screens (DocumentsScreen, LabelsScreen, TagSuggestionsSheet) for the same defect.",
+      "acceptance_criteria": [
+        "All Lazy* items use stable `key` parameter",
+        "Test verifies state survives list reordering"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/99",
+      "markdown_path": "docs/code-reviews/findings/F-071-lazycolumn-items-missing-key-parameter-recomposition-state-c.md"
+    },
+    {
+      "id": "F-072",
+      "wave": 2,
+      "title": "Card shape uses 8dp/12dp radius across SuggestionsSection — should be 20dp",
+      "severity": "critical",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/upload/components/SuggestionsSection.kt",
+      "lines": "L358, L487, L697, L746, L795",
+      "target": "SuggestionsSection",
+      "problem": "Five Card sites use `RoundedCornerShape(8.dp)` or `(12.dp)`. CLAUDE.md is explicit: 20dp on all Cards.",
+      "proposed_fix": "Replace all 8/12dp shapes with 20dp. Define `MaterialTheme.shapes.medium` to point at 20dp and use that token instead of hardcoded values.",
+      "acceptance_criteria": [
+        "All Cards use 20dp",
+        "shape token replaces literal values where possible",
+        "Snapshot tests of cards updated"
+      ],
+      "effort": "S",
+      "related": [
+        "F-069",
+        "F-070"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/100",
+      "markdown_path": "docs/code-reviews/findings/F-072-card-shape-uses-8dp-12dp-radius-across-suggestionssection-sh.md"
+    },
+    {
+      "id": "F-073",
+      "wave": 2,
+      "title": "DocumentsScreen action icons all have null contentDescription",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "accessibility",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/documents/DocumentsScreen.kt",
+      "lines": "L286, L302, L318, L334, L360, L386, L412",
+      "target": "DocumentsScreen",
+      "problem": "Seven Icon usages on action affordances (edit, delete, share, etc.) declare `contentDescription = null`. TalkBack will not announce purpose.",
+      "proposed_fix": "Replace each with `stringResource(R.string.cd_*)`. Add new strings to `values/strings.xml` (English-only per project policy; Gemini auto-translates).",
+      "acceptance_criteria": [
+        "All seven icons have contentDescription",
+        "TalkBack reads each button purpose",
+        "New strings added to values/strings.xml only"
+      ],
+      "effort": "S",
+      "related": [
+        "F-062",
+        "F-067"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/101",
+      "markdown_path": "docs/code-reviews/findings/F-073-documentsscreen-action-icons-all-have-null-contentdescriptio.md"
+    },
+    {
+      "id": "F-074",
+      "wave": 2,
+      "title": "Headlines use ExtraBold but skip Uppercase + 0.1em letter-spacing",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/HomeScreen.kt",
+      "lines": "L220, L227, L396, L488",
+      "target": "HomeScreen (headline sections)",
+      "problem": "Headlines correctly apply ExtraBold but omit `textTransform = TextTransform.Uppercase` and the 0.1em letter spacing. CLAUDE.md mandates ExtraBold + Uppercase headlines and Medium + Uppercase + 0.1em labels.",
+      "proposed_fix": "Define typography styles in `Theme.kt` (`headlineMedium` / `labelMedium`) with the mandated transform + letterSpacing. Use these tokens everywhere instead of inline weight overrides.",
+      "acceptance_criteria": [
+        "Typography tokens carry transform + letter-spacing",
+        "All headlines + labels use the tokens (no inline overrides)",
+        "Snapshot/preview tests updated"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/102",
+      "markdown_path": "docs/code-reviews/findings/F-074-headlines-use-extrabold-but-skip-uppercase-0-1em-letter-spac.md"
+    },
+    {
+      "id": "F-075",
+      "wave": 2,
+      "title": "Audit hardcoded inline strings inside dialogs (LabelsScreen)",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "i18n",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt",
+      "lines": "L525-L570",
+      "target": "DeleteConfirmationDialog",
+      "problem": "Most user-facing strings use `stringResource()` but the DeleteConfirmationDialog body composes counts + names via string concat. Risk of unlocalized fragments leaking through.",
+      "proposed_fix": "Use parameterized `stringResource(R.string.delete_label_confirmation, count, name)`. Audit other dialogs (DocumentFilterSheet, SimplifiedSetup) for the same pattern.",
+      "acceptance_criteria": [
+        "No string concatenation for user-facing text in dialogs",
+        "Parameterized stringResource used",
+        "Lint rule (or grep test) prevents regression"
+      ],
+      "effort": "S",
+      "related": []
+    },
+    {
+      "id": "F-076",
+      "wave": 2,
+      "title": "TabRow lacks accessible selected-state semantics",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "accessibility",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/onboarding/SimplifiedSetupScreen.kt",
+      "lines": "L214",
+      "target": "SimplifiedSetupScreen",
+      "problem": "Tab composables do not expose `Modifier.semantics { selected = ...; role = Role.Tab }`. TalkBack cannot announce which tab is current.",
+      "proposed_fix": "Use Material 3 `Tab` correctly with `selected = ...` and an explicit `Modifier.semantics { selected = ...; role = Role.Tab }`. Add `contentDescription` if Tab uses Icon-only content.",
+      "acceptance_criteria": [
+        "Tabs announce selected state to TalkBack",
+        "Manual a11y check passes",
+        "Test with Espresso accessibility checks"
+      ],
+      "effort": "M",
+      "related": [
+        "F-062"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/103",
+      "markdown_path": "docs/code-reviews/findings/F-076-tabrow-lacks-accessible-selected-state-semantics.md"
+    },
+    {
+      "id": "F-077",
+      "wave": 2,
+      "title": "LabelsScreen state held in Composable instead of ViewModel SavedStateHandle",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "saved-state",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt",
+      "lines": "L106-L140",
+      "target": "LabelsScreen",
+      "problem": "`searchQuery`, `showCreateSheet`, `editingLabel` are kept via `remember { mutableStateOf(...) }`. They survive recomposition but not process death or AppLock — they should be in `LabelsViewModel` SavedStateHandle (CLAUDE.md dual-sync pattern).",
+      "proposed_fix": "Move these into LabelsViewModel as StateFlows backed by SavedStateHandle. Use the planned `rememberDualSavedState` helper (F-023) to also mirror to NavBackStackEntry where AppLock requires it.",
+      "acceptance_criteria": [
+        "Search query + sheet visibility survive process death",
+        "AppLock unlock returns user to the same dialog state",
+        "Test covers both paths"
+      ],
+      "effort": "M",
+      "related": [
+        "F-023",
+        "F-050"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/104",
+      "markdown_path": "docs/code-reviews/findings/F-077-labelsscreen-state-held-in-composable-instead-of-viewmodel-s.md"
+    },
+    {
+      "id": "F-078",
+      "wave": 2,
+      "title": "Icon color fallback uses hardcoded neon-yellow instead of theme token",
+      "severity": "low",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/labels/LabelsScreen.kt",
+      "lines": "L139, L344",
+      "target": "LabelsScreen",
+      "problem": "Fallback color `Color(0xFFE1FF8D)` mirrors the brand primary as a literal. If the brand value ever changes the fallback drifts.",
+      "proposed_fix": "Use `MaterialTheme.colorScheme.primary` or a named `defaultLabelColor` token from the design system.",
+      "acceptance_criteria": [
+        "No hardcoded fallback color",
+        "Token-driven fallback documented"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-060",
+        "F-068"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/105",
+      "markdown_path": "docs/code-reviews/findings/F-078-icon-color-fallback-uses-hardcoded-neon-yellow-instead-of-th.md"
+    },
+    {
+      "id": "F-079",
+      "wave": 2,
+      "title": "TagSuggestionsSheet: rememberSaveable not used for selection state",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "recomposition",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/home/TagSuggestionsSheet.kt",
+      "lines": "L360-L362",
+      "target": "DocumentCard",
+      "problem": "`var selectedTagIds by remember(document.id, document.suggestions) { mutableStateOf(document.selectedTagIds) }` re-initializes whenever suggestions change and is not preserved across process death.",
+      "proposed_fix": "Use `rememberSaveable(document.id)` with a Saver, or hoist into the ViewModel. Decide whether suggestions changes should reset selection or preserve user choice.",
+      "acceptance_criteria": [
+        "Selection state survives process death (where appropriate)",
+        "No unnecessary re-initialization on suggestion change",
+        "Documented intent"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/106",
+      "markdown_path": "docs/code-reviews/findings/F-079-tagsuggestionssheet-remembersaveable-not-used-for-selection-.md"
+    },
+    {
+      "id": "F-080",
+      "wave": 2,
+      "title": "ScanScreen scan-option cards: light-only color pair (contentColor=Black)",
+      "severity": "medium",
+      "area": "ui",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/scan/ScanScreen.kt",
+      "lines": "L546, L556",
+      "target": "ScanScreen scan option card",
+      "problem": "Cards use light-blue / light-purple containers with `contentColor = Color.Black`. Dark Tech Precision Pro requires Surface `#141414` background with neon-yellow `#E1FF8D` accents — these cards stand out as off-theme.",
+      "proposed_fix": "Use `MaterialTheme.colorScheme.surfaceVariant` background + `onSurface` content. Differentiate scan options through icon / accent stripe rather than container color.",
+      "acceptance_criteria": [
+        "Cards match Dark Tech Precision Pro tokens",
+        "WCAG AA contrast verified",
+        "Visual review approved by design"
+      ],
+      "effort": "M",
+      "related": [
+        "F-060",
+        "F-068"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/107",
+      "markdown_path": "docs/code-reviews/findings/F-080-scanscreen-scan-option-cards-light-only-color-pair-contentco.md"
+    },
+    {
+      "id": "F-081",
+      "wave": 2,
+      "title": "LazyColumn key audit beyond DocumentFilterSheet",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "recomposition",
+      "file": "app/src/main/java/com/paperless/scanner/ui/screens/",
+      "lines": "—",
+      "target": null,
+      "problem": "Companion to F-071: LazyColumn / LazyRow / LazyVerticalGrid usages across LabelsScreen, DocumentTabs, DocumentsScreen, HomeScreen, TagSuggestionsSheet need a uniform `key` audit.",
+      "proposed_fix": "Sweep all Lazy* call sites and ensure stable `key`. Add a custom detekt rule or a CI grep that fails on `items(...)` without `key`.",
+      "acceptance_criteria": [
+        "All Lazy* sites have key",
+        "Lint/CI rule prevents regressions",
+        "Sample test verifies state survival across reorder"
+      ],
+      "effort": "M",
+      "related": [
+        "F-071"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/108",
+      "markdown_path": "docs/code-reviews/findings/F-081-lazycolumn-key-audit-beyond-documentfiltersheet.md"
+    },
+    {
+      "id": "F-082",
+      "wave": 2,
+      "title": "Widget config save: SharedPreferences + Glance state update not atomic",
+      "severity": "high",
+      "area": "widget",
+      "subarea": "glance",
+      "file": "app/src/main/java/com/paperless/scanner/widget/WidgetConfigActivity.kt",
+      "lines": "L103-L128",
+      "target": "WidgetConfigActivity.saveConfigAndFinish",
+      "problem": "Config is written to SharedPreferences, then Glance state is updated in a separate coroutine. A racing `provideGlance` can read the SharedPrefs value but miss the Glance state update, briefly flashing the wrong widget type.",
+      "proposed_fix": "Wrap both writes in a single transactional flow: confirm `editor.commit()` returns true, then `updateAppWidgetState { state -> ... }` synchronously, then call `update()` once. Keep the broadcast as a defensive fallback only.",
+      "acceptance_criteria": [
+        "SharedPreferences commit verified before Glance state write",
+        "Glance state + SharedPrefs always agree at render time",
+        "Tests cover save-then-render race"
+      ],
+      "effort": "M",
+      "related": [
+        "F-088"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/109",
+      "markdown_path": "docs/code-reviews/findings/F-082-widget-config-save-sharedpreferences-glance-state-update-not.md"
+    },
+    {
+      "id": "F-083",
+      "wave": 2,
+      "title": "Missing R.color resources cause silent widget inflation failures",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "L329, L368-L374",
+      "target": "ScannerWidget.StatusContent / CompactActionButton",
+      "problem": "`ColorProvider(R.color.widget_text_primary)` and similar refer to color resources without a startup validation step. Missing/renamed resources surface only at runtime as Glance crashes or invisible icons.",
+      "proposed_fix": "Verify all `R.color.widget_*` exist in `colors.xml`. Add an instrumentation test that inflates the widget and asserts no missing-resource exception. Consider extracting widget colors into a single `widget_colors.xml`.",
+      "acceptance_criteria": [
+        "All widget_* color resources present",
+        "Inflation test in CI",
+        "Theme matches Dark Tech Precision Pro"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/110",
+      "markdown_path": "docs/code-reviews/findings/F-083-missing-r-color-resources-cause-silent-widget-inflation-fail.md"
+    },
+    {
+      "id": "F-084",
+      "wave": 2,
+      "title": "Widget deep-link intents bypass AppLock interception",
+      "severity": "high",
+      "area": "widget",
+      "subarea": "deep-link",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "L732-L745",
+      "target": "ScannerWidget.createDeepLinkIntent",
+      "problem": "Intents use explicit `ComponentName(context, MainActivity::class.java)` to avoid Glance trampoline crashes, but this short-circuits the implicit-deep-link resolution that AppLockNavigationInterceptor relies on. Widget actions therefore reach scan/upload UIs without authentication.",
+      "proposed_fix": "Either (a) add an explicit AppLock check in MainActivity for deep-link entries originating from widgets, or (b) route through an internal DeepLink dispatcher that consults AppLockManager before forwarding. Document the trade-off vs trampoline crash risk.",
+      "acceptance_criteria": [
+        "Widget actions respect AppLock state",
+        "Trampoline-crash regression on OnePlus/Samsung does not return",
+        "Manual test: AppLock locked, tap widget → unlock prompt shown"
+      ],
+      "effort": "L",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/111",
+      "markdown_path": "docs/code-reviews/findings/F-084-widget-deep-link-intents-bypass-applock-interception.md"
+    },
+    {
+      "id": "F-085",
+      "wave": 2,
+      "title": "WidgetDeviceChecker OnePlus rule too narrow (Android 11 only)",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "legacy",
+      "file": "app/src/main/java/com/paperless/scanner/widget/WidgetDeviceChecker.kt",
+      "lines": "L35-L39",
+      "target": "WidgetDeviceChecker.isProblematicOnePlus",
+      "problem": "Rule matches only `Build.VERSION_CODES.R` (API 30). OxygenOS trampoline issues persist on Android 12/13 (OnePlus 10/11/12).",
+      "proposed_fix": "Broaden the match to API 30–33 OR drive the decision from runtime crash telemetry: catch InvisibleActionTrampolineActivity once, set a `force_legacy_widget` flag in SharedPreferences, and use legacy thereafter.",
+      "acceptance_criteria": [
+        "OnePlus Android 12/13 fall back to legacy widget",
+        "Crashlytics shows reduced trampoline crash rate",
+        "False-positive rate on other OEMs unchanged"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/112",
+      "markdown_path": "docs/code-reviews/findings/F-085-widgetdevicechecker-oneplus-rule-too-narrow-android-11-only.md"
+    },
+    {
+      "id": "F-086",
+      "wave": 2,
+      "title": "WidgetPreferences.removeWidgetConfig uses .apply() instead of .commit()",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "sharedprefs",
+      "file": "app/src/main/java/com/paperless/scanner/widget/WidgetPreferences.kt",
+      "lines": "L69-L75",
+      "target": "WidgetPreferences.removeWidgetConfig",
+      "problem": "Setters use `.commit()` (synchronous, per MEMORY.md mandate) but the remove path uses `.apply()`. If `onDeleted()` proceeds before the async write lands, Glance still sees the stale config.",
+      "proposed_fix": "Change to `.commit()` and propagate the boolean success. Log failures for diagnostics.",
+      "acceptance_criteria": [
+        "removeWidgetConfig calls .commit()",
+        "Returns success boolean",
+        "Tested by removing a widget mid-render"
+      ],
+      "effort": "S",
+      "related": [
+        "F-087",
+        "F-088"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/113",
+      "markdown_path": "docs/code-reviews/findings/F-086-widgetpreferences-removewidgetconfig-uses-apply-instead-of-c.md"
+    },
+    {
+      "id": "F-087",
+      "wave": 2,
+      "title": "LegacyScannerWidget.updatePendingCount uses .apply() before broadcast",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "legacy",
+      "file": "app/src/main/java/com/paperless/scanner/widget/LegacyScannerWidget.kt",
+      "lines": "L40-L52",
+      "target": "LegacyScannerWidget.updatePendingCount",
+      "problem": "Saves pending count with `.apply()` then broadcasts an update. Receiver may render before the async write commits → stale count.",
+      "proposed_fix": "Use `.commit()` for the count write; then broadcast. Or move the broadcast into a callback after a successful commit.",
+      "acceptance_criteria": [
+        "Count synced before broadcast",
+        "Legacy widget shows accurate value immediately",
+        "Test simulates rapid updates"
+      ],
+      "effort": "S",
+      "related": [
+        "F-086"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/114",
+      "markdown_path": "docs/code-reviews/findings/F-087-legacyscannerwidget-updatependingcount-uses-apply-before-bro.md"
+    },
+    {
+      "id": "F-088",
+      "wave": 2,
+      "title": "WidgetUpdateWorker.updateLegacyWidgets writes two fields with .apply()",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "legacy",
+      "file": "app/src/main/java/com/paperless/scanner/widget/WidgetUpdateWorker.kt",
+      "lines": "L112-L118",
+      "target": "WidgetUpdateWorker.updateLegacyWidgets",
+      "problem": "Pending count + server-online flags are batched and written via `.apply()`. They are read together at render time so any partial write surfaces inconsistent state.",
+      "proposed_fix": "Use `.commit()` and treat both fields as a single unit. Long term: migrate this state to Glance state for the modern widget so a single atomic update covers both.",
+      "acceptance_criteria": [
+        "Both fields persisted before widget redraw",
+        "No stale legacy widget state",
+        "Migration plan to Glance state recorded"
+      ],
+      "effort": "S",
+      "related": [
+        "F-086",
+        "F-087"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/115",
+      "markdown_path": "docs/code-reviews/findings/F-088-widgetupdateworker-updatelegacywidgets-writes-two-fields-wit.md"
+    },
+    {
+      "id": "F-089",
+      "wave": 2,
+      "title": "Widget deep-link URI strings hardcoded inline",
+      "severity": "low",
+      "area": "widget",
+      "subarea": "style-guide",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "L140, L147, L154, L194, L201, L219, L252, L259, L266 (and similar)",
+      "target": "ScannerWidget action sites",
+      "problem": "Strings like `\"paperless://scan/camera\"` are repeated literally across the widget. Refactoring the deep-link scheme means hunting for occurrences.",
+      "proposed_fix": "Add a `WidgetDeepLinks` object (or `R.string.deep_link_*`) with named constants. Reference in widget + DeepLinkHandler so scheme is single-sourced.",
+      "acceptance_criteria": [
+        "No raw deep-link strings inline in widget",
+        "Constants/string-resources reused by DeepLinkHandler",
+        "Single source-of-truth documented"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/116",
+      "markdown_path": "docs/code-reviews/findings/F-089-widget-deep-link-uri-strings-hardcoded-inline.md"
+    },
+    {
+      "id": "F-090",
+      "wave": 2,
+      "title": "scanner_widget_info.xml targetCellWidth/Height too narrow for supported layouts",
+      "severity": "low",
+      "area": "widget",
+      "subarea": "manifest",
+      "file": "app/src/main/res/xml/scanner_widget_info.xml",
+      "lines": "L9-L10",
+      "target": "appwidget-provider",
+      "problem": "Metadata declares 3×1 but the widget supports 3×1, 2×2, and 3×2+ via SizeMode.Exact. System pickers can render previews and resize handles incorrectly.",
+      "proposed_fix": "Set `targetCellWidth` / `targetCellHeight` to the smallest fully supported layout (e.g. 2×1), keep `resizeMode=\"horizontal|vertical\"`, and refresh the preview drawable to match.",
+      "acceptance_criteria": [
+        "Metadata matches smallest viable layout",
+        "Preview drawable updated",
+        "Resizing covers all designed sizes without clip"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/117",
+      "markdown_path": "docs/code-reviews/findings/F-090-scanner-widget-info-xml-targetcellwidth-height-too-narrow-fo.md"
+    },
+    {
+      "id": "F-091",
+      "wave": 2,
+      "title": "AppWidgetId cast failure path silently falls back to QUICK_SCAN",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "glance",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "L71-L79",
+      "target": "ScannerWidget.provideGlance",
+      "problem": "If `id as? AppWidgetId` returns null (e.g. test GlanceId), config sync is skipped and the widget defaults to QUICK_SCAN with no log/telemetry.",
+      "proposed_fix": "Log a WARN with the actual GlanceId class on cast failure. Emit an analytics event so unexpected GlanceId types are visible. Document expected types.",
+      "acceptance_criteria": [
+        "Cast failure logs an actionable WARN",
+        "Telemetry event recorded",
+        "Behavior documented in code"
+      ],
+      "effort": "S",
+      "related": [
+        "F-082"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/118",
+      "markdown_path": "docs/code-reviews/findings/F-091-appwidgetid-cast-failure-path-silently-falls-back-to-quick-s.md"
+    },
+    {
+      "id": "F-092",
+      "wave": 2,
+      "title": "Glance dependency minimum version not enforced (1.1.1 gotchas latent)",
+      "severity": "low",
+      "area": "widget",
+      "subarea": "glance",
+      "file": "app/build.gradle.kts",
+      "lines": "Glance dependency declaration",
+      "target": "build.gradle Glance dependency",
+      "problem": "MEMORY.md gotchas (`defaultWeight()` scoping, `ColorFilter.tint()` API, `cornerRadius()` import) only hold from Glance 1.1.1+. A stray downgrade silently breaks the widget at runtime.",
+      "proposed_fix": "Pin Glance to a known-good version (e.g. 1.1.1) and add a comment referencing MEMORY.md. Optionally log the resolved Glance version at app startup for diagnostics.",
+      "acceptance_criteria": [
+        "Glance version pinned + commented",
+        "Startup log records actual version",
+        "Build fails if Glance is downgraded"
+      ],
+      "effort": "XS",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/119",
+      "markdown_path": "docs/code-reviews/findings/F-092-glance-dependency-minimum-version-not-enforced-1-1-1-gotchas.md"
+    },
+    {
+      "id": "F-093",
+      "wave": 2,
+      "title": "Widget hybrid-system documentation gaps for new contributors",
+      "severity": "low",
+      "area": "widget",
+      "subarea": "manifest",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "class header",
+      "target": "ScannerWidget",
+      "problem": "MEMORY.md documents the Glance/Legacy split, but ScannerWidget.kt itself lacks a top-of-file kdoc summarizing dispatch, state sync, and known gotchas. New contributors edit blind.",
+      "proposed_fix": "Add a class-level kdoc covering: hybrid dispatch via WidgetDeviceChecker, SharedPreferences vs Glance state sync expectations, the SizeMode.Exact contract, and trampoline-crash mitigation.",
+      "acceptance_criteria": [
+        "ScannerWidget.kt has top-level kdoc with these topics",
+        "Cross-references MEMORY.md",
+        "Onboarding checklist includes the file"
+      ],
+      "effort": "XS",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/120",
+      "markdown_path": "docs/code-reviews/findings/F-093-widget-hybrid-system-documentation-gaps-for-new-contributors.md"
+    },
+    {
+      "id": "F-094",
+      "wave": 2,
+      "title": "Widget Glance widgetType captured-variable reads need provideContent verification",
+      "severity": "medium",
+      "area": "widget",
+      "subarea": "state",
+      "file": "app/src/main/java/com/paperless/scanner/widget/ScannerWidget.kt",
+      "lines": "L75-L100",
+      "target": "ScannerWidget.provideGlance, provideContent body",
+      "problem": "MEMORY.md warns: \"Widget-Typ NIEMALS außerhalb provideContent als captured variable lesen!\" Need to confirm every widgetType read inside layout composables uses `currentState[WIDGET_TYPE_KEY]` rather than a captured Kotlin variable from provideGlance scope.",
+      "proposed_fix": "Audit `WidgetLayout()`, `CompactActionButton()`, `StatusContent()` for captured `widgetType`. Replace with `LocalGlanceState.current` / `currentState(WIDGET_TYPE_KEY)` reads inside Composables. Add a code comment + lint detector.",
+      "acceptance_criteria": [
+        "Audit complete; no captured widgetType in composables",
+        "currentState used everywhere",
+        "Manual test: change widget type via config → renders new type without forced removal"
+      ],
+      "effort": "M",
+      "related": [
+        "F-082"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/121",
+      "markdown_path": "docs/code-reviews/findings/F-094-widget-glance-widgettype-captured-variable-reads-need-provid.md"
+    },
+    {
+      "id": "F-095",
+      "wave": 2,
+      "title": "Write timeout 60s too tight for large multi-page uploads / Cloudflare paths",
+      "severity": "high",
+      "area": "performance",
+      "subarea": "networking",
+      "file": "app/src/main/java/com/paperless/scanner/util/NetworkConfig.kt",
+      "lines": "L22",
+      "target": "WRITE_TIMEOUT_SECONDS",
+      "problem": "60-second write timeout fails large multi-page PDF uploads on slow links. CloudflareDetectionInterceptor warns about the 100s edge limit but no timeout adapts dynamically.",
+      "proposed_fix": "Adaptive write timeout: base 120s + 1–2s per MB. When Cloudflare is detected, cap at 90s and surface a UX warning. Persist last detected outcome in DataStore to avoid re-probing every request.",
+      "acceptance_criteria": [
+        "Timeout scales with file size",
+        "Cloudflare-aware cap applied",
+        "Logs record chosen timeout per request",
+        "Small uploads see no regression"
+      ],
+      "effort": "M",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/122",
+      "markdown_path": "docs/code-reviews/findings/F-095-write-timeout-60s-too-tight-for-large-multi-page-uploads-clo.md"
+    },
+    {
+      "id": "F-096",
+      "wave": 2,
+      "title": "RetryInterceptor uses Thread.sleep() — blocks OkHttp dispatcher",
+      "severity": "high",
+      "area": "performance",
+      "subarea": "interceptor",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/RetryInterceptor.kt",
+      "lines": "L69",
+      "target": "RetryInterceptor.delay",
+      "problem": "`Thread.sleep()` blocks an OkHttp dispatcher thread for the full backoff window (up to ~10s with current parameters). Concurrent requests pile up while the pool drains.",
+      "proposed_fix": "Lift retry to the suspendable layer (CoroutineWorker / repository helper) and remove sleep() from the interceptor chain entirely. Keep the interceptor for stateless concerns (auth refresh) only.",
+      "acceptance_criteria": [
+        "No Thread.sleep in interceptor code",
+        "Retry happens at suspend boundary with `delay()`",
+        "Concurrent throughput unaffected during retries",
+        "Existing retry semantics preserved"
+      ],
+      "effort": "L",
+      "related": [
+        "F-098"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/123",
+      "markdown_path": "docs/code-reviews/findings/F-096-retryinterceptor-uses-thread-sleep-blocks-okhttp-dispatcher.md"
+    },
+    {
+      "id": "F-097",
+      "wave": 2,
+      "title": "DynamicBaseUrlInterceptor uses runBlocking on every request",
+      "severity": "high",
+      "area": "architecture",
+      "subarea": "interceptor",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/DynamicBaseUrlInterceptor.kt",
+      "lines": "L29-L31",
+      "target": "DynamicBaseUrlInterceptor.intercept",
+      "problem": "Every request blocks reading server URL from DataStore via `runBlocking`. Comment claims OkHttp threading makes it safe, but this still serializes requests under DataStore lock contention.",
+      "proposed_fix": "Pre-resolve the server URL during DI graph construction (or first repository init) into a thread-safe `AtomicReference<String?>`. Update on logout/login. Interceptor reads from the atomic, no blocking. See F-006 for the related TokenManager pattern.",
+      "acceptance_criteria": [
+        "Interceptor reads from non-blocking holder",
+        "Holder updated on auth/state transitions",
+        "No runBlocking in hot path",
+        "Tests cover URL change scenarios"
+      ],
+      "effort": "M",
+      "related": [
+        "F-006"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/124",
+      "markdown_path": "docs/code-reviews/findings/F-097-dynamicbaseurlinterceptor-uses-runblocking-on-every-request.md"
+    },
+    {
+      "id": "F-098",
+      "wave": 2,
+      "title": "Double retry layer (interceptor + worker) makes total attempts unpredictable",
+      "severity": "medium",
+      "area": "architecture",
+      "subarea": "retry",
+      "file": "app/src/main/java/com/paperless/scanner/worker/UploadWorker.kt",
+      "lines": "L55-L66",
+      "target": "UploadWorker.doWork",
+      "problem": "RetryInterceptor (`maxRetries=3`) and UploadWorker (`Result.retry()`) both retry. A failure can therefore amount to 3 × WorkManager-retries × 3 interceptor retries before final fail, which is opaque and risks duplicate uploads.",
+      "proposed_fix": "Pick one place: keep retry in the worker (so progress UI can reflect attempts) and turn off interceptor retries for upload endpoints (e.g. via tag). Document the retry budget per endpoint.",
+      "acceptance_criteria": [
+        "Single retry strategy per endpoint",
+        "Total attempts ≤ 3",
+        "UI shows current attempt number",
+        "Logs distinguish layers"
+      ],
+      "effort": "M",
+      "related": [
+        "F-096"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/125",
+      "markdown_path": "docs/code-reviews/findings/F-098-double-retry-layer-interceptor-worker-makes-total-attempts-u.md"
+    },
+    {
+      "id": "F-099",
+      "wave": 2,
+      "title": "Pagination handled inconsistently across list endpoints",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "api-surface",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/PaperlessApi.kt",
+      "lines": "L130-L145",
+      "target": "PaperlessApi.getTags / getCorrespondents / getDocumentTypes",
+      "problem": "Endpoints accept `page`/`pageSize` but most repositories only pull page 1. Users with 100+ tags only see the first 25.",
+      "proposed_fix": "Add a `paginate { … }` extension that walks `next` links until exhausted. Persist results into Room and expose as Flow. Cap concurrency.",
+      "acceptance_criteria": [
+        "Tag / correspondent / document-type lists fully fetched",
+        "Pagination encapsulated; no inline loops in repos",
+        "Offline cache populated"
+      ],
+      "effort": "M",
+      "related": [
+        "F-024"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/126",
+      "markdown_path": "docs/code-reviews/findings/F-099-pagination-handled-inconsistently-across-list-endpoints.md"
+    },
+    {
+      "id": "F-100",
+      "wave": 2,
+      "title": "post_document plain-string parsing scattered — needs typed converter + test",
+      "severity": "medium",
+      "area": "data",
+      "subarea": "serialization",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/PaperlessApi.kt",
+      "lines": "L295-L305",
+      "target": "PaperlessApi.uploadDocument",
+      "problem": "Endpoint returns plain string. Parsing via `body.string().trim().removeSurrounding(\"\\\"\")` is reproduced inline at multiple call sites and has no unit test pinning the format.",
+      "proposed_fix": "Return a typed `UploadTaskResponse(taskId: String)` with a custom Retrofit/Gson deserializer that handles the quoted string. Add a unit test pinned against captured raw responses.",
+      "acceptance_criteria": [
+        "Parsing logic centralized",
+        "Unit test covers quoted + unquoted variants",
+        "All callers consume the typed response"
+      ],
+      "effort": "S",
+      "related": [
+        "F-020"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/127",
+      "markdown_path": "docs/code-reviews/findings/F-100-post-document-plain-string-parsing-scattered-needs-typed-con.md"
+    },
+    {
+      "id": "F-101",
+      "wave": 2,
+      "title": "UploadWorker catch (e: Exception) hides bugs",
+      "severity": "medium",
+      "area": "worker",
+      "subarea": "workmanager",
+      "file": "app/src/main/java/com/paperless/scanner/worker/UploadWorker.kt",
+      "lines": "L277-L301",
+      "target": "UploadWorker.doWork",
+      "problem": "Broad catch converts any throwable (OOM, NPE, IllegalState) to a \"failed\" result. Real bugs become user-visible upload failures with no telemetry.",
+      "proposed_fix": "Catch IOException / network errors → `Result.retry()`. For other Throwables, log full stack trace to Crashlytics first, then `Result.failure()`. Distinguish via a `RetryDecision.from(throwable)` helper.",
+      "acceptance_criteria": [
+        "Broad catch removed; typed branches added",
+        "Crashlytics receives full stack traces",
+        "Tests verify each branch"
+      ],
+      "effort": "S",
+      "related": [
+        "F-098"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/128",
+      "markdown_path": "docs/code-reviews/findings/F-101-uploadworker-catch-e-exception-hides-bugs.md"
+    },
+    {
+      "id": "F-102",
+      "wave": 2,
+      "title": "TrashDeleteWorker fails immediately instead of retrying transient errors",
+      "severity": "medium",
+      "area": "worker",
+      "subarea": "retry",
+      "file": "app/src/main/java/com/paperless/scanner/worker/TrashDeleteWorker.kt",
+      "lines": "L122-L124",
+      "target": "TrashDeleteWorker.onFailure",
+      "problem": "Any failure leads to `Result.failure()` and the soft-deleted document never gets retried. Transient 5xx / network errors lose data permanently from the trash queue.",
+      "proposed_fix": "Inspect error type: 5xx + IOException → `Result.retry()` with backoff (`setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, MINUTES)`). 4xx auth → `Result.failure()` with a notification CTA.",
+      "acceptance_criteria": [
+        "Transient errors retry",
+        "Auth errors surface to UI",
+        "setBackoffCriteria configured",
+        "Tests cover both branches"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/129",
+      "markdown_path": "docs/code-reviews/findings/F-102-trashdeleteworker-fails-immediately-instead-of-retrying-tran.md"
+    },
+    {
+      "id": "F-103",
+      "wave": 2,
+      "title": "UploadWorkManager uses ExistingWorkPolicy.REPLACE — risk of cancelled queues",
+      "severity": "medium",
+      "area": "worker",
+      "subarea": "idempotency",
+      "file": "app/src/main/java/com/paperless/scanner/worker/UploadWorkManager.kt",
+      "lines": "L34-L38",
+      "target": "UploadWorkManager.scheduleUpload",
+      "problem": "Both schedulers use `REPLACE`. Rapid taps cancel prior work, which can drop items the worker had already begun queuing internally and confuses users.",
+      "proposed_fix": "Switch to `KEEP` for the regular schedule. Provide an explicit \"cancel and restart\" UI for forced overrides. Add a UI debounce so rapid taps coalesce.",
+      "acceptance_criteria": [
+        "Schedule policy is KEEP by default",
+        "Cancel-and-restart action available where needed",
+        "Rapid tap test does not lose enqueued items"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/130",
+      "markdown_path": "docs/code-reviews/findings/F-103-uploadworkmanager-uses-existingworkpolicy-replace-risk-of-ca.md"
+    },
+    {
+      "id": "F-104",
+      "wave": 2,
+      "title": "OkHttp client has no Cache configured — list endpoints always hit network",
+      "severity": "medium",
+      "area": "performance",
+      "subarea": "caching",
+      "file": "app/src/main/java/com/paperless/scanner/di/AppModule.kt",
+      "lines": "L212-L240",
+      "target": "AppModule.provideOkHttpClient",
+      "problem": "OkHttpClient is built without `.cache(...)`. Even if the server emits ETag/Last-Modified, the client never benefits from 304s.",
+      "proposed_fix": "Add `cache(Cache(context.cacheDir.resolve(\"http\"), 50 * 1024 * 1024))`. Configure Cache-Control on read-only Retrofit calls (`@Headers(\"Cache-Control: max-age=300\")` or via interceptor). Bypass cache on logout (clear cache).",
+      "acceptance_criteria": [
+        "OkHttp Cache configured (50 MB)",
+        "List endpoints respect cache headers",
+        "Mutations bypass cache",
+        "Cache cleared on logout"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/131",
+      "markdown_path": "docs/code-reviews/findings/F-104-okhttp-client-has-no-cache-configured-list-endpoints-always-.md"
+    },
+    {
+      "id": "F-105",
+      "wave": 2,
+      "title": "Model fields lack @SerializedName audit + live-API contract test",
+      "severity": "low",
+      "area": "data",
+      "subarea": "serialization",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/models/ApiModels.kt",
+      "lines": "L5-L503",
+      "target": "All API model data classes",
+      "problem": "Most fields are annotated, but no test pins the model contract against actual Paperless-ngx responses. Subtle field renames break silently.",
+      "proposed_fix": "Capture canonical raw JSON fixtures from a real Paperless server. Add a unit test that deserializes and asserts no field is null/missing where required. Run in CI.",
+      "acceptance_criteria": [
+        "Canonical fixtures committed",
+        "Round-trip tests pass",
+        "CI blocks regressions"
+      ],
+      "effort": "S",
+      "related": [
+        "F-100"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/132",
+      "markdown_path": "docs/code-reviews/findings/F-105-model-fields-lack-serializedname-audit-live-api-contract-tes.md"
+    },
+    {
+      "id": "F-106",
+      "wave": 2,
+      "title": "UploadWorker may exceed 10-min foreground worker limit on slow links",
+      "severity": "critical",
+      "area": "worker",
+      "subarea": "workmanager",
+      "file": "app/src/main/java/com/paperless/scanner/worker/UploadWorker.kt",
+      "lines": "L51-L87",
+      "target": "UploadWorker.doWork",
+      "problem": "Worker calls `setForeground` once at start. If the upload exceeds ~10 minutes (slow connection or large multi-page PDF) the system can kill it. No periodic ForegroundInfo update or foreground service fallback.",
+      "proposed_fix": "Periodically refresh `setForegroundAsync(...)` (e.g. every 30s) with updated progress. For very large uploads consider a long-running ForegroundService with WorkManager scheduling. Surface a UX warning on uploads >5 minutes.",
+      "acceptance_criteria": [
+        "ForegroundInfo refreshed periodically",
+        "15-minute upload completes without being killed",
+        "Long-upload UX warning visible",
+        "Tests verify long-running survival"
+      ],
+      "effort": "M",
+      "related": [
+        "F-095"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/133",
+      "markdown_path": "docs/code-reviews/findings/F-106-uploadworker-may-exceed-10-min-foreground-worker-limit-on-sl.md"
+    },
+    {
+      "id": "F-107",
+      "wave": 2,
+      "title": "Workers missing battery / storage Constraints",
+      "severity": "medium",
+      "area": "worker",
+      "subarea": "workmanager",
+      "file": "app/src/main/java/com/paperless/scanner/worker/UploadWorkManager.kt",
+      "lines": "L25-L38",
+      "target": "UploadWorkManager.scheduleUpload, TrashDeleteWorker scheduling",
+      "problem": "UploadWorker requires CONNECTED but not `requiresBatteryNotLow`. Multi-page uploads on low battery can stall mid-transfer. TrashDeleteWorker has no constraints at all.",
+      "proposed_fix": "Add `setRequiresBatteryNotLow(true)` to upload constraints. For large uploads (>100 MB) optionally `setRequiresCharging(true)`. Add `requiresStorageNotLow(true)`. Apply CONNECTED to TrashDeleteWorker.",
+      "acceptance_criteria": [
+        "Constraints applied per worker",
+        "Documented rationale",
+        "Tests verify scheduling skips when constraints fail"
+      ],
+      "effort": "S",
+      "related": [],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/134",
+      "markdown_path": "docs/code-reviews/findings/F-107-workers-missing-battery-storage-constraints.md"
+    },
+    {
+      "id": "F-108",
+      "wave": 2,
+      "title": "post_document parsing has no automated regression test",
+      "severity": "low",
+      "area": "data",
+      "subarea": "serialization",
+      "file": "app/src/main/java/com/paperless/scanner/data/api/PaperlessApi.kt",
+      "lines": "L295-L305",
+      "target": "PaperlessApi.uploadDocument parsing",
+      "problem": "The plain-string-with-quotes contract is documented but not pinned by tests; any backend change breaks uploads silently.",
+      "proposed_fix": "Add a unit test that exercises both `\"task-id\"` and `task-id` body shapes. Add an integration test against a mock Paperless server fixture.",
+      "acceptance_criteria": [
+        "Unit test for upload response parsing",
+        "Quoted + unquoted variants covered",
+        "Mock-server integration test"
+      ],
+      "effort": "XS",
+      "related": [
+        "F-100"
+      ],
+      "issue_url": "https://github.com/napoleonmm83/paperless-scanner/issues/135",
+      "markdown_path": "docs/code-reviews/findings/F-108-post-document-parsing-has-no-automated-regression-test.md"
+    }
+  ]
+}
