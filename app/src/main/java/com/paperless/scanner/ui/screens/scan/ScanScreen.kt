@@ -161,7 +161,10 @@ fun ScanScreen(
             } else {
                 val urisString = uiState.pages.joinToString("|") { it.uri.toString() }
                 savedState["pageUris"] = urisString
-                android.util.Log.d("ScanScreen", "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle: $urisString")
+                android.util.Log.d(
+                    "ScanScreen",
+                    "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle"
+                )
             }
         }
     }
