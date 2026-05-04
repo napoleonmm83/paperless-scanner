@@ -154,7 +154,7 @@ fun ScanScreen(
     // CRITICAL: Sync pages to Navigation SavedStateHandle for AppLock route reconstruction
     // This is SEPARATE from ViewModel SavedStateHandle (which is used for process death)
     // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle
-    LaunchedEffect(uiState.pages) {
+    LaunchedEffect(uiState.pages, navBackStackEntry) {
         navBackStackEntry?.savedStateHandle?.let { savedState ->
             if (uiState.pages.isEmpty()) {
                 savedState["pageUris"] = null
