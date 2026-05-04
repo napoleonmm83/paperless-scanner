@@ -109,7 +109,7 @@ fun DocumentDetailScreen(
     // See F-054 / CLAUDE.md "Dual SavedStateHandle System".
     LaunchedEffect(documentId, navBackStackEntry) {
         navBackStackEntry?.savedStateHandle?.set(
-            "documentId",
+            DocumentDetailViewModel.KEY_DOCUMENT_ID,
             if (documentId > 0) documentId.toString() else null
         )
     }

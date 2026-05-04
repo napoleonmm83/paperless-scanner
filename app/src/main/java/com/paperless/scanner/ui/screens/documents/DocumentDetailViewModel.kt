@@ -130,7 +130,16 @@ class DocumentDetailViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "DocumentDetailViewModel"
-        private const val KEY_DOCUMENT_ID = "documentId"
+
+        /**
+         * SavedStateHandle key for the document id.
+         *
+         * Mirrors the Navigation argument name in [Screen.DocumentDetail] so that
+         * Hilt populates the ViewModel handle automatically and so that screens
+         * can use the same key when syncing into the BackStackEntry handle for
+         * AppLock route reconstruction (see CLAUDE.md "Dual SavedStateHandle System").
+         */
+        const val KEY_DOCUMENT_ID = "documentId"
     }
 
     // Reactive documentId using SavedStateHandle.getStateFlow()
