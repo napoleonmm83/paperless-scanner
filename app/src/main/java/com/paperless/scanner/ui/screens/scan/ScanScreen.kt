@@ -154,14 +154,17 @@ fun ScanScreen(
     // CRITICAL: Sync pages to Navigation SavedStateHandle for AppLock route reconstruction
     // This is SEPARATE from ViewModel SavedStateHandle (which is used for process death)
     // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle
-    LaunchedEffect(uiState.pages) {
+    LaunchedEffect(uiState.pages, navBackStackEntry) {
         navBackStackEntry?.savedStateHandle?.let { savedState ->
             if (uiState.pages.isEmpty()) {
-                savedState["pageUris"] = null
+                savedState[ScanViewModel.KEY_PAGE_URIS] = null
             } else {
                 val urisString = uiState.pages.joinToString("|") { it.uri.toString() }
-                savedState["pageUris"] = urisString
-                android.util.Log.d("ScanScreen", "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle: $urisString")
+                savedState[ScanViewModel.KEY_PAGE_URIS] = urisString
+                android.util.Log.d(
+                    "ScanScreen",
+                    "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle"
+                )
             }
         }
     }

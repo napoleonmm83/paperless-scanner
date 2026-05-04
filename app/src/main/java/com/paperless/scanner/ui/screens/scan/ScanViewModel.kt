@@ -117,7 +117,14 @@ class ScanViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "ScanViewModel"
-        private const val KEY_PAGE_URIS = "pageUris"
+
+        /**
+         * SavedStateHandle key for the pipe-joined page URI string.
+         * Public so the Screen layer can write it into the Navigation
+         * BackStackEntry SavedStateHandle for AppLock route reconstruction
+         * (CLAUDE.md "Dual SavedStateHandle System").
+         */
+        const val KEY_PAGE_URIS = "pageUris"
         private const val KEY_PAGE_IDS = "pageIds"
         private const val KEY_PAGE_ROTATIONS = "pageRotations"
         private const val KEY_PAGE_METADATA = "pageMetadata"
