@@ -107,7 +107,7 @@ fun DocumentDetailScreen(
     // This is SEPARATE from ViewModel SavedStateHandle (used for process death recovery).
     // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle.
     // See F-054 / CLAUDE.md "Dual SavedStateHandle System".
-    LaunchedEffect(documentId) {
+    LaunchedEffect(documentId, navBackStackEntry) {
         navBackStackEntry?.savedStateHandle?.set(
             "documentId",
             if (documentId > 0) documentId.toString() else null
