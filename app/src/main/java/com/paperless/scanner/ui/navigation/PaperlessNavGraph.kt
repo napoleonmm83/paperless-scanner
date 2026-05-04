@@ -272,7 +272,7 @@ fun PaperlessNavGraph(
             exitTransition = { PaperlessAnimations.screenExitTransition },
             popEnterTransition = { PaperlessAnimations.screenPopEnterTransition },
             popExitTransition = { PaperlessAnimations.screenPopExitTransition }
-        ) {
+        ) { backStackEntry ->
             DocumentDetailScreen(
                 onNavigateBack = {
                     navController.popBackStack()
@@ -282,7 +282,8 @@ fun PaperlessNavGraph(
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
-                }
+                },
+                navBackStackEntry = backStackEntry
             )
         }
 

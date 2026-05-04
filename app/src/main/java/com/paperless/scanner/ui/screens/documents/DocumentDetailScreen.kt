@@ -74,6 +74,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavBackStackEntry
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.paperless.scanner.R
@@ -96,9 +97,22 @@ fun DocumentDetailScreen(
     onNavigateBack: () -> Unit,
     onOpenPdf: (Int, String) -> Unit,
     onNavigateToSettings: () -> Unit = {},
+    navBackStackEntry: NavBackStackEntry? = null,
     viewModel: DocumentDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val documentId by viewModel.documentId.collectAsState()
+
+    // CRITICAL: Sync documentId to Navigation SavedStateHandle for AppLock route reconstruction.
+    // This is SEPARATE from ViewModel SavedStateHandle (used for process death recovery).
+    // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle.
+    // See F-054 / CLAUDE.md "Dual SavedStateHandle System".
+    LaunchedEffect(documentId) {
+        navBackStackEntry?.savedStateHandle?.set(
+            "documentId",
+            if (documentId > 0) documentId.toString() else null
+        )
+    }
     val createTagState by viewModel.createTagState.collectAsState()
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
