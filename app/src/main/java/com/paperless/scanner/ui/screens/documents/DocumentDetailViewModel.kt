@@ -130,7 +130,16 @@ class DocumentDetailViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "DocumentDetailViewModel"
-        private const val KEY_DOCUMENT_ID = "documentId"
+
+        /**
+         * SavedStateHandle key for the document id.
+         *
+         * Mirrors the Navigation argument name in [Screen.DocumentDetail] so that
+         * Hilt populates the ViewModel handle automatically and so that screens
+         * can use the same key when syncing into the BackStackEntry handle for
+         * AppLock route reconstruction (see CLAUDE.md "Dual SavedStateHandle System").
+         */
+        const val KEY_DOCUMENT_ID = "documentId"
     }
 
     // Reactive documentId using SavedStateHandle.getStateFlow()
@@ -142,6 +151,11 @@ class DocumentDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = savedStateHandle.get<String>(KEY_DOCUMENT_ID)?.toIntOrNull() ?: 0
         )
+
+    // Public read-only access for the Screen layer to sync into the
+    // Navigation BackStackEntry SavedStateHandle (AppLock route reconstruction).
+    // See F-054 / CLAUDE.md "Dual SavedStateHandle System".
+    val documentId: StateFlow<Int> get() = documentIdStateFlow
 
     private val _uiState = MutableStateFlow(DocumentDetailUiState())
     val uiState: StateFlow<DocumentDetailUiState> = _uiState.asStateFlow()

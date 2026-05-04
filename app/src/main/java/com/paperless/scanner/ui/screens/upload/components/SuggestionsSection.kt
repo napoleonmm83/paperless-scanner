@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -148,7 +147,7 @@ fun SuggestionsSection(
         )
     }
 
-    val shape = RoundedCornerShape(20.dp)
+    val shape = MaterialTheme.shapes.medium
     val borderWidth = 1.5f
 
     Box(
@@ -355,7 +354,7 @@ private fun SourceBadge(source: SuggestionSource) {
         modifier = Modifier
             .background(
                 color = backgroundColor,
-                shape = RoundedCornerShape(8.dp)
+                shape = MaterialTheme.shapes.small
             )
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
@@ -484,10 +483,11 @@ private fun SuggestionsContent(
             Spacer(modifier = Modifier.height(12.dp))
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = MaterialTheme.shapes.medium,
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                 ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
             ) {
                 Column(
@@ -694,7 +694,7 @@ private fun LimitInfoMessage(
             modifier = Modifier
                 .background(
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
                 .padding(8.dp)
         ) {
@@ -743,7 +743,7 @@ private fun LimitWarningMessage(
             modifier = Modifier
                 .background(
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
                 .padding(8.dp)
         ) {
@@ -792,7 +792,7 @@ private fun LimitReachedMessage(
                 .fillMaxWidth()
                 .background(
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = MaterialTheme.shapes.medium
                 )
                 .padding(8.dp)
         ) {

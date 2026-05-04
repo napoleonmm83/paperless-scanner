@@ -167,6 +167,7 @@ fun PaperlessScannerTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = PaperlessShapes,
         content = content
     )
 }
