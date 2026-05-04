@@ -157,10 +157,10 @@ fun ScanScreen(
     LaunchedEffect(uiState.pages, navBackStackEntry) {
         navBackStackEntry?.savedStateHandle?.let { savedState ->
             if (uiState.pages.isEmpty()) {
-                savedState["pageUris"] = null
+                savedState[ScanViewModel.KEY_PAGE_URIS] = null
             } else {
                 val urisString = uiState.pages.joinToString("|") { it.uri.toString() }
-                savedState["pageUris"] = urisString
+                savedState[ScanViewModel.KEY_PAGE_URIS] = urisString
                 android.util.Log.d(
                     "ScanScreen",
                     "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle"
