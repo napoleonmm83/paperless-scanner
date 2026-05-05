@@ -36,7 +36,7 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
     // Special handling for MultiPageUpload/Scan: Use current URIs from SavedStateHandle
     // instead of stale navigation arguments (user may have added/removed images)
     when {
-        routeTemplate.startsWith("multi-page-upload/") -> {
+        routeTemplate.startsWith("upload-multi/") -> {
             // Read current URIs from SavedStateHandle (where UploadViewModel stores them)
             val currentUris = backStackEntry.savedStateHandle.get<String>("documentUris")
             if (currentUris != null) {

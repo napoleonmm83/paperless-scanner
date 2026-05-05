@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavBackStackEntry
 import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.util.FileUtils
@@ -84,7 +85,8 @@ fun MultiPageUploadScreen(
     preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: UploadViewModel = hiltViewModel()
+    viewModel: UploadViewModel = hiltViewModel(),
+    navBackStackEntry: NavBackStackEntry? = null
 ) {
     // Observe ViewModel's documentUris (reactive, survives process death)
     val observedDocumentUris by viewModel.documentUris.collectAsState()
@@ -98,6 +100,20 @@ fun MultiPageUploadScreen(
             viewModel.setDocumentUris(documentUris)
         }
         // If ViewModel already has URIs (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
+    }
+
+    // Sync URIs to Navigation BackStackEntry SavedStateHandle for AppLock route reconstruction.
+    // Separate from ViewModel SavedStateHandle (process death) — AppLockNavigationInterceptor
+    // reads from backStackEntry.savedStateHandle, not the ViewModel's.
+    LaunchedEffect(observedDocumentUris, navBackStackEntry) {
+        navBackStackEntry?.savedStateHandle?.let { savedState ->
+            if (observedDocumentUris.isEmpty()) {
+                savedState[UploadViewModel.KEY_DOCUMENT_URIS] = null
+            } else {
+                savedState[UploadViewModel.KEY_DOCUMENT_URIS] =
+                    observedDocumentUris.joinToString("|") { it.toString() }
+            }
+        }
     }
 
     // Use observedDocumentUris for displaying documents (falls back to parameter if empty)
