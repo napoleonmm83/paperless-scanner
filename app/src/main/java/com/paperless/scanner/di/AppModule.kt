@@ -48,6 +48,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.sync.SyncManager
 import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
@@ -340,8 +341,9 @@ object AppModule {
         networkMonitor: NetworkMonitor,
         serverHealthMonitor: ServerHealthMonitor,
         gson: Gson,
-        crashlyticsHelper: CrashlyticsHelper
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper)
+        crashlyticsHelper: CrashlyticsHelper,
+        imageProcessor: ImageProcessorService
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor)
 
     @Provides
     @Singleton

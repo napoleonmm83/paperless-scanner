@@ -84,4 +84,7 @@
 
     <!-- PaperlessGptRepository Error Messages (English) -->
     <string name="error_ocr_timeout">OCR Job Timeout (2 minutes)</string>
+
+    <!-- Notification Subtext (English) -->
+    <string name="notification_subtext_long_upload">Long upload — keep app running</string>
 </resources>

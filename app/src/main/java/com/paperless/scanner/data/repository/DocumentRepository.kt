@@ -1,8 +1,6 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.paging.Pager
@@ -37,6 +35,7 @@ import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
@@ -49,9 +48,7 @@ import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import javax.inject.Inject
 
 class DocumentRepository @Inject constructor(
@@ -64,7 +61,8 @@ class DocumentRepository @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val serverHealthMonitor: ServerHealthMonitor,
     private val gson: Gson,
-    private val crashlyticsHelper: CrashlyticsHelper
+    private val crashlyticsHelper: CrashlyticsHelper,
+    private val imageProcessor: ImageProcessorService
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -81,7 +79,7 @@ class DocumentRepository @Inject constructor(
     ): Result<String> {
         crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "single-page")
         return try {
-            val file = getFileFromUri(uri)
+            val file = imageProcessor.getFileFromUri(uri)
             val requestFile = ProgressRequestBody(
                 file = file,
                 contentType = "image/jpeg".toMediaTypeOrNull(),
@@ -258,7 +256,7 @@ class DocumentRepository @Inject constructor(
                     ITextDocument(pdfDoc).use { document ->
                         uris.forEachIndexed { index, uri ->
                             try {
-                                val imageBytes = getImageBytesFromUri(uri)
+                                val imageBytes = imageProcessor.getImageBytesFromUri(uri)
                                 val imageData = ImageDataFactory.create(imageBytes)
                                 val image = Image(imageData)
 
@@ -311,78 +309,6 @@ class DocumentRepository @Inject constructor(
                 else -> IllegalStateException(context.getString(R.string.error_pdf_creation_failed, e.message ?: ""), e)
             }
         }
-    }
-
-    private fun getImageBytesFromUri(uri: Uri): ByteArray {
-        crashlyticsHelper.logActionBreadcrumb("IMAGE_PROCESS", uri.lastPathSegment ?: "unknown")
-        // First pass: Get image dimensions without loading into memory
-        val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        context.contentResolver.openInputStream(uri)?.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        }
-
-        // Calculate sample size for large images to prevent OOM
-        val maxPixels = 16_000_000L // 16MP max
-        val imagePixels = options.outWidth.toLong() * options.outHeight.toLong()
-        val sampleSize = if (imagePixels > maxPixels) {
-            var sample = 1
-            while ((options.outWidth / sample) * (options.outHeight / sample) > maxPixels) {
-                sample *= 2
-            }
-            sample
-        } else {
-            1
-        }
-
-        // Second pass: Load the actual bitmap with calculated sample size
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
-        }
-
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
-
-        val bitmap = inputStream.use { stream ->
-            BitmapFactory.decodeStream(stream, null, decodeOptions)
-                ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
-        }
-
-        return try {
-            val quality = calculateCompressionQuality(bitmap)
-            ByteArrayOutputStream().use { outputStream ->
-                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-                outputStream.toByteArray()
-            }
-        } finally {
-            bitmap.recycle()
-        }
-    }
-
-    private fun calculateCompressionQuality(bitmap: Bitmap): Int {
-        val pixels = bitmap.width.toLong() * bitmap.height.toLong()
-        return when {
-            pixels > 12_000_000 -> 70  // >12MP: aggressive compression
-            pixels > 8_000_000 -> 75   // >8MP: moderate compression
-            pixels > 4_000_000 -> 80   // >4MP: light compression
-            else -> 85                  // <=4MP: high quality
-        }
-    }
-
-    private fun getFileFromUri(uri: Uri): File {
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
-
-        val fileName = "document_${System.currentTimeMillis()}.jpg"
-        val tempFile = File(context.cacheDir, fileName)
-
-        FileOutputStream(tempFile).use { outputStream ->
-            inputStream.copyTo(outputStream)
-        }
-        inputStream.close()
-
-        return tempFile
     }
 
     // Document fetching methods - Offline-First Pattern
