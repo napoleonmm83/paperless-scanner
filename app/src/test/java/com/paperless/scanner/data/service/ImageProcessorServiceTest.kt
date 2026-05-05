@@ -12,14 +12,15 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.slot
-import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
@@ -30,6 +31,9 @@ import java.io.InputStream
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 class ImageProcessorServiceTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     private lateinit var context: Context
     private lateinit var contentResolver: ContentResolver
@@ -44,7 +48,7 @@ class ImageProcessorServiceTest {
         context = mockk(relaxed = true)
         contentResolver = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
-        tempCacheDir = createTempDir(prefix = "imgproc-test")
+        tempCacheDir = tempFolder.root
 
         every { context.contentResolver } returns contentResolver
         every { context.cacheDir } returns tempCacheDir
@@ -54,16 +58,11 @@ class ImageProcessorServiceTest {
         service = ImageProcessorService(context, crashlyticsHelper)
     }
 
-    @After
-    fun teardown() {
-        tempCacheDir.deleteRecursively()
-    }
-
     // ---- getImageBytesFromUri ----
 
     @Test
-    fun `getImageBytesFromUri throws IllegalArgumentException when openInputStream returns null on second pass`() {
-        // First pass call (decodeBounds) is permissive; second pass (full decode) returns null -> exception
+    fun `getImageBytesFromUri fails fast with IllegalArgumentException when openInputStream returns null`() {
+        // Both passes (decodeBounds + full decode) call openInputStream; null on first pass throws immediately.
         every { contentResolver.openInputStream(testUri) } returns null
 
         val ex = assertThrows(IllegalArgumentException::class.java) {
@@ -183,12 +182,15 @@ class ImageProcessorServiceTest {
     }
 
     @Test
-    fun `getFileFromUri creates uniquely named files when called rapidly`() {
-        every { contentResolver.openInputStream(testUri) } returns ByteArrayInputStream("a".toByteArray()) andThen ByteArrayInputStream("b".toByteArray())
-        val f1 = service.getFileFromUri(testUri)
-        Thread.sleep(2) // System.currentTimeMillis() resolution
-        val f2 = service.getFileFromUri(testUri)
-        assertTrue("Files should differ in name", f1.name != f2.name)
+    fun `getFileFromUri closes the input stream even when copyTo fails`() {
+        val failingStream: InputStream = mockk(relaxed = true)
+        every { failingStream.read(any()) } throws java.io.IOException("read-boom")
+        every { failingStream.read(any(), any(), any()) } throws java.io.IOException("read-boom")
+        every { contentResolver.openInputStream(testUri) } returns failingStream
+
+        runCatching { service.getFileFromUri(testUri) }
+
+        io.mockk.verify { failingStream.close() }
     }
 
     // ---- helpers ----

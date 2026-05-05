@@ -19,7 +19,7 @@ import javax.inject.Singleton
  * Contract:
  * - getImageBytesFromUri: reads URI, sample-decodes to <=16MP, JPEG-compresses with
  *   pixel-count-based quality, recycles bitmap. Throws IllegalArgumentException on null
- *   input stream, IllegalStateException on null bitmap decode.
+ *   input stream (either pass), IllegalStateException on null bitmap decode.
  * - getFileFromUri: copies URI bytes to a timestamped JPG in cacheDir.
  */
 @Singleton
@@ -29,11 +29,14 @@ class ImageProcessorService @Inject constructor(
 ) {
     fun getImageBytesFromUri(uri: Uri): ByteArray {
         crashlyticsHelper.logActionBreadcrumb("IMAGE_PROCESS", uri.lastPathSegment ?: "unknown")
-        // First pass: Get image dimensions without loading into memory
+        // First pass: Get image dimensions without loading into memory.
+        // Fail-fast on null InputStream so the second pass doesn't operate on outWidth/outHeight = 0.
         val options = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
-        context.contentResolver.openInputStream(uri)?.use { stream ->
+        val boundsStream = context.contentResolver.openInputStream(uri)
+            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
+        boundsStream.use { stream ->
             BitmapFactory.decodeStream(stream, null, options)
         }
 
@@ -75,16 +78,17 @@ class ImageProcessorService @Inject constructor(
     }
 
     fun getFileFromUri(uri: Uri): File {
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
-
         val fileName = "document_${System.currentTimeMillis()}.jpg"
         val tempFile = File(context.cacheDir, fileName)
 
-        FileOutputStream(tempFile).use { outputStream ->
-            inputStream.copyTo(outputStream)
+        val inputStream = context.contentResolver.openInputStream(uri)
+            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
+
+        inputStream.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                input.copyTo(output)
+            }
         }
-        inputStream.close()
 
         return tempFile
     }
