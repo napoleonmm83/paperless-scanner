@@ -46,7 +46,9 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
                 val encodedUris = currentUris
                     .split("|")
                     .joinToString("|") { android.net.Uri.encode(it) }
-                val uploadAsSingleDocument = args.getBoolean("uploadAsSingleDocument")
+                // Default true matches Screen.MultiPageUpload.createRoute() and the
+                // PaperlessNavGraph fallback ("?: true") for a missing arg.
+                val uploadAsSingleDocument = args.getBoolean("uploadAsSingleDocument", true)
                 reconstructed = reconstructed
                     .replace("{documentUris}", encodedUris)
                     .replace("{uploadAsSingleDocument}", uploadAsSingleDocument.toString())
