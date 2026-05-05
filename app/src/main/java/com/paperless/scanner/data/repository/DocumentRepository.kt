@@ -7,12 +7,6 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
-import com.itextpdf.io.image.ImageDataFactory
-import com.itextpdf.kernel.geom.PageSize
-import com.itextpdf.kernel.pdf.PdfDocument
-import com.itextpdf.kernel.pdf.PdfWriter
-import com.itextpdf.layout.Document as ITextDocument
-import com.itextpdf.layout.element.Image
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
@@ -36,6 +30,7 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.service.ImageProcessorService
+import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
@@ -62,7 +57,8 @@ class DocumentRepository @Inject constructor(
     private val serverHealthMonitor: ServerHealthMonitor,
     private val gson: Gson,
     private val crashlyticsHelper: CrashlyticsHelper,
-    private val imageProcessor: ImageProcessorService
+    private val imageProcessor: ImageProcessorService,
+    private val pdfGenerator: PdfGeneratorService
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -160,7 +156,7 @@ class DocumentRepository @Inject constructor(
         crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "multi-page, ${uris.size} pages")
         return try {
             android.util.Log.d("DocumentRepository", "Creating PDF from ${uris.size} images...")
-            val pdfFile = createPdfFromImages(uris)
+            val pdfFile = pdfGenerator.createPdfFromImages(uris)
             android.util.Log.d("DocumentRepository", "PDF created: ${pdfFile.length()} bytes")
 
             val requestFile = ProgressRequestBody(
@@ -243,71 +239,6 @@ class DocumentRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: $safeMessage")
             android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
-        }
-    }
-
-    private fun createPdfFromImages(uris: List<Uri>): File {
-        val fileName = "document_${System.currentTimeMillis()}.pdf"
-        val pdfFile = File(context.cacheDir, fileName)
-
-        try {
-            PdfWriter(pdfFile).use { writer ->
-                PdfDocument(writer).use { pdfDoc ->
-                    ITextDocument(pdfDoc).use { document ->
-                        uris.forEachIndexed { index, uri ->
-                            try {
-                                val imageBytes = imageProcessor.getImageBytesFromUri(uri)
-                                val imageData = ImageDataFactory.create(imageBytes)
-                                val image = Image(imageData)
-
-                                // Calculate page size based on image dimensions
-                                val pageWidth = image.imageWidth
-                                val pageHeight = image.imageHeight
-                                val pageSize = PageSize(pageWidth, pageHeight)
-
-                                // Add new page with image dimensions
-                                pdfDoc.addNewPage(pageSize)
-
-                                // Scale image to fit page
-                                image.setFixedPosition(index + 1, 0f, 0f)
-                                image.scaleToFit(pageWidth, pageHeight)
-
-                                document.add(image)
-                            } catch (e: Exception) {
-                                // Log but continue with next image (partial PDF better than none)
-                                android.util.Log.e("DocumentRepository", "Failed to add image ${index + 1}/${uris.size} to PDF: ${e.message}", e)
-                                // If first image fails, rethrow (can't create empty PDF)
-                                if (index == 0) {
-                                    throw IllegalStateException(context.getString(R.string.error_first_image_process_failed), e)
-                                }
-                            }
-                        }
-
-                        // Verify we have at least one page
-                        if (pdfDoc.numberOfPages == 0) {
-                            throw IllegalStateException(context.getString(R.string.error_pdf_no_pages))
-                        }
-                    }
-                }
-            }
-
-            // Verify PDF file was created and is not empty
-            if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                throw IllegalStateException(context.getString(R.string.error_pdf_not_created))
-            }
-
-            return pdfFile
-        } catch (e: Exception) {
-            // Clean up partial file on error
-            if (pdfFile.exists()) {
-                pdfFile.delete()
-            }
-            // Re-throw with more context
-            throw when (e) {
-                is IllegalStateException -> e
-                is IllegalArgumentException -> e
-                else -> IllegalStateException(context.getString(R.string.error_pdf_creation_failed, e.message ?: ""), e)
-            }
         }
     }
 
