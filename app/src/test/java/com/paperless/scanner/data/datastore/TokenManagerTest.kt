@@ -38,7 +38,7 @@ import org.robolectric.annotation.Config
 class TokenManagerTest {
 
     private lateinit var context: Context
-    private lateinit var secureStorage: SecureTokenStorage
+    private lateinit var secureStorage: TokenStorage
     private lateinit var tokenManager: TokenManager
 
     @Before

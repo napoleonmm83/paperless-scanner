@@ -21,7 +21,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class TokenManager(
     private val context: Context,
-    private val secureStorage: SecureTokenStorage = SecureTokenStorage(context)
+    private val secureStorage: TokenStorage = SecureTokenStorage(context)
 ) {
 
     companion object {

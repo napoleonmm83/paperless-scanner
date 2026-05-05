@@ -22,7 +22,7 @@ import java.security.KeyStore
  *
  * @param context Application context for accessing Android Keystore
  */
-class SecureTokenStorage(private val context: Context) {
+class SecureTokenStorage(private val context: Context) : TokenStorage {
 
     companion object {
         private const val TAG = "SecureTokenStorage"
@@ -115,7 +115,7 @@ class SecureTokenStorage(private val context: Context) {
      * @param token The API token to store (will be encrypted)
      * @return true if save was successful, false otherwise
      */
-    fun saveToken(token: String): Boolean {
+    override fun saveToken(token: String): Boolean {
         return try {
             getOrCreateEncryptedPrefs()?.edit()
                 ?.putString(KEY_AUTH_TOKEN, token)
@@ -131,7 +131,7 @@ class SecureTokenStorage(private val context: Context) {
      *
      * @return The decrypted token, or null if not stored or decryption fails
      */
-    fun getToken(): String? {
+    override fun getToken(): String? {
         return try {
             getOrCreateEncryptedPrefs()?.getString(KEY_AUTH_TOKEN, null)
         } catch (e: Exception) {
@@ -159,7 +159,7 @@ class SecureTokenStorage(private val context: Context) {
      *
      * @return true if removal was successful
      */
-    fun clearToken(): Boolean {
+    override fun clearToken(): Boolean {
         return try {
             getOrCreateEncryptedPrefs()?.edit()
                 ?.remove(KEY_AUTH_TOKEN)
@@ -173,7 +173,7 @@ class SecureTokenStorage(private val context: Context) {
     /**
      * Checks if migration from plaintext storage has been completed.
      */
-    fun isMigrationCompleted(): Boolean {
+    override fun isMigrationCompleted(): Boolean {
         return try {
             getOrCreateEncryptedPrefs()?.getBoolean(KEY_MIGRATION_COMPLETED, false) ?: false
         } catch (e: Exception) {
@@ -185,7 +185,7 @@ class SecureTokenStorage(private val context: Context) {
     /**
      * Marks migration as completed.
      */
-    fun setMigrationCompleted(): Boolean {
+    override fun setMigrationCompleted(): Boolean {
         return try {
             getOrCreateEncryptedPrefs()?.edit()
                 ?.putBoolean(KEY_MIGRATION_COMPLETED, true)
