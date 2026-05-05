@@ -71,7 +71,7 @@ class DocumentRepositoryTest {
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
-        gson = mockk(relaxed = true)
+        gson = Gson()
         crashlyticsHelper = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
