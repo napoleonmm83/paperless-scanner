@@ -193,6 +193,23 @@ class ImageProcessorServiceTest {
         io.mockk.verify { failingStream.close() }
     }
 
+    @Test
+    fun `getFileFromUri deletes the partial tempFile when copyTo fails`() {
+        val failingStream: InputStream = mockk(relaxed = true)
+        every { failingStream.read(any()) } throws java.io.IOException("read-boom")
+        every { failingStream.read(any(), any(), any()) } throws java.io.IOException("read-boom")
+        every { contentResolver.openInputStream(testUri) } returns failingStream
+
+        runCatching { service.getFileFromUri(testUri) }
+
+        val leftovers = tempCacheDir.listFiles { f -> f.name.endsWith(".jpg") } ?: emptyArray()
+        assertEquals(
+            "Partial tempFile must be cleaned up on copy failure",
+            0,
+            leftovers.size
+        )
+    }
+
     // ---- helpers ----
 
     /** Drives getImageBytesFromUri end-to-end with a synthetic bitmap and returns the JPEG quality used. */

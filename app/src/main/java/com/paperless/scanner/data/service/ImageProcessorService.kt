@@ -45,7 +45,8 @@ class ImageProcessorService @Inject constructor(
         val imagePixels = options.outWidth.toLong() * options.outHeight.toLong()
         val sampleSize = if (imagePixels > maxPixels) {
             var sample = 1
-            while ((options.outWidth / sample) * (options.outHeight / sample) > maxPixels) {
+            // Long arithmetic prevents Int overflow for very large source images (>2GP).
+            while ((options.outWidth.toLong() / sample) * (options.outHeight / sample) > maxPixels) {
                 sample *= 2
             }
             sample
@@ -84,10 +85,15 @@ class ImageProcessorService @Inject constructor(
         val inputStream = context.contentResolver.openInputStream(uri)
             ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
 
-        inputStream.use { input ->
-            FileOutputStream(tempFile).use { output ->
-                input.copyTo(output)
+        try {
+            inputStream.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
             }
+        } catch (e: Throwable) {
+            tempFile.delete()
+            throw e
         }
 
         return tempFile
