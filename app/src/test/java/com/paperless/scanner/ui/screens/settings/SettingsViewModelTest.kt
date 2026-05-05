@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
@@ -91,6 +92,29 @@ class SettingsViewModelTest {
     }
 
     // ==================== Initial State Tests ====================
+
+    @Test
+    fun `loadServerVersion populates serverVersion on success`() = runTest {
+        coEvery { serverStatusRepository.getServerStatus() } returns
+            Result.success(ServerStatusResponse(paperlessVersion = "2.6.0"))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals("2.6.0", viewModel.uiState.value.serverVersion)
+    }
+
+    @Test
+    fun `loadServerVersion leaves serverVersion null on failure`() = runTest {
+        // Default mock already returns Result.failure — explicit re-stub for clarity.
+        coEvery { serverStatusRepository.getServerStatus() } returns
+            Result.failure(retrofit2.HttpException(retrofit2.Response.error<Any>(403, okhttp3.ResponseBody.create(null, ""))))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.uiState.value.serverVersion)
+    }
 
     @Test
     fun `initial uiState has correct defaults`() = runTest {

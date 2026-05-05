@@ -83,7 +83,9 @@ class DiagnosticsViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             error = "Endpoint not supported by this Paperless version",
-                            healthStatus = HealthStatus.UNKNOWN
+                            healthStatus = HealthStatus.UNKNOWN,
+                            isUnavailable = false,
+                            serverStatus = null
                         )
                     }
                 }
@@ -92,7 +94,9 @@ class DiagnosticsViewModel @Inject constructor(
                         it.copy(
                             isLoading = false,
                             error = "HTTP ${e.code()}: ${e.message()}",
-                            healthStatus = HealthStatus.UNKNOWN
+                            healthStatus = HealthStatus.UNKNOWN,
+                            isUnavailable = false,
+                            serverStatus = null
                         )
                     }
                 }
@@ -102,7 +106,9 @@ class DiagnosticsViewModel @Inject constructor(
                 it.copy(
                     isLoading = false,
                     error = e.message ?: "Unknown error",
-                    healthStatus = HealthStatus.UNKNOWN
+                    healthStatus = HealthStatus.UNKNOWN,
+                    isUnavailable = false,
+                    serverStatus = null
                 )
             }
         }
