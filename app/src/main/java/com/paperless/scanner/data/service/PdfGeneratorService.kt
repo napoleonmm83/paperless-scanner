@@ -50,9 +50,12 @@ class PdfGeneratorService @Inject constructor(
 
                                 // Add new page with image dimensions
                                 pdfDoc.addNewPage(pageSize)
+                                // Bind image to the page actually created. Using `index + 1` is wrong
+                                // because a prior failure leaves PDF page indices misaligned with input indices.
+                                val pageNum = pdfDoc.numberOfPages
 
                                 // Scale image to fit page
-                                image.setFixedPosition(index + 1, 0f, 0f)
+                                image.setFixedPosition(pageNum, 0f, 0f)
                                 image.scaleToFit(pageWidth, pageHeight)
 
                                 document.add(image)
