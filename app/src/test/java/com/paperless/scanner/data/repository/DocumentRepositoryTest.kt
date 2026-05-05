@@ -11,6 +11,7 @@ import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.ImageProcessorService
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -51,6 +52,7 @@ class DocumentRepositoryTest {
     private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
     private lateinit var gson: Gson
     private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private lateinit var imageProcessor: ImageProcessorService
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -72,6 +74,8 @@ class DocumentRepositoryTest {
         every { context.contentResolver } returns contentResolver
         every { context.cacheDir } returns cacheDir
 
+        imageProcessor = ImageProcessorService(context, crashlyticsHelper)
+
         documentRepository = DocumentRepository(
             context,
             api,
@@ -82,7 +86,8 @@ class DocumentRepositoryTest {
             networkMonitor,
             serverHealthMonitor,
             gson,
-            crashlyticsHelper
+            crashlyticsHelper,
+            imageProcessor
         )
     }
 
