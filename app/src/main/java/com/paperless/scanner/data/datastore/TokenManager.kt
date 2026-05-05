@@ -19,7 +19,10 @@ import kotlinx.coroutines.runBlocking
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "paperless_settings")
 
-class TokenManager(private val context: Context) {
+class TokenManager(
+    private val context: Context,
+    private val secureStorage: SecureTokenStorage = SecureTokenStorage(context)
+) {
 
     companion object {
         private const val TAG = "TokenManager"
@@ -75,14 +78,6 @@ class TokenManager(private val context: Context) {
 
         // HTTP Fallback Acceptance (user accepted insecure connection for these domains)
         private val ACCEPTED_HTTP_HOSTS_KEY = stringPreferencesKey("accepted_http_hosts")
-    }
-
-    /**
-     * Encrypted storage for sensitive authentication data (token).
-     * Uses Android Keystore backed AES256 encryption.
-     */
-    private val secureStorage: SecureTokenStorage by lazy {
-        SecureTokenStorage(context)
     }
 
     init {
