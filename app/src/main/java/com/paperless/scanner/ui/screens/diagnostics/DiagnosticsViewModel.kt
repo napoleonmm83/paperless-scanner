@@ -73,7 +73,8 @@ class DiagnosticsViewModel @Inject constructor(
                             isLoading = false,
                             error = null,
                             isUnavailable = true,
-                            healthStatus = HealthStatus.UNKNOWN
+                            healthStatus = HealthStatus.UNKNOWN,
+                            serverStatus = null
                         )
                     }
                 }

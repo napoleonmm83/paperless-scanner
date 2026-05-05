@@ -17,19 +17,19 @@ import javax.inject.Singleton
 class ServerStatusRepository @Inject constructor(
     private val api: PaperlessApi
 ) {
-    suspend fun getServerStatus(): Result<ServerStatusResponse> = runCatching {
-        try {
-            val response = api.getServerStatus()
-            if (!response.isSuccessful) {
-                throw HttpException(response)
-            }
-            val body = response.body() ?: throw IOException("Empty response body")
-            val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
-            val mergedVersion = body.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
-            body.copy(paperlessVersion = mergedVersion)
-        } catch (e: CancellationException) {
-            // runCatching would otherwise capture this and break coroutine cancellation.
-            throw e
+    suspend fun getServerStatus(): Result<ServerStatusResponse> = try {
+        val response = api.getServerStatus()
+        if (!response.isSuccessful) {
+            throw HttpException(response)
         }
+        val body = response.body() ?: throw IOException("Empty response body")
+        val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
+        val mergedVersion = body.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
+        Result.success(body.copy(paperlessVersion = mergedVersion))
+    } catch (e: CancellationException) {
+        // Must propagate so coroutine cancellation is not swallowed.
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 }

@@ -4,6 +4,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.repository.ServerStatusRepository
+import okhttp3.ResponseBody.Companion.toResponseBody
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
@@ -108,7 +109,7 @@ class SettingsViewModelTest {
     fun `loadServerVersion leaves serverVersion null on failure`() = runTest {
         // Default mock already returns Result.failure — explicit re-stub for clarity.
         coEvery { serverStatusRepository.getServerStatus() } returns
-            Result.failure(retrofit2.HttpException(retrofit2.Response.error<Any>(403, okhttp3.ResponseBody.create(null, ""))))
+            Result.failure(retrofit2.HttpException(retrofit2.Response.error<Any>(403, "".toResponseBody())))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
