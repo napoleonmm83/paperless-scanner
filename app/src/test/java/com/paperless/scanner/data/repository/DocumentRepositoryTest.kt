@@ -11,6 +11,7 @@ import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
 import com.google.gson.Gson
@@ -55,6 +56,7 @@ class DocumentRepositoryTest {
     private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var imageProcessor: ImageProcessorService
     private lateinit var pdfGenerator: PdfGeneratorService
+    private lateinit var serializer: DocumentSerializer
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -78,6 +80,7 @@ class DocumentRepositoryTest {
 
         imageProcessor = ImageProcessorService(context, crashlyticsHelper)
         pdfGenerator = PdfGeneratorService(context, imageProcessor)
+        serializer = DocumentSerializer(gson)
 
         documentRepository = DocumentRepository(
             context,
@@ -91,7 +94,8 @@ class DocumentRepositoryTest {
             gson,
             crashlyticsHelper,
             imageProcessor,
-            pdfGenerator
+            pdfGenerator,
+            serializer
         )
     }
 

@@ -8,7 +8,6 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
@@ -29,6 +28,7 @@ import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.R
@@ -58,7 +58,8 @@ class DocumentRepository @Inject constructor(
     private val gson: Gson,
     private val crashlyticsHelper: CrashlyticsHelper,
     private val imageProcessor: ImageProcessorService,
-    private val pdfGenerator: PdfGeneratorService
+    private val pdfGenerator: PdfGeneratorService,
+    private val serializer: DocumentSerializer
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -102,12 +103,7 @@ class DocumentRepository @Inject constructor(
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
 
             // Custom fields as JSON array: [{"field": 1, "value": "text"}, ...]
-            val customFieldsBody = if (customFields.isNotEmpty()) {
-                val customFieldsList = customFields.map { (fieldId, value) ->
-                    mapOf("field" to fieldId, "value" to value)
-                }
-                gson.toJson(customFieldsList).toRequestBody("application/json".toMediaTypeOrNull())
-            } else null
+            val customFieldsBody = serializer.serializeCustomFieldsForUpload(customFields)
 
             val response = api.uploadDocument(
                 document = documentPart,
@@ -185,12 +181,7 @@ class DocumentRepository @Inject constructor(
                 ?.toRequestBody("text/plain".toMediaTypeOrNull())
 
             // Custom fields as JSON array: [{"field": 1, "value": "text"}, ...]
-            val customFieldsBody = if (customFields.isNotEmpty()) {
-                val customFieldsList = customFields.map { (fieldId, value) ->
-                    mapOf("field" to fieldId, "value" to value)
-                }
-                gson.toJson(customFieldsList).toRequestBody("application/json".toMediaTypeOrNull())
-            } else null
+            val customFieldsBody = serializer.serializeCustomFieldsForUpload(customFields)
 
             android.util.Log.d("DocumentRepository", "Starting upload...")
             val response = api.uploadDocument(
@@ -736,12 +727,7 @@ class DocumentRepository @Inject constructor(
     private suspend fun getOldTagIds(documentId: Int): List<Int> {
         return try {
             val cached = cachedDocumentDao.getDocument(documentId)
-            if (cached != null) {
-                val listType = object : TypeToken<List<Int>>() {}.type
-                gson.fromJson(cached.tags, listType) ?: emptyList()
-            } else {
-                emptyList()
-            }
+            serializer.deserializeCachedTagIds(cached?.tags)
         } catch (e: Exception) {
             emptyList()
         }
