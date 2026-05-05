@@ -421,7 +421,8 @@ fun PaperlessNavGraph(
                     },
                     onNavigateBack = {
                         navController.popBackStack()
-                    }
+                    },
+                    navBackStackEntry = backStackEntry
                 )
             }
         }

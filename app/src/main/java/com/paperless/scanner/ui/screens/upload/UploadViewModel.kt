@@ -67,7 +67,7 @@ class UploadViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "UploadViewModel"
-        private const val KEY_DOCUMENT_URIS = "documentUris"
+        const val KEY_DOCUMENT_URIS = "documentUris"
     }
 
     // Reactive documentUris using SavedStateHandle.getStateFlow()

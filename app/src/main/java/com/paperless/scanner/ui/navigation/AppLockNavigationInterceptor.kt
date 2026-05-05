@@ -36,13 +36,22 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
     // Special handling for MultiPageUpload/Scan: Use current URIs from SavedStateHandle
     // instead of stale navigation arguments (user may have added/removed images)
     when {
-        routeTemplate.startsWith("multi-page-upload/") -> {
+        routeTemplate.startsWith("upload-multi/") -> {
             // Read current URIs from SavedStateHandle (where UploadViewModel stores them)
             val currentUris = backStackEntry.savedStateHandle.get<String>("documentUris")
-            if (currentUris != null) {
-                Log.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle: $currentUris")
-                val encodedUris = android.net.Uri.encode(currentUris)
-                reconstructed = reconstructed.replace("{documentUris}", encodedUris)
+            if (!currentUris.isNullOrEmpty()) {
+                Log.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle")
+                // Encode each URI individually, keep raw '|' delimiter — matches
+                // Screen.MultiPageUpload.createRoute(): joinToString("|") { Uri.encode(it.toString()) }
+                val encodedUris = currentUris
+                    .split("|")
+                    .joinToString("|") { android.net.Uri.encode(it) }
+                // Default true matches Screen.MultiPageUpload.createRoute() and the
+                // PaperlessNavGraph fallback ("?: true") for a missing arg.
+                val uploadAsSingleDocument = args.getBoolean("uploadAsSingleDocument", true)
+                reconstructed = reconstructed
+                    .replace("{documentUris}", encodedUris)
+                    .replace("{uploadAsSingleDocument}", uploadAsSingleDocument.toString())
                 return reconstructed
             }
         }
