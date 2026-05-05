@@ -33,6 +33,8 @@ import io.mockk.unmockkStatic
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -653,6 +655,61 @@ class UploadWorkerTest {
                 onProgress = any()
             )
         }
+    }
+
+    // ==================== Foreground Refresh Throttle Tests ====================
+
+    @Test
+    fun `shouldRefreshForeground returns true on first invocation`() {
+        val worker = createWorker()
+        assertTrue(worker.shouldRefreshForeground(UploadWorker.FOREGROUND_REFRESH_INTERVAL_MS))
+    }
+
+    @Test
+    fun `shouldRefreshForeground returns false within throttle interval`() {
+        val worker = createWorker()
+        worker.lastForegroundRefreshMs = 100_000L
+        assertFalse(worker.shouldRefreshForeground(105_000L))
+    }
+
+    @Test
+    fun `shouldRefreshForeground returns true exactly at interval boundary`() {
+        val worker = createWorker()
+        worker.lastForegroundRefreshMs = 100_000L
+        assertTrue(
+            worker.shouldRefreshForeground(100_000L + UploadWorker.FOREGROUND_REFRESH_INTERVAL_MS)
+        )
+    }
+
+    @Test
+    fun `shouldRefreshForeground returns true after interval elapsed`() {
+        val worker = createWorker()
+        worker.lastForegroundRefreshMs = 100_000L
+        assertTrue(worker.shouldRefreshForeground(131_000L))
+    }
+
+    // ==================== Long Upload Warning Tests ====================
+
+    @Test
+    fun `isLongUpload returns false before worker started`() {
+        val worker = createWorker()
+        assertFalse(worker.isLongUpload(System.currentTimeMillis()))
+    }
+
+    @Test
+    fun `isLongUpload returns false within 5 minutes of start`() {
+        val worker = createWorker()
+        worker.workerStartTimeMs = 1_000_000L
+        assertFalse(worker.isLongUpload(1_000_000L + 4 * 60 * 1000L))
+    }
+
+    @Test
+    fun `isLongUpload returns true after 5 minute threshold`() {
+        val worker = createWorker()
+        worker.workerStartTimeMs = 1_000_000L
+        assertTrue(
+            worker.isLongUpload(1_000_000L + UploadWorker.LONG_UPLOAD_WARNING_MS + 1L)
+        )
     }
 
     // ==================== Helper Functions ====================

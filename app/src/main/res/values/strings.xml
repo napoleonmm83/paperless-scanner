@@ -1104,6 +1104,7 @@
     <string name="notification_progress_percent">%1$s • %2$d%%</string>
     <string name="notification_pages_suffix">%1$s (%2$d Seiten)</string>
     <string name="notification_subtext">Paperless Scanner</string>
+    <string name="notification_subtext_long_upload">Long upload — keep app running</string>
 
     <!-- Upload Worker - File Errors -->
     <string name="upload_error_files_not_found">Dateien nicht gefunden (%1$d/%2$d fehlen)</string>

@@ -9,6 +9,7 @@ import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
@@ -48,7 +49,12 @@ class UploadWorker @AssistedInject constructor(
     private var lastNotificationUpdate = 0L
     private var lastNotificationProgress = -1
 
+    // Periodischer setForegroundAsync-Refresh (verhindert Heartbeat-Verlust bei langen Uploads)
+    @VisibleForTesting internal var lastForegroundRefreshMs = 0L
+    @VisibleForTesting internal var workerStartTimeMs = 0L
+
     override suspend fun doWork(): Result {
+        workerStartTimeMs = System.currentTimeMillis()
         createNotificationChannel()
 
         // Pre-check: Ensure we have validated internet before starting uploads
@@ -375,11 +381,17 @@ class UploadWorker @AssistedInject constructor(
             currentDocumentName
         }
 
+        val subTextRes = if (isLongUpload(System.currentTimeMillis())) {
+            R.string.notification_subtext_long_upload
+        } else {
+            R.string.notification_subtext
+        }
+
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setContentTitle(title)
             .setContentText(progressText)
-            .setSubText(applicationContext.getString(R.string.notification_subtext))
+            .setSubText(applicationContext.getString(subTextRes))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setProgress(100, uploadProgress, uploadProgress == 0)
@@ -414,7 +426,29 @@ class UploadWorker @AssistedInject constructor(
             uploadProgress = uploadProgress
         )
         notificationManager.notify(NOTIFICATION_ID, notification)
+
+        // Refresh ForegroundInfo periodically so WorkManager keeps the worker alive
+        // even on slow connections / large multi-page uploads.
+        if (shouldRefreshForeground(now)) {
+            lastForegroundRefreshMs = now
+            setForegroundAsync(
+                createProgressForegroundInfo(
+                    currentUpload = currentUpload,
+                    totalUploads = totalUploads,
+                    currentDocumentName = currentDocumentName,
+                    uploadProgress = uploadProgress
+                )
+            )
+        }
     }
+
+    @VisibleForTesting
+    internal fun shouldRefreshForeground(nowMs: Long): Boolean =
+        nowMs - lastForegroundRefreshMs >= FOREGROUND_REFRESH_INTERVAL_MS
+
+    @VisibleForTesting
+    internal fun isLongUpload(nowMs: Long): Boolean =
+        workerStartTimeMs > 0 && (nowMs - workerStartTimeMs) > LONG_UPLOAD_WARNING_MS
 
     private fun showCompletionNotification(successCount: Int, failCount: Int) {
         val (title, message, icon) = when {
@@ -471,5 +505,8 @@ class UploadWorker @AssistedInject constructor(
         const val PROGRESS_KEY = "upload_progress"
         const val MAX_RETRIES = 3
         private const val NOTIFICATION_THROTTLE_MS = 500L
+
+        @VisibleForTesting internal const val FOREGROUND_REFRESH_INTERVAL_MS = 30_000L
+        @VisibleForTesting internal const val LONG_UPLOAD_WARNING_MS = 5L * 60L * 1000L
     }
 }
