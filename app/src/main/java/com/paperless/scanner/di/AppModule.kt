@@ -48,6 +48,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.data.sync.SyncManager
@@ -344,8 +345,9 @@ object AppModule {
         gson: Gson,
         crashlyticsHelper: CrashlyticsHelper,
         imageProcessor: ImageProcessorService,
-        pdfGenerator: PdfGeneratorService
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator)
+        pdfGenerator: PdfGeneratorService,
+        serializer: DocumentSerializer
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer)
 
     @Provides
     @Singleton
