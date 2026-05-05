@@ -341,9 +341,13 @@ class ScanViewModelTest {
 
         viewModel.setUploadAsSingleDocument(true)
         assertTrue(viewModel.uploadAsSingleDocument.value)
+        // Belt-and-braces: assert the underlying SavedStateHandle key directly
+        // (StateFlow above is built from the same key, but explicit is better).
+        assertEquals(true, savedStateHandle.get<Boolean>("uploadAsSingleDocument"))
 
         viewModel.setUploadAsSingleDocument(false)
         assertFalse(viewModel.uploadAsSingleDocument.value)
+        assertEquals(false, savedStateHandle.get<Boolean>("uploadAsSingleDocument"))
     }
 
     // ==================== Tag Selection ====================
