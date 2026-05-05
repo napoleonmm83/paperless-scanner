@@ -16,11 +16,10 @@ import com.paperless.scanner.data.billing.SubscriptionStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
-import retrofit2.HttpException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,7 +64,7 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val api: PaperlessApi,
+    private val serverStatusRepository: ServerStatusRepository,
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager,
@@ -330,32 +329,17 @@ class SettingsViewModel @Inject constructor(
      */
     private fun loadServerVersion() {
         viewModelScope.launch {
-            try {
-                val serverUrl = tokenManager.serverUrl.first()
-                if (serverUrl.isNullOrEmpty()) {
-                    // No server configured - skip version check
-                    return@launch
-                }
-
-                val response = api.getServerStatus()
-                if (!response.isSuccessful) {
-                    throw retrofit2.HttpException(response)
-                }
-
-                val body = response.body()
-                // Extract version from x-version header if not in body
-                val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
-                val version = body?.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
-
-                _uiState.update { it.copy(serverVersion = version) }
-            } catch (e: HttpException) {
-                // Silently fail for all HTTP errors
-                // 403: User is not admin - version remains null
-                // 404: Old Paperless version without /api/status/
-                // Other: Network or server errors
-            } catch (e: Exception) {
-                // Network error or other exception - silently fail
+            val serverUrl = tokenManager.serverUrl.first()
+            if (serverUrl.isNullOrEmpty()) {
+                // No server configured - skip version check
+                return@launch
             }
+            // Silently fail on errors (403 = not admin, 404 = old Paperless, network, etc.)
+            // — version simply stays null in UI state.
+            serverStatusRepository.getServerStatus()
+                .onSuccess { serverStatus ->
+                    _uiState.update { it.copy(serverVersion = serverStatus.paperlessVersion) }
+                }
         }
     }
 

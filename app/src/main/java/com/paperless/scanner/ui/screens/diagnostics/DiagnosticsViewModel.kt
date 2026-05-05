@@ -2,8 +2,8 @@ package com.paperless.scanner.ui.screens.diagnostics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.ServerStatusResponse
+import com.paperless.scanner.data.repository.ServerStatusRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +33,7 @@ data class DiagnosticsUiState(
 
 @HiltViewModel
 class DiagnosticsViewModel @Inject constructor(
-    private val api: PaperlessApi
+    private val serverStatusRepository: ServerStatusRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DiagnosticsUiState())
@@ -47,74 +47,70 @@ class DiagnosticsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            try {
-                val response = api.getServerStatus()
-
-                if (!response.isSuccessful) {
-                    throw retrofit2.HttpException(response)
-                }
-
-                val body = response.body() ?: throw Exception("Empty response body")
-
-                // Extract version from x-version header if not in body
-                val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
-                val version = body.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
-
-                // Create updated response with version from header
-                val serverStatus = body.copy(paperlessVersion = version)
-
-                val health = calculateHealthStatus(serverStatus)
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = null,
-                        serverStatus = serverStatus,
-                        healthStatus = health,
-                        isUnavailable = false
-                    )
-                }
-            } catch (e: HttpException) {
-                when (e.code()) {
-                    403 -> {
-                        // No admin permission - show unavailable state
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = null,
-                                isUnavailable = true,
-                                healthStatus = HealthStatus.UNKNOWN
-                            )
-                        }
-                    }
-                    404 -> {
-                        // Old Paperless version without /api/status/
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = "Endpoint not supported by this Paperless version",
-                                healthStatus = HealthStatus.UNKNOWN
-                            )
-                        }
-                    }
-                    else -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = "HTTP ${e.code()}: ${e.message()}",
-                                healthStatus = HealthStatus.UNKNOWN
-                            )
-                        }
+            serverStatusRepository.getServerStatus()
+                .onSuccess { serverStatus ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = null,
+                            serverStatus = serverStatus,
+                            healthStatus = calculateHealthStatus(serverStatus),
+                            isUnavailable = false
+                        )
                     }
                 }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Unknown error",
-                        healthStatus = HealthStatus.UNKNOWN
-                    )
+                .onFailure { e -> handleLoadFailure(e) }
+        }
+    }
+
+    private fun handleLoadFailure(e: Throwable) {
+        if (e is HttpException) {
+            when (e.code()) {
+                403 -> {
+                    // No admin permission - show unavailable state
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = null,
+                            isUnavailable = true,
+                            healthStatus = HealthStatus.UNKNOWN,
+                            serverStatus = null
+                        )
+                    }
                 }
+                404 -> {
+                    // Old Paperless version without /api/status/
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Endpoint not supported by this Paperless version",
+                            healthStatus = HealthStatus.UNKNOWN,
+                            isUnavailable = false,
+                            serverStatus = null
+                        )
+                    }
+                }
+                else -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "HTTP ${e.code()}: ${e.message()}",
+                            healthStatus = HealthStatus.UNKNOWN,
+                            isUnavailable = false,
+                            serverStatus = null
+                        )
+                    }
+                }
+            }
+        } else {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = e.message ?: "Unknown error",
+                    healthStatus = HealthStatus.UNKNOWN,
+                    isUnavailable = false,
+                    serverStatus = null
+                )
             }
         }
     }

@@ -2,7 +2,9 @@ package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
-import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.models.ServerStatusResponse
+import com.paperless.scanner.data.repository.ServerStatusRepository
+import okhttp3.ResponseBody.Companion.toResponseBody
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
@@ -29,7 +31,7 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private lateinit var tokenManager: TokenManager
-    private lateinit var api: PaperlessApi
+    private lateinit var serverStatusRepository: ServerStatusRepository
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
@@ -41,7 +43,9 @@ class SettingsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         tokenManager = mockk(relaxed = true)
-        api = mockk(relaxed = true)
+        serverStatusRepository = mockk(relaxed = true)
+        // Default: server status fetch fails (matches the old "silent fail" behavior).
+        coEvery { serverStatusRepository.getServerStatus() } returns Result.failure(Exception("not stubbed"))
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
@@ -80,7 +84,7 @@ class SettingsViewModelTest {
     private fun createViewModel(): SettingsViewModel {
         return SettingsViewModel(
             tokenManager = tokenManager,
-            api = api,
+            serverStatusRepository = serverStatusRepository,
             analyticsService = analyticsService,
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager,
@@ -89,6 +93,29 @@ class SettingsViewModelTest {
     }
 
     // ==================== Initial State Tests ====================
+
+    @Test
+    fun `loadServerVersion populates serverVersion on success`() = runTest {
+        coEvery { serverStatusRepository.getServerStatus() } returns
+            Result.success(ServerStatusResponse(paperlessVersion = "2.6.0"))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals("2.6.0", viewModel.uiState.value.serverVersion)
+    }
+
+    @Test
+    fun `loadServerVersion leaves serverVersion null on failure`() = runTest {
+        // Default mock already returns Result.failure — explicit re-stub for clarity.
+        coEvery { serverStatusRepository.getServerStatus() } returns
+            Result.failure(retrofit2.HttpException(retrofit2.Response.error<Any>(403, "".toResponseBody())))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.uiState.value.serverVersion)
+    }
 
     @Test
     fun `initial uiState has correct defaults`() = runTest {
