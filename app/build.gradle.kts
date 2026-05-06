@@ -126,6 +126,9 @@ android {
         checkReleaseBuilds = false
         abortOnError = true
         warningsAsErrors = false
+        // Translations are produced by Play Console's Gemini auto-translation at upload time —
+        // only `values/` (English) is maintained locally, so MissingTranslation is structural noise.
+        disable += "MissingTranslation"
     }
 
     testOptions {
