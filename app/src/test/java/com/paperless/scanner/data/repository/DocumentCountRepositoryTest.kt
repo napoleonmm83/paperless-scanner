@@ -93,5 +93,9 @@ class DocumentCountRepositoryTest {
         coEvery { api.getDocuments(page = 1, pageSize = 1, tagsIsNull = true) } throws RuntimeException("boom")
         val result = repo.getUntaggedCount()
         assertTrue(result.isFailure)
+        assertTrue(
+            "expected PaperlessException, got ${result.exceptionOrNull()}",
+            result.exceptionOrNull() is com.paperless.scanner.data.api.PaperlessException
+        )
     }
 }

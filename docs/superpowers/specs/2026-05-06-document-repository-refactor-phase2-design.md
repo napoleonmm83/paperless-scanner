@@ -264,7 +264,7 @@ fun provideDocumentRepository(
 
 | Test file | Framework | Min cases | Coverage targets |
 |---|---|---|---|
-| `DocumentCountRepositoryTest.kt`    | Robolectric + mockk | 8  | both `CountFilter` branches; `getDocumentCount` online with `forceRefresh=true`; `getDocumentCount` offline with cache; `getDocumentCount` cache-empty + offline → error; `getUntaggedCount` happy + `safeApiCall` error |
+| `DocumentCountRepositoryTest.kt`    | Robolectric + mockk | 8  | both `CountFilter` branches; `getDocumentCount` online with `forceRefresh=true`; `getDocumentCount` offline with cache; `getDocumentCount` cache-empty + offline → `Result.success(0)`; `getUntaggedCount` happy + `safeApiCall` error |
 | `DocumentMetadataRepositoryTest.kt` | Robolectric + mockk | 12 | `observeDocument`; `getDocument` online; `getDocument` offline with cache hit; `getDocument` offline with no cache; `updateDocument` online; `updateDocument` offline → PendingChange queued; `updateDocument` with tag-count delta; `updateDocumentPermissions` online + offline; `getOldTagIds` null + parsable; permission update cache-write |
 | `DocumentListRepositoryTest.kt`     | Robolectric + mockk | 10 | `observeDocuments`; `getDocumentsPaged` with filter; `getDocuments` cache hit; `getDocuments` `forceRefresh` + network; `getDocuments` offline + no cache; `searchDocuments`; `getRecentDocuments` cache + network fallback; `getUntaggedDocuments` |
 

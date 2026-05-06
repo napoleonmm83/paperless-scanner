@@ -323,8 +323,8 @@ package com.paperless.scanner.data.repository
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.api.models.DocumentsResponse
 import com.paperless.scanner.domain.model.DocumentFilter
-import com.paperless.scanner.domain.model.DocumentsResponse
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
