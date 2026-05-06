@@ -86,10 +86,18 @@ class TrashRepository @Inject constructor(
                 }
             } catch (e: retrofit2.HttpException) {
                 // Already rolled back above for non-successful responses;
-                // re-throw to land in executeOrQueue's HttpException catch.
+                // re-throw to land in executeOrQueue's exception mapping.
+                throw e
+            } catch (e: java.io.IOException) {
+                // Mid-flight network drop: do NOT roll back here. executeOrQueue
+                // will catch this IOException and run the offline branch, which
+                // re-applies softDelete + ack via queueDocumentDelete. Rolling back
+                // would cause a brief UI flicker (deleted → restored → deleted)
+                // as Flow observers see two opposing DB writes.
                 throw e
             } catch (e: Exception) {
-                // ROLLBACK on API exception (timeout, IOException, etc.)
+                // ROLLBACK for non-network exceptions (timeout, etc.) where
+                // executeOrQueue will NOT trigger offline fallback.
                 Log.w(TAG, "deleteDocument API exception, rolling back: ${e.message}")
                 cachedDocumentDao.restoreDocument(documentId)
                 throw e

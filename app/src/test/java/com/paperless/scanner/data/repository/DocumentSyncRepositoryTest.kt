@@ -197,4 +197,26 @@ class DocumentSyncRepositoryTest {
         assertTrue(result.exceptionOrNull() is PaperlessException)
         assertFalse("offline path must NOT run for HttpException", offlineCalled)
     }
+
+    @Test
+    fun `executeOrQueue re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // Coroutine cancellation MUST propagate, not be wrapped in Result.failure.
+        // Previously catch(Exception) swallowed CancellationException, breaking cancel.
+        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
+        var offlineCalled = false
+
+        val thrown = try {
+            repo.executeOrQueue<String>(
+                online = { throw kotlin.coroutines.cancellation.CancellationException("scope cancelled") },
+                offlineQueueAndOptimistic = { offlineCalled = true; "should-not-run" },
+            )
+            null
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
+        assertFalse("offline path must NOT run for CancellationException", offlineCalled)
+    }
 }
