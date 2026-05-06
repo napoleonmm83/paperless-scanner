@@ -49,6 +49,7 @@ class DocumentRepository @Inject constructor(
     private val list: DocumentListRepository,
     private val trash: TrashRepository,
     private val audit: AuditRepository,
+    private val permission: PermissionRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -391,35 +392,9 @@ class DocumentRepository @Inject constructor(
 
     // User and Group methods for permissions management
 
-    suspend fun getUsers(): Result<List<com.paperless.scanner.data.api.models.User>> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getUsers()
-                Result.success(response.results)
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getUsers(): Result<List<com.paperless.scanner.data.api.models.User>> = permission.getUsers()
 
-    suspend fun getGroups(): Result<List<com.paperless.scanner.data.api.models.Group>> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getGroups()
-                Result.success(response.results)
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getGroups(): Result<List<com.paperless.scanner.data.api.models.Group>> = permission.getGroups()
 
     suspend fun updateDocumentPermissions(
         documentId: Int,

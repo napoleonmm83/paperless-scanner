@@ -115,6 +115,11 @@ class DocumentRepositoryTest {
             api = api,
             networkMonitor = networkMonitor,
         )
+        val permissionRepository = PermissionRepository(
+            context = context,
+            api = api,
+            networkMonitor = networkMonitor,
+        )
 
         documentRepository = DocumentRepository(
             context,
@@ -135,6 +140,7 @@ class DocumentRepositoryTest {
             listRepository,
             trashRepository,
             auditRepository,
+            permissionRepository,
         )
     }
 
