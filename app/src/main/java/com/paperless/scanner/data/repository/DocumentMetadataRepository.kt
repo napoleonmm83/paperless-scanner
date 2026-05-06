@@ -90,6 +90,9 @@ class DocumentMetadataRepository @Inject constructor(
         created: String? = null,
     ): Result<Document> {
         return try {
+            // FIXME (#169): isServerReachable read once; if it flips between this check and
+            // api.updateDocument, an IOException flows to the outer catch and the user's edit
+            // is lost rather than queued. Belongs to DocumentSyncRepository.executeOrQueue { }.
             if (serverHealthMonitor.isServerReachable.value) {
                 val oldTagIds = if (tags != null) getOldTagIds(documentId) else null
                 val request = UpdateDocumentRequest(
@@ -108,6 +111,9 @@ class DocumentMetadataRepository @Inject constructor(
                 Result.success(updatedDocument.toDomain())
             } else {
                 // PHASE-3.3: extract via DocumentSyncRepository.executeOrQueue { ... }
+                // FIXME (#169): unescaped string interpolation — a title or created value
+                // containing `"` produces invalid JSON in PendingChange.changeData and breaks
+                // sync replay. Replace with gson.toJson(...) when extracting to DocumentSync.
                 val changeData = buildString {
                     append("{")
                     title?.let { append("\"title\":\"$it\",") }
