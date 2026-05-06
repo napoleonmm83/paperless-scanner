@@ -12,11 +12,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
-import com.paperless.scanner.data.api.models.PermissionSet
-import com.paperless.scanner.data.api.models.SetPermissionsRequest
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
-import com.paperless.scanner.data.api.models.UpdateDocumentRequest
-import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
@@ -61,6 +57,7 @@ class DocumentRepository @Inject constructor(
     private val pdfGenerator: PdfGeneratorService,
     private val serializer: DocumentSerializer,
     private val count: DocumentCountRepository,
+    private val metadata: DocumentMetadataRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -386,45 +383,8 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getDocument(id: Int, forceRefresh: Boolean = false): Result<Document> {
-        return try {
-            // For detail view, always fetch from network to get full data (notes, permissions, etc.)
-            if (forceRefresh || networkMonitor.checkOnlineStatus()) {
-                return try {
-                    val doc = api.getDocument(id)
-                    // Cache basic document data
-                    cachedDocumentDao.insert(doc.toCachedEntity())
-                    Result.success(doc.toDomain())
-                } catch (e: retrofit2.HttpException) {
-                    // If network fails, try cache
-                    val cached = cachedDocumentDao.getDocument(id)
-                    if (cached != null) {
-                        Result.success(cached.toCachedDomain())
-                    } else {
-                        Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-                    }
-                } catch (e: Exception) {
-                    // If network fails, try cache
-                    val cached = cachedDocumentDao.getDocument(id)
-                    if (cached != null) {
-                        Result.success(cached.toCachedDomain())
-                    } else {
-                        Result.failure(PaperlessException.from(e))
-                    }
-                }
-            }
-
-            // Offline: use cache
-            val cached = cachedDocumentDao.getDocument(id)
-            if (cached != null) {
-                Result.success(cached.toCachedDomain())
-            } else {
-                Result.failure(PaperlessException.ClientError(404, context.getString(R.string.error_document_not_cached)))
-            }
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getDocument(id: Int, forceRefresh: Boolean = false): Result<Document> =
+        metadata.getDocument(id, forceRefresh)
 
     /**
      * BEST PRACTICE: Reactive Flow for single document observation.
@@ -444,10 +404,7 @@ class DocumentRepository @Inject constructor(
      * }
      * ```
      */
-    fun observeDocument(id: Int): Flow<Document?> {
-        return cachedDocumentDao.observeDocument(id)
-            .map { it?.toCachedDomain() }
-    }
+    fun observeDocument(id: Int): Flow<Document?> = metadata.observeDocument(id)
 
     suspend fun searchDocuments(query: String): Result<List<Document>> {
         return try {
@@ -617,112 +574,9 @@ class DocumentRepository @Inject constructor(
         documentType: Int? = null,
         archiveSerialNumber: Int? = null,
         created: String? = null
-    ): Result<Document> {
-        return try {
-            // Check if server is reachable (internet + server online)
-            if (serverHealthMonitor.isServerReachable.value) {
-                // Get old tags before update (for document count adjustment)
-                val oldTagIds = if (tags != null) {
-                    getOldTagIds(documentId)
-                } else null
-
-                // Online: Update via API
-                val request = UpdateDocumentRequest(
-                    title = title,
-                    tags = tags,
-                    correspondent = correspondent,
-                    documentType = documentType,
-                    archiveSerialNumber = archiveSerialNumber,
-                    created = created
-                )
-
-                val updatedDocument = api.updateDocument(documentId, request)
-
-                // Update cache
-                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
-
-                // BEST PRACTICE: Update tag document counts when tags change
-                // This ensures LabelsScreen shows correct counts immediately
-                if (tags != null && oldTagIds != null) {
-                    updateTagDocumentCounts(oldTagIds, tags)
-                }
-
-                Result.success(updatedDocument.toDomain())
-            } else {
-                // Offline: Queue update for sync
-                val changeData = buildString {
-                    append("{")
-                    title?.let { append("\"title\":\"$it\",") }
-                    tags?.let { append("\"tags\":$it,") }
-                    correspondent?.let { append("\"correspondent\":$it,") }
-                    documentType?.let { append("\"documentType\":$it,") }
-                    archiveSerialNumber?.let { append("\"archiveSerialNumber\":$it,") }
-                    created?.let { append("\"created\":\"$it\",") }
-                    if (endsWith(",")) deleteCharAt(length - 1)
-                    append("}")
-                }
-
-                val pendingChange = PendingChange(
-                    entityType = "document",
-                    entityId = documentId,
-                    changeType = "update",
-                    changeData = changeData
-                )
-                pendingChangeDao.insert(pendingChange)
-
-                // Update local cache optimistically
-                val cached = cachedDocumentDao.getDocument(documentId)
-                if (cached != null) {
-                    Result.success(cached.toCachedDomain())
-                } else {
-                    Result.failure(PaperlessException.ClientError(404, context.getString(R.string.error_document_not_cached)))
-                }
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * Gets the current tag IDs from a cached document.
-     */
-    private suspend fun getOldTagIds(documentId: Int): List<Int> {
-        return try {
-            val cached = cachedDocumentDao.getDocument(documentId)
-            serializer.deserializeCachedTagIds(cached?.tags)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    /**
-     * Updates tag document counts when tags are added/removed from a document.
-     * Decrements count for removed tags, increments count for added tags.
-     * This ensures LabelsScreen shows correct counts immediately.
-     */
-    private suspend fun updateTagDocumentCounts(oldTagIds: List<Int>, newTagIds: List<Int>) {
-        try {
-            val oldSet = oldTagIds.toSet()
-            val newSet = newTagIds.toSet()
-
-            // Tags that were removed: decrement count
-            val removedTags = oldSet - newSet
-            removedTags.forEach { tagId ->
-                cachedTagDao.updateDocumentCount(tagId, -1)
-            }
-
-            // Tags that were added: increment count
-            val addedTags = newSet - oldSet
-            addedTags.forEach { tagId ->
-                cachedTagDao.updateDocumentCount(tagId, 1)
-            }
-        } catch (e: Exception) {
-            // Log but don't fail - cache update is best effort
-            // Server is already in sync, cache will update on next full sync
-        }
-    }
+    ): Result<Document> = metadata.updateDocument(
+        documentId, title, tags, correspondent, documentType, archiveSerialNumber, created
+    )
 
     suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> {
         return try {
@@ -809,32 +663,9 @@ class DocumentRepository @Inject constructor(
         viewGroups: List<Int>,
         changeUsers: List<Int>,
         changeGroups: List<Int>
-    ): Result<Document> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val request = UpdateDocumentWithPermissionsRequest(
-                    owner = owner,
-                    setPermissions = SetPermissionsRequest(
-                        view = PermissionSet(users = viewUsers, groups = viewGroups),
-                        change = PermissionSet(users = changeUsers, groups = changeGroups)
-                    )
-                )
-
-                val updatedDocument = api.updateDocumentPermissions(documentId, request)
-
-                // Update cache
-                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
-
-                Result.success(updatedDocument.toDomain())
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    ): Result<Document> = metadata.updateDocumentPermissions(
+        documentId, owner, viewUsers, viewGroups, changeUsers, changeGroups
+    )
 
     // ========================================
     // TRASH METHODS (Paperless-ngx v2.20+)
