@@ -86,7 +86,12 @@ class DocumentListRepository @Inject constructor(
         forceRefresh: Boolean = false,
     ): Result<DocumentsResponse> {
         return try {
-            if (!forceRefresh || !networkMonitor.checkOnlineStatus()) {
+            // Cache path only serves unfiltered requests — the DAO call below ignores
+            // query/tagIds/correspondent/documentType, so a filtered request must
+            // bypass it (otherwise the user gets unrelated rows + an unfiltered count).
+            val isUnfilteredRequest = query == null && tagIds.isNullOrEmpty() &&
+                correspondentId == null && documentTypeId == null
+            if (isUnfilteredRequest && (!forceRefresh || !networkMonitor.checkOnlineStatus())) {
                 val cachedDocs = cachedDocumentDao.getDocuments(
                     limit = pageSize,
                     offset = (page - 1) * pageSize,

@@ -205,6 +205,35 @@ class DocumentListRepositoryTest {
     }
 
     @Test
+    fun `getDocuments with filter bypasses cache and fetches from network`() = runTest {
+        // Regression: cache DAO ignores query/tagIds/etc., so a filtered request
+        // must skip the cache branch even when cache has data.
+        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        coEvery {
+            api.getDocuments(
+                page = 1,
+                pageSize = 25,
+                query = "tax",
+                tagIds = null,
+                correspondentId = null,
+                documentTypeId = null,
+                ordering = "-created"
+            )
+        } returns DtoDocumentsResponse(
+            count = 1,
+            next = null,
+            previous = null,
+            results = listOf(apiDoc(id = 1, title = "Filtered"))
+        )
+
+        val result = repo.getDocuments(page = 1, pageSize = 25, query = "tax", forceRefresh = false)
+
+        assertTrue(result.isSuccess)
+        assertEquals("Filtered", result.getOrNull()!!.results.first().title)
+        coVerify(exactly = 0) { cachedDocumentDao.getDocuments(limit = any(), offset = any()) }
+    }
+
+    @Test
     fun `searchDocuments happy path returns mapped domain list`() = runTest {
         coEvery { cachedDocumentDao.searchDocuments("foo") } returns
             listOf(cachedDoc(id = 1, title = "Found Foo"))
