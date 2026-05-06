@@ -38,6 +38,7 @@ import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
@@ -349,7 +350,8 @@ object AppModule {
         pdfGenerator: PdfGeneratorService,
         serializer: DocumentSerializer,
         count: DocumentCountRepository,
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count)
+        metadata: DocumentMetadataRepository,
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata)
 
     @Provides
     @Singleton

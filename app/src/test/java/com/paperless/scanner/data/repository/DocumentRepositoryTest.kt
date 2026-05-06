@@ -58,6 +58,7 @@ class DocumentRepositoryTest {
     private lateinit var pdfGenerator: PdfGeneratorService
     private lateinit var serializer: DocumentSerializer
     private lateinit var countRepository: DocumentCountRepository
+    private lateinit var metadataRepository: DocumentMetadataRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -83,6 +84,16 @@ class DocumentRepositoryTest {
         pdfGenerator = PdfGeneratorService(context, imageProcessor)
         serializer = DocumentSerializer(gson)
         countRepository = DocumentCountRepository(api, cachedDocumentDao, networkMonitor)
+        metadataRepository = DocumentMetadataRepository(
+            context,
+            api,
+            cachedDocumentDao,
+            cachedTagDao,
+            pendingChangeDao,
+            networkMonitor,
+            serverHealthMonitor,
+            serializer
+        )
 
         documentRepository = DocumentRepository(
             context,
@@ -98,7 +109,8 @@ class DocumentRepositoryTest {
             imageProcessor,
             pdfGenerator,
             serializer,
-            countRepository
+            countRepository,
+            metadataRepository
         )
     }
 
