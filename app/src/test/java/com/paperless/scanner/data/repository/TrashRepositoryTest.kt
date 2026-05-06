@@ -9,10 +9,8 @@ import com.paperless.scanner.data.api.models.DocumentsResponse as DtoDocumentsRe
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
-import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.database.entities.CachedTask
-import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -40,8 +38,8 @@ class TrashRepositoryTest {
     private lateinit var api: PaperlessApi
     private lateinit var cachedDocumentDao: CachedDocumentDao
     private lateinit var cachedTaskDao: CachedTaskDao
-    private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
+    private lateinit var sync: DocumentSyncRepository
     private lateinit var repo: TrashRepository
 
     @Before
@@ -50,18 +48,29 @@ class TrashRepositoryTest {
         api = mockk(relaxed = true)
         cachedDocumentDao = mockk(relaxed = true)
         cachedTaskDao = mockk(relaxed = true)
-        pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        sync = mockk(relaxed = true)
 
         every { context.getString(any()) } returns "offline"
+
+        // Default: executeOrQueue runs the online lambda (online happy path).
+        coEvery { sync.executeOrQueue<Unit>(any(), any()) } coAnswers {
+            try {
+                Result.success(firstArg<suspend () -> Unit>().invoke())
+            } catch (e: retrofit2.HttpException) {
+                Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
 
         repo = TrashRepository(
             context = context,
             api = api,
             cachedDocumentDao = cachedDocumentDao,
             cachedTaskDao = cachedTaskDao,
-            pendingChangeDao = pendingChangeDao,
             networkMonitor = networkMonitor,
+            sync = sync,
         )
     }
 
@@ -254,22 +263,24 @@ class TrashRepositoryTest {
     }
 
     @Test
-    fun `deleteDocument offline writes PendingChange and softDeletes`() = runTest {
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
-        val pendingSlot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(pendingSlot)) } returns 1L
+    fun `deleteDocument offline queues delete via sync and softDeletes`() = runTest {
+        // Switch executeOrQueue stub to run the OFFLINE lambda
+        coEvery { sync.executeOrQueue<Unit>(any(), any()) } coAnswers {
+            try {
+                Result.success(secondArg<suspend () -> Unit>().invoke())
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
 
         val result = repo.deleteDocument(7)
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { pendingChangeDao.insert(any()) }
-        assertEquals("document", pendingSlot.captured.entityType)
-        assertEquals(7, pendingSlot.captured.entityId)
-        assertEquals("delete", pendingSlot.captured.changeType)
+        coVerify(exactly = 1) { sync.queueDocumentDelete(7) }
         // Offline asymmetric ordering: ack BEFORE softDelete so reactivity works
         // (per the original "CRITICAL: Must happen BEFORE soft delete" comment).
         coVerifyOrder {
-            pendingChangeDao.insert(any())
+            sync.queueDocumentDelete(7)
             cachedTaskDao.acknowledgeTasksForDocument("7")
             cachedDocumentDao.softDelete(eq(7), any())
         }
@@ -304,13 +315,20 @@ class TrashRepositoryTest {
     }
 
     @Test
-    fun `restoreDocuments offline writes one PendingChange per id`() = runTest {
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
+    fun `restoreDocuments offline queues restore via sync`() = runTest {
+        // Switch executeOrQueue stub to run the OFFLINE lambda
+        coEvery { sync.executeOrQueue<Unit>(any(), any()) } coAnswers {
+            try {
+                Result.success(secondArg<suspend () -> Unit>().invoke())
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
 
         val result = repo.restoreDocuments(listOf(1, 2, 3))
 
         assertTrue(result.isSuccess)
-        coVerify(exactly = 3) { pendingChangeDao.insert(any()) }
+        coVerify { sync.queueTrashAction(listOf(1, 2, 3), DocumentSyncRepository.TrashAction.RESTORE) }
         coVerify { cachedDocumentDao.restoreDocuments(listOf(1, 2, 3)) }
     }
 
@@ -330,8 +348,7 @@ class TrashRepositoryTest {
 
     @Test
     fun `permanentlyDeleteDocuments online + offline branches`() = runTest {
-        // Online branch
-        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        // Online branch (default sync stub runs online lambda)
         val requestSlot = slot<TrashBulkActionRequest>()
         coEvery { api.trashBulkAction(capture(requestSlot)) } returns successUnit()
 
@@ -342,13 +359,19 @@ class TrashRepositoryTest {
         assertEquals(listOf(5, 6), requestSlot.captured.documents)
         coVerify { cachedDocumentDao.deleteByIds(listOf(5, 6)) }
 
-        // Offline branch
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
+        // Offline branch — switch sync stub to run the OFFLINE lambda
+        coEvery { sync.executeOrQueue<Unit>(any(), any()) } coAnswers {
+            try {
+                Result.success(secondArg<suspend () -> Unit>().invoke())
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
 
         val offlineResult = repo.permanentlyDeleteDocuments(listOf(7, 8))
 
         assertTrue(offlineResult.isSuccess)
-        coVerify(exactly = 2) { pendingChangeDao.insert(match { it.entityType == "trash" && it.changeType == "delete" }) }
+        coVerify { sync.queueTrashAction(listOf(7, 8), DocumentSyncRepository.TrashAction.PERMANENT_DELETE) }
         coVerify { cachedDocumentDao.deleteByIds(listOf(7, 8)) }
     }
 

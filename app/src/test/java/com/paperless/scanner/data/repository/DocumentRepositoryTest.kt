@@ -75,6 +75,7 @@ class DocumentRepositoryTest {
         pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
+        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(true)
         gson = Gson()
         crashlyticsHelper = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
@@ -86,15 +87,19 @@ class DocumentRepositoryTest {
         pdfGenerator = PdfGeneratorService(context, imageProcessor)
         serializer = DocumentSerializer(gson)
         countRepository = DocumentCountRepository(api, cachedDocumentDao, networkMonitor)
+        val documentSyncRepository = DocumentSyncRepository(
+            pendingChangeDao = pendingChangeDao,
+            serverHealthMonitor = serverHealthMonitor,
+            gson = gson,
+        )
         metadataRepository = DocumentMetadataRepository(
             context,
             api,
             cachedDocumentDao,
             cachedTagDao,
-            pendingChangeDao,
             networkMonitor,
-            serverHealthMonitor,
-            serializer
+            serializer,
+            documentSyncRepository,
         )
         listRepository = DocumentListRepository(
             context,
@@ -107,8 +112,8 @@ class DocumentRepositoryTest {
             api = api,
             cachedDocumentDao = cachedDocumentDao,
             cachedTaskDao = cachedTaskDao,
-            pendingChangeDao = pendingChangeDao,
             networkMonitor = networkMonitor,
+            sync = documentSyncRepository,
         )
         val auditRepository = AuditRepository(
             context = context,
@@ -327,6 +332,8 @@ class DocumentRepositoryTest {
 
     @Test
     fun `deleteDocument offline queues pending change`() = runTest {
+        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
+        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
         every { networkMonitor.checkOnlineStatus() } returns false
 
         val result = documentRepository.deleteDocument(1)
@@ -366,6 +373,8 @@ class DocumentRepositoryTest {
 
     @Test
     fun `restoreDocument offline queues pending change`() = runTest {
+        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
+        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
         every { networkMonitor.checkOnlineStatus() } returns false
 
         val result = documentRepository.restoreDocument(1)
@@ -408,6 +417,8 @@ class DocumentRepositoryTest {
 
     @Test
     fun `permanentlyDeleteDocument offline queues pending change`() = runTest {
+        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
+        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
         every { networkMonitor.checkOnlineStatus() } returns false
 
         val result = documentRepository.permanentlyDeleteDocument(1)
