@@ -9,18 +9,15 @@ import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
-import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.CachedDocument
-import com.paperless.scanner.data.database.entities.PendingChange
-import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
+import com.paperless.scanner.domain.model.Document
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -43,10 +40,9 @@ class DocumentMetadataRepositoryTest {
     private lateinit var api: PaperlessApi
     private lateinit var cachedDocumentDao: CachedDocumentDao
     private lateinit var cachedTagDao: CachedTagDao
-    private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var serializer: DocumentSerializer
+    private lateinit var sync: DocumentSyncRepository
     private lateinit var repo: DocumentMetadataRepository
 
     @Before
@@ -55,23 +51,22 @@ class DocumentMetadataRepositoryTest {
         api = mockk(relaxed = true)
         cachedDocumentDao = mockk(relaxed = true)
         cachedTagDao = mockk(relaxed = true)
-        pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
-        serverHealthMonitor = mockk(relaxed = true)
         serializer = DocumentSerializer(Gson())
-
-        // Default: server reachable = true
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
+        sync = mockk(relaxed = true)
+        // Default: executeOrQueue runs the online lambda (online happy path).
+        coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
+            Result.success(firstArg<suspend () -> Document>().invoke())
+        }
 
         repo = DocumentMetadataRepository(
             context,
             api,
             cachedDocumentDao,
             cachedTagDao,
-            pendingChangeDao,
             networkMonitor,
-            serverHealthMonitor,
-            serializer
+            serializer,
+            sync,
         )
     }
 
@@ -203,11 +198,6 @@ class DocumentMetadataRepositoryTest {
 
     @Test
     fun `updateDocument online updates cache and returns domain`() = runTest {
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
-        repo = DocumentMetadataRepository(
-            context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao,
-            networkMonitor, serverHealthMonitor, serializer
-        )
         val captured = slot<UpdateDocumentRequest>()
         coEvery { api.updateDocument(eq(1), capture(captured)) } returns apiDoc(id = 1, title = "Updated")
 
@@ -221,11 +211,6 @@ class DocumentMetadataRepositoryTest {
 
     @Test
     fun `updateDocument online with tag delta calls cachedTagDao updateDocumentCount`() = runTest {
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
-        repo = DocumentMetadataRepository(
-            context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao,
-            networkMonitor, serverHealthMonitor, serializer
-        )
         // Old tags: [1, 2]; new tags: [2, 3] -> remove 1, add 3
         coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, tagsJson = "[1,2]")
         coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(2, 3))
@@ -238,35 +223,38 @@ class DocumentMetadataRepositoryTest {
     }
 
     @Test
-    fun `updateDocument offline writes PendingChange and returns optimistic cached domain`() = runTest {
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
-        repo = DocumentMetadataRepository(
-            context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao,
-            networkMonitor, serverHealthMonitor, serializer
-        )
+    fun `updateDocument offline queues update via sync and returns optimistic cached domain`() = runTest {
+        // Switch executeOrQueue stub to run the OFFLINE lambda
+        coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
+            Result.success(secondArg<suspend () -> Document>().invoke())
+        }
         coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, title = "Optimistic")
-        val pendingSlot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(pendingSlot)) } returns 42L
+        val payloadSlot = slot<DocumentSyncRepository.DocumentUpdatePayload>()
+        coEvery { sync.queueDocumentUpdate(eq(1), capture(payloadSlot)) } returns Unit
 
         val result = repo.updateDocument(documentId = 1, title = "New Title")
 
         assertTrue(result.isSuccess)
         assertEquals("Optimistic", result.getOrNull()!!.title)
-        assertEquals("document", pendingSlot.captured.entityType)
-        assertEquals(1, pendingSlot.captured.entityId)
-        assertEquals("update", pendingSlot.captured.changeType)
-        assertTrue(pendingSlot.captured.changeData.contains("\"title\":\"New Title\""))
+        coVerify { sync.queueDocumentUpdate(eq(1), any()) }
+        assertEquals("New Title", payloadSlot.captured.title)
     }
 
     @Test
     fun `updateDocument offline without cache returns ClientError 404`() = runTest {
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
-        repo = DocumentMetadataRepository(
-            context, api, cachedDocumentDao, cachedTagDao, pendingChangeDao,
-            networkMonitor, serverHealthMonitor, serializer
-        )
+        // Switch executeOrQueue stub to run the OFFLINE lambda — the underlying
+        // PaperlessException.ClientError is thrown, then re-wrapped by executeOrQueue.
+        coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
+            try {
+                Result.success(secondArg<suspend () -> Document>().invoke())
+            } catch (e: retrofit2.HttpException) {
+                Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
         coEvery { cachedDocumentDao.getDocument(1) } returns null
-        coEvery { pendingChangeDao.insert(any()) } returns 99L
+        coEvery { sync.queueDocumentUpdate(any(), any()) } returns Unit
 
         val result = repo.updateDocument(documentId = 1, title = "Doesn't matter")
 
