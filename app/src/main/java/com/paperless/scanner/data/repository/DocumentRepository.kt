@@ -19,8 +19,6 @@ import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.R
-import com.paperless.scanner.domain.mapper.toAuditLogDomain
-import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
@@ -50,6 +48,7 @@ class DocumentRepository @Inject constructor(
     private val metadata: DocumentMetadataRepository,
     private val list: DocumentListRepository,
     private val trash: TrashRepository,
+    private val audit: AuditRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -381,51 +380,14 @@ class DocumentRepository @Inject constructor(
         documentId, title, tags, correspondent, documentType, archiveSerialNumber, created
     )
 
-    suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val history = api.getDocumentHistory(documentId)
-                Result.success(history.toAuditLogDomain())
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> =
+        audit.getDocumentHistory(documentId)
 
-    suspend fun addNote(documentId: Int, noteText: String): Result<List<com.paperless.scanner.domain.model.Note>> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val request = com.paperless.scanner.data.api.models.CreateNoteRequest(note = noteText)
-                val notes = api.addNote(documentId, request)
-                Result.success(notes.map { it.toDomain() })
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun addNote(documentId: Int, noteText: String): Result<List<com.paperless.scanner.domain.model.Note>> =
+        audit.addNote(documentId, noteText)
 
-    suspend fun deleteNote(documentId: Int, noteId: Int): Result<List<com.paperless.scanner.domain.model.Note>> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val notes = api.deleteNote(documentId, noteId)
-                Result.success(notes.map { it.toDomain() })
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun deleteNote(documentId: Int, noteId: Int): Result<List<com.paperless.scanner.domain.model.Note>> =
+        audit.deleteNote(documentId, noteId)
 
     // User and Group methods for permissions management
 
