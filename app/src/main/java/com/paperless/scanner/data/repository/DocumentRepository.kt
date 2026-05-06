@@ -3,17 +3,13 @@ package com.paperless.scanner.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
 import androidx.paging.PagingData
-import androidx.paging.map
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
-import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
@@ -58,6 +54,7 @@ class DocumentRepository @Inject constructor(
     private val serializer: DocumentSerializer,
     private val count: DocumentCountRepository,
     private val metadata: DocumentMetadataRepository,
+    private val list: DocumentListRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -241,14 +238,7 @@ class DocumentRepository @Inject constructor(
     fun observeDocuments(
         page: Int = 1,
         pageSize: Int = 25
-    ): Flow<List<Document>> {
-        return cachedDocumentDao.observeDocuments(
-            limit = pageSize,
-            offset = (page - 1) * pageSize
-        ).map { cachedList ->
-            cachedList.map { it.toCachedDomain() }
-        }
-    }
+    ): Flow<List<Document>> = list.observeDocuments(page, pageSize)
 
     /**
      * Get total count of filtered documents with searchQuery + DocumentFilter.
@@ -276,14 +266,7 @@ class DocumentRepository @Inject constructor(
      *
      * @return Result with list of untagged documents ordered by most recent
      */
-    suspend fun getUntaggedDocuments(): Result<List<Document>> {
-        return try {
-            val cachedDocs = cachedDocumentDao.getUntaggedDocuments()
-            Result.success(cachedDocs.map { it.toCachedDomain() })
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    suspend fun getUntaggedDocuments(): Result<List<Document>> = list.getUntaggedDocuments()
 
     /**
      * PAGING 3: Get documents as paginated Flow for infinite scroll.
@@ -303,25 +286,7 @@ class DocumentRepository @Inject constructor(
     fun getDocumentsPaged(
         searchQuery: String? = null,
         filter: com.paperless.scanner.domain.model.DocumentFilter = com.paperless.scanner.domain.model.DocumentFilter.empty()
-    ): Flow<PagingData<Document>> {
-        return Pager(
-            config = PagingConfig(
-                pageSize = 100,
-                maxSize = 500, // Memory limit: max 500 items in memory
-                enablePlaceholders = false
-            ),
-            pagingSourceFactory = {
-                val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildPagingQuery(
-                    searchQuery = searchQuery,
-                    filter = filter
-                )
-                cachedDocumentDao.getDocumentsPagingSource(query)
-            }
-        ).flow.map { pagingData ->
-            // Map CachedDocument to Domain Document
-            pagingData.map { it.toCachedDomain() }
-        }
-    }
+    ): Flow<PagingData<Document>> = list.getDocumentsPaged(searchQuery, filter)
 
     suspend fun getDocuments(
         page: Int = 1,
@@ -332,56 +297,9 @@ class DocumentRepository @Inject constructor(
         documentTypeId: Int? = null,
         ordering: String = "-created",
         forceRefresh: Boolean = false
-    ): Result<DocumentsResponse> {
-        return try {
-            // Offline-First: Try cache first unless forceRefresh
-            if (!forceRefresh || !networkMonitor.checkOnlineStatus()) {
-                val cachedDocs = cachedDocumentDao.getDocuments(
-                    limit = pageSize,
-                    offset = (page - 1) * pageSize
-                )
-
-                if (cachedDocs.isNotEmpty()) {
-                    val totalCount = cachedDocumentDao.getCount()
-                    val domainDocs = cachedDocs.map { it.toCachedDomain() }
-
-                    return Result.success(
-                        DocumentsResponse(
-                            count = totalCount,
-                            next = if ((page * pageSize) < totalCount) "next" else null,
-                            previous = if (page > 1) "prev" else null,
-                            results = domainDocs
-                        )
-                    )
-                }
-            }
-
-            // Network fetch (if online and forceRefresh or cache empty)
-            if (networkMonitor.checkOnlineStatus()) {
-                val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
-                val response = api.getDocuments(
-                    page = page,
-                    pageSize = pageSize,
-                    query = query,
-                    tagIds = tagIdsString,
-                    correspondentId = correspondentId,
-                    documentTypeId = documentTypeId,
-                    ordering = ordering
-                )
-
-                // Update cache
-                val cachedEntities = response.results.map { it.toCachedEntity() }
-                cachedDocumentDao.insertAll(cachedEntities)
-
-                Result.success(response.toDomain())
-            } else {
-                // Offline, no cache
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline_no_cache))))
-            }
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    ): Result<DocumentsResponse> = list.getDocuments(
+        page, pageSize, query, tagIds, correspondentId, documentTypeId, ordering, forceRefresh
+    )
 
     suspend fun getDocument(id: Int, forceRefresh: Boolean = false): Result<Document> =
         metadata.getDocument(id, forceRefresh)
@@ -406,38 +324,12 @@ class DocumentRepository @Inject constructor(
      */
     fun observeDocument(id: Int): Flow<Document?> = metadata.observeDocument(id)
 
-    suspend fun searchDocuments(query: String): Result<List<Document>> {
-        return try {
-            val cachedResults = cachedDocumentDao.searchDocuments(query)
-            Result.success(cachedResults.map { it.toCachedDomain() })
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun searchDocuments(query: String): Result<List<Document>> = list.searchDocuments(query)
 
     suspend fun getDocumentCount(forceRefresh: Boolean = false): Result<Int> =
         count.getDocumentCount(forceRefresh)
 
-    suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> {
-        return try {
-            // Try cache first
-            val cached = cachedDocumentDao.getDocuments(limit = limit, offset = 0)
-            if (cached.isNotEmpty() || !networkMonitor.checkOnlineStatus()) {
-                return Result.success(cached.map { it.toCachedDomain() })
-            }
-
-            // Fallback to network
-            safeApiCall {
-                api.getDocuments(
-                    page = 1,
-                    pageSize = limit,
-                    ordering = "-added"
-                ).results.toDomain()
-            }
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> = list.getRecentDocuments(limit)
 
     suspend fun getUntaggedCount(): Result<Int> = count.getUntaggedCount()
 

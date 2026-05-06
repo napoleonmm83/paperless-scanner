@@ -59,6 +59,7 @@ class DocumentRepositoryTest {
     private lateinit var serializer: DocumentSerializer
     private lateinit var countRepository: DocumentCountRepository
     private lateinit var metadataRepository: DocumentMetadataRepository
+    private lateinit var listRepository: DocumentListRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -94,6 +95,12 @@ class DocumentRepositoryTest {
             serverHealthMonitor,
             serializer
         )
+        listRepository = DocumentListRepository(
+            context,
+            api,
+            cachedDocumentDao,
+            networkMonitor
+        )
 
         documentRepository = DocumentRepository(
             context,
@@ -110,7 +117,8 @@ class DocumentRepositoryTest {
             pdfGenerator,
             serializer,
             countRepository,
-            metadataRepository
+            metadataRepository,
+            listRepository
         )
     }
 

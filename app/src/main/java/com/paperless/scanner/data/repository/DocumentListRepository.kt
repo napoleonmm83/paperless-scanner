@@ -1,0 +1,159 @@
+package com.paperless.scanner.data.repository
+
+import android.content.Context
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import com.paperless.scanner.R
+import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.safeApiCall
+import com.paperless.scanner.data.database.DocumentFilterQueryBuilder
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
+import com.paperless.scanner.data.database.mappers.toCachedEntity
+import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
+import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.domain.mapper.toDomain
+import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.domain.model.DocumentsResponse
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+/**
+ * Phase 2.1 of #51 — extracted from DocumentRepository.
+ *
+ * Owns list / paging / search operations: observeDocuments, getDocumentsPaged,
+ * getDocuments, searchDocuments, getRecentDocuments, getUntaggedDocuments.
+ */
+@Singleton
+class DocumentListRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val api: PaperlessApi,
+    private val cachedDocumentDao: CachedDocumentDao,
+    private val networkMonitor: NetworkMonitor,
+) {
+
+    fun observeDocuments(page: Int = 1, pageSize: Int = 25): Flow<List<Document>> {
+        return cachedDocumentDao.observeDocuments(
+            limit = pageSize,
+            offset = (page - 1) * pageSize,
+        ).map { cachedList -> cachedList.map { it.toCachedDomain() } }
+    }
+
+    suspend fun getUntaggedDocuments(): Result<List<Document>> {
+        return try {
+            val cachedDocs = cachedDocumentDao.getUntaggedDocuments()
+            Result.success(cachedDocs.map { it.toCachedDomain() })
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun getDocumentsPaged(
+        searchQuery: String? = null,
+        filter: DocumentFilter = DocumentFilter.empty(),
+    ): Flow<PagingData<Document>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = 100,
+                maxSize = 500,
+                enablePlaceholders = false,
+            ),
+            pagingSourceFactory = {
+                val query = DocumentFilterQueryBuilder.buildPagingQuery(
+                    searchQuery = searchQuery,
+                    filter = filter,
+                )
+                cachedDocumentDao.getDocumentsPagingSource(query)
+            },
+        ).flow.map { pagingData -> pagingData.map { it.toCachedDomain() } }
+    }
+
+    suspend fun getDocuments(
+        page: Int = 1,
+        pageSize: Int = 25,
+        query: String? = null,
+        tagIds: List<Int>? = null,
+        correspondentId: Int? = null,
+        documentTypeId: Int? = null,
+        ordering: String = "-created",
+        forceRefresh: Boolean = false,
+    ): Result<DocumentsResponse> {
+        return try {
+            if (!forceRefresh || !networkMonitor.checkOnlineStatus()) {
+                val cachedDocs = cachedDocumentDao.getDocuments(
+                    limit = pageSize,
+                    offset = (page - 1) * pageSize,
+                )
+                if (cachedDocs.isNotEmpty()) {
+                    val totalCount = cachedDocumentDao.getCount()
+                    val domainDocs = cachedDocs.map { it.toCachedDomain() }
+                    return Result.success(
+                        DocumentsResponse(
+                            count = totalCount,
+                            next = if ((page * pageSize) < totalCount) "next" else null,
+                            previous = if (page > 1) "prev" else null,
+                            results = domainDocs,
+                        )
+                    )
+                }
+            }
+            if (networkMonitor.checkOnlineStatus()) {
+                val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
+                val response = api.getDocuments(
+                    page = page,
+                    pageSize = pageSize,
+                    query = query,
+                    tagIds = tagIdsString,
+                    correspondentId = correspondentId,
+                    documentTypeId = documentTypeId,
+                    ordering = ordering,
+                )
+                val cachedEntities = response.results.map { it.toCachedEntity() }
+                cachedDocumentDao.insertAll(cachedEntities)
+                Result.success(response.toDomain())
+            } else {
+                Result.failure(
+                    PaperlessException.NetworkError(
+                        IOException(context.getString(R.string.error_offline_no_cache))
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun searchDocuments(query: String): Result<List<Document>> {
+        return try {
+            val cachedResults = cachedDocumentDao.searchDocuments(query)
+            Result.success(cachedResults.map { it.toCachedDomain() })
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+
+    suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> {
+        return try {
+            val cached = cachedDocumentDao.getDocuments(limit = limit, offset = 0)
+            if (cached.isNotEmpty() || !networkMonitor.checkOnlineStatus()) {
+                return Result.success(cached.map { it.toCachedDomain() })
+            }
+            safeApiCall {
+                api.getDocuments(
+                    page = 1,
+                    pageSize = limit,
+                    ordering = "-added",
+                ).results.toDomain()
+            }
+        } catch (e: Exception) {
+            Result.failure(PaperlessException.from(e))
+        }
+    }
+}
