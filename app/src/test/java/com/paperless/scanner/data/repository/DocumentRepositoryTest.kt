@@ -110,6 +110,11 @@ class DocumentRepositoryTest {
             pendingChangeDao = pendingChangeDao,
             networkMonitor = networkMonitor,
         )
+        val auditRepository = AuditRepository(
+            context = context,
+            api = api,
+            networkMonitor = networkMonitor,
+        )
 
         documentRepository = DocumentRepository(
             context,
@@ -129,6 +134,7 @@ class DocumentRepositoryTest {
             metadataRepository,
             listRepository,
             trashRepository,
+            auditRepository,
         )
     }
 
