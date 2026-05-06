@@ -8,6 +8,7 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Phase 3.3 of #51 — centralizes the offline-queue + serverHealth pattern that
@@ -44,15 +45,19 @@ class DocumentSyncRepository @Inject constructor(
             if (isOnline) {
                 try {
                     Result.success(online())
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: IOException) {
                     Result.success(offlineQueueAndOptimistic())
                 }
             } else {
                 Result.success(offlineQueueAndOptimistic())
             }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            // PaperlessException.from(e) handles HttpException with errorBody extraction,
+            // preserving the pre-Phase-3.3 errorBody-fidelity for ClientError messages.
             Result.failure(PaperlessException.from(e))
         }
     }
