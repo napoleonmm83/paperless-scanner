@@ -16,6 +16,7 @@ import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -208,9 +209,13 @@ class TrashRepositoryTest {
         val result = repo.deleteDocument(1)
 
         assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.softDelete(eq(1), any()) }
-        coVerify { cachedTaskDao.acknowledgeTasksForDocument("1") }
-        coVerify { api.deleteDocument(1) }
+        // Optimistic UI invariant: softDelete + ack MUST happen BEFORE the API call
+        // so the Gmail-style swipe animation completes immediately.
+        coVerifyOrder {
+            cachedDocumentDao.softDelete(eq(1), any())
+            cachedTaskDao.acknowledgeTasksForDocument("1")
+            api.deleteDocument(1)
+        }
     }
 
     @Test
@@ -261,8 +266,13 @@ class TrashRepositoryTest {
         assertEquals("document", pendingSlot.captured.entityType)
         assertEquals(7, pendingSlot.captured.entityId)
         assertEquals("delete", pendingSlot.captured.changeType)
-        coVerify { cachedTaskDao.acknowledgeTasksForDocument("7") }
-        coVerify { cachedDocumentDao.softDelete(eq(7), any()) }
+        // Offline asymmetric ordering: ack BEFORE softDelete so reactivity works
+        // (per the original "CRITICAL: Must happen BEFORE soft delete" comment).
+        coVerifyOrder {
+            pendingChangeDao.insert(any())
+            cachedTaskDao.acknowledgeTasksForDocument("7")
+            cachedDocumentDao.softDelete(eq(7), any())
+        }
     }
 
     @Test
