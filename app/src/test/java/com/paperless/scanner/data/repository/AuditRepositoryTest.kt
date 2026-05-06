@@ -11,12 +11,16 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import retrofit2.HttpException
+import retrofit2.Response
 
 @RunWith(RobolectricTestRunner::class)
 class AuditRepositoryTest {
@@ -102,5 +106,21 @@ class AuditRepositoryTest {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is PaperlessException.NetworkError)
         coVerify(exactly = 0) { api.deleteNote(any(), any()) }
+    }
+
+    @Test
+    fun `getDocumentHistory online HttpException maps to PaperlessException via fromHttpCode`() = runTest {
+        // Covers the HttpException catch branch (shared by all 3 methods); one test is
+        // sufficient because the catch logic is identical across getDocumentHistory,
+        // addNote, and deleteNote.
+        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        val errorBody = "{}".toResponseBody("application/json".toMediaTypeOrNull())
+        coEvery { api.getDocumentHistory(42) } throws HttpException(Response.error<Any>(404, errorBody))
+
+        val result = repo.getDocumentHistory(42)
+
+        assertTrue(result.isFailure)
+        val ex = result.exceptionOrNull()
+        assertTrue("expected PaperlessException, got $ex", ex is PaperlessException)
     }
 }
