@@ -60,6 +60,7 @@ class DocumentRepositoryTest {
     private lateinit var countRepository: DocumentCountRepository
     private lateinit var metadataRepository: DocumentMetadataRepository
     private lateinit var listRepository: DocumentListRepository
+    private lateinit var trashRepository: TrashRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -101,6 +102,14 @@ class DocumentRepositoryTest {
             cachedDocumentDao,
             networkMonitor
         )
+        trashRepository = TrashRepository(
+            context = context,
+            api = api,
+            cachedDocumentDao = cachedDocumentDao,
+            cachedTaskDao = cachedTaskDao,
+            pendingChangeDao = pendingChangeDao,
+            networkMonitor = networkMonitor,
+        )
 
         documentRepository = DocumentRepository(
             context,
@@ -118,7 +127,8 @@ class DocumentRepositoryTest {
             serializer,
             countRepository,
             metadataRepository,
-            listRepository
+            listRepository,
+            trashRepository,
         )
     }
 
@@ -339,7 +349,7 @@ class DocumentRepositoryTest {
         val result = documentRepository.restoreDocument(1)
 
         assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.restoreDocument(1) }
+        coVerify { cachedDocumentDao.restoreDocuments(listOf(1)) }
     }
 
     @Test
@@ -349,7 +359,7 @@ class DocumentRepositoryTest {
         val result = documentRepository.restoreDocument(1)
 
         assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.restoreDocument(1) }
+        coVerify { cachedDocumentDao.restoreDocuments(listOf(1)) }
         coVerify { pendingChangeDao.insert(any()) }
     }
 
@@ -381,7 +391,7 @@ class DocumentRepositoryTest {
 
         assertTrue(result.isSuccess)
         assertEquals("empty", requestSlot.captured.action)
-        coVerify { cachedDocumentDao.hardDelete(1) }
+        coVerify { cachedDocumentDao.deleteByIds(listOf(1)) }
     }
 
     @Test
@@ -391,7 +401,7 @@ class DocumentRepositoryTest {
         val result = documentRepository.permanentlyDeleteDocument(1)
 
         assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.hardDelete(1) }
+        coVerify { cachedDocumentDao.deleteByIds(listOf(1)) }
         coVerify { pendingChangeDao.insert(any()) }
     }
 

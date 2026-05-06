@@ -8,15 +8,10 @@ import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
-import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
-import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
-import com.paperless.scanner.data.database.entities.PendingChange
-import com.paperless.scanner.data.database.mappers.toCachedEntity
-import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
@@ -31,7 +26,6 @@ import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -55,6 +49,7 @@ class DocumentRepository @Inject constructor(
     private val count: DocumentCountRepository,
     private val metadata: DocumentMetadataRepository,
     private val list: DocumentListRepository,
+    private val trash: TrashRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -372,91 +367,7 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteDocument(documentId: Int): Result<Unit> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                // CASCADE CLEANUP STEP 1: Get all unacknowledged task IDs for this document
-                // Must happen BEFORE deletion to get task IDs
-                val tasks = cachedTaskDao.getAllTasks()
-                    .filter { it.relatedDocument == documentId.toString() && !it.acknowledged }
-                val taskIds = tasks.map { it.id }
-
-                // OPTIMISTIC UI: Soft-delete locally FIRST for immediate UI feedback
-                // This is critical for Gmail-style swipe animations where the card
-                // slides off-screen before the API call completes
-                val deletedAt = System.currentTimeMillis()
-                cachedDocumentDao.softDelete(documentId, deletedAt = deletedAt)
-                cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
-
-                // Online: Delete via API (wrapped in try-catch for rollback on exception)
-                try {
-                    val response = api.deleteDocument(documentId)
-
-                    if (response.isSuccessful) {
-                        // CASCADE CLEANUP STEP 2: Acknowledge tasks on SERVER
-                        if (taskIds.isNotEmpty()) {
-                            try {
-                                val ackRequest = com.paperless.scanner.data.api.models.AcknowledgeTasksRequest(taskIds)
-                                api.acknowledgeTasks(ackRequest)
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
-                                // Continue anyway - local cleanup is more important for UX
-                            }
-                        }
-                        // Success: local state already updated, nothing more to do
-                        Result.success(Unit)
-                    } else {
-                        // API FAILED: Rollback optimistic delete by restoring the document
-                        Log.w(TAG, "deleteDocument API failed (HTTP ${response.code()}), rolling back optimistic delete")
-                        cachedDocumentDao.restoreDocument(documentId)
-
-                        // Extract actual error body from server response
-                        val errorBody = try {
-                            response.errorBody()?.string()
-                        } catch (_: Exception) {
-                            null
-                        }
-                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
-                        Result.failure(
-                            PaperlessException.fromHttpCode(
-                                response.code(),
-                                errorBody ?: response.message()
-                            )
-                        )
-                    }
-                } catch (e: Exception) {
-                    // API EXCEPTION (timeout, network error): Rollback optimistic delete
-                    Log.w(TAG, "deleteDocument API exception, rolling back optimistic delete: ${e.message}")
-                    cachedDocumentDao.restoreDocument(documentId)
-                    throw e // Re-throw to be caught by outer catch block
-                }
-            } else {
-                // Offline: Queue deletion for sync
-                val pendingChange = PendingChange(
-                    entityType = "document",
-                    entityId = documentId,
-                    changeType = "delete",
-                    changeData = "{}"
-                )
-                pendingChangeDao.insert(pendingChange)
-
-                // CASCADE CLEANUP: Acknowledge tasks for this document
-                // CRITICAL: Must happen BEFORE soft delete so reactivity works
-                cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
-
-                // Soft delete from local cache immediately for UX
-                // BEST PRACTICE: Use current time as deletion timestamp (local delete)
-                // When synced from server later, 'modified' field will override this
-                cachedDocumentDao.softDelete(documentId, deletedAt = System.currentTimeMillis())
-
-                Result.success(Unit)
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun deleteDocument(documentId: Int): Result<Unit> = trash.deleteDocument(documentId)
 
     suspend fun updateDocument(
         documentId: Int,
@@ -563,373 +474,30 @@ class DocumentRepository @Inject constructor(
     // TRASH METHODS (Paperless-ngx v2.20+)
     // ========================================
 
-    /**
-     * Observe deleted documents from local cache (TrashScreen).
-     * BEST PRACTICE: Reactive Flow for automatic UI updates.
-     *
-     * @return Flow that emits list of deleted documents (ordered by deletedAt DESC)
-     */
-    fun observeTrashDocuments(): Flow<List<Document>> {
-        return cachedDocumentDao.observeDeletedDocuments().map { cachedList ->
-            cachedList.map { it.toCachedDomain() }
-        }
-    }
+    suspend fun getTrashDocuments(page: Int = 1, pageSize: Int = 25): Result<DocumentsResponse> =
+        trash.getTrashDocuments(page, pageSize)
 
-    /**
-     * Get count of documents in trash (for TrashScreen badge).
-     *
-     * @return Flow that emits count of deleted documents
-     */
-    fun observeTrashCount(): Flow<Int> {
-        return cachedDocumentDao.observeDeletedCount()
-    }
+    suspend fun restoreDocument(documentId: Int): Result<Unit> = trash.restoreDocument(documentId)
 
-    /**
-     * Get trash documents from server (force refresh).
-     * Fetches deleted documents from Paperless-ngx trash and updates cache.
-     *
-     * @param page Page number
-     * @param pageSize Results per page
-     * @return Result with DocumentsResponse containing deleted documents
-     */
-    suspend fun getTrashDocuments(
-        page: Int = 1,
-        pageSize: Int = 25
-    ): Result<DocumentsResponse> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTrash(page = page, pageSize = pageSize)
+    suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> =
+        trash.restoreDocuments(documentIds)
 
-                // Update cache with deleted documents (keep isDeleted = true)
-                // BEST PRACTICE: Use 'modified' field as deletion timestamp
-                // When a document is deleted, Paperless-ngx updates 'modified' to deletion time
-                val cachedEntities = response.results.map { doc ->
-                    val deletionTimestamp = try {
-                        // Parse ISO 8601 date from API (e.g., "2024-01-27T14:30:00Z")
-                        java.time.Instant.parse(doc.modified).toEpochMilli()
-                    } catch (e: Exception) {
-                        // Fallback: If parsing fails, use current time
-                        android.util.Log.e("DocumentRepository", "Failed to parse modified date: ${doc.modified}", e)
-                        System.currentTimeMillis()
-                    }
+    suspend fun permanentlyDeleteDocument(documentId: Int): Result<Unit> =
+        trash.permanentlyDeleteDocument(documentId)
 
-                    doc.toCachedEntity().copy(
-                        isDeleted = true,
-                        deletedAt = deletionTimestamp
-                    )
-                }
-                cachedDocumentDao.insertAll(cachedEntities)
+    suspend fun permanentlyDeleteDocuments(documentIds: List<Int>): Result<Unit> =
+        trash.permanentlyDeleteDocuments(documentIds)
 
-                Result.success(response.toDomain())
-            } else {
-                Result.failure(PaperlessException.NetworkError(IOException(context.getString(R.string.error_offline))))
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getOldDeletedDocumentIds(retentionDays: Int = 30): Result<List<Int>> =
+        trash.getOldDeletedDocumentIds(retentionDays)
 
-    /**
-     * Restore document from trash (single document).
-     * BEST PRACTICE: Offline-First with PendingChange queue.
-     *
-     * @param documentId Document ID to restore
-     * @return Result<Unit>
-     */
-    suspend fun restoreDocument(documentId: Int): Result<Unit> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                // Online: Call API
-                val request = TrashBulkActionRequest(
-                    documents = listOf(documentId),
-                    action = "restore"
-                )
-                val response = api.trashBulkAction(request)
+    fun observeTrashedDocuments(): Flow<List<com.paperless.scanner.data.database.entities.CachedDocument>> =
+        trash.observeTrashedDocuments()
 
-                if (response.isSuccessful) {
-                    // Update local cache: remove isDeleted flag
-                    cachedDocumentDao.restoreDocument(documentId)
-                    Result.success(Unit)
-                } else {
-                    // Extract actual error body from server response
-                    val errorBody = try {
-                        response.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    Log.e(TAG, "restoreDocument failed: HTTP ${response.code()}, body: $errorBody")
-                    Result.failure(
-                        PaperlessException.fromHttpCode(
-                            response.code(),
-                            errorBody ?: response.message()
-                        )
-                    )
-                }
-            } else {
-                // Offline: Queue restore for sync
-                val pendingChange = PendingChange(
-                    entityType = "trash",
-                    entityId = documentId,
-                    changeType = "restore",
-                    changeData = "{}"
-                )
-                pendingChangeDao.insert(pendingChange)
+    fun observeTrashedDocumentsCount(): Flow<Int> = trash.observeTrashedDocumentsCount()
 
-                // Optimistically restore in local cache
-                cachedDocumentDao.restoreDocument(documentId)
+    fun observeOldestDeletedTimestamp(): Flow<Long?> = trash.observeOldestDeletedTimestamp()
 
-                Result.success(Unit)
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * Restore multiple documents from trash (bulk restore).
-     * BEST PRACTICE: Offline-First with PendingChange queue.
-     *
-     * @param documentIds List of document IDs to restore
-     * @return Result<Unit>
-     */
-    suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                // Online: Call API
-                val request = TrashBulkActionRequest(
-                    documents = documentIds,
-                    action = "restore"
-                )
-                val response = api.trashBulkAction(request)
-
-                if (response.isSuccessful) {
-                    // Update local cache: remove isDeleted flag for all
-                    cachedDocumentDao.restoreDocuments(documentIds)
-                    Result.success(Unit)
-                } else {
-                    // Extract actual error body from server response
-                    val errorBody = try {
-                        response.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: $errorBody")
-                    Result.failure(
-                        PaperlessException.fromHttpCode(
-                            response.code(),
-                            errorBody ?: response.message()
-                        )
-                    )
-                }
-            } else {
-                // Offline: Queue restore for each document
-                documentIds.forEach { docId ->
-                    val pendingChange = PendingChange(
-                        entityType = "trash",
-                        entityId = docId,
-                        changeType = "restore",
-                        changeData = "{}"
-                    )
-                    pendingChangeDao.insert(pendingChange)
-                }
-
-                // Optimistically restore in local cache
-                cachedDocumentDao.restoreDocuments(documentIds)
-
-                Result.success(Unit)
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * Permanently delete document from trash (hard delete).
-     * BEST PRACTICE: Offline-First with PendingChange queue.
-     *
-     * @param documentId Document ID to permanently delete
-     * @return Result<Unit>
-     */
-    suspend fun permanentlyDeleteDocument(documentId: Int): Result<Unit> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                // Online: Call API for permanent deletion
-                val request = TrashBulkActionRequest(
-                    documents = listOf(documentId),
-                    action = "empty"  // CORRECT: Valid actions are "restore" and "empty"
-                )
-                val response = api.trashBulkAction(request)
-
-                if (response.isSuccessful) {
-                    // Hard delete from local cache
-                    cachedDocumentDao.hardDelete(documentId)
-                    Result.success(Unit)
-                } else {
-                    // Extract actual error body from server response
-                    val errorBody = try {
-                        response.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    Log.e(TAG, "permanentlyDeleteDocument failed: HTTP ${response.code()}, body: $errorBody")
-                    Result.failure(
-                        PaperlessException.fromHttpCode(
-                            response.code(),
-                            errorBody ?: response.message()
-                        )
-                    )
-                }
-            } else {
-                // Offline: Queue permanent delete for sync
-                val pendingChange = PendingChange(
-                    entityType = "trash",
-                    entityId = documentId,
-                    changeType = "delete",
-                    changeData = "{}"
-                )
-                pendingChangeDao.insert(pendingChange)
-
-                // Hard delete from local cache (optimistic)
-                cachedDocumentDao.hardDelete(documentId)
-
-                Result.success(Unit)
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * Permanently delete multiple documents from trash (bulk hard delete).
-     * BEST PRACTICE: Offline-First with PendingChange queue.
-     *
-     * @param documentIds List of document IDs to permanently delete
-     * @return Result<Unit>
-     */
-    suspend fun permanentlyDeleteDocuments(documentIds: List<Int>): Result<Unit> {
-        return try {
-            if (networkMonitor.checkOnlineStatus()) {
-                // Online: Call API for permanent deletion
-                val request = TrashBulkActionRequest(
-                    documents = documentIds,
-                    action = "empty"  // CORRECT: Valid actions are "restore" and "empty"
-                )
-                val response = api.trashBulkAction(request)
-
-                if (response.isSuccessful) {
-                    // Hard delete from local cache
-                    cachedDocumentDao.deleteByIds(documentIds)
-                    Result.success(Unit)
-                } else {
-                    // Extract actual error body from server response
-                    val errorBody = try {
-                        response.errorBody()?.string()
-                    } catch (_: Exception) {
-                        null
-                    }
-                    Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: $errorBody")
-                    Result.failure(
-                        PaperlessException.fromHttpCode(
-                            response.code(),
-                            errorBody ?: response.message()
-                        )
-                    )
-                }
-            } else {
-                // Offline: Queue permanent delete for each document
-                documentIds.forEach { docId ->
-                    val pendingChange = PendingChange(
-                        entityType = "trash",
-                        entityId = docId,
-                        changeType = "delete",
-                        changeData = "{}"
-                    )
-                    pendingChangeDao.insert(pendingChange)
-                }
-
-                // Hard delete from local cache (optimistic)
-                cachedDocumentDao.deleteByIds(documentIds)
-
-                Result.success(Unit)
-            }
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * Get old deleted documents for auto-cleanup (WorkManager).
-     * Returns document IDs that have been in trash longer than retention period.
-     *
-     * @param retentionDays Number of days to keep documents in trash (default 30)
-     * @return Result with list of document IDs to permanently delete
-     */
-    suspend fun getOldDeletedDocumentIds(retentionDays: Int = 30): Result<List<Int>> {
-        return try {
-            val cutoffTime = System.currentTimeMillis() - (retentionDays * 24 * 60 * 60 * 1000L)
-            val ids = cachedDocumentDao.getOldDeletedDocumentIds(cutoffTime)
-            Result.success(ids)
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for Trash Screen.
-     * Observe all soft-deleted documents from Room cache.
-     * Automatically updates UI when documents are deleted/restored.
-     *
-     * Returns CachedDocument (not Domain Document) because deletedAt field
-     * only exists in cache layer (not in API response).
-     *
-     * @return Flow<List<CachedDocument>> - Emits list of deleted documents, sorted by deletion time (newest first)
-     */
-    fun observeTrashedDocuments(): Flow<List<com.paperless.scanner.data.database.entities.CachedDocument>> {
-        return cachedDocumentDao.observeDeletedDocuments()
-    }
-
-    /**
-     * Get count of documents currently in trash.
-     * Used for badge display on TrashScreen navigation.
-     *
-     * @return Flow<Int> - Emits count of deleted documents
-     */
-    fun observeTrashedDocumentsCount(): Flow<Int> {
-        return cachedDocumentDao.observeDeletedCount()
-    }
-
-    /**
-     * Get oldest deletion timestamp for expiration countdown.
-     * Used by HomeScreen TrashCard to show "Expires in X days".
-     *
-     * @return Flow<Long?> - Emits oldest deletedAt timestamp, or null if trash is empty
-     */
-    fun observeOldestDeletedTimestamp(): Flow<Long?> {
-        return cachedDocumentDao.getOldestDeletedTimestamp()
-    }
-
-    /**
-     * Remove local soft-deleted documents that no longer exist on the server.
-     * Called after a full trash sync (all pages fetched) to keep local cache consistent.
-     *
-     * @param serverTrashIds Set of document IDs currently in server trash
-     */
-    suspend fun cleanupOrphanedTrashDocs(serverTrashIds: Set<Int>) {
-        val localDeletedIds = cachedDocumentDao.getDeletedIds().toSet()
-        val orphanedIds = localDeletedIds - serverTrashIds
-        if (orphanedIds.isNotEmpty()) {
-            cachedDocumentDao.deleteByIds(orphanedIds.toList())
-            Log.d(TAG, "Cleaned up ${orphanedIds.size} orphaned trash docs: $orphanedIds")
-        }
-    }
+    suspend fun cleanupOrphanedTrashDocs(serverTrashIds: Set<Int>) =
+        trash.cleanupOrphanedTrashDocs(serverTrashIds)
 }
