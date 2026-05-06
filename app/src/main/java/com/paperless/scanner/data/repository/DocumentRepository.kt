@@ -59,7 +59,8 @@ class DocumentRepository @Inject constructor(
     private val crashlyticsHelper: CrashlyticsHelper,
     private val imageProcessor: ImageProcessorService,
     private val pdfGenerator: PdfGeneratorService,
-    private val serializer: DocumentSerializer
+    private val serializer: DocumentSerializer,
+    private val count: DocumentCountRepository,
 ) {
     companion object {
         private const val TAG = "DocumentRepository"
@@ -262,13 +263,7 @@ class DocumentRepository @Inject constructor(
     fun observeCountWithFilter(
         searchQuery: String? = null,
         filter: com.paperless.scanner.domain.model.DocumentFilter = com.paperless.scanner.domain.model.DocumentFilter.empty()
-    ): Flow<Int> {
-        val query = com.paperless.scanner.data.database.DocumentFilterQueryBuilder.buildCountQuery(
-            searchQuery = searchQuery,
-            filter = filter
-        )
-        return cachedDocumentDao.getCountWithFilter(query)
-    }
+    ): Flow<Int> = count.observeCountWithFilter(searchQuery, filter)
 
     /**
      * Get count of untagged documents (for Smart Tagging).
@@ -276,9 +271,7 @@ class DocumentRepository @Inject constructor(
      *
      * @return Flow that emits count of documents without tags
      */
-    fun observeUntaggedDocumentsCount(): Flow<Int> {
-        return cachedDocumentDao.observeUntaggedCount()
-    }
+    fun observeUntaggedDocumentsCount(): Flow<Int> = count.observeUntaggedDocumentsCount()
 
     /**
      * Get all untagged documents from local cache (for Smart Tagging screen).
@@ -465,31 +458,8 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getDocumentCount(forceRefresh: Boolean = false): Result<Int> {
-        return try {
-            // BEST PRACTICE: For stats/counts, prefer server over cache to avoid stale data
-            // especially in multi-client scenarios (web + mobile)
-            if (!forceRefresh) {
-                // Try cache first only when explicitly not forcing refresh
-                val count = cachedDocumentDao.getCount()
-                if (count > 0 || !networkMonitor.checkOnlineStatus()) {
-                    return Result.success(count)
-                }
-            }
-
-            // Fetch from network (forced or cache empty/offline)
-            if (networkMonitor.checkOnlineStatus()) {
-                safeApiCall {
-                    api.getDocuments(page = 1, pageSize = 1).count
-                }
-            } else {
-                // Offline fallback: use cache
-                Result.success(cachedDocumentDao.getCount())
-            }
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
+    suspend fun getDocumentCount(forceRefresh: Boolean = false): Result<Int> =
+        count.getDocumentCount(forceRefresh)
 
     suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> {
         return try {
@@ -512,13 +482,7 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun getUntaggedCount(): Result<Int> = safeApiCall {
-        api.getDocuments(
-            page = 1,
-            pageSize = 1,
-            tagsIsNull = true
-        ).count
-    }
+    suspend fun getUntaggedCount(): Result<Int> = count.getUntaggedCount()
 
     suspend fun downloadDocument(
         documentId: Int,

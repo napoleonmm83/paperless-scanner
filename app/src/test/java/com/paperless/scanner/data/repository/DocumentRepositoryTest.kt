@@ -57,6 +57,7 @@ class DocumentRepositoryTest {
     private lateinit var imageProcessor: ImageProcessorService
     private lateinit var pdfGenerator: PdfGeneratorService
     private lateinit var serializer: DocumentSerializer
+    private lateinit var countRepository: DocumentCountRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -81,6 +82,7 @@ class DocumentRepositoryTest {
         imageProcessor = ImageProcessorService(context, crashlyticsHelper)
         pdfGenerator = PdfGeneratorService(context, imageProcessor)
         serializer = DocumentSerializer(gson)
+        countRepository = DocumentCountRepository(api, cachedDocumentDao, networkMonitor)
 
         documentRepository = DocumentRepository(
             context,
@@ -95,7 +97,8 @@ class DocumentRepositoryTest {
             crashlyticsHelper,
             imageProcessor,
             pdfGenerator,
-            serializer
+            serializer,
+            countRepository
         )
     }
 
