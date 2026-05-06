@@ -43,6 +43,7 @@ import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
@@ -353,7 +354,8 @@ object AppModule {
         count: DocumentCountRepository,
         metadata: DocumentMetadataRepository,
         list: DocumentListRepository,
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata, list)
+        trash: TrashRepository,
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata, list, trash)
 
     @Provides
     @Singleton
