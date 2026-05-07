@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -29,6 +30,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 @RunWith(RobolectricTestRunner::class)
 class DocumentRepositoryTest {
@@ -234,5 +236,71 @@ class DocumentRepositoryTest {
 
         val capturedPart = documentSlot.captured
         assertTrue(capturedPart.body.contentType()?.toString()?.contains("image/jpeg") == true)
+    }
+
+    @Test
+    fun `downloadDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate out of DocumentRepository, not be wrapped in
+        // Result.failure. Previously the catch(Exception) catch-all silently swallowed it,
+        // breaking cooperative cancellation for upload/download coroutines.
+        coEvery { api.downloadDocument(any()) } throws CancellationException("scope cancelled")
+
+        var thrown: CancellationException? = null
+        try {
+            documentRepository.downloadDocument(123)
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
+    }
+
+    @Test
+    fun `uploadDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate, not be wrapped in Result.failure.
+        val uri = mockk<Uri>()
+        val testContent = "fake image content".toByteArray()
+        every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
+        coEvery { api.uploadDocument(any(), any(), any(), any(), any()) } throws CancellationException("scope cancelled")
+
+        var thrown: CancellationException? = null
+        try {
+            documentRepository.uploadDocument(uri)
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
+    }
+
+    @Test
+    fun `uploadMultiPageDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate, not be wrapped in Result.failure.
+        // Use a mocked PdfGeneratorService so we can reach the API call and have it throw.
+        val mockPdfGenerator = mockk<PdfGeneratorService>()
+        val fakePdf = tempFolder.newFile("test.pdf").also { it.writeBytes(ByteArray(8)) }
+        coEvery { mockPdfGenerator.createPdfFromImages(any()) } returns fakePdf
+        coEvery { api.uploadDocument(any(), any(), any(), any(), any()) } throws CancellationException("scope cancelled")
+
+        val repoWithMockedPdf = DocumentRepository(
+            cacheDir = cacheDir,
+            api = api,
+            crashlyticsHelper = crashlyticsHelper,
+            imageProcessor = imageProcessor,
+            pdfGenerator = mockPdfGenerator,
+            serializer = serializer,
+        )
+
+        var thrown: CancellationException? = null
+        try {
+            repoWithMockedPdf.uploadMultiPageDocument(listOf(mockk()))
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
     }
 }

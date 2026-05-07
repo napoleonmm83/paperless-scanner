@@ -11,6 +11,7 @@ import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.R
 import java.io.IOException
 import javax.inject.Named
+import kotlin.coroutines.cancellation.CancellationException
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -98,6 +99,8 @@ class DocumentRepository @Inject constructor(
         } catch (e: IllegalArgumentException) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ContentError: ${e.message}")
             Result.failure(PaperlessException.ContentError(R.string.error_file_read_failed))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
@@ -182,6 +185,8 @@ class DocumentRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IllegalStateException) {
             // Safe error message extraction (prevent secondary exceptions)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Image could not be processed"
@@ -231,6 +236,8 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
