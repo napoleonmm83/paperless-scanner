@@ -70,10 +70,17 @@ com.paperless.scanner/
 │   │   └── TokenManager.kt      # Credentials Storage
 │   │
 │   └── repository/
-│       ├── AuthRepository.kt    # Login/Logout
-│       ├── TagRepository.kt     # Tag CRUD
-│       ├── DocumentRepository.kt # Upload
-│       └── AiUsageRepository.kt # AI Usage Tracking
+│       ├── AuthRepository.kt              # Login/Logout
+│       ├── TagRepository.kt               # Tag CRUD
+│       ├── DocumentRepository.kt          # Upload/Download only (~120 LOC, was 1405)
+│       ├── DocumentListRepository.kt      # Document listing & paging
+│       ├── DocumentMetadataRepository.kt  # Document detail, update, permissions
+│       ├── DocumentCountRepository.kt     # Count queries
+│       ├── DocumentSyncRepository.kt      # Offline sync queue
+│       ├── TrashRepository.kt             # Soft-delete & restore
+│       ├── AuditRepository.kt             # Audit log & notes
+│       ├── PermissionRepository.kt        # User & group permissions
+│       └── AiUsageRepository.kt           # AI Usage Tracking
 │
 ├── ui/
 │   ├── theme/
@@ -99,6 +106,25 @@ com.paperless.scanner/
 ├── MainActivity.kt              # Entry Point
 └── PaperlessApp.kt              # Hilt Application
 ```
+
+---
+
+### 1.3 Repository Architecture (Post-Issue #51)
+
+**DocumentRepository** wurde von einem God-class (1405 LOC) zu einem schlanken Upload/Download-Adapter (~120 LOC) refaktoriert. Spezialisierte Sub-Repositories übernehmen alle anderen Aufgaben und werden direkt in ViewModels und Workers per Hilt injiziert.
+
+| Repository | Verantwortlichkeit |
+|---|---|
+|  | , ,  |
+|  | Paging, Suche, Offline-First Listing |
+|  | Detail-Abruf, Update, Berechtigungen |
+|  | Zählabfragen (gesamt, ungefiltert, ungetaggt) |
+|  | Offline-Queue (PendingChange) |
+|  | Soft-Delete, Restore, Permanent Delete |
+|  | Audit-Log, Notizen |
+|  | User- und Gruppen-Berechtigungen |
+
+Alle Sub-Repositories sind  — kein manueller -Eintrag in AppModule nötig.
 
 ---
 
@@ -135,7 +161,8 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDocumentRepository(context: Context, api: PaperlessApi): DocumentRepository
+    // DocumentRepository is upload/download-only; specialized sub-repos are @Inject constructor
+    fun provideDocumentRepository(context: Context, api: PaperlessApi, ...): DocumentRepository
 }
 ```
 

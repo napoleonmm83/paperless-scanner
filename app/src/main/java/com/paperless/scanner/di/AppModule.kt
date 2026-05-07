@@ -35,17 +35,11 @@ import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
 import com.paperless.scanner.data.repository.AiUsageRepository
-import com.paperless.scanner.data.repository.AuditRepository
-import com.paperless.scanner.data.repository.PermissionRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentCountRepository
-import com.paperless.scanner.data.repository.DocumentListRepository
-import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
-import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
@@ -342,21 +336,11 @@ object AppModule {
     fun provideDocumentRepository(
         @ApplicationContext context: Context,
         api: PaperlessApi,
-        cachedDocumentDao: CachedDocumentDao,
-        cachedTagDao: CachedTagDao,
-        networkMonitor: NetworkMonitor,
-        gson: Gson,
         crashlyticsHelper: CrashlyticsHelper,
         imageProcessor: ImageProcessorService,
         pdfGenerator: PdfGeneratorService,
         serializer: DocumentSerializer,
-        count: DocumentCountRepository,
-        metadata: DocumentMetadataRepository,
-        list: DocumentListRepository,
-        trash: TrashRepository,
-        audit: AuditRepository,
-        permission: PermissionRepository,
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, networkMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata, list, trash, audit, permission)
+    ): DocumentRepository = DocumentRepository(context, api, crashlyticsHelper, imageProcessor, pdfGenerator, serializer)
 
     @Provides
     @Singleton
