@@ -193,8 +193,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDynamicBaseUrlInterceptor(
-        tokenManager: TokenManager
-    ): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(tokenManager)
+        serverUrlHolder: com.paperless.scanner.data.datastore.ServerUrlHolder
+    ): DynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder)
 
     @Provides
     @Singleton
