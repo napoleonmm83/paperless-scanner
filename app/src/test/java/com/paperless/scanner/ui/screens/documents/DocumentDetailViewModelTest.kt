@@ -7,10 +7,13 @@ import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.AiUsageRepository
+import com.paperless.scanner.data.repository.AuditRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
+import com.paperless.scanner.data.repository.PermissionRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentType
@@ -44,7 +47,10 @@ class DocumentDetailViewModelTest {
 
     private lateinit var context: Context
     private lateinit var savedStateHandle: SavedStateHandle
-    private lateinit var documentRepository: DocumentRepository
+    private lateinit var documentMetadataRepository: DocumentMetadataRepository
+    private lateinit var auditRepository: AuditRepository
+    private lateinit var trashRepository: TrashRepository
+    private lateinit var permissionRepository: PermissionRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
@@ -62,7 +68,10 @@ class DocumentDetailViewModelTest {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
         savedStateHandle = mockk(relaxed = true)
-        documentRepository = mockk(relaxed = true)
+        documentMetadataRepository = mockk(relaxed = true)
+        auditRepository = mockk(relaxed = true)
+        trashRepository = mockk(relaxed = true)
+        permissionRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
@@ -78,9 +87,9 @@ class DocumentDetailViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(emptyList())
         coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(emptyList())
-        coEvery { documentRepository.getDocument(any(), any()) } returns Result.success(createMockDocument(123))
-        coEvery { documentRepository.observeDocument(any()) } returns flowOf(createMockDocument(123))
-        coEvery { documentRepository.getDocumentHistory(any()) } returns Result.success(emptyList())
+        coEvery { documentMetadataRepository.getDocument(any(), any()) } returns Result.success(createMockDocument(123))
+        coEvery { documentMetadataRepository.observeDocument(any()) } returns flowOf(createMockDocument(123))
+        coEvery { auditRepository.getDocumentHistory(any()) } returns Result.success(emptyList())
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
         coEvery { tokenManager.token } returns flowOf("test-token")
         coEvery { tokenManager.aiNewTagsEnabled } returns flowOf(true)
@@ -96,7 +105,10 @@ class DocumentDetailViewModelTest {
         return DocumentDetailViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
+            documentMetadataRepository = documentMetadataRepository,
+            auditRepository = auditRepository,
+            trashRepository = trashRepository,
+            permissionRepository = permissionRepository,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository,
@@ -124,7 +136,7 @@ class DocumentDetailViewModelTest {
     @Test
     fun `observeDocument success updates state with document data`() = runTest {
         val mockDoc = createMockDocument(123, "Test Document", "Content here")
-        coEvery { documentRepository.observeDocument(123) } returns flowOf(mockDoc)
+        coEvery { documentMetadataRepository.observeDocument(123) } returns flowOf(mockDoc)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -138,7 +150,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `observeDocument returns null shows error`() = runTest {
-        coEvery { documentRepository.observeDocument(any()) } returns flowOf(null)
+        coEvery { documentMetadataRepository.observeDocument(any()) } returns flowOf(null)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -171,7 +183,7 @@ class DocumentDetailViewModelTest {
     fun `observeDocument builds correct URLs`() = runTest {
         coEvery { tokenManager.serverUrl } returns flowOf("https://my-paperless.com")
         coEvery { tokenManager.token } returns flowOf("secret-token")
-        coEvery { documentRepository.observeDocument(123) } returns flowOf(createMockDocument(123))
+        coEvery { documentMetadataRepository.observeDocument(123) } returns flowOf(createMockDocument(123))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -186,7 +198,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `deleteDocument success sets deleteSuccess`() = runTest {
-        coEvery { documentRepository.deleteDocument(123) } returns Result.success(Unit)
+        coEvery { trashRepository.deleteDocument(123) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -201,7 +213,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `deleteDocument failure sets deleteError`() = runTest {
-        coEvery { documentRepository.deleteDocument(any()) } returns
+        coEvery { trashRepository.deleteDocument(any()) } returns
             Result.failure(Exception("Cannot delete"))
 
         val viewModel = createViewModel()
@@ -217,7 +229,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `deleteDocument shows deleting state`() = runTest {
-        coEvery { documentRepository.deleteDocument(any()) } coAnswers {
+        coEvery { trashRepository.deleteDocument(any()) } coAnswers {
             kotlinx.coroutines.delay(1000)
             Result.success(Unit)
         }
@@ -234,7 +246,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `clearDeleteError removes deleteError from state`() = runTest {
-        coEvery { documentRepository.deleteDocument(any()) } returns
+        coEvery { trashRepository.deleteDocument(any()) } returns
             Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
@@ -254,7 +266,7 @@ class DocumentDetailViewModelTest {
     @Test
     fun `updateDocument success sets updateSuccess and reloads`() = runTest {
         coEvery {
-            documentRepository.updateDocument(
+            documentMetadataRepository.updateDocument(
                 documentId = 123,
                 title = "Updated Title",
                 tags = listOf(1, 2),
@@ -265,7 +277,7 @@ class DocumentDetailViewModelTest {
             )
         } returns Result.success(createMockDocument(123, "Updated Title"))
         // Make reload slow so we can verify updateSuccess before it resets
-        coEvery { documentRepository.getDocument(any(), eq(true)) } coAnswers {
+        coEvery { documentMetadataRepository.getDocument(any(), eq(true)) } coAnswers {
             kotlinx.coroutines.delay(5000)
             Result.success(createMockDocument(123, "Updated Title"))
         }
@@ -291,7 +303,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `updateDocument failure sets updateError`() = runTest {
-        coEvery { documentRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentMetadataRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.failure(Exception("Update failed"))
 
         val viewModel = createViewModel()
@@ -307,7 +319,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `updateDocument converts ASN string to int`() = runTest {
-        coEvery { documentRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentMetadataRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.success(createMockDocument(123))
 
         val viewModel = createViewModel()
@@ -317,7 +329,7 @@ class DocumentDetailViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            documentRepository.updateDocument(
+            documentMetadataRepository.updateDocument(
                 documentId = 123,
                 title = "Title",
                 tags = emptyList(),
@@ -331,7 +343,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `updateDocument handles invalid ASN as null`() = runTest {
-        coEvery { documentRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentMetadataRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.success(createMockDocument(123))
 
         val viewModel = createViewModel()
@@ -341,7 +353,7 @@ class DocumentDetailViewModelTest {
         advanceUntilIdle()
 
         coVerify {
-            documentRepository.updateDocument(
+            documentMetadataRepository.updateDocument(
                 documentId = 123,
                 title = "Title",
                 tags = emptyList(),
@@ -355,7 +367,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `clearUpdateError removes updateError from state`() = runTest {
-        coEvery { documentRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentMetadataRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
@@ -375,10 +387,10 @@ class DocumentDetailViewModelTest {
         // After updateDocument succeeds, loadDocument is called which resets state
         // So we test resetUpdateSuccess by setting it manually via successful update
         // and checking the reset function works
-        coEvery { documentRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentMetadataRepository.updateDocument(any(), any(), any(), any(), any(), any(), any()) } returns
             Result.success(createMockDocument(123))
         // Make reload slow so we can catch updateSuccess = true
-        coEvery { documentRepository.getDocument(any(), eq(true)) } coAnswers {
+        coEvery { documentMetadataRepository.getDocument(any(), eq(true)) } coAnswers {
             kotlinx.coroutines.delay(5000)
             Result.success(createMockDocument(123))
         }
@@ -427,7 +439,7 @@ class DocumentDetailViewModelTest {
             Note(id = 1, note = "Existing note", created = "2024-01-01", user = mockUser),
             Note(id = 2, note = "New note", created = "2024-01-02", user = mockUser)
         )
-        coEvery { documentRepository.addNote(123, "New note") } returns Result.success(updatedNotes)
+        coEvery { auditRepository.addNote(123, "New note") } returns Result.success(updatedNotes)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -442,7 +454,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `addNote failure sets addNoteError`() = runTest {
-        coEvery { documentRepository.addNote(any(), any()) } returns
+        coEvery { auditRepository.addNote(any(), any()) } returns
             Result.failure(Exception("Cannot add note"))
 
         val viewModel = createViewModel()
@@ -477,7 +489,7 @@ class DocumentDetailViewModelTest {
         val remainingNotes = listOf(
             Note(id = 2, note = "Remaining note", created = "2024-01-01", user = mockUser)
         )
-        coEvery { documentRepository.deleteNote(123, 1) } returns Result.success(remainingNotes)
+        coEvery { auditRepository.deleteNote(123, 1) } returns Result.success(remainingNotes)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -493,7 +505,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `deleteNote failure sets deleteNoteError`() = runTest {
-        coEvery { documentRepository.deleteNote(any(), any()) } returns
+        coEvery { auditRepository.deleteNote(any(), any()) } returns
             Result.failure(Exception("Cannot delete note"))
 
         val viewModel = createViewModel()
@@ -509,7 +521,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `deleteNote tracks which note is being deleted`() = runTest {
-        coEvery { documentRepository.deleteNote(any(), any()) } coAnswers {
+        coEvery { auditRepository.deleteNote(any(), any()) } coAnswers {
             kotlinx.coroutines.delay(1000)
             Result.success(emptyList())
         }
@@ -526,7 +538,7 @@ class DocumentDetailViewModelTest {
 
     @Test
     fun `clearDeleteNoteError removes deleteNoteError`() = runTest {
-        coEvery { documentRepository.deleteNote(any(), any()) } returns
+        coEvery { auditRepository.deleteNote(any(), any()) } returns
             Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
@@ -552,7 +564,7 @@ class DocumentDetailViewModelTest {
         advanceUntilIdle()
 
         // Should NOT try to load document with invalid ID
-        coVerify(exactly = 0) { documentRepository.getDocument(any(), any()) }
+        coVerify(exactly = 0) { documentMetadataRepository.getDocument(any(), any()) }
 
         // Should show error state
         assertFalse(viewModel.uiState.value.isLoading)
@@ -568,7 +580,7 @@ class DocumentDetailViewModelTest {
         advanceUntilIdle()
 
         // Should NOT try to load document with null ID
-        coVerify(exactly = 0) { documentRepository.getDocument(any(), any()) }
+        coVerify(exactly = 0) { documentMetadataRepository.getDocument(any(), any()) }
 
         // Should show error state
         assertFalse(viewModel.uiState.value.isLoading)

@@ -20,10 +20,13 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AiUsageRepository
+import com.paperless.scanner.data.repository.AuditRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
+import com.paperless.scanner.data.repository.PermissionRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.ui.screens.upload.AnalysisState
 import com.paperless.scanner.util.DateFormatter
@@ -116,7 +119,10 @@ data class DocumentDetailUiState(
 class DocumentDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val documentRepository: DocumentRepository,
+    private val documentMetadataRepository: DocumentMetadataRepository,
+    private val auditRepository: AuditRepository,
+    private val trashRepository: TrashRepository,
+    private val permissionRepository: PermissionRepository,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
     private val documentTypeRepository: DocumentTypeRepository,
@@ -268,7 +274,7 @@ class DocumentDetailViewModel @Inject constructor(
                 }
 
                 // Observe reactive Flow - automatically updates when DB changes
-                documentRepository.observeDocument(documentId).collect { doc ->
+                documentMetadataRepository.observeDocument(documentId).collect { doc ->
                     if (doc == null) {
                         // Don't show error if document is being deleted or was just deleted
                         // (this prevents "Error loading" flash before navigation back)
@@ -333,7 +339,7 @@ class DocumentDetailViewModel @Inject constructor(
      */
     private suspend fun triggerBackgroundRefresh(documentId: Int) {
         // Fetch full document data (notes, permissions, etc.)
-        val docResult = documentRepository.getDocument(documentId, forceRefresh = true)
+        val docResult = documentMetadataRepository.getDocument(documentId, forceRefresh = true)
 
         // Extract notes & permissions from API response (DB doesn't store them!)
         docResult.onSuccess { doc ->
@@ -347,7 +353,7 @@ class DocumentDetailViewModel @Inject constructor(
         }
 
         // Fetch history separately (don't block if it fails)
-        val historyResult = documentRepository.getDocumentHistory(documentId)
+        val historyResult = auditRepository.getDocumentHistory(documentId)
         val historyList = historyResult.getOrNull() ?: emptyList()
         if (historyList.isNotEmpty()) {
             _uiState.update { it.copy(history = historyList) }
@@ -376,7 +382,7 @@ class DocumentDetailViewModel @Inject constructor(
 
             _uiState.update { it.copy(isDeleting = true, deleteError = null) }
 
-            documentRepository.deleteDocument(documentId).onSuccess {
+            trashRepository.deleteDocument(documentId).onSuccess {
                 _uiState.update {
                     it.copy(
                         isDeleting = false,
@@ -415,7 +421,7 @@ class DocumentDetailViewModel @Inject constructor(
 
             val asnInt = archiveSerialNumber?.toIntOrNull()
 
-            documentRepository.updateDocument(
+            documentMetadataRepository.updateDocument(
                 documentId = documentId,
                 title = title,
                 tags = tagIds,
@@ -464,7 +470,7 @@ class DocumentDetailViewModel @Inject constructor(
 
             _uiState.update { it.copy(isAddingNote = true, addNoteError = null) }
 
-            documentRepository.addNote(documentId, noteText).onSuccess { updatedNotes ->
+            auditRepository.addNote(documentId, noteText).onSuccess { updatedNotes ->
                 // First update UI with new notes (instant feedback)
                 _uiState.update {
                     it.copy(
@@ -495,7 +501,7 @@ class DocumentDetailViewModel @Inject constructor(
 
             _uiState.update { it.copy(isDeletingNoteId = noteId, deleteNoteError = null) }
 
-            documentRepository.deleteNote(documentId, noteId).onSuccess { updatedNotes ->
+            auditRepository.deleteNote(documentId, noteId).onSuccess { updatedNotes ->
                 // First update UI with updated notes (instant feedback)
                 _uiState.update {
                     it.copy(
@@ -536,11 +542,11 @@ class DocumentDetailViewModel @Inject constructor(
             val users = mutableListOf<UserInfo>()
             val groups = mutableListOf<GroupInfo>()
 
-            documentRepository.getUsers().onSuccess { userList ->
+            permissionRepository.getUsers().onSuccess { userList ->
                 users.addAll(userList.map { UserInfo(it.id, it.username) })
             }
 
-            documentRepository.getGroups().onSuccess { groupList ->
+            permissionRepository.getGroups().onSuccess { groupList ->
                 groups.addAll(groupList.map { GroupInfo(it.id, it.name) })
             }
 
@@ -567,7 +573,7 @@ class DocumentDetailViewModel @Inject constructor(
 
             _uiState.update { it.copy(isUpdatingPermissions = true, updatePermissionsError = null) }
 
-            documentRepository.updateDocumentPermissions(
+            documentMetadataRepository.updateDocumentPermissions(
                 documentId = documentId,
                 owner = owner,
                 viewUsers = viewUsers,
