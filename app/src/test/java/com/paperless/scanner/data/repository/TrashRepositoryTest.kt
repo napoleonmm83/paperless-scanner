@@ -148,8 +148,11 @@ class TrashRepositoryTest {
     // -------- tests --------
 
     @Test
-    fun `observeTrashedDocuments delegates to dao observeDeletedDocuments`() = runTest {
-        val docs = listOf(cachedDoc(id = 1), cachedDoc(id = 2))
+    fun `observeTrashedDocuments delegates to dao and maps to TrashedDocument`() = runTest {
+        val docs = listOf(
+            cachedDoc(id = 1, deletedAt = 1_700_000_000_000L),
+            cachedDoc(id = 2, deletedAt = 1_700_000_001_000L),
+        )
         every { cachedDocumentDao.observeDeletedDocuments() } returns flowOf(docs)
 
         val result = repo.observeTrashedDocuments().first()
@@ -157,6 +160,8 @@ class TrashRepositoryTest {
         assertEquals(2, result.size)
         assertEquals(1, result[0].id)
         assertEquals(2, result[1].id)
+        assertEquals(1_700_000_000_000L, result[0].deletedAt)
+        assertEquals(1_700_000_001_000L, result[1].deletedAt)
     }
 
     @Test

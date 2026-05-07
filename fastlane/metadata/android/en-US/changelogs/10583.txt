@@ -1,0 +1,7 @@
+Version 1.5.83:
+
+🔧 Improvements:
+- Cleaner internal separation between server interface and app data
+- Better foundation for upcoming features
+
+No visible changes for users.

@@ -4,6 +4,7 @@ import com.paperless.scanner.data.api.models.Document as ApiDocument
 import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.di.GsonProvider
 import com.paperless.scanner.domain.model.Document as DomainDocument
+import com.paperless.scanner.domain.model.TrashedDocument
 
 private val gson = GsonProvider.instance
 
@@ -49,3 +50,14 @@ fun CachedDocument.toDomain(): DomainDocument {
         originalFileName = originalFileName // Now retrieved from cache
     )
 }
+
+/**
+ * Maps a soft-deleted CachedDocument to the trash-specific domain model.
+ * Preserves the [deletedAt] timestamp needed for auto-delete countdown UI.
+ */
+fun CachedDocument.toTrashedDocument(): TrashedDocument = TrashedDocument(
+    id = id,
+    title = title,
+    created = created,
+    deletedAt = deletedAt
+)
