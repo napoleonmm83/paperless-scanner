@@ -176,4 +176,30 @@ class AdaptiveWriteTimeoutInterceptorTest {
             NetworkConfig.WRITE_TIMEOUT_BASE_SECONDS + 10L * NetworkConfig.WRITE_TIMEOUT_PER_MB_SECONDS
         assertEquals(expectedSec.toInt() * 1_000, timeoutMs)
     }
+
+    @Test
+    fun `chunked body falls back to base timeout when Cloudflare not detected`() {
+        // A streaming body with unknown length reports contentLength == -1
+        // — the interceptor coerces to 0, so sizeMb rounds to 0 and only the
+        // base timeout is applied.
+        val streamingBody = object : okhttp3.RequestBody() {
+            override fun contentType(): okhttp3.MediaType =
+                "application/octet-stream".toMediaType()
+            override fun contentLength(): Long = -1L
+            override fun writeTo(sink: okio.BufferedSink) {
+                sink.writeUtf8("streamed payload")
+            }
+        }
+        val request = Request.Builder()
+            .url(mockWebServer.url("/api/documents/post_document/"))
+            .post(streamingBody)
+            .build()
+
+        val timeoutMs = runRequest(cloudflareDetected = false, request = request)
+
+        assertEquals(
+            NetworkConfig.WRITE_TIMEOUT_BASE_SECONDS.toInt() * 1_000,
+            timeoutMs,
+        )
+    }
 }

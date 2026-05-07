@@ -3,9 +3,7 @@ package com.paperless.scanner.data.datastore
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
@@ -93,16 +91,16 @@ class CloudflareDetectionHolderTest {
     }
 
     @Test
-    fun `current returns null before any Flow emission has been processed`() {
+    fun `current returns null before any Flow emission has been processed`() = runTest {
         // Use a Flow that never emits to simulate the initial-emission window.
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUsesCloudflare } returns flow {
             // Never emit — the holder's launched collector suspends forever.
             awaitCancellation()
         }
-        // Use Dispatchers.Unconfined so the launched coroutine starts inline
-        // and reaches its (suspended) collect{} before construction returns.
-        val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        // UnconfinedTestDispatcher starts the launched coroutine inline so it
+        // reaches its (suspended) collect{} before construction returns.
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         try {
             val holder = CloudflareDetectionHolder(tokenManager, scope)

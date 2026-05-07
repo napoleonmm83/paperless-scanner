@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.api
 
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
 import com.paperless.scanner.util.NetworkConfig
 import okhttp3.Interceptor
@@ -53,10 +54,12 @@ class AdaptiveWriteTimeoutInterceptor(
             timeoutSec = timeoutSec.coerceAtMost(NetworkConfig.WRITE_TIMEOUT_CLOUDFLARE_CAP_SECONDS)
         }
 
-        android.util.Log.d(
-            TAG,
-            "Upload writeTimeout=${timeoutSec}s (sizeMB=$sizeMb, cloudflare=$cloudflareDetected)",
-        )
+        if (BuildConfig.DEBUG) {
+            android.util.Log.d(
+                TAG,
+                "Upload writeTimeout=${timeoutSec}s (sizeMB=$sizeMb, cloudflare=$cloudflareDetected)",
+            )
+        }
 
         return chain
             .withWriteTimeout(timeoutSec.toInt(), TimeUnit.SECONDS)
