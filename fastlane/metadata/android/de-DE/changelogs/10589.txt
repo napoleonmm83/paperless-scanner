@@ -1,0 +1,6 @@
+Version 1.5.89:
+
+🔧 Verbesserungen:
+- Schnellerer App-Start: kein UI-Blockieren mehr
+- Token-Auflösung läuft jetzt asynchron
+- Geringere Time-to-Interactive
