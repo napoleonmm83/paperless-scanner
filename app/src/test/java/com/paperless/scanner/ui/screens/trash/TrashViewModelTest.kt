@@ -4,7 +4,7 @@ import android.content.Context
 import com.paperless.scanner.R
 import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.worker.TrashDeleteWorkManager
 import io.mockk.coEvery
@@ -31,7 +31,7 @@ import org.junit.Test
 class TrashViewModelTest {
 
     private lateinit var context: Context
-    private lateinit var documentRepository: DocumentRepository
+    private lateinit var documentRepository: TrashRepository
     private lateinit var tokenManager: TokenManager
     private lateinit var trashDeleteWorkManager: TrashDeleteWorkManager
 
@@ -41,7 +41,7 @@ class TrashViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
-        documentRepository = mockk(relaxed = true)
+        documentRepository = mockk<TrashRepository>(relaxed = true)
         tokenManager = mockk(relaxed = true)
         trashDeleteWorkManager = mockk(relaxed = true)
 
@@ -76,7 +76,7 @@ class TrashViewModelTest {
     private fun createViewModel(): TrashViewModel {
         return TrashViewModel(
             context = context,
-            documentRepository = documentRepository,
+            trashRepository = documentRepository,
             tokenManager = tokenManager,
             trashDeleteWorkManager = trashDeleteWorkManager
         )
