@@ -3,10 +3,12 @@ package com.paperless.scanner.data.repository
 import android.content.Context
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.models.Group
+import com.paperless.scanner.data.api.models.Group as ApiGroup
 import com.paperless.scanner.data.api.models.GroupsResponse
-import com.paperless.scanner.data.api.models.User
+import com.paperless.scanner.data.api.models.User as ApiUser
 import com.paperless.scanner.data.api.models.UsersResponse
+import com.paperless.scanner.domain.model.Group as DomainGroup
+import com.paperless.scanner.domain.model.User as DomainUser
 import com.paperless.scanner.data.network.NetworkMonitor
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -42,16 +44,22 @@ class PermissionRepositoryTest {
     }
 
     @Test
-    fun `getUsers online returns DTO list from response results`() = runTest {
+    fun `getUsers online returns domain User list mapped from DTO`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns true
-        val users = listOf(mockk<User>(relaxed = true), mockk<User>(relaxed = true))
+        val apiUsers = listOf(
+            ApiUser(id = 1, username = "alice", email = "alice@example.com", isStaff = true),
+            ApiUser(id = 2, username = "bob"),
+        )
         coEvery { api.getUsers(any(), any()) } returns
-            UsersResponse(count = 2, next = null, previous = null, results = users)
+            UsersResponse(count = 2, next = null, previous = null, results = apiUsers)
 
         val result = repo.getUsers()
 
         assertTrue(result.isSuccess)
-        assertEquals(users, result.getOrNull())
+        val domainUsers = result.getOrNull()!!
+        assertEquals(2, domainUsers.size)
+        assertEquals(DomainUser(id = 1, username = "alice", email = "alice@example.com", isStaff = true), domainUsers[0])
+        assertEquals(DomainUser(id = 2, username = "bob"), domainUsers[1])
         coVerify { api.getUsers(any(), any()) }
     }
 
@@ -67,16 +75,18 @@ class PermissionRepositoryTest {
     }
 
     @Test
-    fun `getGroups online returns DTO list from response results`() = runTest {
+    fun `getGroups online returns domain Group list mapped from DTO`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns true
-        val groups = listOf(mockk<Group>(relaxed = true))
+        val apiGroups = listOf(ApiGroup(id = 10, name = "editors"))
         coEvery { api.getGroups(any(), any()) } returns
-            GroupsResponse(count = 1, next = null, previous = null, results = groups)
+            GroupsResponse(count = 1, next = null, previous = null, results = apiGroups)
 
         val result = repo.getGroups()
 
         assertTrue(result.isSuccess)
-        assertEquals(groups, result.getOrNull())
+        val domainGroups = result.getOrNull()!!
+        assertEquals(1, domainGroups.size)
+        assertEquals(DomainGroup(id = 10, name = "editors"), domainGroups[0])
         coVerify { api.getGroups(any(), any()) }
     }
 
@@ -92,7 +102,7 @@ class PermissionRepositoryTest {
     }
 
     @Test
-    fun `getUsers online HttpException maps to PaperlessException via fromHttpCode`() = runTest {
+    fun `getUsers online HttpException maps to PaperlessException`() = runTest {
         // Covers the HttpException catch branch (shared by both methods); one test
         // is sufficient because the catch logic is identical across getUsers and
         // getGroups. (DRY pattern from Phase 3.2 AuditRepositoryTest.)

@@ -1,0 +1,7 @@
+Version 1.5.83:
+
+🔧 Improvements:
+- Cleaner API↔domain separation
+- Better foundation for upcoming features
+
+No visible changes for users.

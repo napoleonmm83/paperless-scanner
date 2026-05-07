@@ -9,16 +9,18 @@ import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
-import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.database.mappers.toCachedEntity
+import com.paperless.scanner.data.database.mappers.toTrashedDocument
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentsResponse
+import com.paperless.scanner.domain.model.TrashedDocument
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
 
@@ -110,8 +112,9 @@ class TrashRepository @Inject constructor(
         },
     )
 
-    fun observeTrashedDocuments(): Flow<List<CachedDocument>> {
+    fun observeTrashedDocuments(): Flow<List<TrashedDocument>> {
         return cachedDocumentDao.observeDeletedDocuments()
+            .map { list -> list.map { it.toTrashedDocument() } }
     }
 
     fun observeTrashedDocumentsCount(): Flow<Int> {

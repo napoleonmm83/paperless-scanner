@@ -1,0 +1,7 @@
+Version 1.5.83:
+
+🔧 Verbesserungen:
+- API-/Domain-Trennung intern verbessert
+- Bessere Grundlage für künftige Verbesserungen
+
+Keine sichtbaren Änderungen für Nutzer.

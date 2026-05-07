@@ -2,7 +2,7 @@ package com.paperless.scanner.ui.screens.trash
 
 import android.content.Context
 import com.paperless.scanner.R
-import com.paperless.scanner.data.database.entities.CachedDocument
+import com.paperless.scanner.domain.model.TrashedDocument
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.domain.model.DocumentsResponse
@@ -270,28 +270,15 @@ class TrashViewModelTest {
 
     // ==================== Helper Functions ====================
 
-    private fun createMockCachedDocument(
+    private fun createMockTrashedDocument(
         id: Int,
         title: String,
         deletedAt: Long? = System.currentTimeMillis()
-    ): CachedDocument {
-        return CachedDocument(
+    ): TrashedDocument {
+        return TrashedDocument(
             id = id,
             title = title,
-            content = "Content $id",
             created = "2024-01-01T00:00:00Z",
-            modified = "2024-01-01T00:00:00Z",
-            added = "2024-01-01T00:00:00Z",
-            archiveSerialNumber = null,
-            originalFileName = "file_$id.pdf",
-            correspondent = null,
-            documentType = null,
-            storagePath = null,
-            tags = "[]",
-            customFields = null,
-            isCached = true,
-            lastSyncedAt = System.currentTimeMillis(),
-            isDeleted = true,
             deletedAt = deletedAt
         )
     }

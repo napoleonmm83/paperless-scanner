@@ -99,7 +99,7 @@ class TrashViewModel @Inject constructor(
     /**
      * BEST PRACTICE: Reactive Flow for Trash Documents.
      * Automatically updates when documents are deleted/restored.
-     * Uses Room cache (CachedDocument) since trash is offline-first.
+     * Uses Room cache (via TrashedDocument domain model) since trash is offline-first.
      */
     val trashedDocuments: StateFlow<List<TrashDocumentItem>> = trashRepository.observeTrashedDocuments()
         .map { documents ->
