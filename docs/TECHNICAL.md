@@ -115,16 +115,16 @@ com.paperless.scanner/
 
 | Repository | Verantwortlichkeit |
 |---|---|
-|  | , ,  |
-|  | Paging, Suche, Offline-First Listing |
-|  | Detail-Abruf, Update, Berechtigungen |
-|  | Zählabfragen (gesamt, ungefiltert, ungetaggt) |
-|  | Offline-Queue (PendingChange) |
-|  | Soft-Delete, Restore, Permanent Delete |
-|  | Audit-Log, Notizen |
-|  | User- und Gruppen-Berechtigungen |
+| `DocumentRepository` | `uploadDocument`, `uploadMultiPageDocument`, `downloadDocument` |
+| `DocumentListRepository` | Paging, Suche, Offline-First Listing |
+| `DocumentMetadataRepository` | Detail-Abruf, Update, Berechtigungen |
+| `DocumentCountRepository` | Zählabfragen (gesamt, ungefiltert, ungetaggt) |
+| `DocumentSyncRepository` | Offline-Queue (PendingChange) |
+| `TrashRepository` | Soft-Delete, Restore, Permanent Delete |
+| `AuditRepository` | Audit-Log, Notizen |
+| `PermissionRepository` | User- und Gruppen-Berechtigungen |
 
-Alle Sub-Repositories sind  — kein manueller -Eintrag in AppModule nötig.
+Alle Sub-Repositories sind `@Inject constructor` — kein manueller `@Provides`-Eintrag in AppModule nötig.
 
 ---
 
