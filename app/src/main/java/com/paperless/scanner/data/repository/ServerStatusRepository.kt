@@ -2,6 +2,7 @@ package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.ServerStatusResponse
+import com.paperless.scanner.util.withResponseRetry
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
 import java.io.IOException
@@ -18,7 +19,7 @@ class ServerStatusRepository @Inject constructor(
     private val api: PaperlessApi
 ) {
     suspend fun getServerStatus(): Result<ServerStatusResponse> = try {
-        val response = api.getServerStatus()
+        val response = withResponseRetry { api.getServerStatus() }
         if (!response.isSuccessful) {
             throw HttpException(response)
         }

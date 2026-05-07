@@ -52,6 +52,9 @@ object NetworkConfig {
     /** Maximum number of retry attempts for failed requests */
     const val MAX_RETRIES = 3
 
-    /** Delay between retry attempts (milliseconds) */
+    /** Initial delay between retry attempts (milliseconds) — exponential backoff base */
     const val RETRY_DELAY_MS = 1_000L
+
+    /** Upper cap for exponential backoff between retry attempts (milliseconds) */
+    const val RETRY_MAX_DELAY_MS = 10_000L
 }

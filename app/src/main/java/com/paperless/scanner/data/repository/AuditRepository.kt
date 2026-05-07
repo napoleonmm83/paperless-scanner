@@ -10,10 +10,12 @@ import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
 import com.paperless.scanner.domain.model.Note
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Phase 3.2 of #51 — extracted from DocumentRepository.
@@ -32,7 +34,7 @@ class AuditRepository @Inject constructor(
     suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val history = api.getDocumentHistory(documentId)
+                val history = withRetry { api.getDocumentHistory(documentId) }
                 Result.success(history.toAuditLogDomain())
             } else {
                 Result.failure(
@@ -41,6 +43,8 @@ class AuditRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -49,6 +53,8 @@ class AuditRepository @Inject constructor(
     suspend fun addNote(documentId: Int, noteText: String): Result<List<Note>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
+                // POST: addNote is non-idempotent — no withRetry, otherwise a
+                // 5xx after a server-side commit would create a duplicate note.
                 val request = CreateNoteRequest(note = noteText)
                 val notes = api.addNote(documentId, request)
                 Result.success(notes.map { it.toDomain() })
@@ -59,6 +65,8 @@ class AuditRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -67,7 +75,7 @@ class AuditRepository @Inject constructor(
     suspend fun deleteNote(documentId: Int, noteId: Int): Result<List<Note>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val notes = api.deleteNote(documentId, noteId)
+                val notes = withRetry { api.deleteNote(documentId, noteId) }
                 Result.success(notes.map { it.toDomain() })
             } else {
                 Result.failure(
@@ -76,6 +84,8 @@ class AuditRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

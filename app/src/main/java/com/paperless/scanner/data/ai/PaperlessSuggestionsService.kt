@@ -6,11 +6,13 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Service for fetching document suggestions from Paperless-ngx server.
@@ -35,8 +37,10 @@ class PaperlessSuggestionsService @Inject constructor(
      * @return DocumentAnalysis with suggestions, or error if failed
      */
     suspend fun getSuggestions(documentId: Int): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
-        runCatching {
-            val response = api.getDocumentSuggestions(documentId)
+        // NOT runCatching — it would also catch CancellationException that
+        // withRetry intentionally rethrows, breaking structured cancellation.
+        try {
+            val response = withRetry { api.getDocumentSuggestions(documentId) }
 
             // Get current metadata to resolve IDs to names
             val allTags = tagRepository.observeTags().first()
@@ -68,15 +72,21 @@ class PaperlessSuggestionsService @Inject constructor(
             // Get first suggested date
             val suggestedDate = response.dates.firstOrNull()
 
-            DocumentAnalysis(
-                suggestedTitle = null, // Paperless API doesn't suggest titles
-                suggestedTags = tagSuggestions,
-                suggestedCorrespondent = suggestedCorrespondent,
-                suggestedDocumentType = suggestedDocumentType,
-                suggestedDate = suggestedDate,
-                extractedText = null,
-                confidence = if (tagSuggestions.isNotEmpty()) PAPERLESS_SUGGESTION_CONFIDENCE else 0f
+            Result.success(
+                DocumentAnalysis(
+                    suggestedTitle = null, // Paperless API doesn't suggest titles
+                    suggestedTags = tagSuggestions,
+                    suggestedCorrespondent = suggestedCorrespondent,
+                    suggestedDocumentType = suggestedDocumentType,
+                    suggestedDate = suggestedDate,
+                    extractedText = null,
+                    confidence = if (tagSuggestions.isNotEmpty()) PAPERLESS_SUGGESTION_CONFIDENCE else 0f
+                )
             )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -85,12 +95,17 @@ class PaperlessSuggestionsService @Inject constructor(
      * Some documents may not have any suggestions if Paperless hasn't analyzed them yet.
      */
     suspend fun hasSuggestions(documentId: Int): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            val response = api.getDocumentSuggestions(documentId)
+        // Same rationale as getSuggestions: runCatching would swallow cancellation.
+        try {
+            val response = withRetry { api.getDocumentSuggestions(documentId) }
             response.tags.isNotEmpty() ||
                 response.correspondents.isNotEmpty() ||
                 response.documentTypes.isNotEmpty()
-        }.getOrDefault(false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
     }
 
     companion object {

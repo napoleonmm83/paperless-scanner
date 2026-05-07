@@ -1,5 +1,7 @@
 package com.paperless.scanner.data.api
 
+import com.paperless.scanner.util.withRetry
+import kotlinx.coroutines.CancellationException
 import retrofit2.Response
 import java.io.IOException
 
@@ -9,6 +11,12 @@ import java.io.IOException
 
 /**
  * Executes an API call safely, wrapping any exception in PaperlessException.
+ *
+ * Retries transient failures (IOException and 5xx HttpException) at the suspend
+ * boundary via [withRetry] — replaces the previous blocking RetryInterceptor.
+ *
+ * [CancellationException] propagates unchanged so coroutine cancellation is
+ * never swallowed (catch order matters; see PR #195).
  *
  * Usage:
  * ```kotlin
@@ -21,7 +29,9 @@ suspend fun <T> safeApiCall(
     apiCall: suspend () -> T
 ): Result<T> {
     return try {
-        Result.success(apiCall())
+        Result.success(withRetry { apiCall() })
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(PaperlessException.from(e))
     }
@@ -41,7 +51,15 @@ suspend fun <T> safeApiResponse(
     apiCall: suspend () -> Response<T>
 ): Result<T> {
     return try {
-        val response = apiCall()
+        val response = withRetry {
+            val r = apiCall()
+            // Promote 5xx to HttpException so withRetry can retry it; 4xx falls
+            // through unchanged and is reported below as a non-retried failure.
+            if (r.code() in 500..599) {
+                throw retrofit2.HttpException(r)
+            }
+            r
+        }
         if (response.isSuccessful) {
             response.body()?.let { body ->
                 Result.success(body)
@@ -54,6 +72,11 @@ suspend fun <T> safeApiResponse(
                 PaperlessException.fromHttpCode(response.code(), errorBody)
             )
         }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: retrofit2.HttpException) {
+        val errorBody = e.response()?.errorBody()?.string()
+        Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody))
     } catch (e: IOException) {
         Result.failure(PaperlessException.NetworkError(e))
     } catch (e: Exception) {
@@ -77,8 +100,10 @@ suspend fun <T, R> safeApiCallWithTransform(
     transform: (T) -> R
 ): Result<R> {
     return try {
-        val response = apiCall()
+        val response = withRetry { apiCall() }
         Result.success(transform(response))
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(PaperlessException.from(e))
     }

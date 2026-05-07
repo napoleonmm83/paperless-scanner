@@ -13,9 +13,11 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * CorrespondentRepository - Repository for correspondent management with offline-first architecture.
@@ -100,7 +102,7 @@ class CorrespondentRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getCorrespondents(page = 1, pageSize = 100)
+                val response = withRetry { api.getCorrespondents(page = 1, pageSize = 100) }
                 // Update cache
                 val cachedEntities = response.results.map { it.toCachedEntity() }
                 cachedCorrespondentDao.insertAll(cachedEntities)
@@ -109,6 +111,8 @@ class CorrespondentRepository @Inject constructor(
                 // Offline, no cache
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -126,6 +130,7 @@ class CorrespondentRepository @Inject constructor(
      */
     suspend fun createCorrespondent(name: String): Result<Correspondent> {
         return try {
+            // POST: non-idempotent — no withRetry, would risk duplicate correspondent on 5xx.
             val response = api.createCorrespondent(CreateCorrespondentRequest(name = name))
             val domainCorrespondent = response.toDomain()
 
@@ -133,6 +138,8 @@ class CorrespondentRepository @Inject constructor(
             cachedCorrespondentDao.insert(response.toCachedEntity())
 
             Result.success(domainCorrespondent)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -151,13 +158,15 @@ class CorrespondentRepository @Inject constructor(
      */
     suspend fun updateCorrespondent(id: Int, name: String): Result<Correspondent> {
         return try {
-            val response = api.updateCorrespondent(id, UpdateCorrespondentRequest(name = name))
+            val response = withRetry { api.updateCorrespondent(id, UpdateCorrespondentRequest(name = name)) }
             val domainCorrespondent = response.toDomain()
 
             // Update cache to trigger reactive Flow update immediately
             cachedCorrespondentDao.insert(response.toCachedEntity())
 
             Result.success(domainCorrespondent)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -176,12 +185,14 @@ class CorrespondentRepository @Inject constructor(
      */
     suspend fun deleteCorrespondent(id: Int): Result<Unit> {
         return try {
-            api.deleteCorrespondent(id)
+            withRetry { api.deleteCorrespondent(id) }
 
             // Soft delete from cache to trigger reactive Flow update immediately
             cachedCorrespondentDao.softDelete(id)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

@@ -1,0 +1,7 @@
+Version 1.5.86:
+
+🔧 Improvements:
+- Faster under heavy concurrent network load
+- Retries no longer block other requests
+- Consistent retry behavior for uploads
+- Cleaner cancellation propagation in coroutines

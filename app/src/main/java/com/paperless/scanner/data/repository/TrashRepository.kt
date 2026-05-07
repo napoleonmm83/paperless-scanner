@@ -15,10 +15,13 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.TrashedDocument
+import com.paperless.scanner.util.withResponseRetry
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -48,6 +51,22 @@ class TrashRepository @Inject constructor(
 
     companion object {
         private const val TAG = "TrashRepository"
+        private const val ERROR_BODY_LOG_LIMIT = 200
+    }
+
+    /**
+     * Produce a log-friendly snippet from an already-read error body:
+     * truncated to [ERROR_BODY_LOG_LIMIT] chars and with newlines escaped so a
+     * single log line stays grep-able. Server error responses can echo
+     * user-submitted data, so we never dump them in full.
+     *
+     * IMPORTANT: takes a pre-read [String], not a [retrofit2.Response]. Calling
+     * `response.errorBody()?.string()` consumes the stream — call sites must
+     * read the body exactly once and pass the result into both the log and
+     * the [retrofit2.HttpException] construction.
+     */
+    private fun sanitizeErrorBody(raw: String?): String? {
+        return raw?.replace("\n", "\\n")?.take(ERROR_BODY_LOG_LIMIT)
     }
 
     suspend fun deleteDocument(documentId: Int): Result<Unit> = sync.executeOrQueue(
@@ -63,32 +82,52 @@ class TrashRepository @Inject constructor(
             cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
 
             try {
-                val response = api.deleteDocument(documentId)
-                if (response.isSuccessful) {
-                    if (taskIds.isNotEmpty()) {
-                        try {
-                            api.acknowledgeTasks(AcknowledgeTasksRequest(taskIds))
-                        } catch (e: Exception) {
-                            Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
+                val response = withResponseRetry { api.deleteDocument(documentId) }
+                when {
+                    response.isSuccessful -> {
+                        if (taskIds.isNotEmpty()) {
+                            try {
+                                api.acknowledgeTasks(AcknowledgeTasksRequest(taskIds))
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
+                            }
                         }
+                        Unit
                     }
-                    Unit
-                } else {
-                    // ROLLBACK on API failure
-                    Log.w(TAG, "deleteDocument API failed (HTTP ${response.code()}), rolling back")
-                    cachedDocumentDao.restoreDocument(documentId)
-                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                    Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
-                    throw retrofit2.HttpException(
-                        retrofit2.Response.error<Unit>(
-                            response.code(),
-                            (errorBody ?: "{}").toResponseBody("application/json".toMediaTypeOrNull()),
+                    response.code() == 404 -> {
+                        // Already deleted on server — likely a previous attempt
+                        // committed but the response was lost in transit. Local
+                        // state matches reality; do NOT roll back.
+                        Log.i(TAG, "deleteDocument returned 404 — treating as already-deleted, no rollback")
+                        Unit
+                    }
+                    else -> {
+                        // 4xx (other than 404): throw without rollback here —
+                        // the catch (HttpException) below is the single rollback
+                        // point so 5xx-after-withResponseRetry-exhaust gets the
+                        // same treatment.
+                        // Read the error body EXACTLY ONCE: the stream is
+                        // consumed by .string(); a second read returns empty.
+                        val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
+                        throw retrofit2.HttpException(
+                            retrofit2.Response.error<Unit>(
+                                response.code(),
+                                (errorBody ?: "{}").toResponseBody("application/json".toMediaTypeOrNull()),
+                            )
                         )
-                    )
+                    }
                 }
             } catch (e: retrofit2.HttpException) {
-                // Already rolled back above for non-successful responses;
-                // re-throw to land in executeOrQueue's exception mapping.
+                // Single rollback point: covers both 4xx thrown from the else
+                // branch above and 5xx thrown by withResponseRetry after
+                // exhausting retries. restoreDocument is idempotent (UPDATE
+                // SET isDeleted = 0), so calling it for a doc already in the
+                // restored state is a no-op.
+                Log.w(TAG, "deleteDocument API failure (HTTP ${e.code()}), rolling back optimistic delete")
+                cachedDocumentDao.restoreDocument(documentId)
                 throw e
             } catch (e: java.io.IOException) {
                 // Mid-flight network drop: do NOT roll back here. executeOrQueue
@@ -96,6 +135,12 @@ class TrashRepository @Inject constructor(
                 // re-applies softDelete + ack via queueDocumentDelete. Rolling back
                 // would cause a brief UI flicker (deleted → restored → deleted)
                 // as Flow observers see two opposing DB writes.
+                throw e
+            } catch (e: CancellationException) {
+                // Coroutine cancelled mid-flight (e.g. ViewModel scope went
+                // away). Propagate without rollback — the user did not ask for
+                // an undo, and rollback could race with a re-issue from the
+                // resumed scope.
                 throw e
             } catch (e: Exception) {
                 // ROLLBACK for non-network exceptions (timeout, etc.) where
@@ -131,7 +176,7 @@ class TrashRepository @Inject constructor(
     ): Result<DocumentsResponse> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTrash(page = page, pageSize = pageSize)
+                val response = withRetry { api.getTrash(page = page, pageSize = pageSize) }
 
                 val cachedEntities = response.results.map { doc ->
                     val deletionTimestamp = try {
@@ -155,6 +200,8 @@ class TrashRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -166,13 +213,14 @@ class TrashRepository @Inject constructor(
     suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
         online = {
             val request = TrashBulkActionRequest(documents = documentIds, action = "restore")
-            val response = api.trashBulkAction(request)
+            val response = withResponseRetry { api.trashBulkAction(request) }
             if (response.isSuccessful) {
                 cachedDocumentDao.restoreDocuments(documentIds)
                 Unit
             } else {
+                // Single-read of errorBody (the stream is consumed by .string()).
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: $errorBody")
+                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
@@ -193,13 +241,14 @@ class TrashRepository @Inject constructor(
     suspend fun permanentlyDeleteDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
         online = {
             val request = TrashBulkActionRequest(documents = documentIds, action = "empty")
-            val response = api.trashBulkAction(request)
+            val response = withResponseRetry { api.trashBulkAction(request) }
             if (response.isSuccessful) {
                 cachedDocumentDao.deleteByIds(documentIds)
                 Unit
             } else {
+                // Single-read of errorBody (the stream is consumed by .string()).
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: $errorBody")
+                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),

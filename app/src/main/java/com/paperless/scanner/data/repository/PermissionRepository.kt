@@ -10,10 +10,12 @@ import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Group
 import com.paperless.scanner.domain.model.User
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Phase 4 of #51 — extracted from DocumentRepository.
@@ -35,7 +37,7 @@ class PermissionRepository @Inject constructor(
     suspend fun getUsers(): Result<List<User>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getUsers()
+                val response = withRetry { api.getUsers() }
                 Result.success(response.results.map { it.toDomain() })
             } else {
                 Result.failure(
@@ -44,6 +46,8 @@ class PermissionRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -52,7 +56,7 @@ class PermissionRepository @Inject constructor(
     suspend fun getGroups(): Result<List<Group>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getGroups()
+                val response = withRetry { api.getGroups() }
                 Result.success(response.results.map { it.toDomain() })
             } else {
                 Result.failure(
@@ -61,6 +65,8 @@ class PermissionRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

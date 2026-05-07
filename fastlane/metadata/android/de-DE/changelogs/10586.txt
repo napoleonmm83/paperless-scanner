@@ -1,0 +1,7 @@
+Version 1.5.86:
+
+🔧 Verbesserungen:
+- Schneller bei vielen parallelen Server-Anfragen
+- Wiederholungen blockieren keine anderen Aufrufe mehr
+- Einheitliches Wiederholungs-Verhalten für Uploads
+- Coroutinen-Abbruch wird sauber durchgereicht

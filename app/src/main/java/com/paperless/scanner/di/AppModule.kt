@@ -8,7 +8,6 @@ import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.RetryInterceptor
 import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.PendingUploadDao
 import com.paperless.scanner.data.database.dao.AiUsageDao
@@ -209,7 +208,12 @@ object AppModule {
      * - Dynamic base URL from TokenManager
      * - Auto-injected auth token
      * - Cloudflare detection
-     * - Retry with exponential backoff
+     *
+     * Retry now lives at the suspend boundary in repositories via
+     * [com.paperless.scanner.util.withRetry]; uploads rely on
+     * [androidx.work.WorkManager] backoff (see UploadWorker). Removing the
+     * blocking interceptor means concurrent requests no longer pile up while
+     * one connection is sleeping out a backoff window.
      */
     @Provides
     @Singleton
@@ -234,7 +238,6 @@ object AppModule {
                 chain.proceed(request)
             }
             .addInterceptor(cloudflareDetectionInterceptor)
-            .addInterceptor(RetryInterceptor(maxRetries = com.paperless.scanner.util.NetworkConfig.MAX_RETRIES))
             .applyTimeouts()
             .build()
     }
@@ -266,7 +269,10 @@ object AppModule {
      * OkHttpClient for Paperless-GPT AI integration.
      * - Dynamic base URL for Paperless-GPT service
      * - Uses same auth token as Paperless-ngx
-     * - Retry with exponential backoff
+     *
+     * Retry handled at the suspend boundary by repository callers via
+     * [com.paperless.scanner.util.withRetry]; see [provideOkHttpClient] for
+     * rationale.
      */
     @Provides
     @Singleton
@@ -290,7 +296,6 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
-            .addInterceptor(RetryInterceptor(maxRetries = com.paperless.scanner.util.NetworkConfig.MAX_RETRIES))
             .applyTimeouts()
             .build()
     }

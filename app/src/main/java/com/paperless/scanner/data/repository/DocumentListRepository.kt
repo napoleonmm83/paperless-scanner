@@ -18,10 +18,12 @@ import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.domain.model.DocumentsResponse
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -111,15 +113,17 @@ class DocumentListRepository @Inject constructor(
             }
             if (networkMonitor.checkOnlineStatus()) {
                 val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
-                val response = api.getDocuments(
-                    page = page,
-                    pageSize = pageSize,
-                    query = query,
-                    tagIds = tagIdsString,
-                    correspondentId = correspondentId,
-                    documentTypeId = documentTypeId,
-                    ordering = ordering,
-                )
+                val response = withRetry {
+                    api.getDocuments(
+                        page = page,
+                        pageSize = pageSize,
+                        query = query,
+                        tagIds = tagIdsString,
+                        correspondentId = correspondentId,
+                        documentTypeId = documentTypeId,
+                        ordering = ordering,
+                    )
+                }
                 val cachedEntities = response.results.map { it.toCachedEntity() }
                 cachedDocumentDao.insertAll(cachedEntities)
                 Result.success(response.toDomain())
@@ -130,6 +134,8 @@ class DocumentListRepository @Inject constructor(
                     )
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -139,6 +145,8 @@ class DocumentListRepository @Inject constructor(
         return try {
             val cachedResults = cachedDocumentDao.searchDocuments(query)
             Result.success(cachedResults.map { it.toCachedDomain() })
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -157,6 +165,8 @@ class DocumentListRepository @Inject constructor(
                     ordering = "-added",
                 ).results.toDomain()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
