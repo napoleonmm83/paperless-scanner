@@ -9,7 +9,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -33,7 +33,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 class TrashDeleteWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val documentRepository: DocumentRepository,
+    private val trashRepository: TrashRepository,
     private val tokenManager: TokenManager,
     private val syncHistoryRepository: SyncHistoryRepository,
     private val cachedDocumentDao: CachedDocumentDao,
@@ -74,7 +74,7 @@ class TrashDeleteWorker @AssistedInject constructor(
         removePendingDelete(documentId)
 
         // Perform the actual deletion
-        return documentRepository.permanentlyDeleteDocument(documentId)
+        return trashRepository.permanentlyDeleteDocument(documentId)
             .fold(
                 onSuccess = {
                     Log.d(TAG, "Successfully deleted document $documentId")
