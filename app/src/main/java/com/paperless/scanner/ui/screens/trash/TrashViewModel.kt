@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.util.DateFormatter
 import com.paperless.scanner.worker.TrashDeleteWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,7 +75,7 @@ data class TrashUiState(
 @HiltViewModel
 class TrashViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val documentRepository: DocumentRepository,
+    private val trashRepository: TrashRepository,
     private val tokenManager: TokenManager,
     private val trashDeleteWorkManager: TrashDeleteWorkManager
 ) : ViewModel() {
@@ -101,7 +101,7 @@ class TrashViewModel @Inject constructor(
      * Automatically updates when documents are deleted/restored.
      * Uses Room cache (CachedDocument) since trash is offline-first.
      */
-    val trashedDocuments: StateFlow<List<TrashDocumentItem>> = documentRepository.observeTrashedDocuments()
+    val trashedDocuments: StateFlow<List<TrashDocumentItem>> = trashRepository.observeTrashedDocuments()
         .map { documents ->
             documents.map { doc ->
                 TrashDocumentItem(
@@ -289,7 +289,7 @@ class TrashViewModel @Inject constructor(
             val serverTrashIds = mutableSetOf<Int>()
 
             while (hasMore) {
-                documentRepository.getTrashDocuments(page = page, pageSize = 100)
+                trashRepository.getTrashDocuments(page = page, pageSize = 100)
                     .onSuccess { response ->
                         serverTrashIds.addAll(response.results.map { it.id })
                         hasMore = response.next != null && response.results.isNotEmpty()
@@ -309,7 +309,7 @@ class TrashViewModel @Inject constructor(
 
             // Clean up local trash docs that no longer exist on server
             // (e.g., auto-expired after 30 days or permanently deleted elsewhere)
-            documentRepository.cleanupOrphanedTrashDocs(serverTrashIds)
+            trashRepository.cleanupOrphanedTrashDocs(serverTrashIds)
 
             // Success - Room Flow will auto-update UI
             _uiState.update { it.copy(isLoading = false) }
@@ -338,7 +338,7 @@ class TrashViewModel @Inject constructor(
      */
     private fun observeCount() {
         viewModelScope.launch {
-            documentRepository.observeTrashedDocumentsCount()
+            trashRepository.observeTrashedDocumentsCount()
                 .catch { e ->
                     _uiState.update { it.copy(error = e.message) }
                 }
@@ -357,7 +357,7 @@ class TrashViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRestoring = true, error = null) }
 
-            documentRepository.restoreDocument(documentId)
+            trashRepository.restoreDocument(documentId)
                 .onSuccess {
                     // Success - Flow will auto-update UI
                     _uiState.update { it.copy(isRestoring = false) }
@@ -382,7 +382,7 @@ class TrashViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isDeleting = true, error = null) }
 
-            documentRepository.permanentlyDeleteDocument(documentId)
+            trashRepository.permanentlyDeleteDocument(documentId)
                 .onSuccess {
                     // Success - Flow will auto-update UI
                     _uiState.update { it.copy(isDeleting = false) }
@@ -427,7 +427,7 @@ class TrashViewModel @Inject constructor(
                 return@launch
             }
 
-            documentRepository.restoreDocuments(documentIdsToRestore)
+            trashRepository.restoreDocuments(documentIdsToRestore)
                 .onSuccess {
                     _uiState.update { it.copy(isRestoring = false) }
                 }
@@ -467,7 +467,7 @@ class TrashViewModel @Inject constructor(
                 return@launch
             }
 
-            documentRepository.permanentlyDeleteDocuments(documentIds)
+            trashRepository.permanentlyDeleteDocuments(documentIds)
                 .onSuccess {
                     _uiState.update { it.copy(isDeleting = false) }
                 }
