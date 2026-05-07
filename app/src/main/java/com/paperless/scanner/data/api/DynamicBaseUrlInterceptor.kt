@@ -1,8 +1,6 @@
 package com.paperless.scanner.data.api
 
-import com.paperless.scanner.data.datastore.TokenManager
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import com.paperless.scanner.data.datastore.ServerUrlHolder
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -11,24 +9,23 @@ import javax.inject.Inject
 /**
  * Interceptor that dynamically sets the base URL for each request.
  *
- * This allows Retrofit to be created with a placeholder URL, and the actual
- * server URL is read from TokenManager at request time. The runBlocking call
- * is acceptable here because:
- * 1. OkHttp interceptors run on the OkHttp dispatcher thread pool, not the main thread
- * 2. DataStore read operations are fast (in-memory cache after first read)
- * 3. This avoids blocking the main thread during Hilt initialization
+ * Retrofit is constructed with a placeholder URL; the actual server URL is
+ * read from [ServerUrlHolder] at request time via a non-blocking atomic
+ * load. Previously this read used `runBlocking { tokenManager.serverUrl.first() }`,
+ * which serialized concurrent requests under DataStore lock contention
+ * (see issue #124 / finding F-097). The holder collects the same Flow once
+ * on the application scope and caches the latest value in an
+ * [java.util.concurrent.atomic.AtomicReference], so the hot path is now a
+ * pure volatile read with no allocation.
  */
 class DynamicBaseUrlInterceptor @Inject constructor(
-    private val tokenManager: TokenManager
+    private val serverUrlHolder: ServerUrlHolder,
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Get the stored server URL (runs on OkHttp thread, not main thread)
-        val serverUrl = runBlocking {
-            tokenManager.serverUrl.first()
-        }?.trimEnd('/') ?: return chain.proceed(originalRequest)
+        val serverUrl = serverUrlHolder.current() ?: return chain.proceed(originalRequest)
 
         val newBaseUrl = serverUrl.toHttpUrlOrNull() ?: return chain.proceed(originalRequest)
 

@@ -1,0 +1,6 @@
+Version 1.5.87:
+
+🔧 Improvements:
+- Faster server connection under heavy parallel load
+- Server URL loaded once and cached atomically
+- No more DataStore lock contention on the network hot path

@@ -1,0 +1,6 @@
+Version 1.5.87:
+
+🔧 Verbesserungen:
+- Schnellere Serververbindung bei vielen parallelen Anfragen
+- Server-URL wird einmalig geladen und atomar gecacht
+- Keine DataStore-Sperre mehr im Netzwerk-Hot-Path
