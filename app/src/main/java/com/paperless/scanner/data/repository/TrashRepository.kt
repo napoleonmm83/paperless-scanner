@@ -55,18 +55,18 @@ class TrashRepository @Inject constructor(
     }
 
     /**
-     * Read [Response.errorBody] safely and produce a log-friendly snippet:
+     * Produce a log-friendly snippet from an already-read error body:
      * truncated to [ERROR_BODY_LOG_LIMIT] chars and with newlines escaped so a
      * single log line stays grep-able. Server error responses can echo
      * user-submitted data, so we never dump them in full.
+     *
+     * IMPORTANT: takes a pre-read [String], not a [retrofit2.Response]. Calling
+     * `response.errorBody()?.string()` consumes the stream — call sites must
+     * read the body exactly once and pass the result into both the log and
+     * the [retrofit2.HttpException] construction.
      */
-    private fun safeErrorBodySnippet(response: retrofit2.Response<*>): String? {
-        return try {
-            val raw = response.errorBody()?.string() ?: return null
-            raw.replace("\n", "\\n").take(ERROR_BODY_LOG_LIMIT)
-        } catch (_: Exception) {
-            null
-        }
+    private fun sanitizeErrorBody(raw: String?): String? {
+        return raw?.replace("\n", "\\n")?.take(ERROR_BODY_LOG_LIMIT)
     }
 
     suspend fun deleteDocument(documentId: Int): Result<Unit> = sync.executeOrQueue(
@@ -108,13 +108,10 @@ class TrashRepository @Inject constructor(
                         // the catch (HttpException) below is the single rollback
                         // point so 5xx-after-withResponseRetry-exhaust gets the
                         // same treatment.
-                        val errorBodySnippet = safeErrorBodySnippet(response)
-                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBodySnippet")
-                        // Re-read the full body for HttpException construction
-                        // (callers like PaperlessException.from inspect it via
-                        // response().errorBody()); the snippet above is just for
-                        // the log line.
+                        // Read the error body EXACTLY ONCE: the stream is
+                        // consumed by .string(); a second read returns empty.
                         val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                         throw retrofit2.HttpException(
                             retrofit2.Response.error<Unit>(
                                 response.code(),
@@ -221,8 +218,9 @@ class TrashRepository @Inject constructor(
                 cachedDocumentDao.restoreDocuments(documentIds)
                 Unit
             } else {
-                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${safeErrorBodySnippet(response)}")
+                // Single-read of errorBody (the stream is consumed by .string()).
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
@@ -248,8 +246,9 @@ class TrashRepository @Inject constructor(
                 cachedDocumentDao.deleteByIds(documentIds)
                 Unit
             } else {
-                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${safeErrorBodySnippet(response)}")
+                // Single-read of errorBody (the stream is consumed by .string()).
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
