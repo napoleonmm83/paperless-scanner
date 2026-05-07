@@ -20,7 +20,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
@@ -43,7 +43,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -116,24 +115,30 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Resolve startDestination asynchronously to keep onCreate non-blocking.
+                    // While the token is unresolved (loggedIn == null), the Surface holds the
+                    // splash background so the system splash blends seamlessly into the
+                    // first frame; the NavGraph mounts only after the token is known, so all
+                    // existing route checks (sharedUris, deep links, savedInstanceState) keep
+                    // their original semantics. F-114 / Issue #141.
+                    val loggedIn by produceState<Boolean?>(initialValue = null) {
+                        value = runCatching { tokenManager.token.first() }
+                            .getOrNull()
+                            .let { !it.isNullOrBlank() }
+                    }
+                    val resolvedLogin = loggedIn ?: return@Surface
+
+                    val startDestination = if (resolvedLogin) {
+                        // Logged in - go to home (AppLockNavigationInterceptor handles locking)
+                        Screen.Home.route
+                    } else {
+                        // Not logged in - show unified onboarding (SimplifiedSetup on Welcome route)
+                        Screen.Welcome.route
+                    }
+
                     val analyticsConsentAsked by tokenManager.analyticsConsentAsked.collectAsState(initial = true)
                     val navController = rememberNavController()
                     val coroutineScope = rememberCoroutineScope()
-
-                    // CRITICAL: Load startDestination synchronously to avoid race conditions
-                    // Using collectAsState with wrong initials causes wrong startDestination on Activity recreation
-                    val startDestination = remember {
-                        runBlocking {
-                            val token = tokenManager.token.first()
-
-                            when {
-                                // Not logged in - show unified onboarding (SimplifiedSetup on Welcome route)
-                                token.isNullOrBlank() -> Screen.Welcome.route
-                                // Logged in - go to home (AppLockNavigationInterceptor handles locking)
-                                else -> Screen.Home.route
-                            }
-                        }
-                    }
 
                     // Reset navigation to startDestination after process death to avoid invalid state
                     // When savedInstanceState != null, Android tried to restore the back stack but
