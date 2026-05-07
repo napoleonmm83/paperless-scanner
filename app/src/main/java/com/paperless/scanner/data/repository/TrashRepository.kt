@@ -72,6 +72,8 @@ class TrashRepository @Inject constructor(
                         if (taskIds.isNotEmpty()) {
                             try {
                                 api.acknowledgeTasks(AcknowledgeTasksRequest(taskIds))
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
                             }
