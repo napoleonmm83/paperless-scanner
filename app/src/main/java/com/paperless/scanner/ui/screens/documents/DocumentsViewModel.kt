@@ -14,7 +14,9 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.DocumentListRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.util.DateFormatter
@@ -60,7 +62,9 @@ data class DocumentsUiState(
 class DocumentsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val savedStateHandle: SavedStateHandle,
-    private val documentRepository: DocumentRepository,
+    private val documentListRepository: DocumentListRepository,
+    private val documentCountRepository: DocumentCountRepository,
+    private val trashRepository: TrashRepository,
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
     private val documentTypeRepository: DocumentTypeRepository,
@@ -134,7 +138,7 @@ class DocumentsViewModel @Inject constructor(
             triggerBackgroundSync(query = searchQuery, filter = filter)
 
             // Return the paged documents flow
-            documentRepository.getDocumentsPaged(
+            documentListRepository.getDocumentsPaged(
                 searchQuery = searchQuery,
                 filter = filter
             ).map { pagingData ->
@@ -202,7 +206,7 @@ class DocumentsViewModel @Inject constructor(
                 Pair(searchQuery, filter)
             }
                 .flatMapLatest { (searchQuery, filter) ->
-                    documentRepository.observeCountWithFilter(
+                    documentCountRepository.observeCountWithFilter(
                         searchQuery = searchQuery,
                         filter = filter
                     )
@@ -239,7 +243,7 @@ class DocumentsViewModel @Inject constructor(
      */
     private fun triggerBackgroundSync(query: String?, filter: DocumentFilter) {
         viewModelScope.launch {
-            documentRepository.getDocuments(
+            documentListRepository.getDocuments(
                 page = 1,
                 pageSize = 100,
                 query = query?.takeIf { it.isNotBlank() },
@@ -362,7 +366,7 @@ class DocumentsViewModel @Inject constructor(
             }
 
             // Perform soft-delete via repository
-            documentRepository.deleteDocument(documentId)
+            trashRepository.deleteDocument(documentId)
                 .onFailure { error ->
                     // Clear undo state and show error
                     _uiState.update {
@@ -389,7 +393,7 @@ class DocumentsViewModel @Inject constructor(
             _uiState.update { it.copy(deletedDocument = null) }
 
             // Restore document from trash
-            documentRepository.restoreDocument(deletedDoc.id)
+            trashRepository.restoreDocument(deletedDoc.id)
                 .onFailure { error ->
                     _uiState.update {
                         it.copy(error = error.message ?: context.getString(R.string.error_restore_document))
