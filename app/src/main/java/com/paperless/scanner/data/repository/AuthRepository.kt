@@ -122,43 +122,47 @@ class AuthRepository @Inject constructor(
             return httpResult
         }
 
-        // Both failed - return the most informative error
-        val httpsError = httpsResult.exceptionOrNull()
-        val httpError = httpResult.exceptionOrNull()
+        // Both failed - return the most informative error.
+        // Fallbacks ensure non-null types so the when-branches below are NPE-safe even
+        // if a Result.failure was somehow constructed without an exception (defensive).
+        val httpsError: Throwable = httpsResult.exceptionOrNull()
+            ?: IOException("HTTPS detection failed without exception")
+        val httpError: Throwable = httpResult.exceptionOrNull()
+            ?: IOException("HTTP detection failed without exception")
 
-        crashlyticsHelper.logStateBreadcrumb("SERVER_DETECT_ERROR", "HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
-        Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}")
+        crashlyticsHelper.logStateBreadcrumb("SERVER_DETECT_ERROR", "HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
+        Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
 
         // Log server detection failure to auth debug service
         authDebugService.logAuthFailure(
             authType = AuthDebugReport.AuthType.SERVER_DETECTION,
             serverUrl = cleanHost,
             errorType = "SERVER_DETECT_FAILED",
-            errorMessage = "HTTPS: ${httpsError?.message}, HTTP: ${httpError?.message}",
+            errorMessage = "HTTPS: ${httpsError.message}, HTTP: ${httpError.message}",
             serverDetection = AuthDebugReport.ServerDetectionInfo(
                 httpsAttempted = true,
-                httpsResult = httpsError?.message,
+                httpsResult = httpsError.message,
                 httpAttempted = true,
-                httpResult = httpError?.message
+                httpResult = httpError.message
             )
         )
 
         // Return the most specific error message
         // Priority: specific errors > generic errors
-        val httpsMsg = httpsError?.message ?: ""
-        val httpMsg = httpError?.message ?: ""
+        val httpsMsg = httpsError.message ?: ""
+        val httpMsg = httpError.message ?: ""
 
         return when {
             // Server not found errors (English patterns - base language)
-            httpsMsg.contains("not found", ignoreCase = true) -> Result.failure(httpsError!!)
-            httpMsg.contains("not found", ignoreCase = true) -> Result.failure(httpError!!)
+            httpsMsg.contains("not found", ignoreCase = true) -> Result.failure(httpsError)
+            httpMsg.contains("not found", ignoreCase = true) -> Result.failure(httpError)
 
             // Not a Paperless server
-            httpsMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpsError!!)
-            httpMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpError!!)
+            httpsMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpsError)
+            httpMsg.contains("not a paperless", ignoreCase = true) -> Result.failure(httpError)
 
             // SSL specific errors (prefer these as they're actionable)
-            httpsMsg.contains("SSL", ignoreCase = true) || httpsMsg.contains("certificate", ignoreCase = true) -> Result.failure(httpsError!!)
+            httpsMsg.contains("SSL", ignoreCase = true) || httpsMsg.contains("certificate", ignoreCase = true) -> Result.failure(httpsError)
 
             // Connection refused (server might be down)
             httpsMsg.contains("refused", ignoreCase = true) || httpMsg.contains("refused", ignoreCase = true) -> {

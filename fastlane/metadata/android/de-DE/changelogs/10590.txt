@@ -1,0 +1,8 @@
+Version 1.5.90:
+
+🐛 Fehlerbehebungen:
+- Login-Stabilität: Absturz bei Server-Erkennung verhindert
+- Klarere Fehlermeldungen wenn HTTPS und HTTP fehlschlagen
+
+🔧 Verbesserungen:
+- Robusteres Error-Handling beim Verbindungsaufbau

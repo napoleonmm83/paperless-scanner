@@ -16,6 +16,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -158,5 +159,52 @@ class AuthRepositoryTest {
         authRepository.logout()
 
         coVerify { tokenManager.clearCredentials() }
+    }
+
+    // --- detectServerProtocol tests (Issue #140: NPE safety on null error variables) ---
+
+    @Test
+    fun `detectServerProtocol with unreachable host returns failure without NPE`() = runBlocking {
+        // Both HTTPS and HTTP must fail without crashing. Before the fix this path used
+        // !! on potentially-null error variables, so the test guards that fix stays.
+        val result = authRepository.detectServerProtocol("nonexistent-host-test-12345.invalid")
+
+        assertTrue("Expected failure for unreachable host", result.isFailure)
+        assertNotNull("Exception must not be null after both protocols fail", result.exceptionOrNull())
+    }
+
+    @Test
+    fun `detectServerProtocol falls back to HTTP when HTTPS fails`() = runBlocking {
+        // MockWebServer runs HTTP only — HTTPS attempt fails, HTTP /api/ succeeds.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """{"documents":"/api/documents/","tags":"/api/tags/",""" +
+                        """"correspondents":"/api/correspondents/",""" +
+                        """"document_types":"/api/document_types/",""" +
+                        """"saved_views":"/api/saved_views/"}"""
+                )
+        )
+
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(
+            "Should succeed via HTTP fallback. Error: ${result.exceptionOrNull()?.message}",
+            result.isSuccess
+        )
+        assertEquals("http://$host", result.getOrNull())
+    }
+
+    @Test
+    fun `detectServerProtocol with empty host returns ContentError`() = runBlocking {
+        val result = authRepository.detectServerProtocol("")
+
+        assertTrue("Empty host should fail parse", result.isFailure)
+        assertTrue(
+            "Expected ContentError, got: ${result.exceptionOrNull()?.javaClass?.simpleName}",
+            result.exceptionOrNull() is com.paperless.scanner.data.api.PaperlessException.ContentError
+        )
     }
 }

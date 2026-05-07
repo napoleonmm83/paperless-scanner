@@ -1,0 +1,8 @@
+Version 1.5.90:
+
+🐛 Bug Fixes:
+- Login stability: Prevented crash during server detection
+- Clearer error messages when HTTPS and HTTP both fail
+
+🔧 Improvements:
+- More robust error handling during initial connection
