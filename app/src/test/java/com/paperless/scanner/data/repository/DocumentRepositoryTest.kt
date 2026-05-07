@@ -255,4 +255,52 @@ class DocumentRepositoryTest {
         assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
         assertEquals("scope cancelled", thrown!!.message)
     }
+
+    @Test
+    fun `uploadDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate, not be wrapped in Result.failure.
+        val uri = mockk<Uri>()
+        val testContent = "fake image content".toByteArray()
+        every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream(testContent)
+        coEvery { api.uploadDocument(any(), any(), any(), any(), any()) } throws CancellationException("scope cancelled")
+
+        var thrown: CancellationException? = null
+        try {
+            documentRepository.uploadDocument(uri)
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
+    }
+
+    @Test
+    fun `uploadMultiPageDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate, not be wrapped in Result.failure.
+        // Use a mocked PdfGeneratorService so we can reach the API call and have it throw.
+        val mockPdfGenerator = mockk<PdfGeneratorService>()
+        val fakePdf = tempFolder.newFile("test.pdf").also { it.writeBytes(ByteArray(8)) }
+        coEvery { mockPdfGenerator.createPdfFromImages(any()) } returns fakePdf
+        coEvery { api.uploadDocument(any(), any(), any(), any(), any()) } throws CancellationException("scope cancelled")
+
+        val repoWithMockedPdf = DocumentRepository(
+            cacheDir = cacheDir,
+            api = api,
+            crashlyticsHelper = crashlyticsHelper,
+            imageProcessor = imageProcessor,
+            pdfGenerator = mockPdfGenerator,
+            serializer = serializer,
+        )
+
+        var thrown: CancellationException? = null
+        try {
+            repoWithMockedPdf.uploadMultiPageDocument(listOf(mockk()))
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
+    }
 }

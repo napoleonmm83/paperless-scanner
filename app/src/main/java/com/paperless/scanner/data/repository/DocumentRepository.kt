@@ -185,14 +185,14 @@ class DocumentRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: IllegalStateException) {
             // Safe error message extraction (prevent secondary exceptions)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Image could not be processed"
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_image_process_failed))
-        } catch (e: CancellationException) {
-            throw e
         } catch (e: Exception) {
             // Catch-all for any unexpected exceptions (including iText7 internal errors)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"
