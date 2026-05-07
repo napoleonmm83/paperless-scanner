@@ -1,0 +1,7 @@
+Version 1.5.88:
+
+🔧 Improvements:
+- Adaptive upload timeout: scales with file size (base 120s + 2s/MB)
+- Cloudflare servers: automatically capped at 90s
+- Large PDFs on slow links fail less often
+- Per-request logging of chosen timeout duration

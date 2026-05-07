@@ -5,7 +5,9 @@ import androidx.room.Room
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
+import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
+import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.database.AppDatabase
@@ -203,6 +205,12 @@ object AppModule {
         @ApplicationScope applicationScope: CoroutineScope
     ): CloudflareDetectionInterceptor = CloudflareDetectionInterceptor(tokenManager, applicationScope)
 
+    @Provides
+    @Singleton
+    fun provideAdaptiveWriteTimeoutInterceptor(
+        cloudflareDetectionHolder: CloudflareDetectionHolder
+    ): AdaptiveWriteTimeoutInterceptor = AdaptiveWriteTimeoutInterceptor(cloudflareDetectionHolder)
+
     /**
      * Default OkHttpClient for Paperless-ngx API.
      * - Dynamic base URL from TokenManager
@@ -220,7 +228,8 @@ object AppModule {
     fun provideOkHttpClient(
         tokenManager: TokenManager,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
-        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
+        cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
+        adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
@@ -238,6 +247,7 @@ object AppModule {
                 chain.proceed(request)
             }
             .addInterceptor(cloudflareDetectionInterceptor)
+            .addInterceptor(adaptiveWriteTimeoutInterceptor)
             .applyTimeouts()
             .build()
     }
