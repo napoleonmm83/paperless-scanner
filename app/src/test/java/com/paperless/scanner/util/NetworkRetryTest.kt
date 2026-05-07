@@ -192,8 +192,61 @@ class NetworkRetryTest {
         assertEquals(1, attempts)
     }
 
+    @Test
+    fun `withResponseRetry retries 5xx Response and returns success`() = runTest {
+        var attempts = 0
+        val result = withResponseRetry(maxRetries = 3, initialDelayMs = 1L, maxDelayMs = 1L) {
+            attempts++
+            if (attempts == 1) Response.error<String>(503, errorBody())
+            else Response.success("ok")
+        }
+        assertTrue(result.isSuccessful)
+        assertEquals("ok", result.body())
+        assertEquals(2, attempts)
+    }
+
+    @Test
+    fun `withResponseRetry returns 4xx Response unchanged without retry`() = runTest {
+        var attempts = 0
+        val result = withResponseRetry<String>(maxRetries = 3, initialDelayMs = 1L, maxDelayMs = 1L) {
+            attempts++
+            Response.error(404, errorBody())
+        }
+        assertEquals(404, result.code())
+        assertEquals(1, attempts)
+    }
+
+    @Test
+    fun `withResponseRetry exhausts on persistent 5xx and throws HttpException`() = runTest {
+        var attempts = 0
+        var thrown: HttpException? = null
+        try {
+            withResponseRetry<String>(maxRetries = 2, initialDelayMs = 1L, maxDelayMs = 1L) {
+                attempts++
+                Response.error(500, errorBody())
+            }
+        } catch (e: HttpException) {
+            thrown = e
+        }
+        assertNotNull(thrown)
+        assertEquals(500, thrown!!.code())
+        assertEquals(3, attempts)
+    }
+
+    @Test
+    fun `withResponseRetry returns successful Response immediately`() = runTest {
+        var attempts = 0
+        val result = withResponseRetry(maxRetries = 3, initialDelayMs = 1L, maxDelayMs = 1L) {
+            attempts++
+            Response.success("first-try")
+        }
+        assertEquals("first-try", result.body())
+        assertEquals(1, attempts)
+    }
+
+    private fun errorBody() = "{}".toResponseBody("application/json".toMediaTypeOrNull())
+
     private fun httpException(code: Int): HttpException {
-        val body = "{}".toResponseBody("application/json".toMediaTypeOrNull())
-        return HttpException(Response.error<Any>(code, body))
+        return HttpException(Response.error<Any>(code, errorBody()))
     }
 }

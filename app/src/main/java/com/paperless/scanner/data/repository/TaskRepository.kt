@@ -12,7 +12,9 @@ import com.paperless.scanner.data.database.mappers.toDomain as cachedTaskToDomai
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain as apiTaskToDomain
 import com.paperless.scanner.domain.model.PaperlessTask
+import com.paperless.scanner.util.withResponseRetry
 import com.paperless.scanner.util.withRetry
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.IOException
@@ -110,6 +112,8 @@ class TaskRepository @Inject constructor(
                 // Offline, no cache
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -133,6 +137,8 @@ class TaskRepository @Inject constructor(
             } else {
                 Result.success(null)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -155,6 +161,8 @@ class TaskRepository @Inject constructor(
             } else {
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -177,6 +185,8 @@ class TaskRepository @Inject constructor(
             } else {
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -198,7 +208,9 @@ class TaskRepository @Inject constructor(
         return try {
             val request = AcknowledgeTasksRequest(tasks = taskIds)
             Log.d(TAG, "Acknowledging tasks: $taskIds")
-            val response = withRetry { api.acknowledgeTasks(request) }
+            // acknowledgeTasks is idempotent server-side; withResponseRetry
+            // promotes 5xx to HttpException so the retry actually fires.
+            val response = withResponseRetry { api.acknowledgeTasks(request) }
             Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
@@ -216,6 +228,8 @@ class TaskRepository @Inject constructor(
         } catch (e: IOException) {
             Log.e(TAG, "Network error: ${e.message}", e)
             Result.failure(PaperlessException.NetworkError(e))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Exception: ${e.message}", e)
             Result.failure(PaperlessException.from(e))

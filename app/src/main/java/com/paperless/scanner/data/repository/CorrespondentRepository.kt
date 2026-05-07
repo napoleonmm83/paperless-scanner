@@ -17,6 +17,7 @@ import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * CorrespondentRepository - Repository for correspondent management with offline-first architecture.
@@ -110,6 +111,8 @@ class CorrespondentRepository @Inject constructor(
                 // Offline, no cache
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -127,13 +130,16 @@ class CorrespondentRepository @Inject constructor(
      */
     suspend fun createCorrespondent(name: String): Result<Correspondent> {
         return try {
-            val response = withRetry { api.createCorrespondent(CreateCorrespondentRequest(name = name)) }
+            // POST: non-idempotent — no withRetry, would risk duplicate correspondent on 5xx.
+            val response = api.createCorrespondent(CreateCorrespondentRequest(name = name))
             val domainCorrespondent = response.toDomain()
 
             // Insert into cache to trigger reactive Flow update immediately
             cachedCorrespondentDao.insert(response.toCachedEntity())
 
             Result.success(domainCorrespondent)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -159,6 +165,8 @@ class CorrespondentRepository @Inject constructor(
             cachedCorrespondentDao.insert(response.toCachedEntity())
 
             Result.success(domainCorrespondent)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -183,6 +191,8 @@ class CorrespondentRepository @Inject constructor(
             cachedCorrespondentDao.softDelete(id)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

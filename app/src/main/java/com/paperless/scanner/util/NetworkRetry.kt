@@ -42,3 +42,32 @@ suspend fun <T> withRetry(
         attempt++
     }
 }
+
+/**
+ * Retry variant for Retrofit endpoints declared with a `Response<T>` return
+ * type. Plain [withRetry] only retries on thrown exceptions; a `Response<T>`
+ * never throws on a 5xx — it returns a non-successful response — so the
+ * default helper would never retry server errors for these endpoints. This
+ * variant promotes 5xx to [HttpException] inside the retry boundary so server
+ * errors are retried with the same backoff semantics as for unwrapped
+ * suspend functions.
+ *
+ * 4xx responses are returned unchanged for the caller to handle.
+ *
+ * Use this only on endpoints whose retry is safe (idempotent: GET, DELETE,
+ * PUT, and operations like acknowledge / restore / trash-bulk-action).
+ * Non-idempotent POSTs (create*, addNote) must NOT be wrapped — see PR #196
+ * for the duplicate-creation rationale.
+ */
+suspend fun <T> withResponseRetry(
+    maxRetries: Int = NetworkConfig.MAX_RETRIES,
+    initialDelayMs: Long = NetworkConfig.RETRY_DELAY_MS,
+    maxDelayMs: Long = NetworkConfig.RETRY_MAX_DELAY_MS,
+    block: suspend () -> retrofit2.Response<T>,
+): retrofit2.Response<T> = withRetry(maxRetries, initialDelayMs, maxDelayMs) {
+    val response = block()
+    if (response.code() in 500..599) {
+        throw HttpException(response)
+    }
+    response
+}

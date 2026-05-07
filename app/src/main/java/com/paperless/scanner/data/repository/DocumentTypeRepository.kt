@@ -14,6 +14,7 @@ import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.util.withRetry
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -54,6 +55,8 @@ class DocumentTypeRepository @Inject constructor(
                 // Offline, no cache
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -65,13 +68,16 @@ class DocumentTypeRepository @Inject constructor(
      */
     suspend fun createDocumentType(name: String): Result<DocumentType> {
         return try {
-            val response = withRetry { api.createDocumentType(CreateDocumentTypeRequest(name = name)) }
+            // POST: non-idempotent — no withRetry, would risk duplicate document type on 5xx.
+            val response = api.createDocumentType(CreateDocumentTypeRequest(name = name))
             val domainDocumentType = response.toDomain()
 
             // Insert into cache to trigger reactive Flow update immediately
             cachedDocumentTypeDao.insert(response.toCachedEntity())
 
             Result.success(domainDocumentType)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -90,6 +96,8 @@ class DocumentTypeRepository @Inject constructor(
             cachedDocumentTypeDao.insert(response.toCachedEntity())
 
             Result.success(domainDocumentType)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -107,6 +115,8 @@ class DocumentTypeRepository @Inject constructor(
             cachedDocumentTypeDao.softDelete(id)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

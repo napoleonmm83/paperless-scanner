@@ -21,6 +21,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -61,6 +62,11 @@ class DocumentMetadataRepository @Inject constructor(
                     val cached = cachedDocumentDao.getDocument(id)
                     if (cached != null) Result.success(cached.toCachedDomain())
                     else Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+                } catch (e: CancellationException) {
+                    // Never silently fall through to cache on coroutine cancellation —
+                    // returning Result.success(stale) would mask both the cancellation
+                    // AND the data staleness.
+                    throw e
                 } catch (e: Exception) {
                     val cached = cachedDocumentDao.getDocument(id)
                     if (cached != null) Result.success(cached.toCachedDomain())
@@ -72,6 +78,8 @@ class DocumentMetadataRepository @Inject constructor(
             else Result.failure(
                 PaperlessException.ClientError(404, context.getString(R.string.error_document_not_cached))
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -151,6 +159,8 @@ class DocumentMetadataRepository @Inject constructor(
             }
         } catch (e: retrofit2.HttpException) {
             Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

@@ -20,6 +20,7 @@ import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * TagRepository - Repository for tag management with offline-first architecture.
@@ -117,6 +118,8 @@ class TagRepository @Inject constructor(
                 // Offline, no cache
                 Result.success(emptyList())
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -135,7 +138,8 @@ class TagRepository @Inject constructor(
      */
     suspend fun createTag(name: String, color: String? = null): Result<Tag> {
         return try {
-            val response = withRetry { api.createTag(CreateTagRequest(name = name, color = color)) }
+            // POST: non-idempotent — no withRetry, would risk duplicate tag on 5xx.
+            val response = api.createTag(CreateTagRequest(name = name, color = color))
             val domainTag = response.toDomain()
 
             // Insert into cache to trigger reactive Flow update immediately
@@ -143,6 +147,8 @@ class TagRepository @Inject constructor(
             cachedTagDao.insert(response.toCachedEntity())
 
             Result.success(domainTag)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -169,6 +175,8 @@ class TagRepository @Inject constructor(
             cachedTagDao.insert(response.toCachedEntity())
 
             Result.success(domainTag)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -198,6 +206,8 @@ class TagRepository @Inject constructor(
             removeTagFromCachedDocuments(id)
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

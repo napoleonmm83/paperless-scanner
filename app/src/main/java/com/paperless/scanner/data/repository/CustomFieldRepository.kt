@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import retrofit2.HttpException
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Repository for managing custom fields.
@@ -50,6 +51,8 @@ class CustomFieldRepository @Inject constructor(
                 // Offline, return cached data
                 Result.success(_customFields.value)
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // If API not available (404), return empty list silently (feature detection)
             if (e is HttpException && e.code() == 404) {
@@ -67,16 +70,17 @@ class CustomFieldRepository @Inject constructor(
      */
     suspend fun createCustomField(name: String, dataType: String = "string"): Result<CustomField> {
         return try {
-            val response = withRetry {
-                api.createCustomField(
-                    CreateCustomFieldRequest(name = name, dataType = dataType)
-                )
-            }
+            // POST: non-idempotent — no withRetry, would risk duplicate custom field on 5xx.
+            val response = api.createCustomField(
+                CreateCustomFieldRequest(name = name, dataType = dataType)
+            )
 
             // Add to cache to trigger reactive Flow update immediately
             _customFields.value = _customFields.value + response
 
             Result.success(response)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -94,6 +98,8 @@ class CustomFieldRepository @Inject constructor(
             _customFields.value = _customFields.value.filter { it.id != id }
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

@@ -23,6 +23,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -133,6 +134,8 @@ class DocumentListRepository @Inject constructor(
                     )
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -142,6 +145,8 @@ class DocumentListRepository @Inject constructor(
         return try {
             val cachedResults = cachedDocumentDao.searchDocuments(query)
             Result.success(cachedResults.map { it.toCachedDomain() })
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
@@ -160,6 +165,8 @@ class DocumentListRepository @Inject constructor(
                     ordering = "-added",
                 ).results.toDomain()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }

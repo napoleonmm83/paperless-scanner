@@ -2,7 +2,7 @@ package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.ServerStatusResponse
-import com.paperless.scanner.util.withRetry
+import com.paperless.scanner.util.withResponseRetry
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
 import java.io.IOException
@@ -19,13 +19,7 @@ class ServerStatusRepository @Inject constructor(
     private val api: PaperlessApi
 ) {
     suspend fun getServerStatus(): Result<ServerStatusResponse> = try {
-        // withRetry handles 5xx by promoting Response to HttpException; 4xx falls
-        // through and is reported as a non-retried failure below.
-        val response = withRetry {
-            val r = api.getServerStatus()
-            if (r.code() in 500..599) throw HttpException(r)
-            r
-        }
+        val response = withResponseRetry { api.getServerStatus() }
         if (!response.isSuccessful) {
             throw HttpException(response)
         }

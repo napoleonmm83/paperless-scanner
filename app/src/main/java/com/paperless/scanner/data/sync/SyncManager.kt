@@ -14,7 +14,9 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.entities.SyncMetadata
 import com.paperless.scanner.data.database.mappers.toCachedEntity
+import com.paperless.scanner.util.withResponseRetry
 import com.paperless.scanner.util.withRetry
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -109,6 +111,8 @@ class SyncManager @Inject constructor(
                 try {
                     val count = pendingChangeDao.getCount()
                     _pendingChangesCount.value = count
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to get pending changes count", e)
                 }
@@ -163,6 +167,8 @@ class SyncManager @Inject constructor(
 
             Log.d(TAG, "Full sync completed successfully")
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Full sync failed", e)
             Result.failure(e)
@@ -376,6 +382,10 @@ class SyncManager @Inject constructor(
                     // Successfully pushed, delete the pending change
                     pendingChangeDao.delete(change)
                     Log.d(TAG, "Successfully pushed ${change.changeType} for ${change.entityType} ${change.entityId}")
+                } catch (e: CancellationException) {
+                    // Abort the entire push loop on coroutine cancellation —
+                    // never continue to the next pending change.
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to push change ${change.id}", e)
 
@@ -521,7 +531,7 @@ class SyncManager @Inject constructor(
                     documents = listOf(entityId),
                     action = "empty"  // "empty" = permanent delete from trash
                 )
-                val response = withRetry { api.trashBulkAction(request) }
+                val response = withResponseRetry { api.trashBulkAction(request) }
                 if (!response.isSuccessful) {
                     throw Exception("Failed to delete trash document $entityId: HTTP ${response.code()}")
                 }
