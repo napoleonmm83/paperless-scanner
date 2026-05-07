@@ -1,0 +1,5 @@
+Version 1.5.91:
+
+🔧 Verbesserungen:
+- Höhere Stabilität für Hintergrund-Sync, Trash-Löschung und Widget-Updates
+- Erweiterte automatische Tests verhindern Regressionen
