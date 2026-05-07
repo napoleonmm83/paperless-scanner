@@ -6,8 +6,11 @@ import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.DocumentListRepository
+import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
@@ -45,7 +48,10 @@ import java.time.format.DateTimeFormatter
 class HomeViewModelTest {
 
     private lateinit var context: Context
-    private lateinit var documentRepository: DocumentRepository
+    private lateinit var documentListRepository: DocumentListRepository
+    private lateinit var documentCountRepository: DocumentCountRepository
+    private lateinit var trashRepository: TrashRepository
+    private lateinit var documentMetadataRepository: DocumentMetadataRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
@@ -64,7 +70,10 @@ class HomeViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
-        documentRepository = mockk(relaxed = true)
+        documentListRepository = mockk(relaxed = true)
+        documentCountRepository = mockk(relaxed = true)
+        trashRepository = mockk(relaxed = true)
+        documentMetadataRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
@@ -86,12 +95,12 @@ class HomeViewModelTest {
         every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
-        coEvery { documentRepository.getDocumentCount(any()) } returns Result.success(0)
-        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(0)
+        coEvery { documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
-        coEvery { documentRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
-        coEvery { documentRepository.getUntaggedCount() } returns Result.success(0)
-        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.success(DocumentsResponse(count = 0, results = emptyList(), next = null))
+        coEvery { documentListRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
+        coEvery { documentCountRepository.getUntaggedCount() } returns Result.success(0)
+        coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.success(DocumentsResponse(count = 0, results = emptyList(), next = null))
         coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
     }
@@ -104,7 +113,10 @@ class HomeViewModelTest {
     private fun createViewModel(): HomeViewModel {
         return HomeViewModel(
             context = context,
-            documentRepository = documentRepository,
+            documentListRepository = documentListRepository,
+            documentCountRepository = documentCountRepository,
+            trashRepository = trashRepository,
+            documentMetadataRepository = documentMetadataRepository,
             tagRepository = tagRepository,
             taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
