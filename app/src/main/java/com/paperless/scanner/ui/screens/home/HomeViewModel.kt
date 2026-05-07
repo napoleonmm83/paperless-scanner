@@ -14,10 +14,13 @@ import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.DocumentListRepository
+import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -147,7 +150,10 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val documentRepository: DocumentRepository,
+    private val documentListRepository: DocumentListRepository,
+    private val documentCountRepository: DocumentCountRepository,
+    private val trashRepository: TrashRepository,
+    private val documentMetadataRepository: DocumentMetadataRepository,
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
@@ -265,7 +271,7 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeRecentDocumentsReactively() {
         viewModelScope.launch {
-            documentRepository.observeDocuments(
+            documentListRepository.observeDocuments(
                 page = 1,
                 pageSize = 5
             ).collect { documents ->
@@ -357,7 +363,7 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeUntaggedCountReactively() {
         viewModelScope.launch {
-            documentRepository.observeUntaggedDocumentsCount().collect { count ->
+            documentCountRepository.observeUntaggedDocumentsCount().collect { count ->
                 _uiState.update { it.copy(untaggedCount = count) }
             }
         }
@@ -369,7 +375,7 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeDeletedCountReactively() {
         viewModelScope.launch {
-            documentRepository.observeTrashedDocumentsCount().collect { count ->
+            trashRepository.observeTrashedDocumentsCount().collect { count ->
                 _uiState.update { it.copy(deletedCount = count) }
             }
         }
@@ -381,7 +387,7 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeOldestDeletedTimestampReactively() {
         viewModelScope.launch {
-            documentRepository.observeOldestDeletedTimestamp().collect { timestamp ->
+            trashRepository.observeOldestDeletedTimestamp().collect { timestamp ->
                 _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
             }
         }
@@ -424,12 +430,12 @@ class HomeViewModel @Inject constructor(
 
             // Refresh untagged count from API
             var untaggedCount = 0
-            documentRepository.getUntaggedCount().onSuccess { count ->
+            documentCountRepository.getUntaggedCount().onSuccess { count ->
                 untaggedCount = count
             }
 
             // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
-            documentRepository.getDocuments(
+            documentListRepository.getDocuments(
                 page = 1,
                 pageSize = 10,
                 ordering = "-added",
@@ -437,7 +443,7 @@ class HomeViewModel @Inject constructor(
             )
 
             // Sync trash documents (page 1 for quick init, full sync on pull-to-refresh)
-            documentRepository.getTrashDocuments(page = 1, pageSize = 100)
+            trashRepository.getTrashDocuments(page = 1, pageSize = 100)
 
             // Update lastSyncedAt on initial load too
             lastRefreshTimestamp = System.currentTimeMillis()
@@ -501,7 +507,7 @@ class HomeViewModel @Inject constructor(
         newlyCompletedTasks.forEach { task ->
             task.documentId?.let { docId ->
                 logger.log(Level.INFO, "Syncing completed document $docId to local DB")
-                documentRepository.getDocument(docId, forceRefresh = true)
+                documentMetadataRepository.getDocument(docId, forceRefresh = true)
                     .onSuccess {
                         logger.log(Level.INFO, "Document $docId synced successfully")
                     }
@@ -550,12 +556,12 @@ class HomeViewModel @Inject constructor(
             taskRepository.getTasks(forceRefresh = true)
 
             // Refresh untagged count from API
-            documentRepository.getUntaggedCount().onSuccess { count ->
+            documentCountRepository.getUntaggedCount().onSuccess { count ->
                 _uiState.update { it.copy(untaggedCount = count) }
             }
 
             // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
-            documentRepository.getDocuments(
+            documentListRepository.getDocuments(
                 page = 1,
                 pageSize = 10,
                 ordering = "-added",
@@ -578,7 +584,7 @@ class HomeViewModel @Inject constructor(
         val serverTrashIds = mutableSetOf<Int>()
 
         while (hasMore) {
-            documentRepository.getTrashDocuments(page = page, pageSize = 100)
+            trashRepository.getTrashDocuments(page = page, pageSize = 100)
                 .onSuccess { response ->
                     serverTrashIds.addAll(response.results.map { it.id })
                     hasMore = response.next != null && response.results.isNotEmpty()
@@ -591,7 +597,7 @@ class HomeViewModel @Inject constructor(
 
         // Clean up local trash docs that no longer exist on server
         if (serverTrashIds.isNotEmpty()) {
-            documentRepository.cleanupOrphanedTrashDocs(serverTrashIds)
+            trashRepository.cleanupOrphanedTrashDocs(serverTrashIds)
         }
     }
 
@@ -699,12 +705,12 @@ class HomeViewModel @Inject constructor(
 
         // BEST PRACTICE: Always fetch stats from server (forceRefresh = true by default)
         // to ensure accurate counts in multi-client scenarios (web + mobile)
-        documentRepository.getDocumentCount(forceRefresh = forceRefresh).onSuccess { count ->
+        documentCountRepository.getDocumentCount(forceRefresh = forceRefresh).onSuccess { count ->
             totalDocuments = count
         }
 
         // Get this month's document count
-        documentRepository.getDocuments(
+        documentListRepository.getDocuments(
             page = 1,
             pageSize = 1,
             ordering = "-added",
@@ -796,7 +802,7 @@ class HomeViewModel @Inject constructor(
             }
 
             try {
-                documentRepository.deleteDocument(documentId).onSuccess {
+                trashRepository.deleteDocument(documentId).onSuccess {
                     // Recent documents list updates automatically via reactive Flow
                     analyticsService.trackEvent(AnalyticsEvent.DocumentDeleted)
                 }.onFailure { error ->
@@ -831,7 +837,7 @@ class HomeViewModel @Inject constructor(
 
             // Restore document via repository
             try {
-                documentRepository.restoreDocument(deletedDoc.id).onFailure {
+                trashRepository.restoreDocument(deletedDoc.id).onFailure {
                     _uiState.update {
                         it.copy(error = context.getString(R.string.error_restore_document))
                     }
@@ -915,7 +921,7 @@ class HomeViewModel @Inject constructor(
             _tagSuggestionsState.update { it.copy(isLoading = true) }
 
             // Get ALL untagged documents from local cache (no limit)
-            documentRepository.getUntaggedDocuments().onSuccess { documents ->
+            documentListRepository.getUntaggedDocuments().onSuccess { documents ->
                 val serverUrl = tokenManager.serverUrl.first() ?: ""
                 val authToken = tokenManager.token.first() ?: ""
 
@@ -1132,7 +1138,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Update document via repository
-                documentRepository.updateDocument(documentId, tags = tagIds)
+                documentMetadataRepository.updateDocument(documentId, tags = tagIds)
                     .onSuccess {
                         logger.log(Level.INFO, "Applied tags $tagIds to document $documentId")
 
