@@ -18,6 +18,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import app.cash.turbine.test
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -155,13 +156,15 @@ class TrashRepositoryTest {
         )
         every { cachedDocumentDao.observeDeletedDocuments() } returns flowOf(docs)
 
-        val result = repo.observeTrashedDocuments().first()
-
-        assertEquals(2, result.size)
-        assertEquals(1, result[0].id)
-        assertEquals(2, result[1].id)
-        assertEquals(1_700_000_000_000L, result[0].deletedAt)
-        assertEquals(1_700_000_001_000L, result[1].deletedAt)
+        repo.observeTrashedDocuments().test {
+            val result = awaitItem()
+            assertEquals(2, result.size)
+            assertEquals(1, result[0].id)
+            assertEquals(2, result[1].id)
+            assertEquals(1_700_000_000_000L, result[0].deletedAt)
+            assertEquals(1_700_000_001_000L, result[1].deletedAt)
+            awaitComplete()
+        }
     }
 
     @Test

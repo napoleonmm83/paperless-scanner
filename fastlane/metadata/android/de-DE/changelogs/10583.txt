@@ -1,7 +1,7 @@
 Version 1.5.83:
 
 🔧 Verbesserungen:
-- Interne Architektur sauberer getrennt zwischen Server-Schnittstelle und App-Daten
+- API-/Domain-Trennung intern verbessert
 - Bessere Grundlage für künftige Verbesserungen
 
 Keine sichtbaren Änderungen für Nutzer.
