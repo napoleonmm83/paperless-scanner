@@ -1,0 +1,5 @@
+Version 1.5.91:
+
+🔧 Improvements:
+- Improved stability: bg sync, trash delete, widgets
+- Expanded automated tests prevent regressions

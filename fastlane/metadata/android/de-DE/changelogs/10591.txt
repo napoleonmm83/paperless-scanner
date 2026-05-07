@@ -1,0 +1,5 @@
+Version 1.5.91:
+
+🔧 Verbesserungen:
+- Stabilere Bg-Sync-, Trash- und Widget-Updates
+- Erweiterte automatische Tests verhindern Regressionen
