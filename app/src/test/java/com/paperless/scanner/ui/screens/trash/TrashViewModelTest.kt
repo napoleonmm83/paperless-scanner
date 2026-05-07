@@ -31,7 +31,7 @@ import org.junit.Test
 class TrashViewModelTest {
 
     private lateinit var context: Context
-    private lateinit var documentRepository: TrashRepository
+    private lateinit var trashRepository: TrashRepository
     private lateinit var tokenManager: TokenManager
     private lateinit var trashDeleteWorkManager: TrashDeleteWorkManager
 
@@ -41,7 +41,7 @@ class TrashViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
-        documentRepository = mockk<TrashRepository>(relaxed = true)
+        trashRepository = mockk<TrashRepository>(relaxed = true)
         tokenManager = mockk(relaxed = true)
         trashDeleteWorkManager = mockk(relaxed = true)
 
@@ -49,9 +49,9 @@ class TrashViewModelTest {
         every { tokenManager.getPendingTrashDeletesSync() } returns null
 
         // Default mock responses
-        every { documentRepository.observeTrashedDocuments() } returns flowOf(emptyList())
-        every { documentRepository.observeTrashedDocumentsCount() } returns flowOf(0)
-        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.success(
+        every { trashRepository.observeTrashedDocuments() } returns flowOf(emptyList())
+        every { trashRepository.observeTrashedDocumentsCount() } returns flowOf(0)
+        coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.success(
             DocumentsResponse(count = 0, results = emptyList())
         )
 
@@ -76,7 +76,7 @@ class TrashViewModelTest {
     private fun createViewModel(): TrashViewModel {
         return TrashViewModel(
             context = context,
-            trashRepository = documentRepository,
+            trashRepository = trashRepository,
             tokenManager = tokenManager,
             trashDeleteWorkManager = trashDeleteWorkManager
         )
@@ -104,7 +104,7 @@ class TrashViewModelTest {
         advanceUntilIdle()
 
         // Uses any() matchers since pageSize may vary (currently 100 for full pagination)
-        coVerify { documentRepository.getTrashDocuments(any(), any()) }
+        coVerify { trashRepository.getTrashDocuments(any(), any()) }
     }
 
     // ==================== Load Documents Tests ====================
@@ -116,7 +116,7 @@ class TrashViewModelTest {
 
     @Test
     fun `refreshTrash success clears loading state`() = runTest {
-        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.success(
+        coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.success(
             DocumentsResponse(count = 0, results = emptyList())
         )
 
@@ -129,7 +129,7 @@ class TrashViewModelTest {
 
     @Test
     fun `refreshTrash failure sets error state`() = runTest {
-        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.failure(Exception("Network error"))
+        coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.failure(Exception("Network error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -142,7 +142,7 @@ class TrashViewModelTest {
 
     @Test
     fun `restoreDocument success clears restoring state`() = runTest {
-        coEvery { documentRepository.restoreDocument(1) } returns Result.success(Unit)
+        coEvery { trashRepository.restoreDocument(1) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -152,12 +152,12 @@ class TrashViewModelTest {
 
         assertFalse(viewModel.uiState.value.isRestoring)
         assertNull(viewModel.uiState.value.error)
-        coVerify { documentRepository.restoreDocument(1) }
+        coVerify { trashRepository.restoreDocument(1) }
     }
 
     @Test
     fun `restoreDocument failure sets error state`() = runTest {
-        coEvery { documentRepository.restoreDocument(1) } returns Result.failure(Exception("API error"))
+        coEvery { trashRepository.restoreDocument(1) } returns Result.failure(Exception("API error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -171,7 +171,7 @@ class TrashViewModelTest {
 
     @Test
     fun `restoreDocument failure with null message uses default string`() = runTest {
-        coEvery { documentRepository.restoreDocument(1) } returns Result.failure(Exception())
+        coEvery { trashRepository.restoreDocument(1) } returns Result.failure(Exception())
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -186,7 +186,7 @@ class TrashViewModelTest {
 
     @Test
     fun `permanentlyDeleteDocument success clears deleting state`() = runTest {
-        coEvery { documentRepository.permanentlyDeleteDocument(1) } returns Result.success(Unit)
+        coEvery { trashRepository.permanentlyDeleteDocument(1) } returns Result.success(Unit)
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -196,12 +196,12 @@ class TrashViewModelTest {
 
         assertFalse(viewModel.uiState.value.isDeleting)
         assertNull(viewModel.uiState.value.error)
-        coVerify { documentRepository.permanentlyDeleteDocument(1) }
+        coVerify { trashRepository.permanentlyDeleteDocument(1) }
     }
 
     @Test
     fun `permanentlyDeleteDocument failure sets error state`() = runTest {
-        coEvery { documentRepository.permanentlyDeleteDocument(1) } returns Result.failure(Exception("Delete error"))
+        coEvery { trashRepository.permanentlyDeleteDocument(1) } returns Result.failure(Exception("Delete error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -230,7 +230,7 @@ class TrashViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isDeleting)
-        coVerify(exactly = 0) { documentRepository.permanentlyDeleteDocuments(any()) }
+        coVerify(exactly = 0) { trashRepository.permanentlyDeleteDocuments(any()) }
     }
 
     @Test
@@ -243,14 +243,14 @@ class TrashViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.isRestoring)
-        coVerify(exactly = 0) { documentRepository.restoreDocuments(any()) }
+        coVerify(exactly = 0) { trashRepository.restoreDocuments(any()) }
     }
 
     // ==================== Error Handling Tests ====================
 
     @Test
     fun `clearError removes error from state`() = runTest {
-        coEvery { documentRepository.getTrashDocuments(any(), any()) } returns Result.failure(Exception("Error"))
+        coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.failure(Exception("Error"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
