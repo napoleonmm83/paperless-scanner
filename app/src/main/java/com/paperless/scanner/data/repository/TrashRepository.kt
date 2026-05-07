@@ -51,6 +51,22 @@ class TrashRepository @Inject constructor(
 
     companion object {
         private const val TAG = "TrashRepository"
+        private const val ERROR_BODY_LOG_LIMIT = 200
+    }
+
+    /**
+     * Read [Response.errorBody] safely and produce a log-friendly snippet:
+     * truncated to [ERROR_BODY_LOG_LIMIT] chars and with newlines escaped so a
+     * single log line stays grep-able. Server error responses can echo
+     * user-submitted data, so we never dump them in full.
+     */
+    private fun safeErrorBodySnippet(response: retrofit2.Response<*>): String? {
+        return try {
+            val raw = response.errorBody()?.string() ?: return null
+            raw.replace("\n", "\\n").take(ERROR_BODY_LOG_LIMIT)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     suspend fun deleteDocument(documentId: Int): Result<Unit> = sync.executeOrQueue(
@@ -92,8 +108,13 @@ class TrashRepository @Inject constructor(
                         // the catch (HttpException) below is the single rollback
                         // point so 5xx-after-withResponseRetry-exhaust gets the
                         // same treatment.
+                        val errorBodySnippet = safeErrorBodySnippet(response)
+                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBodySnippet")
+                        // Re-read the full body for HttpException construction
+                        // (callers like PaperlessException.from inspect it via
+                        // response().errorBody()); the snippet above is just for
+                        // the log line.
                         val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: $errorBody")
                         throw retrofit2.HttpException(
                             retrofit2.Response.error<Unit>(
                                 response.code(),
@@ -200,8 +221,8 @@ class TrashRepository @Inject constructor(
                 cachedDocumentDao.restoreDocuments(documentIds)
                 Unit
             } else {
+                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${safeErrorBodySnippet(response)}")
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: $errorBody")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
@@ -227,8 +248,8 @@ class TrashRepository @Inject constructor(
                 cachedDocumentDao.deleteByIds(documentIds)
                 Unit
             } else {
+                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${safeErrorBodySnippet(response)}")
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: $errorBody")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
