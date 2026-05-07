@@ -1,0 +1,7 @@
+Version 1.5.84:
+
+🔧 Improvements:
+- Data layer decoupled from Android Context
+- Cleaner caching for document downloads
+
+No visible changes for users.

@@ -1,0 +1,7 @@
+Version 1.5.84:
+
+🔧 Verbesserungen:
+- Datenebene unabhängiger vom Android-Kontext
+- Saubereres Caching für Dokument-Downloads
+
+Keine sichtbaren Änderungen für Nutzer.
