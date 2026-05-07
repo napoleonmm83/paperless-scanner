@@ -69,6 +69,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -333,14 +334,19 @@ object AppModule {
 
     @Provides
     @Singleton
+    @Named("cacheDir")
+    fun provideCacheDir(@ApplicationContext context: Context): File = context.cacheDir
+
+    @Provides
+    @Singleton
     fun provideDocumentRepository(
-        @ApplicationContext context: Context,
+        @Named("cacheDir") cacheDir: File,
         api: PaperlessApi,
         crashlyticsHelper: CrashlyticsHelper,
         imageProcessor: ImageProcessorService,
         pdfGenerator: PdfGeneratorService,
         serializer: DocumentSerializer,
-    ): DocumentRepository = DocumentRepository(context, api, crashlyticsHelper, imageProcessor, pdfGenerator, serializer)
+    ): DocumentRepository = DocumentRepository(cacheDir, api, crashlyticsHelper, imageProcessor, pdfGenerator, serializer)
 
     @Provides
     @Singleton

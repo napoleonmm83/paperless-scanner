@@ -1,6 +1,5 @@
 package com.paperless.scanner.data.repository
 
-import android.content.Context
 import android.net.Uri
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
@@ -11,6 +10,7 @@ import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.R
 import java.io.IOException
+import javax.inject.Named
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -18,7 +18,7 @@ import java.io.File
 import javax.inject.Inject
 
 class DocumentRepository @Inject constructor(
-    private val context: Context,
+    @Named("cacheDir") private val cacheDir: File,
     private val api: PaperlessApi,
     private val crashlyticsHelper: CrashlyticsHelper,
     private val imageProcessor: ImageProcessorService,
@@ -178,19 +178,19 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             // Safe error message extraction (prevent secondary exceptions)
-            val safeMessage = e.message ?: context.getString(R.string.error_pdf_creation)
+            val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
         } catch (e: IllegalStateException) {
             // Safe error message extraction (prevent secondary exceptions)
-            val safeMessage = e.message ?: context.getString(R.string.error_image_process_failed)
+            val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Image could not be processed"
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_image_process_failed))
         } catch (e: Exception) {
             // Catch-all for any unexpected exceptions (including iText7 internal errors)
-            val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: context.getString(R.string.error_pdf_creation)
+            val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: $safeMessage")
             android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
@@ -205,7 +205,7 @@ class DocumentRepository @Inject constructor(
             val response = api.downloadDocument(documentId)
 
             val fileName = "document_${documentId}_${System.currentTimeMillis()}.pdf"
-            val pdfFile = File(context.cacheDir, fileName)
+            val pdfFile = File(cacheDir, fileName)
 
             val contentLength = response.contentLength()
 

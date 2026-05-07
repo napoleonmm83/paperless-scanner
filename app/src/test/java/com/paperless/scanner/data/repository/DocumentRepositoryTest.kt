@@ -62,7 +62,7 @@ class DocumentRepositoryTest {
         serializer = DocumentSerializer(Gson())
 
         documentRepository = DocumentRepository(
-            context = context,
+            cacheDir = cacheDir,
             api = api,
             crashlyticsHelper = crashlyticsHelper,
             imageProcessor = imageProcessor,
