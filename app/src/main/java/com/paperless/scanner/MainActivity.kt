@@ -39,11 +39,14 @@ import com.paperless.scanner.ui.theme.ThemeMode
 import com.paperless.scanner.util.DeepLinkAction
 import com.paperless.scanner.util.DeepLinkHandler
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -122,9 +125,24 @@ class MainActivity : FragmentActivity() {
                     // existing route checks (sharedUris, deep links, savedInstanceState) keep
                     // their original semantics. F-114 / Issue #141.
                     val loggedIn by produceState<Boolean?>(initialValue = null) {
-                        value = runCatching { tokenManager.token.first() }
-                            .getOrNull()
-                            .let { !it.isNullOrBlank() }
+                        // Run the DataStore read on Dispatchers.IO so the first
+                        // (cold) emission's disk read does not stall a main-thread
+                        // frame. CancellationException must be re-thrown so the
+                        // produceState coroutine can be cancelled cleanly when the
+                        // composable leaves the composition (e.g., Activity destroy).
+                        value = withContext(Dispatchers.IO) {
+                            try {
+                                !tokenManager.token.first().isNullOrBlank()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                // DataStore corruption or similar — default to
+                                // logged-out so the user lands on Welcome and can
+                                // re-authenticate rather than getting stuck on a
+                                // blank Surface.
+                                false
+                            }
+                        }
                     }
                     val resolvedLogin = loggedIn ?: return@Surface
 
