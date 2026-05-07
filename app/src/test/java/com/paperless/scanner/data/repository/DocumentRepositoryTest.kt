@@ -6,11 +6,6 @@ import android.net.Uri
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.database.dao.CachedDocumentDao
-import com.paperless.scanner.data.database.dao.CachedTagDao
-import com.paperless.scanner.data.database.dao.CachedTaskDao
-import com.paperless.scanner.data.database.dao.PendingChangeDao
-import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
@@ -19,11 +14,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -46,21 +39,10 @@ class DocumentRepositoryTest {
     private lateinit var context: Context
     private lateinit var contentResolver: ContentResolver
     private lateinit var api: PaperlessApi
-    private lateinit var cachedDocumentDao: CachedDocumentDao
-    private lateinit var cachedTagDao: CachedTagDao
-    private lateinit var cachedTaskDao: CachedTaskDao
-    private lateinit var pendingChangeDao: PendingChangeDao
-    private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
-    private lateinit var gson: Gson
     private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var imageProcessor: ImageProcessorService
     private lateinit var pdfGenerator: PdfGeneratorService
     private lateinit var serializer: DocumentSerializer
-    private lateinit var countRepository: DocumentCountRepository
-    private lateinit var metadataRepository: DocumentMetadataRepository
-    private lateinit var listRepository: DocumentListRepository
-    private lateinit var trashRepository: TrashRepository
     private lateinit var documentRepository: DocumentRepository
     private lateinit var cacheDir: File
 
@@ -69,14 +51,6 @@ class DocumentRepositoryTest {
         context = mockk(relaxed = true)
         contentResolver = mockk(relaxed = true)
         api = mockk()
-        cachedDocumentDao = mockk(relaxed = true)
-        cachedTagDao = mockk(relaxed = true)
-        cachedTaskDao = mockk(relaxed = true)
-        pendingChangeDao = mockk(relaxed = true)
-        networkMonitor = mockk(relaxed = true)
-        serverHealthMonitor = mockk(relaxed = true)
-        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(true)
-        gson = Gson()
         crashlyticsHelper = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
@@ -85,64 +59,15 @@ class DocumentRepositoryTest {
 
         imageProcessor = ImageProcessorService(context, crashlyticsHelper)
         pdfGenerator = PdfGeneratorService(context, imageProcessor)
-        serializer = DocumentSerializer(gson)
-        countRepository = DocumentCountRepository(api, cachedDocumentDao, networkMonitor)
-        val documentSyncRepository = DocumentSyncRepository(
-            pendingChangeDao = pendingChangeDao,
-            serverHealthMonitor = serverHealthMonitor,
-            gson = gson,
-        )
-        metadataRepository = DocumentMetadataRepository(
-            context,
-            api,
-            cachedDocumentDao,
-            cachedTagDao,
-            networkMonitor,
-            serializer,
-            documentSyncRepository,
-        )
-        listRepository = DocumentListRepository(
-            context,
-            api,
-            cachedDocumentDao,
-            networkMonitor
-        )
-        trashRepository = TrashRepository(
-            context = context,
-            api = api,
-            cachedDocumentDao = cachedDocumentDao,
-            cachedTaskDao = cachedTaskDao,
-            networkMonitor = networkMonitor,
-            sync = documentSyncRepository,
-        )
-        val auditRepository = AuditRepository(
-            context = context,
-            api = api,
-            networkMonitor = networkMonitor,
-        )
-        val permissionRepository = PermissionRepository(
-            context = context,
-            api = api,
-            networkMonitor = networkMonitor,
-        )
+        serializer = DocumentSerializer(Gson())
 
         documentRepository = DocumentRepository(
-            context,
-            api,
-            cachedDocumentDao,
-            cachedTagDao,
-            networkMonitor,
-            gson,
-            crashlyticsHelper,
-            imageProcessor,
-            pdfGenerator,
-            serializer,
-            countRepository,
-            metadataRepository,
-            listRepository,
-            trashRepository,
-            auditRepository,
-            permissionRepository,
+            context = context,
+            api = api,
+            crashlyticsHelper = crashlyticsHelper,
+            imageProcessor = imageProcessor,
+            pdfGenerator = pdfGenerator,
+            serializer = serializer,
         )
     }
 
@@ -309,160 +234,5 @@ class DocumentRepositoryTest {
 
         val capturedPart = documentSlot.captured
         assertTrue(capturedPart.body.contentType()?.toString()?.contains("image/jpeg") == true)
-    }
-
-    // ==================== Trash Feature Tests ====================
-
-    @Test
-    fun `deleteDocument online success soft deletes from cache`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedTaskDao.getAllTasks() } returns emptyList()
-        coEvery { api.deleteDocument(1) } returns mockk {
-            every { isSuccessful } returns true
-        }
-
-        val result = documentRepository.deleteDocument(1)
-
-        assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.softDelete(1, any()) }
-    }
-
-    @Test
-    fun `deleteDocument offline queues pending change`() = runTest {
-        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
-        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
-        every { networkMonitor.checkOnlineStatus() } returns false
-
-        val result = documentRepository.deleteDocument(1)
-
-        assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.softDelete(1, any()) }
-        coVerify { pendingChangeDao.insert(any()) }
-    }
-
-    @Test
-    fun `deleteDocument API failure returns error`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedTaskDao.getAllTasks() } returns emptyList()
-        coEvery { api.deleteDocument(1) } returns mockk {
-            every { isSuccessful } returns false
-            every { code() } returns 404
-            every { message() } returns "Not found"
-        }
-
-        val result = documentRepository.deleteDocument(1)
-
-        assertTrue(result.isFailure)
-    }
-
-    @Test
-    fun `restoreDocument online success updates local cache`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { api.trashBulkAction(any()) } returns mockk {
-            every { isSuccessful } returns true
-        }
-
-        val result = documentRepository.restoreDocument(1)
-
-        assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.restoreDocuments(listOf(1)) }
-    }
-
-    @Test
-    fun `restoreDocument offline queues pending change`() = runTest {
-        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
-        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
-        every { networkMonitor.checkOnlineStatus() } returns false
-
-        val result = documentRepository.restoreDocument(1)
-
-        assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.restoreDocuments(listOf(1)) }
-        coVerify { pendingChangeDao.insert(any()) }
-    }
-
-    @Test
-    fun `restoreDocuments bulk calls API with correct action`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
-        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
-            every { isSuccessful } returns true
-        }
-
-        val result = documentRepository.restoreDocuments(listOf(1, 2, 3))
-
-        assertTrue(result.isSuccess)
-        assertEquals(listOf(1, 2, 3), requestSlot.captured.documents)
-        assertEquals("restore", requestSlot.captured.action)
-        coVerify { cachedDocumentDao.restoreDocuments(listOf(1, 2, 3)) }
-    }
-
-    @Test
-    fun `permanentlyDeleteDocument online success hard deletes from cache`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
-        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
-            every { isSuccessful } returns true
-        }
-
-        val result = documentRepository.permanentlyDeleteDocument(1)
-
-        assertTrue(result.isSuccess)
-        assertEquals("empty", requestSlot.captured.action)
-        coVerify { cachedDocumentDao.deleteByIds(listOf(1)) }
-    }
-
-    @Test
-    fun `permanentlyDeleteDocument offline queues pending change`() = runTest {
-        // After Phase 3.3, offline-queue branch is gated by serverHealthMonitor (TOCTOU fix)
-        every { serverHealthMonitor.isServerReachable } returns kotlinx.coroutines.flow.MutableStateFlow(false)
-        every { networkMonitor.checkOnlineStatus() } returns false
-
-        val result = documentRepository.permanentlyDeleteDocument(1)
-
-        assertTrue(result.isSuccess)
-        coVerify { cachedDocumentDao.deleteByIds(listOf(1)) }
-        coVerify { pendingChangeDao.insert(any()) }
-    }
-
-    @Test
-    fun `permanentlyDeleteDocuments bulk uses empty action`() = runTest {
-        every { networkMonitor.checkOnlineStatus() } returns true
-        val requestSlot = slot<com.paperless.scanner.data.api.models.TrashBulkActionRequest>()
-        coEvery { api.trashBulkAction(capture(requestSlot)) } returns mockk {
-            every { isSuccessful } returns true
-        }
-
-        val result = documentRepository.permanentlyDeleteDocuments(listOf(1, 2))
-
-        assertTrue(result.isSuccess)
-        assertEquals(listOf(1, 2), requestSlot.captured.documents)
-        assertEquals("empty", requestSlot.captured.action)
-        coVerify { cachedDocumentDao.deleteByIds(listOf(1, 2)) }
-    }
-
-    @Test
-    fun `observeTrashedDocuments returns Flow from DAO`() = runTest {
-        val mockDocuments = listOf(
-            mockk<com.paperless.scanner.data.database.entities.CachedDocument>(relaxed = true)
-        )
-        every { cachedDocumentDao.observeDeletedDocuments() } returns kotlinx.coroutines.flow.flowOf(mockDocuments)
-
-        val flow = documentRepository.observeTrashedDocuments()
-
-        flow.collect { documents ->
-            assertEquals(1, documents.size)
-        }
-    }
-
-    @Test
-    fun `observeTrashedDocumentsCount returns count Flow from DAO`() = runTest {
-        every { cachedDocumentDao.observeDeletedCount() } returns kotlinx.coroutines.flow.flowOf(5)
-
-        val flow = documentRepository.observeTrashedDocumentsCount()
-
-        flow.collect { count ->
-            assertEquals(5, count)
-        }
     }
 }
