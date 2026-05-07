@@ -11,7 +11,7 @@ import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.spyk
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -62,7 +62,7 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun `doWork returns success when sync succeeds`() = runBlocking {
+    fun `doWork returns success when sync succeeds`() = runTest {
         coEvery { syncManager.performFullSync() } returns Result.success(Unit)
 
         val result = createWorker().doWork()
@@ -71,7 +71,7 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun `doWork returns retry when sync fails and below max attempts`() = runBlocking {
+    fun `doWork returns retry when sync fails and below max attempts`() = runTest {
         coEvery { syncManager.performFullSync() } returns Result.failure(Exception("API down"))
 
         val result = createWorker(runAttemptCount = 0).doWork()
@@ -80,7 +80,7 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun `doWork returns failure when sync fails and max attempts reached`() = runBlocking {
+    fun `doWork returns failure when sync fails and max attempts reached`() = runTest {
         coEvery { syncManager.performFullSync() } returns Result.failure(Exception("API down"))
 
         val result = createWorker(runAttemptCount = SyncWorker.MAX_RETRIES).doWork()
@@ -89,7 +89,7 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun `doWork returns retry when exception thrown below max attempts`() = runBlocking {
+    fun `doWork returns retry when exception thrown below max attempts`() = runTest {
         coEvery { syncManager.performFullSync() } throws RuntimeException("Boom")
 
         val result = createWorker(runAttemptCount = 1).doWork()
@@ -98,7 +98,7 @@ class SyncWorkerTest {
     }
 
     @Test
-    fun `doWork returns failure when exception thrown at max attempts`() = runBlocking {
+    fun `doWork returns failure when exception thrown at max attempts`() = runTest {
         coEvery { syncManager.performFullSync() } throws RuntimeException("Boom")
 
         val result = createWorker(runAttemptCount = SyncWorker.MAX_RETRIES).doWork()

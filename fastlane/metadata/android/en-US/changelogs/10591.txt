@@ -1,5 +1,5 @@
 Version 1.5.91:
 
 🔧 Improvements:
-- Higher stability for background sync, trash deletion, and widget updates
+- Improved stability: bg sync, trash delete, widgets
 - Expanded automated tests prevent regressions

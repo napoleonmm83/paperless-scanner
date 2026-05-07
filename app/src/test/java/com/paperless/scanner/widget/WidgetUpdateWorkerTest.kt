@@ -11,7 +11,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -64,7 +64,7 @@ class WidgetUpdateWorkerTest {
     }
 
     @Test
-    fun `doWork returns success on happy path`() = runBlocking {
+    fun `doWork returns success on happy path`() = runTest {
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 5
 
         val result = createWorker().doWork()
@@ -73,7 +73,7 @@ class WidgetUpdateWorkerTest {
     }
 
     @Test
-    fun `doWork returns retry when repository throws`() = runBlocking {
+    fun `doWork returns retry when repository throws`() = runTest {
         coEvery { uploadQueueRepository.getPendingUploadCount() } throws RuntimeException("DB closed")
 
         val result = createWorker().doWork()
@@ -82,7 +82,7 @@ class WidgetUpdateWorkerTest {
     }
 
     @Test
-    fun `doWork queries pending upload count`() = runBlocking {
+    fun `doWork queries pending upload count`() = runTest {
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
 
         createWorker().doWork()

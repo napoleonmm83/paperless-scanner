@@ -16,7 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -92,7 +92,7 @@ class TrashDeleteWorkerTest {
     }
 
     @Test
-    fun `doWork returns failure when documentId missing from inputData`() = runBlocking {
+    fun `doWork returns failure when documentId missing from inputData`() = runTest {
         val result = createWorkerWithoutInput().doWork()
 
         assertEquals(ListenableWorker.Result.failure(), result)
@@ -100,7 +100,7 @@ class TrashDeleteWorkerTest {
     }
 
     @Test
-    fun `doWork returns success and skips delete when document no longer pending`() = runBlocking {
+    fun `doWork returns success and skips delete when document no longer pending`() = runTest {
         // No matching documentId in pending list → user cancelled the delete
         coEvery { tokenManager.getPendingTrashDeletesSync() } returns "99:1700000000"
 
@@ -111,7 +111,7 @@ class TrashDeleteWorkerTest {
     }
 
     @Test
-    fun `doWork returns success and records history when delete succeeds`() = runBlocking {
+    fun `doWork returns success and records history when delete succeeds`() = runTest {
         coEvery { tokenManager.getPendingTrashDeletesSync() } returns "42:1700000000"
         coEvery { trashRepository.permanentlyDeleteDocument(42) } returns Result.success(Unit)
         coEvery { cachedDocumentDao.getDocument(42) } returns null
@@ -124,7 +124,7 @@ class TrashDeleteWorkerTest {
     }
 
     @Test
-    fun `doWork returns failure and records history when delete fails`() = runBlocking {
+    fun `doWork returns failure and records history when delete fails`() = runTest {
         coEvery { tokenManager.getPendingTrashDeletesSync() } returns "42:1700000000"
         coEvery { trashRepository.permanentlyDeleteDocument(42) } returns Result.failure(Exception("Network down"))
         coEvery { cachedDocumentDao.getDocument(42) } returns null
@@ -136,7 +136,7 @@ class TrashDeleteWorkerTest {
     }
 
     @Test
-    fun `doWork still returns success when history record throws after successful delete`() = runBlocking {
+    fun `doWork still returns success when history record throws after successful delete`() = runTest {
         // Failure to record sync history must NOT propagate to the delete result
         coEvery { tokenManager.getPendingTrashDeletesSync() } returns "42:1700000000"
         coEvery { trashRepository.permanentlyDeleteDocument(42) } returns Result.success(Unit)
