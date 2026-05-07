@@ -16,6 +16,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -53,7 +54,7 @@ class DocumentMetadataRepository @Inject constructor(
         return try {
             if (forceRefresh || networkMonitor.checkOnlineStatus()) {
                 return try {
-                    val doc = api.getDocument(id)
+                    val doc = withRetry { api.getDocument(id) }
                     cachedDocumentDao.insert(doc.toCachedEntity())
                     Result.success(doc.toDomain())
                 } catch (e: retrofit2.HttpException) {
@@ -95,7 +96,7 @@ class DocumentMetadataRepository @Inject constructor(
                 archiveSerialNumber = archiveSerialNumber,
                 created = created,
             )
-            val updatedDocument = api.updateDocument(documentId, request)
+            val updatedDocument = withRetry { api.updateDocument(documentId, request) }
             cachedDocumentDao.insert(updatedDocument.toCachedEntity())
             if (tags != null && oldTagIds != null) {
                 updateTagDocumentCounts(oldTagIds, tags)
@@ -140,7 +141,7 @@ class DocumentMetadataRepository @Inject constructor(
                         change = PermissionSet(users = changeUsers, groups = changeGroups),
                     ),
                 )
-                val updatedDocument = api.updateDocumentPermissions(documentId, request)
+                val updatedDocument = withRetry { api.updateDocumentPermissions(documentId, request) }
                 cachedDocumentDao.insert(updatedDocument.toCachedEntity())
                 Result.success(updatedDocument.toDomain())
             } else {

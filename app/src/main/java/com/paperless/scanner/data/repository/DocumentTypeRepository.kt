@@ -13,6 +13,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentType
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -44,7 +45,7 @@ class DocumentTypeRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getDocumentTypes(page = 1, pageSize = 100)
+                val response = withRetry { api.getDocumentTypes(page = 1, pageSize = 100) }
                 // Update cache
                 val cachedEntities = response.results.map { it.toCachedEntity() }
                 cachedDocumentTypeDao.insertAll(cachedEntities)
@@ -64,7 +65,7 @@ class DocumentTypeRepository @Inject constructor(
      */
     suspend fun createDocumentType(name: String): Result<DocumentType> {
         return try {
-            val response = api.createDocumentType(CreateDocumentTypeRequest(name = name))
+            val response = withRetry { api.createDocumentType(CreateDocumentTypeRequest(name = name)) }
             val domainDocumentType = response.toDomain()
 
             // Insert into cache to trigger reactive Flow update immediately
@@ -82,7 +83,7 @@ class DocumentTypeRepository @Inject constructor(
      */
     suspend fun updateDocumentType(id: Int, name: String): Result<DocumentType> {
         return try {
-            val response = api.updateDocumentType(id, UpdateDocumentTypeRequest(name = name))
+            val response = withRetry { api.updateDocumentType(id, UpdateDocumentTypeRequest(name = name)) }
             val domainDocumentType = response.toDomain()
 
             // Update cache to trigger reactive Flow update immediately
@@ -100,7 +101,7 @@ class DocumentTypeRepository @Inject constructor(
      */
     suspend fun deleteDocumentType(id: Int): Result<Unit> {
         return try {
-            api.deleteDocumentType(id)
+            withRetry { api.deleteDocumentType(id) }
 
             // Delete from cache to trigger reactive Flow update immediately
             cachedDocumentTypeDao.softDelete(id)

@@ -6,6 +6,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -36,7 +37,7 @@ class PaperlessSuggestionsService @Inject constructor(
      */
     suspend fun getSuggestions(documentId: Int): Result<DocumentAnalysis> = withContext(Dispatchers.IO) {
         runCatching {
-            val response = api.getDocumentSuggestions(documentId)
+            val response = withRetry { api.getDocumentSuggestions(documentId) }
 
             // Get current metadata to resolve IDs to names
             val allTags = tagRepository.observeTags().first()
@@ -86,7 +87,7 @@ class PaperlessSuggestionsService @Inject constructor(
      */
     suspend fun hasSuggestions(documentId: Int): Boolean = withContext(Dispatchers.IO) {
         runCatching {
-            val response = api.getDocumentSuggestions(documentId)
+            val response = withRetry { api.getDocumentSuggestions(documentId) }
             response.tags.isNotEmpty() ||
                 response.correspondents.isNotEmpty() ||
                 response.documentTypes.isNotEmpty()

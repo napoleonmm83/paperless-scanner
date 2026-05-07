@@ -5,6 +5,7 @@ import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
 import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +43,7 @@ class CustomFieldRepository @Inject constructor(
 
             // Network fetch (if online)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getCustomFields(page = 1, pageSize = 100)
+                val response = withRetry { api.getCustomFields(page = 1, pageSize = 100) }
                 _customFields.value = response.results
                 Result.success(response.results)
             } else {
@@ -66,9 +67,11 @@ class CustomFieldRepository @Inject constructor(
      */
     suspend fun createCustomField(name: String, dataType: String = "string"): Result<CustomField> {
         return try {
-            val response = api.createCustomField(
-                CreateCustomFieldRequest(name = name, dataType = dataType)
-            )
+            val response = withRetry {
+                api.createCustomField(
+                    CreateCustomFieldRequest(name = name, dataType = dataType)
+                )
+            }
 
             // Add to cache to trigger reactive Flow update immediately
             _customFields.value = _customFields.value + response
@@ -85,7 +88,7 @@ class CustomFieldRepository @Inject constructor(
      */
     suspend fun deleteCustomField(id: Int): Result<Unit> {
         return try {
-            api.deleteCustomField(id)
+            withRetry { api.deleteCustomField(id) }
 
             // Remove from cache to trigger reactive Flow update immediately
             _customFields.value = _customFields.value.filter { it.id != id }

@@ -10,6 +10,7 @@ import com.paperless.scanner.domain.mapper.toAuditLogDomain
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.AuditLogEntry
 import com.paperless.scanner.domain.model.Note
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -32,7 +33,7 @@ class AuditRepository @Inject constructor(
     suspend fun getDocumentHistory(documentId: Int): Result<List<AuditLogEntry>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val history = api.getDocumentHistory(documentId)
+                val history = withRetry { api.getDocumentHistory(documentId) }
                 Result.success(history.toAuditLogDomain())
             } else {
                 Result.failure(
@@ -50,7 +51,7 @@ class AuditRepository @Inject constructor(
         return try {
             if (networkMonitor.checkOnlineStatus()) {
                 val request = CreateNoteRequest(note = noteText)
-                val notes = api.addNote(documentId, request)
+                val notes = withRetry { api.addNote(documentId, request) }
                 Result.success(notes.map { it.toDomain() })
             } else {
                 Result.failure(
@@ -67,7 +68,7 @@ class AuditRepository @Inject constructor(
     suspend fun deleteNote(documentId: Int, noteId: Int): Result<List<Note>> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val notes = api.deleteNote(documentId, noteId)
+                val notes = withRetry { api.deleteNote(documentId, noteId) }
                 Result.success(notes.map { it.toDomain() })
             } else {
                 Result.failure(

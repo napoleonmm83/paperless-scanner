@@ -18,6 +18,7 @@ import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.domain.model.DocumentsResponse
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -111,15 +112,17 @@ class DocumentListRepository @Inject constructor(
             }
             if (networkMonitor.checkOnlineStatus()) {
                 val tagIdsString = tagIds?.takeIf { it.isNotEmpty() }?.joinToString(",")
-                val response = api.getDocuments(
-                    page = page,
-                    pageSize = pageSize,
-                    query = query,
-                    tagIds = tagIdsString,
-                    correspondentId = correspondentId,
-                    documentTypeId = documentTypeId,
-                    ordering = ordering,
-                )
+                val response = withRetry {
+                    api.getDocuments(
+                        page = page,
+                        pageSize = pageSize,
+                        query = query,
+                        tagIds = tagIdsString,
+                        correspondentId = correspondentId,
+                        documentTypeId = documentTypeId,
+                        ordering = ordering,
+                    )
+                }
                 val cachedEntities = response.results.map { it.toCachedEntity() }
                 cachedDocumentDao.insertAll(cachedEntities)
                 Result.success(response.toDomain())

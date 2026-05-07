@@ -15,6 +15,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.TrashedDocument
+import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -63,7 +64,7 @@ class TrashRepository @Inject constructor(
             cachedTaskDao.acknowledgeTasksForDocument(documentId.toString())
 
             try {
-                val response = api.deleteDocument(documentId)
+                val response = withRetry { api.deleteDocument(documentId) }
                 if (response.isSuccessful) {
                     if (taskIds.isNotEmpty()) {
                         try {
@@ -131,7 +132,7 @@ class TrashRepository @Inject constructor(
     ): Result<DocumentsResponse> {
         return try {
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTrash(page = page, pageSize = pageSize)
+                val response = withRetry { api.getTrash(page = page, pageSize = pageSize) }
 
                 val cachedEntities = response.results.map { doc ->
                     val deletionTimestamp = try {
@@ -166,7 +167,7 @@ class TrashRepository @Inject constructor(
     suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
         online = {
             val request = TrashBulkActionRequest(documents = documentIds, action = "restore")
-            val response = api.trashBulkAction(request)
+            val response = withRetry { api.trashBulkAction(request) }
             if (response.isSuccessful) {
                 cachedDocumentDao.restoreDocuments(documentIds)
                 Unit
@@ -193,7 +194,7 @@ class TrashRepository @Inject constructor(
     suspend fun permanentlyDeleteDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
         online = {
             val request = TrashBulkActionRequest(documents = documentIds, action = "empty")
-            val response = api.trashBulkAction(request)
+            val response = withRetry { api.trashBulkAction(request) }
             if (response.isSuccessful) {
                 cachedDocumentDao.deleteByIds(documentIds)
                 Unit

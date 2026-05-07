@@ -8,6 +8,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.util.withRetry
 import com.paperless.scanner.R
 import java.io.IOException
 import javax.inject.Named
@@ -207,7 +208,7 @@ class DocumentRepository @Inject constructor(
         onProgress: (Float) -> Unit = {}
     ): Result<File> {
         return try {
-            val response = api.downloadDocument(documentId)
+            val response = withRetry { api.downloadDocument(documentId) }
 
             val fileName = "document_${documentId}_${System.currentTimeMillis()}.pdf"
             val pdfFile = File(cacheDir, fileName)

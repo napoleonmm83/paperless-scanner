@@ -12,6 +12,7 @@ import com.paperless.scanner.data.database.mappers.toDomain as cachedTaskToDomai
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain as apiTaskToDomain
 import com.paperless.scanner.domain.model.PaperlessTask
+import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.IOException
@@ -100,7 +101,7 @@ class TaskRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTasks()
+                val response = withRetry { api.getTasks() }
                 // Update cache - triggers reactive Flow update automatically
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
@@ -124,7 +125,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTask(taskId).firstOrNull()
+                val response = withRetry { api.getTask(taskId) }.firstOrNull()
                 response?.let {
                     cachedTaskDao.insert(it.toCachedEntity())
                 }
@@ -147,7 +148,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTasks().filter { it.isPending }
+                val response = withRetry { api.getTasks() }.filter { it.isPending }
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
                 Result.success(response.map { it.apiTaskToDomain() })
@@ -169,7 +170,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = api.getTasks().filter { !it.acknowledged }
+                val response = withRetry { api.getTasks() }.filter { !it.acknowledged }
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
                 Result.success(response.map { it.apiTaskToDomain() })
@@ -197,7 +198,7 @@ class TaskRepository @Inject constructor(
         return try {
             val request = AcknowledgeTasksRequest(tasks = taskIds)
             Log.d(TAG, "Acknowledging tasks: $taskIds")
-            val response = api.acknowledgeTasks(request)
+            val response = withRetry { api.acknowledgeTasks(request) }
             Log.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
