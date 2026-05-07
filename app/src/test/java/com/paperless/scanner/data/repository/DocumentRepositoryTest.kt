@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -29,6 +30,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
 @RunWith(RobolectricTestRunner::class)
 class DocumentRepositoryTest {
@@ -234,5 +236,23 @@ class DocumentRepositoryTest {
 
         val capturedPart = documentSlot.captured
         assertTrue(capturedPart.body.contentType()?.toString()?.contains("image/jpeg") == true)
+    }
+
+    @Test
+    fun `downloadDocument re-throws CancellationException to preserve structured concurrency`() = runTest {
+        // CancellationException MUST propagate out of DocumentRepository, not be wrapped in
+        // Result.failure. Previously the catch(Exception) catch-all silently swallowed it,
+        // breaking cooperative cancellation for upload/download coroutines.
+        coEvery { api.downloadDocument(any()) } throws CancellationException("scope cancelled")
+
+        var thrown: CancellationException? = null
+        try {
+            documentRepository.downloadDocument(123)
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
+        assertEquals("scope cancelled", thrown!!.message)
     }
 }
