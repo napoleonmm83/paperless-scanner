@@ -10,9 +10,6 @@ import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
-import com.paperless.scanner.data.database.dao.CachedTaskDao
-import com.paperless.scanner.data.database.dao.PendingChangeDao
-import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.service.DocumentSerializer
@@ -35,10 +32,7 @@ class DocumentRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedDocumentDao: CachedDocumentDao,
     private val cachedTagDao: CachedTagDao,
-    private val cachedTaskDao: CachedTaskDao,
-    private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
-    private val serverHealthMonitor: ServerHealthMonitor,
     private val gson: Gson,
     private val crashlyticsHelper: CrashlyticsHelper,
     private val imageProcessor: ImageProcessorService,

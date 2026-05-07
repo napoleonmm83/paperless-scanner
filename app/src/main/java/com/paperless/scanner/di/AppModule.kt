@@ -344,10 +344,7 @@ object AppModule {
         api: PaperlessApi,
         cachedDocumentDao: CachedDocumentDao,
         cachedTagDao: CachedTagDao,
-        cachedTaskDao: CachedTaskDao,
-        pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor,
-        serverHealthMonitor: ServerHealthMonitor,
         gson: Gson,
         crashlyticsHelper: CrashlyticsHelper,
         imageProcessor: ImageProcessorService,
@@ -359,7 +356,7 @@ object AppModule {
         trash: TrashRepository,
         audit: AuditRepository,
         permission: PermissionRepository,
-    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, cachedTaskDao, pendingChangeDao, networkMonitor, serverHealthMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata, list, trash, audit, permission)
+    ): DocumentRepository = DocumentRepository(context, api, cachedDocumentDao, cachedTagDao, networkMonitor, gson, crashlyticsHelper, imageProcessor, pdfGenerator, serializer, count, metadata, list, trash, audit, permission)
 
     @Provides
     @Singleton
