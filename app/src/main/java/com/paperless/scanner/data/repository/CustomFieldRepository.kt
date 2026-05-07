@@ -92,11 +92,15 @@ class CustomFieldRepository @Inject constructor(
      */
     suspend fun deleteCustomField(id: Int): Result<Unit> {
         return try {
-            withRetry { api.deleteCustomField(id) }
-
-            // Remove from cache to trigger reactive Flow update immediately
+            try {
+                withRetry { api.deleteCustomField(id) }
+            } catch (e: HttpException) {
+                // DELETE is idempotent: 404 = "already gone" — treat as success
+                // and still evict from local cache so the UI converges. Same
+                // pattern as TrashRepository.deleteDocument.
+                if (e.code() != 404) throw e
+            }
             _customFields.value = _customFields.value.filter { it.id != id }
-
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
@@ -115,6 +119,9 @@ class CustomFieldRepository @Inject constructor(
             true
         } catch (e: HttpException) {
             e.code() != 404
+        } catch (e: CancellationException) {
+            // Never treat coroutine cancellation as "API unavailable".
+            throw e
         } catch (e: Exception) {
             false
         }

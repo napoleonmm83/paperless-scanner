@@ -116,6 +116,12 @@ class TrashRepository @Inject constructor(
                 // would cause a brief UI flicker (deleted → restored → deleted)
                 // as Flow observers see two opposing DB writes.
                 throw e
+            } catch (e: CancellationException) {
+                // Coroutine cancelled mid-flight (e.g. ViewModel scope went
+                // away). Propagate without rollback — the user did not ask for
+                // an undo, and rollback could race with a re-issue from the
+                // resumed scope.
+                throw e
             } catch (e: Exception) {
                 // ROLLBACK for non-network exceptions (timeout, etc.) where
                 // executeOrQueue will NOT trigger offline fallback.

@@ -160,10 +160,10 @@ class NetworkRetryTest {
 
     @Test
     fun `delay is capped at maxDelayMs`() = runTest {
-        // With initialDelay=100, doubling each attempt: 100, 200, 400, 800.
-        // With maxDelay=150, each delay should be capped at 150.
-        // We can't easily verify the cap without exposing it; instead, just
-        // ensure the call still completes correctly with a bounded delay.
+        // initialDelay=100, doubling each attempt: 100, 200, 400. maxDelay=150
+        // caps each delay at 150. Expected timeline: 100 + 150 + 150 = 400ms.
+        // testScheduler.currentTime advances per delay() so we can assert the
+        // cap is enforced rather than only counting attempts.
         var attempts = 0
         val result = withRetry(
             maxRetries = 3,
@@ -176,6 +176,7 @@ class NetworkRetryTest {
         }
         assertEquals("ok", result)
         assertEquals(4, attempts)
+        assertEquals(400L, testScheduler.currentTime)
     }
 
     @Test
