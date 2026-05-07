@@ -1,0 +1,7 @@
+Version 1.5.88:
+
+🔧 Verbesserungen:
+- Adaptiver Upload-Timeout: Basis 120s + 2s/MB
+- Cloudflare-Server: automatisch auf 90s gekappt
+- Große PDFs schlagen seltener fehl
+- Pro-Request-Logging des Timeouts

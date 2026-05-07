@@ -18,8 +18,31 @@ object NetworkConfig {
     /** Read timeout for standard API requests (seconds) */
     const val READ_TIMEOUT_SECONDS = 30L
 
-    /** Write timeout for upload operations (seconds) */
+    /**
+     * Default write timeout for non-upload write operations (seconds).
+     *
+     * Document uploads use the adaptive timeout from
+     * [AdaptiveWriteTimeoutInterceptor] instead, computed from
+     * [WRITE_TIMEOUT_BASE_SECONDS], [WRITE_TIMEOUT_PER_MB_SECONDS], and
+     * [WRITE_TIMEOUT_CLOUDFLARE_CAP_SECONDS].
+     */
     const val WRITE_TIMEOUT_SECONDS = 60L
+
+    /** Base write timeout for adaptive document uploads (seconds). */
+    const val WRITE_TIMEOUT_BASE_SECONDS = 120L
+
+    /** Additional seconds added to the upload write timeout per megabyte of payload. */
+    const val WRITE_TIMEOUT_PER_MB_SECONDS = 2L
+
+    /**
+     * Cap applied to adaptive upload write timeouts when the server is
+     * detected to sit behind Cloudflare.
+     *
+     * Cloudflare's edge enforces a 100-second timeout on individual HTTP
+     * requests, so values above this would be wasted; 90s leaves a buffer
+     * for client/server clock drift.
+     */
+    const val WRITE_TIMEOUT_CLOUDFLARE_CAP_SECONDS = 90L
 
     // ============================================================
     // Server Detection Timeouts
