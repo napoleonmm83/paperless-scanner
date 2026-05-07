@@ -11,7 +11,9 @@ import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.DocumentListRepository
+import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import io.mockk.coEvery
@@ -39,7 +41,9 @@ class DocumentsViewModelTest {
 
     private lateinit var context: Context
     private lateinit var savedStateHandle: SavedStateHandle
-    private lateinit var documentRepository: DocumentRepository
+    private lateinit var documentListRepository: DocumentListRepository
+    private lateinit var documentCountRepository: DocumentCountRepository
+    private lateinit var trashRepository: TrashRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
@@ -52,7 +56,9 @@ class DocumentsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         context = mockk(relaxed = true)
         savedStateHandle = SavedStateHandle()
-        documentRepository = mockk(relaxed = true)
+        documentListRepository = mockk(relaxed = true)
+        documentCountRepository = mockk(relaxed = true)
+        trashRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
@@ -66,12 +72,12 @@ class DocumentsViewModelTest {
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { correspondentRepository.getCorrespondents() } returns Result.success(emptyList())
         coEvery { documentTypeRepository.getDocumentTypes() } returns Result.success(emptyList())
-        coEvery { documentRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
+        coEvery { documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) } returns
                 Result.success(DocumentsResponse(count = 0, results = emptyList()))
 
         // Mock Paging 3 flow
-        every { documentRepository.getDocumentsPaged(any(), any()) } returns flowOf(PagingData.empty())
-        every { documentRepository.observeCountWithFilter(any(), any()) } returns flowOf(0)
+        every { documentListRepository.getDocumentsPaged(any(), any()) } returns flowOf(PagingData.empty())
+        every { documentCountRepository.observeCountWithFilter(any(), any()) } returns flowOf(0)
     }
 
     @After
@@ -83,7 +89,9 @@ class DocumentsViewModelTest {
         return DocumentsViewModel(
             context = context,
             savedStateHandle = savedStateHandle,
-            documentRepository = documentRepository,
+            documentListRepository = documentListRepository,
+            documentCountRepository = documentCountRepository,
+            trashRepository = trashRepository,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
             documentTypeRepository = documentTypeRepository,
