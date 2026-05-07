@@ -92,6 +92,10 @@ class DynamicBaseUrlInterceptorTest {
         client.newCall(request).execute().use { response ->
             assertEquals(204, response.code)
         }
+        // Verify the URL was NOT rewritten — request reached MockWebServer
+        // unchanged, indicating the malformed holder value was rejected.
+        val recorded = mockWebServer.takeRequest()
+        assertEquals("/passthrough", recorded.path)
     }
 
     @Test

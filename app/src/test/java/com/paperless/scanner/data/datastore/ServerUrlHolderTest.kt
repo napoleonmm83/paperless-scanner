@@ -4,6 +4,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -17,12 +20,16 @@ import org.junit.Test
 class ServerUrlHolderTest {
 
     /**
-     * UnconfinedTestDispatcher executes launched coroutines synchronously and
-     * inline so the holder's `init { scope.launch { ... } }` block runs to its
-     * first emission before the constructor returns. Uses runTest for both
-     * structured cancellation (the test scope is auto-cancelled) and to
-     * advance virtual time deterministically.
+     * Tests use [UnconfinedTestDispatcher] so the launched collector inside
+     * [ServerUrlHolder.init] runs synchronously inline — assertions made
+     * immediately after the constructor see the cache populated. For tests
+     * that drive a [MutableStateFlow] (collector stays open across emissions),
+     * the per-test [CoroutineScope] is cancelled explicitly via try/finally
+     * so the collector does not leak across test methods. Tests that use
+     * [flowOf] don't need this since the flow completes itself and the
+     * launched coroutine ends naturally.
      */
+
     @Test
     fun `current returns primed value from initial Flow emission`() = runTest {
         val tokenManager = mockk<TokenManager>()
@@ -52,12 +59,16 @@ class ServerUrlHolderTest {
         every { tokenManager.serverUrl } returns flow.asStateFlow()
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
-        val holder = ServerUrlHolder(tokenManager, scope)
-        assertEquals("https://first.example.com", holder.current())
+        try {
+            val holder = ServerUrlHolder(tokenManager, scope)
+            assertEquals("https://first.example.com", holder.current())
 
-        flow.value = "https://second.example.com/"
+            flow.value = "https://second.example.com/"
 
-        assertEquals("https://second.example.com", holder.current())
+            assertEquals("https://second.example.com", holder.current())
+        } finally {
+            scope.cancel()
+        }
     }
 
     @Test
@@ -67,12 +78,16 @@ class ServerUrlHolderTest {
         every { tokenManager.serverUrl } returns flow.asStateFlow()
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
-        val holder = ServerUrlHolder(tokenManager, scope)
-        assertEquals("https://example.com", holder.current())
+        try {
+            val holder = ServerUrlHolder(tokenManager, scope)
+            assertEquals("https://example.com", holder.current())
 
-        flow.value = null
+            flow.value = null
 
-        assertNull(holder.current())
+            assertNull(holder.current())
+        } finally {
+            scope.cancel()
+        }
     }
 
     @Test
@@ -98,15 +113,20 @@ class ServerUrlHolderTest {
     }
 
     @Test
-    fun `current is safe to call from multiple threads`() = runTest {
+    fun `current is safe when read concurrently from many coroutines`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf("https://example.com/")
         val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
 
-        // Smoke: many concurrent reads return the same atomic value.
-        val results = (1..100).map { holder.current() }.toSet()
+        // Launch 100 concurrent reads. AtomicReference.get() is lock-free so
+        // every call sees the same primed value; this exercises true
+        // parallelism rather than the previous sequential `.map`.
+        val results = (1..100)
+            .map { async { holder.current() } }
+            .awaitAll()
+            .toSet()
         assertEquals(setOf("https://example.com"), results)
     }
 }
