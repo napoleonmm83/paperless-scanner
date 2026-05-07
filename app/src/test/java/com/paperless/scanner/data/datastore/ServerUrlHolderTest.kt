@@ -3,44 +3,42 @@ package com.paperless.scanner.data.datastore
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ServerUrlHolderTest {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-
-    @After
-    fun tearDown() {
-        scope.cancel()
-    }
-
+    /**
+     * UnconfinedTestDispatcher executes launched coroutines synchronously and
+     * inline so the holder's `init { scope.launch { ... } }` block runs to its
+     * first emission before the constructor returns. Uses runTest for both
+     * structured cancellation (the test scope is auto-cancelled) and to
+     * advance virtual time deterministically.
+     */
     @Test
-    fun `current returns primed value from initial DataStore read`() {
+    fun `current returns primed value from initial Flow emission`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf("https://example.com/")
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
 
-        // Trailing slash trimmed, value primed at construction time.
         assertEquals("https://example.com", holder.current())
     }
 
     @Test
-    fun `current returns null when DataStore has no server URL`() {
+    fun `current returns null when DataStore Flow emits null`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf(null)
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
 
@@ -49,23 +47,15 @@ class ServerUrlHolderTest {
 
     @Test
     fun `current updates on Flow emission after construction`() = runTest {
-        // StateFlow with seed value so the init runBlocking returns immediately
-        // and the Flow stays open for subsequent emissions.
         val flow = MutableStateFlow<String?>("https://first.example.com/")
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flow.asStateFlow()
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
         assertEquals("https://first.example.com", holder.current())
 
-        // Login flips to a new URL — the holder's collector picks it up.
         flow.value = "https://second.example.com/"
-        // Yield a couple of dispatcher ticks to give the launched collector
-        // a chance to process the new emission.
-        repeat(20) { kotlinx.coroutines.yield() }
-        // Fall back to a tiny real-time sleep if the test dispatcher is too
-        // fast for the application-scope coroutine.
-        runBlocking { kotlinx.coroutines.delay(50) }
 
         assertEquals("https://second.example.com", holder.current())
     }
@@ -75,39 +65,43 @@ class ServerUrlHolderTest {
         val flow = MutableStateFlow<String?>("https://example.com/")
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flow.asStateFlow()
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
         assertEquals("https://example.com", holder.current())
 
         flow.value = null
-        repeat(20) { kotlinx.coroutines.yield() }
-        runBlocking { kotlinx.coroutines.delay(50) }
 
         assertNull(holder.current())
     }
 
     @Test
-    fun `current strips trailing slash`() {
+    fun `current strips trailing slash`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf("https://example.com/")
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
+
         assertEquals("https://example.com", holder.current())
     }
 
     @Test
-    fun `current preserves URL without trailing slash`() {
+    fun `current preserves URL without trailing slash`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf("https://example.com")
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
+
         assertEquals("https://example.com", holder.current())
     }
 
     @Test
-    fun `current is safe to call from multiple threads`() {
+    fun `current is safe to call from multiple threads`() = runTest {
         val tokenManager = mockk<TokenManager>()
         every { tokenManager.serverUrl } returns flowOf("https://example.com/")
+        val scope = CoroutineScope(UnconfinedTestDispatcher(testScheduler))
 
         val holder = ServerUrlHolder(tokenManager, scope)
 
@@ -115,7 +109,4 @@ class ServerUrlHolderTest {
         val results = (1..100).map { holder.current() }.toSet()
         assertEquals(setOf("https://example.com"), results)
     }
-
-    @Suppress("unused")
-    private fun staticFlow(value: String?): Flow<String?> = flowOf(value)
 }

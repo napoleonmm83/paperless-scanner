@@ -49,9 +49,9 @@ class DynamicBaseUrlInterceptorTest {
             .url("http://placeholder.local/api/test")
             .build()
 
-        val response = client.newCall(request).execute()
-
-        assertEquals(200, response.code)
+        client.newCall(request).execute().use { response ->
+            assertEquals(200, response.code)
+        }
         // Verify MockWebServer actually received the rewritten request.
         val recorded = mockWebServer.takeRequest()
         assertEquals("/api/test", recorded.path)
@@ -70,9 +70,9 @@ class DynamicBaseUrlInterceptorTest {
             .url(mockWebServer.url("/passthrough"))
             .build()
 
-        val response = client.newCall(request).execute()
-
-        assertEquals(204, response.code)
+        client.newCall(request).execute().use { response ->
+            assertEquals(204, response.code)
+        }
         val recorded = mockWebServer.takeRequest()
         assertEquals("/passthrough", recorded.path)
     }
@@ -89,8 +89,9 @@ class DynamicBaseUrlInterceptorTest {
             .url(mockWebServer.url("/passthrough"))
             .build()
 
-        val response = client.newCall(request).execute()
-        assertEquals(204, response.code)
+        client.newCall(request).execute().use { response ->
+            assertEquals(204, response.code)
+        }
     }
 
     @Test
@@ -106,7 +107,7 @@ class DynamicBaseUrlInterceptorTest {
             .url("http://placeholder.local/api/documents/?page=2&pageSize=25")
             .build()
 
-        client.newCall(request).execute()
+        client.newCall(request).execute().use { /* close */ }
 
         val recorded = mockWebServer.takeRequest()
         assertEquals("/api/documents/?page=2&pageSize=25", recorded.path)

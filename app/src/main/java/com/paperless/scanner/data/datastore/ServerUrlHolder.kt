@@ -2,9 +2,7 @@ package com.paperless.scanner.data.datastore
 
 import com.paperless.scanner.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -12,20 +10,27 @@ import javax.inject.Singleton
 /**
  * Thread-safe, non-blocking server-URL cache for the OkHttp request hot path.
  *
- * Resolves the long-standing F-097 issue: [com.paperless.scanner.data.api.DynamicBaseUrlInterceptor]
+ * Resolves the F-097 issue: [com.paperless.scanner.data.api.DynamicBaseUrlInterceptor]
  * previously called `runBlocking { tokenManager.serverUrl.first() }` on every
- * intercepted request, which serialized concurrent requests under the
- * DataStore lock even though the read itself is fast after the first warm
- * cache hit.
+ * intercepted request, serializing concurrent requests under the DataStore
+ * lock even though the read itself is fast after the first warm cache hit.
  *
- * This holder primes its [AtomicReference] once at DI graph construction
- * (the only `runBlocking` left, on the init path — F-006 permits this) and
- * then keeps the value fresh by collecting the underlying [TokenManager.serverUrl]
- * [kotlinx.coroutines.flow.Flow] on the application-wide scope. Logout,
- * login, and server-switch flows all flow through `tokenManager.saveCredentials`
- * / `tokenManager.clearCredentials`, both of which write to the same
- * DataStore key — the Flow re-emits and the cache updates automatically, so
- * call sites do not need to invalidate the cache manually.
+ * The holder launches a single coroutine on the application-wide scope which
+ * collects [TokenManager.serverUrl] and atomically updates the cache on every
+ * emission. The collect runs on the injected scope's dispatcher (typically
+ * [kotlinx.coroutines.Dispatchers.Default] from the `@ApplicationScope`
+ * provider in `AppModule`), so construction never blocks the Hilt
+ * dependency-graph thread. Login, logout, and server-switch flows already
+ * write through `tokenManager.saveCredentials` / `tokenManager.clearCredentials`
+ * → DataStore → Flow, so the holder updates automatically without any manual
+ * invalidation wiring at call sites.
+ *
+ * **Initial-emission window:** between singleton construction and the first
+ * Flow emission landing on the launched coroutine, [current] returns `null`
+ * — a request issued in this brief window will fall through the interceptor
+ * unchanged (same as a logged-out user). DataStore's in-memory snapshot
+ * makes this window microseconds long in practice, and an unconfigured
+ * placeholder request is benign.
  *
  * The interceptor reads via [current] which is a single atomic load — no
  * blocking, no lock, no contention, no allocation.
@@ -38,15 +43,10 @@ class ServerUrlHolder @Inject constructor(
     private val cache = AtomicReference<String?>(null)
 
     init {
-        // Prime once on the DI init path so the very first request after app
-        // start does not race the Flow collector below. This runBlocking runs
-        // when the singleton is constructed, NOT per request — F-006 explicitly
-        // permits runBlocking on init/migration paths.
-        cache.set(runBlocking { tokenManager.serverUrl.first() }?.trimEnd('/'))
-
-        // Keep the cache fresh on every subsequent emission (login, logout,
-        // server-switch). Runs on the application-wide SupervisorJob scope
-        // for the full app lifetime.
+        // Single collector handles BOTH the initial prime (Flow emits its
+        // current value immediately to new collectors) AND every subsequent
+        // emission. Runs on the application-wide SupervisorJob scope for the
+        // full app lifetime; never blocks the construction thread.
         scope.launch {
             tokenManager.serverUrl.collect { url ->
                 cache.set(url?.trimEnd('/'))
@@ -56,8 +56,9 @@ class ServerUrlHolder @Inject constructor(
 
     /**
      * Latest known server URL with trailing slash stripped, or `null` if no
-     * credentials are stored. Pure atomic read — safe to call from any thread,
-     * including the OkHttp dispatcher.
+     * credentials are stored OR if the launched collector has not yet
+     * processed the first Flow emission. Pure atomic read — safe to call
+     * from any thread, including the OkHttp dispatcher.
      */
     fun current(): String? = cache.get()
 }
