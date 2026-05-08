@@ -1,0 +1,6 @@
+Version 1.5.100:
+
+🔐 Security:
+- Cleartext HTTP gated to user-accepted hosts
+- Prevents auth-token leak to non-allowlisted hosts
+- Localhost and Android emulator remain allowed

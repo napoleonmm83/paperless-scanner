@@ -1350,7 +1350,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/res/xml/network_security_config.xml"
-            line="13"
+            line="27"
             column="13"/>
     </issue>
 
@@ -1372,7 +1372,7 @@
         errorLine2="                                            ~~~~">
         <location
             file="src/main/res/xml/network_security_config.xml"
-            line="8"
+            line="22"
             column="45"/>
     </issue>
 

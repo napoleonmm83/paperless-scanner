@@ -1,0 +1,6 @@
+Version 1.5.100:
+
+🔐 Sicherheit:
+- HTTP-Calls strikt auf akzeptierte Hosts beschränkt
+- Verhindert Auth-Token-Leak an fremde Server
+- Localhost und Android-Emulator bleiben erlaubt
