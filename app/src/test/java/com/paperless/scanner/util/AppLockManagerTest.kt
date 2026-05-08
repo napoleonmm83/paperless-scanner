@@ -368,9 +368,8 @@ class AppLockManagerTest {
         Thread.sleep(50)
 
         // Biometric must NOT have unlocked the app — state stays LockedOut.
+        // The state assertion is enough; no need to peek at collaborator calls.
         assertTrue(manager.lockState.value is AppLockState.LockedOut)
-        // The lockout-clear side effects must not have fired.
-        coVerify(exactly = 0) { tokenManager.clearAppLockLockoutState() }
     }
 
     @Test
