@@ -3,6 +3,7 @@ package com.paperless.scanner.data.repository
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
@@ -32,6 +33,16 @@ import java.io.File
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
 
+/**
+ * Repository tests for [DocumentRepository].
+ *
+ * Marked `@SmallTest` because [DocumentRepository] no longer holds any
+ * Room DAO after the Issue #51 refactor — it now depends on `cacheDir`,
+ * `PaperlessApi`, `CrashlyticsHelper`, and three extracted service
+ * collaborators (`ImageProcessorService`, `PdfGeneratorService`,
+ * `DocumentSerializer`). Pure unit test scope per Issue #137.
+ */
+@SmallTest
 @RunWith(RobolectricTestRunner::class)
 class DocumentRepositoryTest {
 

@@ -1,0 +1,5 @@
+Version 1.5.97:
+
+🔧 Verbesserungen:
+- Vollständige Test-Migration: alle Repositories abgesichert
+- Test-Kategorien klar getrennt für schnellere CI

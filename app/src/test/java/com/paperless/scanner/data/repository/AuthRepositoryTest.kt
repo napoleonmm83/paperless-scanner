@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
+import androidx.test.filters.SmallTest
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
@@ -10,7 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -23,6 +24,14 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+/**
+ * Repository tests for [AuthRepository].
+ *
+ * Marked `@SmallTest` because [AuthRepository] depends on Context, OkHttp,
+ * TokenManager, and analytics — no Room DAO. Robolectric is required for
+ * `Context` access. Pure unit test scope per Issue #137.
+ */
+@SmallTest
 @RunWith(RobolectricTestRunner::class)
 class AuthRepositoryTest {
 
@@ -57,7 +66,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login success returns token and saves credentials`() = runBlocking {
+    fun `login success returns token and saves credentials`() = runTest {
         val expectedToken = "test-token-12345"
         mockWebServer.enqueue(
             MockResponse()
@@ -80,7 +89,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with trailing slash normalizes url`() = runBlocking {
+    fun `login with trailing slash normalizes url`() = runTest {
         val expectedToken = "test-token"
         mockWebServer.enqueue(
             MockResponse()
@@ -96,7 +105,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login failure returns error with status code`() = runBlocking {
+    fun `login failure returns error with status code`() = runTest {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(401)
@@ -112,7 +121,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with empty token returns failure`() = runBlocking {
+    fun `login with empty token returns failure`() = runTest {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -128,7 +137,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with missing token field returns failure`() = runBlocking {
+    fun `login with missing token field returns failure`() = runTest {
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -144,7 +153,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `login with network error returns failure`() = runBlocking {
+    fun `login with network error returns failure`() = runTest {
         mockWebServer.shutdown()
 
         val result = authRepository.login("http://localhost:9999", "user", "pass")
@@ -153,7 +162,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `logout clears credentials`() = runBlocking {
+    fun `logout clears credentials`() = runTest {
         coEvery { tokenManager.clearCredentials() } returns Unit
 
         authRepository.logout()
@@ -164,7 +173,7 @@ class AuthRepositoryTest {
     // --- detectServerProtocol tests (Issue #140: NPE safety on null error variables) ---
 
     @Test
-    fun `detectServerProtocol with unreachable host returns failure without NPE`() = runBlocking {
+    fun `detectServerProtocol with unreachable host returns failure without NPE`() = runTest {
         // Both HTTPS and HTTP must fail without crashing. Before the fix this path used
         // !! on potentially-null error variables, so the test guards that fix stays.
         val result = authRepository.detectServerProtocol("nonexistent-host-test-12345.invalid")
@@ -174,7 +183,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `detectServerProtocol falls back to HTTP when HTTPS fails`() = runBlocking {
+    fun `detectServerProtocol falls back to HTTP when HTTPS fails`() = runTest {
         // MockWebServer runs HTTP only — HTTPS attempt fails, HTTP /api/ succeeds.
         mockWebServer.enqueue(
             MockResponse()
@@ -198,7 +207,7 @@ class AuthRepositoryTest {
     }
 
     @Test
-    fun `detectServerProtocol with empty host returns ContentError`() = runBlocking {
+    fun `detectServerProtocol with empty host returns ContentError`() = runTest {
         val result = authRepository.detectServerProtocol("")
 
         assertTrue("Empty host should fail parse", result.isFailure)

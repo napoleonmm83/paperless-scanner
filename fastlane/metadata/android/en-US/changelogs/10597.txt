@@ -1,0 +1,5 @@
+Version 1.5.97:
+
+🔧 Improvements:
+- Repository test migration complete across all modules
+- Test categories cleanly separated for faster CI
