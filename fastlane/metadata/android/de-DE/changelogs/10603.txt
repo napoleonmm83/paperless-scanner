@@ -1,0 +1,4 @@
+Version 1.5.103:
+
+🔧 Verbesserungen:
+- Listen wie Filter, Sync-Center und Startseite verlieren beim Scrollen oder Filtern keinen Zustand mehr (z.B. Auswahl, Position). Optisch identisch — nur stabiler unter Last.

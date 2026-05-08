@@ -1,0 +1,4 @@
+Version 1.5.103:
+
+🔧 Improvements:
+- Lists like filter, sync center and home no longer lose state (selection, scroll position) when scrolling or filtering. Visually identical — just steadier under load.
