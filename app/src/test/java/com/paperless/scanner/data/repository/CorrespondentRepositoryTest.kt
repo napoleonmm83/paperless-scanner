@@ -10,11 +10,11 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.CachedCorrespondent
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.testing.BaseRoomRepositoryTest
+import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -66,10 +66,12 @@ class CorrespondentRepositoryTest : BaseRoomRepositoryTest() {
     fun `observeCorrespondents emits cached entries from real DAO`() = runTest {
         cachedCorrespondentDao.insert(cached(id = 1, name = "Telekom", documentCount = 5))
 
-        val emitted = correspondentRepository.observeCorrespondents().first()
-
-        assertEquals(1, emitted.size)
-        assertEquals("Telekom", emitted[0].name)
+        correspondentRepository.observeCorrespondents().test {
+            val emitted = awaitItem()
+            assertEquals(1, emitted.size)
+            assertEquals("Telekom", emitted[0].name)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     // ---------------- Get (Offline-First) ----------------
