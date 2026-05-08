@@ -117,9 +117,14 @@ fun SuggestionsSection(
         label = "border_rotation"
     )
 
-    // Colors for the animated gradient border
+    // Colors for the animated gradient border.
+    // Dark: just primary (neon yellow). Light: primary (deep black) + tertiary
+    // (navy) so the gradient stays visible against the neon-yellow light-mode
+    // background. tertiary tracks the theme, so dark mode would also work if
+    // the gradient style ever needs a second color there.
     val isDarkTheme = isSystemInDarkTheme()
     val primaryColor = MaterialTheme.colorScheme.primary
+    val accentColor = MaterialTheme.colorScheme.tertiary
     val gradientColors = if (isDarkTheme) {
         // Dark mode: neon yellow primary with subtle variations
         listOf(
@@ -133,8 +138,8 @@ fun SuggestionsSection(
             primaryColor
         )
     } else {
-        // Light mode: use primary with a teal/cyan accent for contrast
-        val accentColor = Color(0xFF00BCD4) // Cyan/teal for light mode
+        // Light mode: use primary (deep black) + tertiary (navy) for contrast
+        // against the neon-yellow background.
         listOf(
             primaryColor,
             accentColor.copy(alpha = 0.8f),
