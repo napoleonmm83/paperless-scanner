@@ -104,6 +104,18 @@ class HttpAllowlistInterceptorTest {
     }
 
     @Test
+    fun `http to IPv6 loopback passes without allowlist entry`() {
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns emptySet()
+        val interceptor = HttpAllowlistInterceptor(holder)
+        val request = Request.Builder().url("http://[::1]:8000/api/").build()
+
+        val response = interceptor.intercept(chainFor(request))
+
+        assertEquals(200, response.code)
+    }
+
+    @Test
     fun `http to user-accepted host passes`() {
         val holder = mockk<HttpAllowlistHolder>()
         every { holder.snapshot() } returns setOf("paperless.lan")

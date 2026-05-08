@@ -71,6 +71,7 @@ class HttpAllowlistInterceptor @Inject constructor(
         private val HARD_ALLOWED_HOSTS: Set<String> = setOf(
             "localhost",
             "127.0.0.1",
+            "::1",
             "10.0.2.2",
         )
     }
