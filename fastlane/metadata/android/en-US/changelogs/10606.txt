@@ -1,0 +1,4 @@
+Version 1.5.106:
+
+🔧 Improvements:
+- Home: when a tag is renamed or recolored, the recently-added documents now reflect the change immediately. Previously a tag name could rarely be missing if documents and tags refreshed at almost the same time.
