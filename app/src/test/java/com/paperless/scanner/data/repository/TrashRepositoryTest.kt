@@ -193,20 +193,23 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
     }
 
     @Test
-    fun `observeOldestDeletedTimestamp returns minimum deletedAt from real DAO`() = runTest {
-        cachedDocumentDao.insertAll(
-            listOf(
-                cachedDoc(id = 1, deletedAt = 1_700_000_005_000L),
-                cachedDoc(id = 2, deletedAt = 1_700_000_000_000L),
-                cachedDoc(id = 3, deletedAt = 1_700_000_010_000L),
-            )
-        )
+    fun `observeOldestDeletedTimestamp reacts to inserts and emits the minimum deletedAt`() =
+        runTest {
+            repo.observeOldestDeletedTimestamp().test {
+                assertEquals(null, awaitItem()) // empty cache → no minimum
 
-        repo.observeOldestDeletedTimestamp().test {
-            assertEquals(1_700_000_000_000L, awaitItem())
-            cancelAndIgnoreRemainingEvents()
+                cachedDocumentDao.insertAll(
+                    listOf(
+                        cachedDoc(id = 1, deletedAt = 1_700_000_005_000L),
+                        cachedDoc(id = 2, deletedAt = 1_700_000_000_000L),
+                        cachedDoc(id = 3, deletedAt = 1_700_000_010_000L),
+                    )
+                )
+
+                assertEquals(1_700_000_000_000L, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
-    }
 
     @Test
     fun `getTrashDocuments online inserts cache and returns response`() = runTest {
@@ -272,9 +275,9 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         val result = repo.deleteDocument(1)
 
         assertTrue(result.isFailure)
-        coVerify { cachedDocumentDao.softDelete(eq(1), any()) }
-        coVerify { cachedDocumentDao.restoreDocument(1) }
-        // After rollback the doc must NOT be in the deleted set.
+        // The end-state assertion proves rollback against the real DB; the
+        // intermediate softDelete + restoreDocument calls are implementation
+        // detail and not asserted directly per the migration's spirit.
         assertTrue(!cachedDocumentDao.getDeletedIds().contains(1))
     }
 
