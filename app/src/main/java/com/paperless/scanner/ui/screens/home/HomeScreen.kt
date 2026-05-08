@@ -192,7 +192,7 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             // Offline Indicator
-            item {
+            item(key = "offline-indicator") {
                 com.paperless.scanner.ui.components.OfflineIndicator(
                     isOnline = isOnline,
                     pendingChanges = pendingChanges,
@@ -201,7 +201,7 @@ fun HomeScreen(
             }
 
             // Header with Last Synced Indicator
-            item {
+            item(key = "header") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -238,12 +238,12 @@ fun HomeScreen(
             }
 
             // Spacer
-            item {
+            item(key = "spacer-after-header") {
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Hero Document Card
-            item {
+            item(key = "hero-card") {
                 HeroDocumentCard(
                     totalDocuments = uiState.stats.totalDocuments,
                     processingCount = uiState.totalProcessingCount,
@@ -255,12 +255,12 @@ fun HomeScreen(
             }
 
             // Spacer
-            item {
+            item(key = "spacer-after-hero") {
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
             // Compact Stats Row (Sync, Tags, Trash)
-            item {
+            item(key = "stats-row") {
                 val daysUntilExpiration = uiState.oldestDeletedTimestamp?.let { timestamp ->
                     val retentionDays = 30
                     val expirationTime = timestamp + (retentionDays * 24 * 60 * 60 * 1000L)
@@ -285,13 +285,13 @@ fun HomeScreen(
             }
 
             // Spacer
-            item {
+            item(key = "spacer-after-stats") {
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
             // Processing Tasks Section (only show if there are tasks)
             if (uiState.processingTasks.isNotEmpty()) {
-                item {
+                item(key = "processing-tasks") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -373,13 +373,13 @@ fun HomeScreen(
                 }
 
                 // Spacer after processing tasks
-                item {
+                item(key = "spacer-after-processing") {
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
 
             // Recent Documents Section Header
-            item {
+            item(key = "recent-header") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -419,7 +419,7 @@ fun HomeScreen(
 
             // Empty state or document list
             if (uiState.recentDocuments.isEmpty()) {
-                item {
+                item(key = "empty-state") {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -534,7 +534,7 @@ fun HomeScreen(
             }
 
             // Bottom spacer
-            item {
+            item(key = "bottom-spacer") {
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

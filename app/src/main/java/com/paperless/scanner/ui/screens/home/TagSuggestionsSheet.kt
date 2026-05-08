@@ -340,7 +340,7 @@ private fun DocumentsList(
         }
 
         // Bottom spacing
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item(key = "bottom-spacer") { Spacer(modifier = Modifier.height(16.dp)) }
     }
 }
 

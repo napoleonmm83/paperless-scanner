@@ -110,7 +110,7 @@ fun DocumentFilterSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Header
-            item {
+            item(key = "header") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -141,7 +141,7 @@ fun DocumentFilterSheet(
             }
 
             // Active Filters Count
-            item {
+            item(key = "filter-count") {
                 val activeCount = editingFilter.activeFilterCount()
                 if (activeCount > 0) {
                     Text(
@@ -153,7 +153,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Tags (Multi-Select with Autocomplete)
-            item {
+            item(key = "section-tags") {
                 FilterSection(title = stringResource(R.string.filter_section_tags)) {
                     if (availableTags.isEmpty()) {
                         Text(
@@ -175,7 +175,7 @@ fun DocumentFilterSheet(
 
             // Section: Correspondent
             if (availableCorrespondents.isNotEmpty()) {
-                item {
+                item(key = "section-correspondent") {
                     FilterSection(title = stringResource(R.string.filter_section_correspondent)) {
                         EntityDropdown(
                             items = availableCorrespondents,
@@ -190,7 +190,7 @@ fun DocumentFilterSheet(
 
             // Section: Document Type
             if (availableDocumentTypes.isNotEmpty()) {
-                item {
+                item(key = "section-document-type") {
                     FilterSection(title = stringResource(R.string.filter_section_document_type)) {
                         EntityDropdown(
                             items = availableDocumentTypes,
@@ -204,7 +204,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Archive Status
-            item {
+            item(key = "section-archive-status") {
                 FilterSection(title = stringResource(R.string.filter_section_archive_status)) {
                     ArchiveStatusSelector(
                         hasArchiveSerialNumber = editingFilter.hasArchiveSerialNumber,
@@ -214,7 +214,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Created Date Range
-            item {
+            item(key = "section-created-date") {
                 DateRangePickerField(
                     label = stringResource(R.string.filter_section_created_date),
                     startDate = editingFilter.createdDateFrom,
@@ -229,7 +229,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Added Date Range
-            item {
+            item(key = "section-added-date") {
                 DateRangePickerField(
                     label = stringResource(R.string.filter_section_added_date),
                     startDate = editingFilter.addedDateFrom,
@@ -244,7 +244,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Modified Date Range
-            item {
+            item(key = "section-modified-date") {
                 DateRangePickerField(
                     label = stringResource(R.string.filter_section_modified_date),
                     startDate = editingFilter.modifiedDateFrom,
@@ -259,7 +259,7 @@ fun DocumentFilterSheet(
             }
 
             // Section: Sort
-            item {
+            item(key = "section-sort") {
                 FilterSection(title = stringResource(R.string.filter_section_sort)) {
                     SortDropdown(
                         currentSort = editingFilter.sortBy,
@@ -275,7 +275,7 @@ fun DocumentFilterSheet(
             }
 
             // Action Buttons
-            item {
+            item(key = "actions") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -305,7 +305,7 @@ fun DocumentFilterSheet(
             }
 
             // Bottom Spacing
-            item { Spacer(modifier = Modifier.height(16.dp)) }
+            item(key = "bottom-spacer") { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
