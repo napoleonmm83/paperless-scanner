@@ -208,8 +208,8 @@ class CorrespondentRepositoryTest : BaseRoomRepositoryTest() {
     @Test
     fun `deleteCorrespondent success soft-deletes the cached row`() = runTest {
         cachedCorrespondentDao.insert(cached(id = 1, name = "ToDelete"))
-        val mockResponse = mockk<retrofit2.Response<Unit>>(relaxed = true)
-        coEvery { api.deleteCorrespondent(1) } returns mockResponse
+        val successResponse = retrofit2.Response.success(Unit)
+        coEvery { api.deleteCorrespondent(1) } returns successResponse
 
         val result = correspondentRepository.deleteCorrespondent(1)
 
