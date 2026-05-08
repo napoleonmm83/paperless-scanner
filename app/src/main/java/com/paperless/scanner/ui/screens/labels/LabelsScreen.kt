@@ -324,7 +324,7 @@ fun LabelsScreen(
         ) {
             // Empty State
             if (uiState.entities.isEmpty() && !uiState.isLoading) {
-                item {
+                item(key = "empty-state") {
                     EntityEmptyState(entityType = uiState.currentEntityType)
                 }
             }

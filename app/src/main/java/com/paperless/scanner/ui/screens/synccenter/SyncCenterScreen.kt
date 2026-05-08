@@ -104,7 +104,7 @@ fun SyncCenterScreen(
                 // ==================== ACTIVE SECTION ====================
                 val hasActive = uiState.activeUploads.isNotEmpty() || uiState.pendingChanges.isNotEmpty()
                 if (hasActive) {
-                    item {
+                    item(key = "header-active") {
                         SectionHeader(
                             title = stringResource(R.string.sync_center_active),
                             count = uiState.activeCount,
@@ -114,7 +114,10 @@ fun SyncCenterScreen(
                     }
 
                     // Active Uploads
-                    items(uiState.activeUploads) { upload ->
+                    items(
+                        items = uiState.activeUploads,
+                        key = { "active-${it.id}" }
+                    ) { upload ->
                         ActiveUploadItem(
                             upload = upload,
                             onRetry = { viewModel.retryUpload(upload.id) },
@@ -123,19 +126,22 @@ fun SyncCenterScreen(
                     }
 
                     // Pending Changes
-                    items(uiState.pendingChanges) { change ->
+                    items(
+                        items = uiState.pendingChanges,
+                        key = { "pending-${it.id}" }
+                    ) { change ->
                         PendingChangeItem(
                             change = change,
                             onDelete = { viewModel.deletePendingChange(change.id) }
                         )
                     }
 
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    item(key = "spacer-active") { Spacer(modifier = Modifier.height(8.dp)) }
                 }
 
                 // ==================== FAILED SECTION ====================
                 if (uiState.failedItems.isNotEmpty()) {
-                    item {
+                    item(key = "header-failed") {
                         SectionHeader(
                             title = stringResource(R.string.sync_center_failed),
                             count = uiState.failedCount,
@@ -144,7 +150,10 @@ fun SyncCenterScreen(
                         )
                     }
 
-                    items(uiState.failedItems) { entry ->
+                    items(
+                        items = uiState.failedItems,
+                        key = { "failed-${it.id}" }
+                    ) { entry ->
                         HistoryItem(
                             entry = entry,
                             onDelete = { viewModel.deleteHistoryEntry(entry.id) },
@@ -152,13 +161,13 @@ fun SyncCenterScreen(
                         )
                     }
 
-                    item { Spacer(modifier = Modifier.height(8.dp)) }
+                    item(key = "spacer-failed") { Spacer(modifier = Modifier.height(8.dp)) }
                 }
 
                 // ==================== COMPLETED SECTION ====================
                 val successHistory = uiState.recentHistory.filter { it.status == SyncHistoryEntry.STATUS_SUCCESS }
                 if (successHistory.isNotEmpty()) {
-                    item {
+                    item(key = "header-completed") {
                         SectionHeader(
                             title = stringResource(R.string.sync_center_completed),
                             count = successHistory.size,
@@ -173,10 +182,13 @@ fun SyncCenterScreen(
                     }
 
                     groupedByDay.forEach { (dateKey, entries) ->
-                        item {
+                        item(key = "date-divider-$dateKey") {
                             DateDivider(dateKey = dateKey)
                         }
-                        items(entries) { entry ->
+                        items(
+                            items = entries,
+                            key = { "history-${it.id}" }
+                        ) { entry ->
                             HistoryItem(
                                 entry = entry,
                                 onDelete = { viewModel.deleteHistoryEntry(entry.id) },

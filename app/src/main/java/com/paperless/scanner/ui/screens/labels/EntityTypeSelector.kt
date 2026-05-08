@@ -213,7 +213,7 @@ private fun EntityTypeSelectorSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 8.dp)
             ) {
-                items(availableTypes) { type ->
+                items(availableTypes, key = { it.name }) { type ->
                     EntityTypeOptionCard(
                         entityType = type,
                         isSelected = type == selectedType,
