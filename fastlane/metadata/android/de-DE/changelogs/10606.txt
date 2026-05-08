@@ -1,0 +1,4 @@
+Version 1.5.106:
+
+🔧 Verbesserungen:
+- Startseite: Wenn ein Tag umbenannt oder neu eingefärbt wird, übernimmt die App das jetzt sofort bei den zuletzt hinzugefügten Dokumenten. Vorher konnte selten ein Tag-Name fehlen, wenn Dokumente und Tags fast gleichzeitig aktualisiert wurden.

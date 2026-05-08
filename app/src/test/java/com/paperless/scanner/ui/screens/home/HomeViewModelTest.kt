@@ -147,9 +147,56 @@ class HomeViewModelTest {
     fun `loadDashboardData completes without errors`() = runTest {
         val viewModel = createViewModel()
         runCurrent()
-        
+
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
         assertEquals(0, state.stats.totalDocuments)
+    }
+
+    /**
+     * Regression for Issue #68: tagMap was previously a `var Map` written
+     * from one collector and read from another. After the StateFlow refactor,
+     * recent documents combine() against the tag flow, so a late-arriving
+     * tag emission propagates into already-emitted documents instead of
+     * being lost in a partial-map race.
+     */
+    @Test
+    fun `tag updates propagate into recent documents reactively`() = runTest {
+        val tagFlow = MutableStateFlow<List<Tag>>(emptyList())
+        val docsFlow = MutableStateFlow<List<Document>>(emptyList())
+
+        every { tagRepository.observeTags() } returns tagFlow
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns docsFlow
+
+        val viewModel = createViewModel()
+        runCurrent()
+
+        // Document arrives first, referring to a tag the cache does not yet know.
+        docsFlow.value = listOf(
+            Document(
+                id = 1,
+                title = "Invoice",
+                created = "2026-01-01",
+                modified = "2026-01-01",
+                added = "2026-01-01",
+                tags = listOf(5)
+            )
+        )
+        advanceUntilIdle()
+
+        // Without reactive tagMap, tagName would stay null forever.
+        assertNull(viewModel.uiState.value.recentDocuments.firstOrNull()?.tagName)
+
+        // Tag arrives later — combine() must re-emit recent documents with the tag resolved.
+        tagFlow.value = listOf(Tag(id = 5, name = "Bills"))
+        advanceUntilIdle()
+
+        assertEquals("Bills", viewModel.uiState.value.recentDocuments.first().tagName)
+
+        // A tag rename must also propagate without needing a fresh document emission.
+        tagFlow.value = listOf(Tag(id = 5, name = "Renamed"))
+        advanceUntilIdle()
+
+        assertEquals("Renamed", viewModel.uiState.value.recentDocuments.first().tagName)
     }
 }

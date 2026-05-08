@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -216,7 +217,11 @@ class HomeViewModel @Inject constructor(
             initialValue = true
         )
 
-    private var tagMap: Map<Int, Tag> = emptyMap()
+    // Thread-safe tag cache. Written from observeTagsReactively, read by
+    // observeRecentDocumentsReactively (via combine) and on-demand from
+    // tag-suggestion code paths via .value. Atomic StateFlow setter replaces
+    // the previous unsynchronized `var Map`.
+    private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())
     private var wasOffline = false
 
     // Tag Suggestions Sheet state
@@ -255,29 +260,36 @@ class HomeViewModel @Inject constructor(
 
     /**
      * BEST PRACTICE: Reactive Flow for tags.
-     * Automatically updates tagMap when tags are added/modified/deleted.
+     * Atomically refreshes [_tagMap] when tags are added/modified/deleted.
      */
     private fun observeTagsReactively() {
         viewModelScope.launch {
             tagRepository.observeTags().collect { tags ->
-                tagMap = tags.associateBy { it.id }
+                _tagMap.value = tags.associateBy { it.id }
             }
         }
     }
 
     /**
      * BEST PRACTICE: Reactive Flow for recent documents.
-     * Automatically updates UI when documents are added/modified/deleted in DB.
+     *
+     * Combines the documents flow with [_tagMap] so a tag rename / recolor
+     * propagates to the recently-added cards immediately, instead of waiting
+     * for the next document update. Also removes the prior race where this
+     * collector could read a partial [_tagMap] mid-refresh.
      */
     private fun observeRecentDocumentsReactively() {
         viewModelScope.launch {
-            documentListRepository.observeDocuments(
-                page = 1,
-                pageSize = 5
-            ).collect { documents ->
-                val recentDocs = documents.map { doc ->
+            combine(
+                documentListRepository.observeDocuments(
+                    page = 1,
+                    pageSize = 5
+                ),
+                _tagMap
+            ) { documents, currentTagMap ->
+                documents.map { doc ->
                     val firstTagId = doc.tags.firstOrNull()
-                    val tag = firstTagId?.let { tagMap[it] }
+                    val tag = firstTagId?.let { currentTagMap[it] }
 
                     RecentDocument(
                         id = doc.id,
@@ -287,7 +299,7 @@ class HomeViewModel @Inject constructor(
                         tagColor = tag?.color?.let { parseColorToLong(it) }
                     )
                 }
-
+            }.collect { recentDocs ->
                 _uiState.update { currentState ->
                     currentState.copy(
                         recentDocuments = recentDocs,
@@ -1054,7 +1066,7 @@ class HomeViewModel @Inject constructor(
                 when (result) {
                     is SuggestionResult.Success -> {
                         // Separate suggested tags into existing and new
-                        val existingTags = tagMap.values.toList()
+                        val existingTags = _tagMap.value.values.toList()
 
                         // Find tags that exist in the system and pre-select them
                         val preSelectedIds = result.analysis.suggestedTags
