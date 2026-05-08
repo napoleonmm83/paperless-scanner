@@ -1,0 +1,4 @@
+Version 1.5.102:
+
+🔐 Sicherheit:
+- App-Backup schützt jetzt sensible Daten: Anmelde-Token, App-Sperre, Server-URL und Dokumenten-Cache werden weder in Cloud-Backups noch bei Geräte-Wechsel kopiert. Harmlose Einstellungen (Widget-Konfiguration, Theme) bleiben weiter im Backup.

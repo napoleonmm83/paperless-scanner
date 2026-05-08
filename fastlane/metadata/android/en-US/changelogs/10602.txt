@@ -1,0 +1,4 @@
+Version 1.5.102:
+
+🔐 Security:
+- App backup now protects sensitive data: auth token, app lock, server URL and document cache are no longer copied to cloud backups or device transfers. Harmless settings (widget config, theme) keep being backed up.

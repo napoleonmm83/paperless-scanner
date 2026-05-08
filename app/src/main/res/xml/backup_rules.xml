@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules (Android 6.0–11, API 23–30).
+
+    Excludes everything that is sensitive or device-bound. Anything not listed
+    here is included by default. For Android 12+ (API 31+), data_extraction_rules.xml
+    is consulted instead — keep the two files in sync.
+
+    Sensitive — never back up:
+    - paperless_secure_prefs        EncryptedSharedPreferences (auth token, AppLock hash,
+                                    login-lockout state). Encrypted with an Android
+                                    Keystore master key that does NOT roam with backups,
+                                    so a restored copy is unusable anyway, but excluding
+                                    it avoids broken-state recovery on first launch.
+    - paperless_settings.preferences_pb
+                                    DataStore (server URL, accepted cleartext-HTTP hosts,
+                                    AppLock configuration, filter state).
+    - paperless_scanner_db          Room database (cached document content / OCR).
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
+    <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
+    <exclude domain="database" path="paperless_scanner_db" />
+</full-backup-content>
