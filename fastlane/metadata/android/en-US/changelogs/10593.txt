@@ -1,0 +1,5 @@
+Version 1.5.93:
+
+🔧 Improvements:
+- Database tests now verify more modules with real logic
+- Stability improved through wider test coverage

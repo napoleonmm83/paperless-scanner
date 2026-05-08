@@ -1,25 +1,34 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.LargeTest
+import app.cash.turbine.test
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.database.dao.CachedDocumentDao
-import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.api.models.DocumentsResponse
+import com.paperless.scanner.data.database.dao.CachedDocumentDao
+import com.paperless.scanner.data.database.entities.CachedDocument
+import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
-class DocumentCountRepositoryTest {
+/**
+ * Repository tests for [DocumentCountRepository].
+ *
+ * Uses a real in-memory Room database (see [BaseRoomRepositoryTest]) so the
+ * count queries — including the RawQuery `getCountWithFilter` and the
+ * untagged-count Flow — execute against the actual schema. Documents are
+ * inserted via the real [CachedDocumentDao] and counts asserted on what
+ * Room actually returns.
+ */
+@LargeTest
+class DocumentCountRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var api: PaperlessApi
     private lateinit var dao: CachedDocumentDao
@@ -29,23 +38,59 @@ class DocumentCountRepositoryTest {
     @Before
     fun setup() {
         api = mockk(relaxed = true)
-        dao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        dao = database.cachedDocumentDao()
         repo = DocumentCountRepository(api, dao, networkMonitor)
     }
 
+    private fun doc(
+        id: Int,
+        tags: String = "[]",
+        isDeleted: Boolean = false,
+    ): CachedDocument = CachedDocument(
+        id = id,
+        title = "Doc $id",
+        content = null,
+        created = "2026-01-01",
+        modified = "2026-01-01",
+        added = "2026-01-01",
+        archiveSerialNumber = null,
+        originalFileName = null,
+        correspondent = null,
+        documentType = null,
+        storagePath = null,
+        tags = tags,
+        customFields = null,
+        isDeleted = isDeleted,
+    )
+
     @Test
-    fun `observeCountWithFilter delegates to dao getCountWithFilter`() = runTest {
-        every { dao.getCountWithFilter(any()) } returns flowOf(7)
-        val result = repo.observeCountWithFilter(searchQuery = "tax", filter = DocumentFilter.empty()).first()
-        assertEquals(7, result)
+    fun `observeCountWithFilter returns count from real DAO RawQuery`() = runTest {
+        // Insert 3 non-deleted documents — the empty filter should match all.
+        dao.insertAll(listOf(doc(id = 1), doc(id = 2), doc(id = 3)))
+
+        repo.observeCountWithFilter(searchQuery = null, filter = DocumentFilter.empty()).test {
+            assertEquals(3, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
-    fun `observeUntaggedDocumentsCount delegates to dao observeUntaggedCount`() = runTest {
-        every { dao.observeUntaggedCount() } returns flowOf(3)
-        val result = repo.observeUntaggedDocumentsCount().first()
-        assertEquals(3, result)
+    fun `observeUntaggedDocumentsCount counts only documents without tags`() = runTest {
+        // 2 untagged ("[]"), 1 tagged ("[5]"), 1 deleted (must be excluded).
+        dao.insertAll(
+            listOf(
+                doc(id = 1, tags = "[]"),
+                doc(id = 2, tags = "[]"),
+                doc(id = 3, tags = "[5]"),
+                doc(id = 4, tags = "[]", isDeleted = true),
+            )
+        )
+
+        repo.observeUntaggedDocumentsCount().test {
+            assertEquals(2, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -53,30 +98,38 @@ class DocumentCountRepositoryTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns true
         coEvery { api.getDocuments(page = 1, pageSize = 1) } returns
             DocumentsResponse(count = 42, next = null, previous = null, results = emptyList())
+
         val result = repo.getDocumentCount(forceRefresh = true)
+
         assertEquals(42, result.getOrNull())
     }
 
     @Test
     fun `getDocumentCount without forceRefresh and cache positive returns cached value`() = runTest {
-        coEvery { dao.getCount() } returns 11
+        // Insert 11 documents into real DB — getCount() returns the actual count.
+        dao.insertAll((1..11).map { doc(id = it) })
+
         val result = repo.getDocumentCount(forceRefresh = false)
+
         assertEquals(11, result.getOrNull())
     }
 
     @Test
     fun `getDocumentCount offline with empty cache returns success of 0`() = runTest {
-        coEvery { dao.getCount() } returns 0
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
+        every { networkMonitor.checkOnlineStatus() } returns false
+
         val result = repo.getDocumentCount(forceRefresh = false)
+
         assertEquals(0, result.getOrNull())
     }
 
     @Test
     fun `getDocumentCount with forceRefresh true and offline falls back to cache`() = runTest {
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
-        coEvery { dao.getCount() } returns 5
+        every { networkMonitor.checkOnlineStatus() } returns false
+        dao.insertAll((1..5).map { doc(id = it) })
+
         val result = repo.getDocumentCount(forceRefresh = true)
+
         assertEquals(5, result.getOrNull())
     }
 
@@ -84,14 +137,18 @@ class DocumentCountRepositoryTest {
     fun `getUntaggedCount returns count from API`() = runTest {
         coEvery { api.getDocuments(page = 1, pageSize = 1, tagsIsNull = true) } returns
             DocumentsResponse(count = 9, next = null, previous = null, results = emptyList())
+
         val result = repo.getUntaggedCount()
+
         assertEquals(9, result.getOrNull())
     }
 
     @Test
     fun `getUntaggedCount returns failure when API throws`() = runTest {
         coEvery { api.getDocuments(page = 1, pageSize = 1, tagsIsNull = true) } throws RuntimeException("boom")
+
         val result = repo.getUntaggedCount()
+
         assertTrue(result.isFailure)
         assertTrue(
             "expected PaperlessException, got ${result.exceptionOrNull()}",

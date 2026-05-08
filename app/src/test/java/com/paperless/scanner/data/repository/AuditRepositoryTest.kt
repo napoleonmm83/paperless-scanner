@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
+import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateNoteRequest
@@ -22,6 +23,15 @@ import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
 import retrofit2.Response
 
+/**
+ * Repository tests for [AuditRepository].
+ *
+ * Marked `@SmallTest` because [AuditRepository] has no Room DAO dependency —
+ * only `Context`, `PaperlessApi`, and `NetworkMonitor` — so this suite is a
+ * pure unit test (per Issue #137). Robolectric is still required for
+ * `Context` access.
+ */
+@SmallTest
 @RunWith(RobolectricTestRunner::class)
 class AuditRepositoryTest {
 
