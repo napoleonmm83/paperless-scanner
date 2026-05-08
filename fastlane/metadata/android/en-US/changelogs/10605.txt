@@ -1,0 +1,4 @@
+Version 1.5.105:
+
+🎨 Design:
+- Scan screen: Gallery and Files buttons now follow the app theme — no more bright blue/purple with unreadable black text in dark mode.

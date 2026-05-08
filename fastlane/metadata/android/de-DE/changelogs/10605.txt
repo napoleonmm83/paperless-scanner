@@ -1,0 +1,4 @@
+Version 1.5.105:
+
+🎨 Design:
+- Scan-Bildschirm: Galerie- und Dateien-Buttons folgen jetzt dem App-Design — kein helles Blau/Lila mehr im Dark Mode mit unleserlichem schwarzem Text.
