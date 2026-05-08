@@ -65,33 +65,40 @@ class DocumentCountRepositoryTest : BaseRoomRepositoryTest() {
     )
 
     @Test
-    fun `observeCountWithFilter returns count from real DAO RawQuery`() = runTest {
-        // Insert 3 non-deleted documents — the empty filter should match all.
-        dao.insertAll(listOf(doc(id = 1), doc(id = 2), doc(id = 3)))
-
+    fun `observeCountWithFilter reacts to inserts via real DAO RawQuery`() = runTest {
         repo.observeCountWithFilter(searchQuery = null, filter = DocumentFilter.empty()).test {
+            // Initial: empty cache → 0.
+            assertEquals(0, awaitItem())
+
+            // Mutate after subscription; the RawQuery must invalidate and re-emit.
+            dao.insertAll(listOf(doc(id = 1), doc(id = 2), doc(id = 3)))
+
             assertEquals(3, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `observeUntaggedDocumentsCount counts only documents without tags`() = runTest {
-        // 2 untagged ("[]"), 1 tagged ("[5]"), 1 deleted (must be excluded).
-        dao.insertAll(
-            listOf(
-                doc(id = 1, tags = "[]"),
-                doc(id = 2, tags = "[]"),
-                doc(id = 3, tags = "[5]"),
-                doc(id = 4, tags = "[]", isDeleted = true),
-            )
-        )
+    fun `observeUntaggedDocumentsCount reacts to inserts and ignores tagged or deleted rows`() =
+        runTest {
+            repo.observeUntaggedDocumentsCount().test {
+                // Initial: empty cache → 0.
+                assertEquals(0, awaitItem())
 
-        repo.observeUntaggedDocumentsCount().test {
-            assertEquals(2, awaitItem())
-            cancelAndIgnoreRemainingEvents()
+                // 2 untagged ("[]"), 1 tagged ("[5]"), 1 deleted (must be excluded).
+                dao.insertAll(
+                    listOf(
+                        doc(id = 1, tags = "[]"),
+                        doc(id = 2, tags = "[]"),
+                        doc(id = 3, tags = "[5]"),
+                        doc(id = 4, tags = "[]", isDeleted = true),
+                    )
+                )
+
+                assertEquals(2, awaitItem())
+                cancelAndIgnoreRemainingEvents()
+            }
         }
-    }
 
     @Test
     fun `getDocumentCount with forceRefresh true and online fetches from API`() = runTest {

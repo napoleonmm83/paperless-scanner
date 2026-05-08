@@ -68,13 +68,17 @@ class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
     // ---------------- Flow Reactivity ----------------
 
     @Test
-    fun `observeDocumentTypes emits cached entries from real DAO`() = runTest {
-        cachedDocumentTypeDao.insert(cached(id = 1, name = "Rechnung", documentCount = 10))
-
+    fun `observeDocumentTypes reacts to DAO mutations after subscription`() = runTest {
         documentTypeRepository.observeDocumentTypes().test {
-            val emitted = awaitItem()
-            assertEquals(1, emitted.size)
-            assertEquals("Rechnung", emitted[0].name)
+            // Initial emission — empty cache.
+            assertEquals(emptyList<com.paperless.scanner.domain.model.DocumentType>(), awaitItem())
+
+            // Mutate after subscription; Room must invalidate and re-emit.
+            cachedDocumentTypeDao.insert(cached(id = 1, name = "Rechnung", documentCount = 10))
+
+            val updated = awaitItem()
+            assertEquals(1, updated.size)
+            assertEquals("Rechnung", updated[0].name)
             cancelAndIgnoreRemainingEvents()
         }
     }
