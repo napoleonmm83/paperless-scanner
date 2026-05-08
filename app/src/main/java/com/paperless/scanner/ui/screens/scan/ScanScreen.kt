@@ -542,22 +542,24 @@ private fun ModeSelectionContent(
                 modifier = Modifier.weight(1f)
             )
 
-            // Gallery option - always light blue, needs dark text
+            // Gallery option - tertiary container (navy in both themes,
+            // pairs with onTertiaryContainer for guaranteed contrast)
             ScanOptionCard(
                 icon = Icons.Filled.PhotoLibrary,
                 label = stringResource(R.string.scan_option_gallery),
-                backgroundColor = Color(0xFF8DD7FF),
-                contentColor = Color.Black,
+                backgroundColor = MaterialTheme.colorScheme.tertiaryContainer,
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                 onClick = onGalleryClick,
                 modifier = Modifier.weight(1f)
             )
 
-            // Files option - always light purple, needs dark text
+            // Files option - secondary container (surface-variant in both
+            // themes, pairs with onSecondaryContainer)
             ScanOptionCard(
                 icon = Icons.Filled.FolderOpen,
                 label = stringResource(R.string.scan_option_files),
-                backgroundColor = Color(0xFFB88DFF),
-                contentColor = Color.Black,
+                backgroundColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 onClick = onFilesClick,
                 modifier = Modifier.weight(1f)
             )
