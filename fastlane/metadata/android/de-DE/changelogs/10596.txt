@@ -1,0 +1,5 @@
+Version 1.5.96:
+
+🔧 Verbesserungen:
+- Papierkorb-Tests gegen echte Datenbank-Logik
+- Rollback-Verhalten und Reihenfolge abgesichert
