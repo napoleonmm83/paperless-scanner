@@ -16,9 +16,17 @@
                                     DataStore (server URL, accepted cleartext-HTTP hosts,
                                     AppLock configuration, filter state).
     - paperless_scanner_db          Room database (cached document content / OCR).
+    - paperless_scanner_db-shm      Room WAL shared-memory companion. Empty on a clean
+                                    checkpoint, but a backup taken mid-write can contain
+                                    bytes from the main DB.
+    - paperless_scanner_db-wal      Room WAL journal. May hold uncheckpointed document
+                                    content / OCR — defeats the paperless_scanner_db
+                                    exclusion if not also excluded.
 -->
 <full-backup-content>
     <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
     <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
     <exclude domain="database" path="paperless_scanner_db" />
+    <exclude domain="database" path="paperless_scanner_db-shm" />
+    <exclude domain="database" path="paperless_scanner_db-wal" />
 </full-backup-content>
