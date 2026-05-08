@@ -1,0 +1,5 @@
+Version 1.5.95:
+
+🔧 Improvements:
+- Document metadata tests now use a real database
+- Tag count logic verified by integration tests

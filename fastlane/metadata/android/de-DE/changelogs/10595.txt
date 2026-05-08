@@ -1,0 +1,5 @@
+Version 1.5.95:
+
+🔧 Verbesserungen:
+- Dokument-Metadaten-Tests mit echter Datenbank
+- Tag-Zähler-Logik durch Integrationstests abgesichert

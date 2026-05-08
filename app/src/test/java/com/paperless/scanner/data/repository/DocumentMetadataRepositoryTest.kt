@@ -1,6 +1,8 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
+import androidx.test.filters.LargeTest
+import app.cash.turbine.test
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
@@ -10,16 +12,15 @@ import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsReques
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.entities.CachedDocument
+import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
@@ -28,13 +29,20 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import retrofit2.HttpException
 import retrofit2.Response
 
-@RunWith(RobolectricTestRunner::class)
-class DocumentMetadataRepositoryTest {
+/**
+ * Repository tests for [DocumentMetadataRepository].
+ *
+ * Uses a real in-memory Room database (see [BaseRoomRepositoryTest]) so the
+ * `cachedDocumentDao` + `cachedTagDao` operations execute against the actual
+ * schema. `DocumentSerializer` is also a real instance (Gson-based, no I/O).
+ * Mocked: `PaperlessApi`, `NetworkMonitor`, `Context`, and the
+ * `DocumentSyncRepository` collaborator (it has its own dedicated tests).
+ */
+@LargeTest
+class DocumentMetadataRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var context: Context
     private lateinit var api: PaperlessApi
@@ -49,9 +57,9 @@ class DocumentMetadataRepositoryTest {
     fun setup() {
         context = mockk(relaxed = true)
         api = mockk(relaxed = true)
-        cachedDocumentDao = mockk(relaxed = true)
-        cachedTagDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        cachedDocumentDao = database.cachedDocumentDao()
+        cachedTagDao = database.cachedTagDao()
         serializer = DocumentSerializer(Gson())
         sync = mockk(relaxed = true)
         // Default: executeOrQueue runs the online lambda (online happy path).
@@ -119,29 +127,36 @@ class DocumentMetadataRepositoryTest {
         deletedAt = null,
     )
 
+    private fun cachedTag(id: Int, name: String, documentCount: Int = 0) = CachedTag(
+        id = id,
+        name = name,
+        color = null,
+        match = null,
+        matchingAlgorithm = null,
+        isInboxTag = false,
+        documentCount = documentCount,
+    )
+
     private fun http404(): HttpException =
         HttpException(Response.error<Any>(404, "".toResponseBody(null)))
 
     // -------- tests --------
 
     @Test
-    fun `observeDocument maps null cached entity to null domain`() = runTest {
-        every { cachedDocumentDao.observeDocument(7) } returns flowOf(null)
+    fun `observeDocument emits null for missing id, then maps inserted entity to domain`() = runTest {
+        repo.observeDocument(7).test {
+            // Empty cache → null first.
+            assertNull(awaitItem())
 
-        val result = repo.observeDocument(7).first()
+            // Insert after subscription; Room must invalidate and re-emit a domain doc.
+            cachedDocumentDao.insert(cachedDoc(id = 7, title = "Hello"))
 
-        assertNull(result)
-    }
-
-    @Test
-    fun `observeDocument maps cached entity to domain document`() = runTest {
-        every { cachedDocumentDao.observeDocument(7) } returns flowOf(cachedDoc(id = 7, title = "Hello"))
-
-        val result = repo.observeDocument(7).first()
-
-        assertNotNull(result)
-        assertEquals(7, result!!.id)
-        assertEquals("Hello", result.title)
+            val mapped = awaitItem()
+            assertNotNull(mapped)
+            assertEquals(7, mapped!!.id)
+            assertEquals("Hello", mapped.title)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -154,14 +169,15 @@ class DocumentMetadataRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals(1, result.getOrNull()!!.id)
         assertEquals("API Doc", result.getOrNull()!!.title)
-        coVerify { cachedDocumentDao.insert(any()) }
+        // Real DB verification: cache row was actually written.
+        assertEquals("API Doc", cachedDocumentDao.getDocument(1)?.title)
     }
 
     @Test
     fun `getDocument online HttpException falls back to cache when cached`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns true
         coEvery { api.getDocument(1) } throws http404()
-        coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, title = "Cached")
+        cachedDocumentDao.insert(cachedDoc(id = 1, title = "Cached"))
 
         val result = repo.getDocument(1)
 
@@ -172,7 +188,7 @@ class DocumentMetadataRepositoryTest {
     @Test
     fun `getDocument offline with cache returns cached domain`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns false
-        coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, title = "Offline-Cached")
+        cachedDocumentDao.insert(cachedDoc(id = 1, title = "Offline-Cached"))
 
         val result = repo.getDocument(1, forceRefresh = false)
 
@@ -183,7 +199,6 @@ class DocumentMetadataRepositoryTest {
     @Test
     fun `getDocument offline without cache returns ClientError 404`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns false
-        coEvery { cachedDocumentDao.getDocument(1) } returns null
 
         val result = repo.getDocument(1, forceRefresh = false)
 
@@ -206,20 +221,25 @@ class DocumentMetadataRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals("Updated", result.getOrNull()!!.title)
         assertEquals("Updated", captured.captured.title)
-        coVerify { cachedDocumentDao.insert(any()) }
+        // Real DB verification: cache row was actually written.
+        assertEquals("Updated", cachedDocumentDao.getDocument(1)?.title)
     }
 
     @Test
     fun `updateDocument online with tag delta calls cachedTagDao updateDocumentCount`() = runTest {
-        // Old tags: [1, 2]; new tags: [2, 3] -> remove 1, add 3
-        coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, tagsJson = "[1,2]")
+        // Seed real tags so updateDocumentCount has rows to act on, and seed the
+        // document's old tag set [1, 2].
+        cachedTagDao.insertAll(listOf(cachedTag(1, "T1", 1), cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        cachedDocumentDao.insert(cachedDoc(id = 1, tagsJson = "[1,2]"))
         coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(2, 3))
 
         val result = repo.updateDocument(documentId = 1, tags = listOf(2, 3))
 
         assertTrue(result.isSuccess)
-        coVerify { cachedTagDao.updateDocumentCount(1, -1) }
-        coVerify { cachedTagDao.updateDocumentCount(3, 1) }
+        // Real DB verification: documentCount on tag 1 should drop, on tag 3 should rise.
+        assertEquals(0, cachedTagDao.getTag(1)?.documentCount) // 1 - 1
+        assertEquals(1, cachedTagDao.getTag(2)?.documentCount) // unchanged
+        assertEquals(1, cachedTagDao.getTag(3)?.documentCount) // 0 + 1
     }
 
     @Test
@@ -228,7 +248,7 @@ class DocumentMetadataRepositoryTest {
         coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
             Result.success(secondArg<suspend () -> Document>().invoke())
         }
-        coEvery { cachedDocumentDao.getDocument(1) } returns cachedDoc(id = 1, title = "Optimistic")
+        cachedDocumentDao.insert(cachedDoc(id = 1, title = "Optimistic"))
         val payloadSlot = slot<DocumentSyncRepository.DocumentUpdatePayload>()
         coEvery { sync.queueDocumentUpdate(eq(1), capture(payloadSlot)) } returns Unit
 
@@ -236,7 +256,6 @@ class DocumentMetadataRepositoryTest {
 
         assertTrue(result.isSuccess)
         assertEquals("Optimistic", result.getOrNull()!!.title)
-        coVerify { sync.queueDocumentUpdate(eq(1), any()) }
         assertEquals("New Title", payloadSlot.captured.title)
     }
 
@@ -247,13 +266,12 @@ class DocumentMetadataRepositoryTest {
         coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
             try {
                 Result.success(secondArg<suspend () -> Document>().invoke())
-            } catch (e: retrofit2.HttpException) {
+            } catch (e: HttpException) {
                 Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
             } catch (e: Exception) {
                 Result.failure(PaperlessException.from(e))
             }
         }
-        coEvery { cachedDocumentDao.getDocument(1) } returns null
         coEvery { sync.queueDocumentUpdate(any(), any()) } returns Unit
 
         val result = repo.updateDocument(documentId = 1, title = "Doesn't matter")
@@ -287,12 +305,12 @@ class DocumentMetadataRepositoryTest {
         assertEquals(5, captured.captured.owner)
         assertEquals(listOf(10, 11), captured.captured.setPermissions!!.view.users)
         assertEquals(listOf(40), captured.captured.setPermissions!!.change.groups)
-        coVerify { cachedDocumentDao.insert(any()) }
+        assertEquals("Perm", cachedDocumentDao.getDocument(1)?.title)
     }
 
     @Test
     fun `updateDocumentPermissions offline returns NetworkError`() = runTest {
-        coEvery { networkMonitor.checkOnlineStatus() } returns false
+        every { networkMonitor.checkOnlineStatus() } returns false
 
         val result = repo.updateDocumentPermissions(
             documentId = 1,
