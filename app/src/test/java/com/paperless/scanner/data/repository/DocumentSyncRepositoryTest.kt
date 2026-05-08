@@ -1,15 +1,13 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.LargeTest
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.database.dao.PendingChangeDao
-import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.health.ServerHealthMonitor
-import io.mockk.coEvery
-import io.mockk.coVerify
+import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -24,7 +22,16 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 
-class DocumentSyncRepositoryTest {
+/**
+ * Repository tests for [DocumentSyncRepository].
+ *
+ * Uses a real in-memory Room database (see [BaseRoomRepositoryTest]) so all
+ * `pendingChangeDao` writes go through the real schema; we then read the
+ * inserted rows back to assert their content. `ServerHealthMonitor` is a
+ * service collaborator and remains mocked.
+ */
+@LargeTest
+class DocumentSyncRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var pendingChangeDao: PendingChangeDao
     private lateinit var serverHealthMonitor: ServerHealthMonitor
@@ -33,8 +40,8 @@ class DocumentSyncRepositoryTest {
 
     @Before
     fun setup() {
-        pendingChangeDao = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
+        pendingChangeDao = database.pendingChangeDao()
         gson = Gson()
         repo = DocumentSyncRepository(pendingChangeDao, serverHealthMonitor, gson)
     }
@@ -43,22 +50,19 @@ class DocumentSyncRepositoryTest {
 
     @Test
     fun `queueDocumentUpdate writes PendingChange with gson-serialized payload`() = runTest {
-        val slot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(slot)) } returns 1L
-
         repo.queueDocumentUpdate(
             42,
             DocumentSyncRepository.DocumentUpdatePayload(title = "hello", tags = listOf(1, 2)),
         )
 
-        val captured = slot.captured
+        val rows = pendingChangeDao.getAll()
+        assertEquals(1, rows.size)
+        val captured = rows.first()
         assertEquals("document", captured.entityType)
         assertEquals(42, captured.entityId)
         assertEquals("update", captured.changeType)
-        // Verify JSON shape (gson default omits nulls, uses property names as keys)
         assertTrue(captured.changeData.contains("\"title\":\"hello\""))
         assertTrue(captured.changeData.contains("\"tags\":[1,2]"))
-        // Null fields are omitted
         assertFalse(captured.changeData.contains("correspondent"))
         assertFalse(captured.changeData.contains("documentType"))
     }
@@ -67,17 +71,15 @@ class DocumentSyncRepositoryTest {
     fun `queueDocumentUpdate handles title with embedded quotes safely`() = runTest {
         // BUG FIX VERIFICATION (#169): the previous buildString impl produced
         // invalid JSON for titles containing `"`. gson.toJson escapes correctly.
-        val slot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(slot)) } returns 1L
-
         repo.queueDocumentUpdate(
             7,
             DocumentSyncRepository.DocumentUpdatePayload(title = """He said "hi""""),
         )
 
+        val captured = pendingChangeDao.getAll().single()
         // The captured changeData must be valid JSON that round-trips back to the
         // original title via the same parser SyncManager uses.
-        val parsed = gson.fromJson(slot.captured.changeData, Map::class.java)
+        val parsed = gson.fromJson(captured.changeData, Map::class.java)
         @Suppress("UNCHECKED_CAST")
         val parsedMap = parsed as Map<String, Any?>
         assertEquals("""He said "hi"""", parsedMap["title"])
@@ -85,15 +87,12 @@ class DocumentSyncRepositoryTest {
 
     @Test
     fun `queueDocumentUpdate omits null payload fields from JSON`() = runTest {
-        val slot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(slot)) } returns 1L
-
         repo.queueDocumentUpdate(
             1,
             DocumentSyncRepository.DocumentUpdatePayload(title = "only title"),
         )
 
-        val json = slot.captured.changeData
+        val json = pendingChangeDao.getAll().single().changeData
         assertTrue(json.contains("title"))
         assertFalse("tags must be omitted", json.contains("tags"))
         assertFalse("correspondent must be omitted", json.contains("correspondent"))
@@ -106,15 +105,13 @@ class DocumentSyncRepositoryTest {
 
     @Test
     fun `queueDocumentDelete writes correct PendingChange`() = runTest {
-        val slot = slot<PendingChange>()
-        coEvery { pendingChangeDao.insert(capture(slot)) } returns 1L
-
         repo.queueDocumentDelete(99)
 
-        assertEquals("document", slot.captured.entityType)
-        assertEquals(99, slot.captured.entityId)
-        assertEquals("delete", slot.captured.changeType)
-        assertEquals("{}", slot.captured.changeData)
+        val captured = pendingChangeDao.getAll().single()
+        assertEquals("document", captured.entityType)
+        assertEquals(99, captured.entityId)
+        assertEquals("delete", captured.changeType)
+        assertEquals("{}", captured.changeData)
     }
 
     // ===== queueTrashAction =====
@@ -123,17 +120,20 @@ class DocumentSyncRepositoryTest {
     fun `queueTrashAction RESTORE writes one PendingChange per id with changeType restore`() = runTest {
         repo.queueTrashAction(listOf(1, 2, 3), DocumentSyncRepository.TrashAction.RESTORE)
 
-        coVerify(exactly = 1) { pendingChangeDao.insert(match { it.entityId == 1 && it.changeType == "restore" && it.entityType == "trash" }) }
-        coVerify(exactly = 1) { pendingChangeDao.insert(match { it.entityId == 2 && it.changeType == "restore" }) }
-        coVerify(exactly = 1) { pendingChangeDao.insert(match { it.entityId == 3 && it.changeType == "restore" }) }
+        val rows = pendingChangeDao.getAll()
+        assertEquals(3, rows.size)
+        assertTrue(rows.all { it.entityType == "trash" && it.changeType == "restore" })
+        assertEquals(setOf(1, 2, 3), rows.mapNotNull { it.entityId }.toSet())
     }
 
     @Test
     fun `queueTrashAction PERMANENT_DELETE writes one PendingChange per id with changeType delete`() = runTest {
         repo.queueTrashAction(listOf(7, 8), DocumentSyncRepository.TrashAction.PERMANENT_DELETE)
 
-        coVerify(exactly = 1) { pendingChangeDao.insert(match { it.entityId == 7 && it.changeType == "delete" && it.entityType == "trash" }) }
-        coVerify(exactly = 1) { pendingChangeDao.insert(match { it.entityId == 8 && it.changeType == "delete" }) }
+        val rows = pendingChangeDao.getAll()
+        assertEquals(2, rows.size)
+        assertTrue(rows.all { it.entityType == "trash" && it.changeType == "delete" })
+        assertEquals(setOf(7, 8), rows.mapNotNull { it.entityId }.toSet())
     }
 
     // ===== executeOrQueue =====

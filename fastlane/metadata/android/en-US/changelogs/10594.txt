@@ -1,0 +1,5 @@
+Version 1.5.94:
+
+🔧 Improvements:
+- More database tests run against real logic
+- Sync module verified with real writes

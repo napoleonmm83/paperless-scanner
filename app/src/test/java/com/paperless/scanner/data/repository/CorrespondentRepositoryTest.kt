@@ -68,13 +68,17 @@ class CorrespondentRepositoryTest : BaseRoomRepositoryTest() {
     // ---------------- Flow Reactivity ----------------
 
     @Test
-    fun `observeCorrespondents emits cached entries from real DAO`() = runTest {
-        cachedCorrespondentDao.insert(cached(id = 1, name = "Telekom", documentCount = 5))
-
+    fun `observeCorrespondents reacts to DAO mutations after subscription`() = runTest {
         correspondentRepository.observeCorrespondents().test {
-            val emitted = awaitItem()
-            assertEquals(1, emitted.size)
-            assertEquals("Telekom", emitted[0].name)
+            // Initial emission — empty cache.
+            assertEquals(emptyList<com.paperless.scanner.domain.model.Correspondent>(), awaitItem())
+
+            // Mutate after subscription; Room must invalidate and re-emit.
+            cachedCorrespondentDao.insert(cached(id = 1, name = "Telekom", documentCount = 5))
+
+            val updated = awaitItem()
+            assertEquals(1, updated.size)
+            assertEquals("Telekom", updated[0].name)
             cancelAndIgnoreRemainingEvents()
         }
     }
