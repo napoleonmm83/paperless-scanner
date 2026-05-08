@@ -9,6 +9,7 @@ import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
+import com.paperless.scanner.data.api.HttpAllowlistInterceptor
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.PendingUploadDao
@@ -170,7 +171,10 @@ object AppModule {
     @Provides
     @Singleton
     @AuthClient
-    fun provideAuthOkHttpClient(tokenManager: TokenManager): OkHttpClient {
+    fun provideAuthOkHttpClient(
+        tokenManager: TokenManager,
+        httpAllowlistInterceptor: HttpAllowlistInterceptor,
+    ): OkHttpClient {
         // Get default TrustManager
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         trustManagerFactory.init(null as java.security.KeyStore?)
@@ -185,6 +189,7 @@ object AppModule {
         sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
 
         return OkHttpClient.Builder()
+            .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor(createLoggingInterceptor())
             .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
             .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
@@ -228,12 +233,16 @@ object AppModule {
     fun provideOkHttpClient(
         tokenManager: TokenManager,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
+        httpAllowlistInterceptor: HttpAllowlistInterceptor,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(dynamicBaseUrlInterceptor)
+            // Allowlist must run AFTER URL rewrite (sees real host) and BEFORE
+            // the token interceptor (no auth-token leak to non-allowlisted hosts).
+            .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - runs on OkHttp thread pool, not main thread
                 val token = tokenManager.getTokenSync()
@@ -289,11 +298,14 @@ object AppModule {
     @PaperlessGptClient
     fun providePaperlessGptOkHttpClient(
         tokenManager: TokenManager,
-        paperlessGptBaseUrlInterceptor: PaperlessGptBaseUrlInterceptor
+        paperlessGptBaseUrlInterceptor: PaperlessGptBaseUrlInterceptor,
+        httpAllowlistInterceptor: HttpAllowlistInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(paperlessGptBaseUrlInterceptor)
+            // Allowlist must run AFTER URL rewrite and BEFORE the token interceptor.
+            .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - uses same token as Paperless-ngx
                 val token = tokenManager.getTokenSync()
@@ -588,7 +600,10 @@ object AppModule {
     @Provides
     @Singleton
     @Named("CoilOkHttpClient")
-    fun provideCoilOkHttpClient(tokenManager: TokenManager): OkHttpClient {
+    fun provideCoilOkHttpClient(
+        tokenManager: TokenManager,
+        httpAllowlistInterceptor: HttpAllowlistInterceptor,
+    ): OkHttpClient {
         // Get default TrustManager
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         trustManagerFactory.init(null as java.security.KeyStore?)
@@ -604,6 +619,8 @@ object AppModule {
 
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
+            // Allowlist must run BEFORE the auth-token interceptor.
+            .addInterceptor(httpAllowlistInterceptor)
             // Auth token interceptor for Paperless-ngx API
             .addInterceptor { chain ->
                 val token = tokenManager.getTokenSync()

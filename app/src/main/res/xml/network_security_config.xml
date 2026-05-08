@@ -1,9 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <!--
-    Allow cleartext (HTTP) traffic for all domains.
-    Required for self-hosted Paperless-ngx instances without HTTPS.
-    The app prefers HTTPS but falls back to HTTP when needed.
+    F-004 / Issue #31 — Cleartext HTTP enforcement is implemented at the
+    OkHttp layer, NOT here. See HttpAllowlistInterceptor + HttpAllowlistHolder.
+
+    Why base config still permits cleartext:
+    Android's NetworkSecurityConfig accepts only static hostnames or IP
+    literals — it cannot express CIDR ranges (RFC 1918 LAN), and the
+    framework has no public API to add domains at runtime. Self-hosted
+    Paperless-ngx installations on private networks (192.168.x.x, 10.x.x.x,
+    user-defined ports) require cleartext; encoding every possible LAN host
+    statically is infeasible.
+
+    Runtime gate (in HttpAllowlistInterceptor):
+      - HTTPS                            → pass through
+      - HTTP to localhost / 127.0.0.1 / 10.0.2.2 (loopback + emulator) → pass
+      - HTTP to user-accepted host       → pass + WARN log
+      - HTTP to anything else            → IOException, fail-closed before
+                                            socket open / token attached
     -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>

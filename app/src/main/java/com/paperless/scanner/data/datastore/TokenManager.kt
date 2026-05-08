@@ -694,6 +694,18 @@ class TokenManager(
     // HTTP Fallback Acceptance Settings
     // These track domains where user explicitly accepted insecure HTTP connection
 
+    /**
+     * Reactive view of the user-accepted cleartext-HTTP allowlist.
+     *
+     * Hosts are emitted lowercased and trimmed; blanks filtered out. Used by
+     * `HttpAllowlistHolder` to feed the OkHttp request hot path with a
+     * non-blocking snapshot.
+     */
+    val acceptedHttpHostsFlow: Flow<List<String>> = context.dataStore.data.map { preferences ->
+        val raw = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
+        raw.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+    }
+
     /** Check if a host has been accepted for insecure HTTP connections */
     fun isHostAcceptedForHttp(host: String): Boolean = runBlocking {
         val acceptedHosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
