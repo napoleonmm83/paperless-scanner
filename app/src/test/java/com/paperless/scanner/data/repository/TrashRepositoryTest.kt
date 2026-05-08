@@ -275,9 +275,14 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         val result = repo.deleteDocument(1)
 
         assertTrue(result.isFailure)
-        // The end-state assertion proves rollback against the real DB; the
-        // intermediate softDelete + restoreDocument calls are implementation
-        // detail and not asserted directly per the migration's spirit.
+        // Swipe-contract invariant: softDelete must happen BEFORE the API call,
+        // and restoreDocument must run AFTER the failed API call. End-state alone
+        // wouldn't catch a regression that called api.deleteDocument first.
+        coVerifyOrder {
+            cachedDocumentDao.softDelete(eq(1), any())
+            api.deleteDocument(1)
+            cachedDocumentDao.restoreDocument(1)
+        }
         assertTrue(!cachedDocumentDao.getDeletedIds().contains(1))
     }
 
@@ -447,8 +452,16 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         repo.cleanupOrphanedTrashDocs(setOf(1, 3))
 
         // 2 and 4 are local-only orphans → must be hard-deleted; 1 and 3 stay
-        // (still in the trashed set because all four were inserted as trashed).
+        // trashed. We assert both the trashed set AND the raw row set so a
+        // regression that merely cleared `isDeleted` (instead of DELETE FROM)
+        // would also fail.
         val remainingTrashedIds = cachedDocumentDao.getDeletedIds().toSet()
         assertEquals(setOf(1, 3), remainingTrashedIds)
+        // getAllIds() filters on isDeleted = 0, but the underlying SQLite
+        // query "SELECT id FROM cached_documents" via getDeletedIds + a count
+        // catch-all confirms 2 and 4 are physically gone.
+        val totalRowCount = cachedDocumentDao.getDeletedIds().size +
+            cachedDocumentDao.getAllIds().size
+        assertEquals(2, totalRowCount) // exactly rows 1 and 3 remain
     }
 }
