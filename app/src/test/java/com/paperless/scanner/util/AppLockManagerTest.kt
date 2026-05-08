@@ -374,27 +374,38 @@ class AppLockManagerTest {
     }
 
     @Test
-    fun `biometric is throttled when called twice in rapid succession (Issue #32)`() = runTest {
+    fun `biometric throttle blocks within 1s window and clears after (Issue #32)`() = runTest {
         // Defense-in-depth against a caller spamming unlockWithBiometric.
+        // Uses ShadowSystemClock to drive the clock deterministically rather
+        // than relying on Robolectric's default elapsedRealtime() == 0
+        // happening to round-trip through the throttle math.
         every { tokenManager.isAppLockBiometricEnabled() } returns true
         enableAppLock()
 
         val manager = newManager()
         assertTrue(manager.lockState.value is AppLockState.Locked)
 
-        // First call unlocks.
+        // Call 1: unlocks.
         manager.unlockWithBiometric()
         Thread.sleep(50)
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
 
-        // Re-lock the app and immediately call again — second call must be
-        // throttled (well under the 1s threshold).
+        // Re-lock; advance only 500 ms (still within the 1s throttle window).
         manager.lock()
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(500))
+
+        // Call 2: must be throttled — state stays Locked.
         manager.unlockWithBiometric()
         Thread.sleep(50)
-
-        // Throttled: state stays Locked.
         assertTrue(manager.lockState.value is AppLockState.Locked)
+
+        // Advance past the 1 s threshold.
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(550))
+
+        // Call 3: throttle window has elapsed — unlocks.
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
+        assertTrue(manager.lockState.value is AppLockState.Unlocked)
     }
 
     // ==================== Lock + Refresh ====================
