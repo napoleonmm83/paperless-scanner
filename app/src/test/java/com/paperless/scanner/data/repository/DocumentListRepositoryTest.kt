@@ -126,10 +126,13 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
     }
 
     @Test
-    fun `getDocumentsPaged constructs a non-null Pager flow`() = runTest {
-        // No paging-testing dep available; verify Pager flow is constructed and non-null.
-        val flow = repo.getDocumentsPaged(searchQuery = "tax", filter = DocumentFilter.empty())
-        assertNotNull(flow)
+    fun `getDocumentsPaged emits at least one PagingData`() = runTest {
+        // No paging-testing dep available — but Turbine can still verify the Pager
+        // flow actually emits, not just that it's a non-null reference.
+        repo.getDocumentsPaged(searchQuery = "tax", filter = DocumentFilter.empty()).test {
+            assertNotNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -149,6 +152,10 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
         // `ORDER BY added DESC` doesn't pin a specific id range — the page size is
         // what we actually assert.
         assertEquals(10, response.results.size)
+        // Cache-hit invariant: the network must NOT be touched.
+        coVerify(exactly = 0) {
+            api.getDocuments(any(), any(), any(), any(), any(), any(), any())
+        }
     }
 
     @Test
