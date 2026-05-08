@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Data extraction rules (Android 12+, API 31+).
+
+    Two scopes:
+    - <cloud-backup> covers Google Drive auto-backup.
+    - <device-transfer> covers device-to-device migration (Pixel, Samsung Smart
+      Switch, etc.).
+
+    Both scopes MUST exclude the same sensitive files; a leak via D2D is no less
+    severe than a leak via cloud backup. Keep the exclude list in sync with
+    backup_rules.xml (Android 6–11).
+
+    See backup_rules.xml for per-file rationale.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
+        <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
+        <exclude domain="database" path="paperless_scanner_db" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
+        <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
+        <exclude domain="database" path="paperless_scanner_db" />
+    </device-transfer>
+</data-extraction-rules>
