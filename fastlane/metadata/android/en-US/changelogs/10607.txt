@@ -1,0 +1,4 @@
+Version 1.5.107:
+
+🔧 Improvements:
+- Documents list: loading and error indicators while paging in more documents now behave more reliably when the state flips between loading and error.
