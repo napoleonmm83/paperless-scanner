@@ -144,7 +144,10 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
         assertEquals(25, response.count)
         assertNotNull(response.next)
         assertNotNull(response.previous)
-        // Page 2 of 10: ids 11..20 expected (depending on Room ordering by added DESC).
+        // Page 2 of 10 should yield exactly 10 results. Ordering is non-deterministic
+        // here because all 25 documents share the same `added` timestamp, so Room's
+        // `ORDER BY added DESC` doesn't pin a specific id range — the page size is
+        // what we actually assert.
         assertEquals(10, response.results.size)
     }
 
