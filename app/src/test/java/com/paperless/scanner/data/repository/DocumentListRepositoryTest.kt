@@ -13,6 +13,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.model.DocumentFilter
 import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -282,9 +283,9 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
         assertTrue(result.isSuccess)
         assertEquals(1, result.getOrNull()!!.size)
         assertEquals("Recent", result.getOrNull()!!.first().title)
-        // No API call made because cache had data — verifying via mocked api: no stub set, so
-        // any unintended call would throw. (mockk relaxed = true won't help here; we rely on
-        // strict-by-omission for this signal.)
+        coVerify(exactly = 0) {
+            api.getDocuments(any(), any(), any(), any(), any(), any(), any())
+        }
     }
 
     @Test
