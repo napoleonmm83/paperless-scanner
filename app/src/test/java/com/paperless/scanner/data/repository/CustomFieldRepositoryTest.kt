@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
 import com.paperless.scanner.data.api.models.CustomField
@@ -20,6 +21,14 @@ import retrofit2.HttpException
 import retrofit2.Response
 import java.io.IOException
 
+/**
+ * Repository tests for [CustomFieldRepository].
+ *
+ * Marked `@SmallTest` because [CustomFieldRepository] holds its cache in an
+ * in-memory `MutableStateFlow` (no Room DAO), so this suite exercises only
+ * the API + in-memory cache — pure unit test scope per Issue #137.
+ */
+@SmallTest
 class CustomFieldRepositoryTest {
 
     private lateinit var api: PaperlessApi

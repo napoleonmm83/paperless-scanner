@@ -1,5 +1,7 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.LargeTest
+import app.cash.turbine.test
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateDocumentTypeRequest
 import com.paperless.scanner.data.api.models.DocumentType
@@ -9,12 +11,11 @@ import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.CachedDocumentType
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -22,7 +23,19 @@ import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 
-class DocumentTypeRepositoryTest {
+/**
+ * Repository tests for [DocumentTypeRepository].
+ *
+ * Uses a real in-memory Room database (see [BaseRoomRepositoryTest]) so DAO
+ * behavior — observeDocumentTypes Flow, soft delete, REPLACE conflict
+ * strategy — is verified against the actual schema. Only `PaperlessApi` and
+ * `NetworkMonitor` are mocked.
+ *
+ * Marked `@LargeTest` because the suite exercises a real Room schema, which
+ * is heavier than pure unit tests (per Issue #137 acceptance criteria).
+ */
+@LargeTest
+class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var api: PaperlessApi
     private lateinit var cachedDocumentTypeDao: CachedDocumentTypeDao
@@ -33,9 +46,9 @@ class DocumentTypeRepositoryTest {
     @Before
     fun setup() {
         api = mockk()
-        cachedDocumentTypeDao = mockk(relaxed = true)
-        pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
+        cachedDocumentTypeDao = database.cachedDocumentTypeDao()
+        pendingChangeDao = database.pendingChangeDao()
         documentTypeRepository = DocumentTypeRepository(
             api,
             cachedDocumentTypeDao,
@@ -44,42 +57,38 @@ class DocumentTypeRepositoryTest {
         )
     }
 
-    // Flow Reactivity Tests
+    private fun cached(id: Int, name: String, documentCount: Int? = 0) = CachedDocumentType(
+        id = id,
+        name = name,
+        match = null,
+        matchingAlgorithm = null,
+        documentCount = documentCount
+    )
+
+    // ---------------- Flow Reactivity ----------------
+
     @Test
-    fun `observeDocumentTypes returns Flow from DAO`() = runTest {
-        val cachedTypes = listOf(
-            CachedDocumentType(
-                id = 1,
-                name = "Rechnung",
-                match = null,
-                matchingAlgorithm = null,
-                documentCount = 10,
-                isDeleted = false
-            )
-        )
-        every { cachedDocumentTypeDao.observeDocumentTypes() } returns flowOf(cachedTypes)
+    fun `observeDocumentTypes reacts to DAO mutations after subscription`() = runTest {
+        documentTypeRepository.observeDocumentTypes().test {
+            // Initial emission — empty cache.
+            assertEquals(emptyList<com.paperless.scanner.domain.model.DocumentType>(), awaitItem())
 
-        val result = documentTypeRepository.observeDocumentTypes().first()
+            // Mutate after subscription; Room must invalidate and re-emit.
+            cachedDocumentTypeDao.insert(cached(id = 1, name = "Rechnung", documentCount = 10))
 
-        assertEquals(1, result.size)
-        assertEquals("Rechnung", result[0].name)
+            val updated = awaitItem()
+            assertEquals(1, updated.size)
+            assertEquals("Rechnung", updated[0].name)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
-    // Get Tests (Offline-First)
+    // ---------------- Get (Offline-First) ----------------
+
     @Test
     fun `getDocumentTypes returns cached data when offline`() = runTest {
-        val cachedTypes = listOf(
-            CachedDocumentType(
-                id = 1,
-                name = "Vertrag",
-                match = null,
-                matchingAlgorithm = null,
-                documentCount = 5,
-                isDeleted = false
-            )
-        )
         every { networkMonitor.checkOnlineStatus() } returns false
-        coEvery { cachedDocumentTypeDao.getAllDocumentTypes() } returns cachedTypes
+        cachedDocumentTypeDao.insert(cached(id = 1, name = "Vertrag", documentCount = 5))
 
         val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
 
@@ -90,38 +99,29 @@ class DocumentTypeRepositoryTest {
     }
 
     @Test
-    fun `getDocumentTypes with forceRefresh fetches from API when online`() = runTest {
-        val apiTypes = listOf(
-            DocumentType(id = 1, name = "Rechnung"),
-            DocumentType(id = 2, name = "Brief")
-        )
-        every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { api.getDocumentTypes(page = 1, pageSize = 100) } returns DocumentTypesResponse(
-            count = 2,
-            results = apiTypes
-        )
+    fun `getDocumentTypes with forceRefresh fetches from API when online and persists cache`() =
+        runTest {
+            val apiTypes = listOf(
+                DocumentType(id = 1, name = "Rechnung"),
+                DocumentType(id = 2, name = "Brief")
+            )
+            every { networkMonitor.checkOnlineStatus() } returns true
+            coEvery { api.getDocumentTypes(page = 1, pageSize = 100) } returns
+                DocumentTypesResponse(count = 2, results = apiTypes)
 
-        val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
+            val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
 
-        assertTrue(result.isSuccess)
-        assertEquals(2, result.getOrNull()?.size)
-        coVerify(exactly = 1) { api.getDocumentTypes(page = 1, pageSize = 100) }
-        coVerify(exactly = 1) { cachedDocumentTypeDao.insertAll(any()) }
-    }
+            assertTrue(result.isSuccess)
+            assertEquals(2, result.getOrNull()?.size)
+            coVerify(exactly = 1) { api.getDocumentTypes(page = 1, pageSize = 100) }
+            val persisted = cachedDocumentTypeDao.getAllDocumentTypes().sortedBy { it.id }
+            assertEquals(listOf(1, 2), persisted.map { it.id })
+            assertEquals("Brief", persisted[1].name)
+        }
 
     @Test
     fun `getDocumentTypes without forceRefresh returns cache first`() = runTest {
-        val cachedTypes = listOf(
-            CachedDocumentType(
-                id = 1,
-                name = "Cached",
-                match = null,
-                matchingAlgorithm = null,
-                documentCount = 2,
-                isDeleted = false
-            )
-        )
-        coEvery { cachedDocumentTypeDao.getAllDocumentTypes() } returns cachedTypes
+        cachedDocumentTypeDao.insert(cached(id = 1, name = "Cached", documentCount = 2))
 
         val result = documentTypeRepository.getDocumentTypes(forceRefresh = false)
 
@@ -133,7 +133,6 @@ class DocumentTypeRepositoryTest {
     @Test
     fun `getDocumentTypes returns empty list when offline and cache empty`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns false
-        coEvery { cachedDocumentTypeDao.getAllDocumentTypes() } returns emptyList()
 
         val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
 
@@ -144,7 +143,6 @@ class DocumentTypeRepositoryTest {
     @Test
     fun `getDocumentTypes network error returns failure`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedDocumentTypeDao.getAllDocumentTypes() } returns emptyList()
         coEvery { api.getDocumentTypes(page = 1, pageSize = 100) } throws IOException("Network error")
 
         val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
@@ -153,9 +151,10 @@ class DocumentTypeRepositoryTest {
         assertTrue(result.exceptionOrNull()?.message?.contains("Network error") == true)
     }
 
-    // Create Tests (Cache Update for Flow Trigger)
+    // ---------------- Create ----------------
+
     @Test
-    fun `createDocumentType success returns new type and updates cache`() = runTest {
+    fun `createDocumentType success returns new type and inserts into cache`() = runTest {
         val newType = DocumentType(id = 10, name = "Quittung")
         coEvery { api.createDocumentType(any()) } returns newType
 
@@ -164,22 +163,25 @@ class DocumentTypeRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals("Quittung", result.getOrNull()?.name)
         coVerify { api.createDocumentType(CreateDocumentTypeRequest(name = "Quittung")) }
-        coVerify(exactly = 1) { cachedDocumentTypeDao.insert(any()) }
+        assertEquals("Quittung", cachedDocumentTypeDao.getDocumentType(10)?.name)
     }
 
     @Test
-    fun `createDocumentType network error returns failure`() = runTest {
+    fun `createDocumentType network error returns failure and leaves cache empty`() = runTest {
         coEvery { api.createDocumentType(any()) } throws IOException("Connection refused")
 
         val result = documentTypeRepository.createDocumentType("FailType")
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("Connection refused") == true)
+        assertEquals(0, cachedDocumentTypeDao.getAllDocumentTypes().size)
     }
 
-    // Update Tests (Cache Update for Flow Trigger)
+    // ---------------- Update ----------------
+
     @Test
-    fun `updateDocumentType success returns updated type and updates cache`() = runTest {
+    fun `updateDocumentType success returns updated type and replaces cache row`() = runTest {
+        cachedDocumentTypeDao.insert(cached(id = 1, name = "Old"))
         val updatedType = DocumentType(id = 1, name = "UpdatedType")
         coEvery { api.updateDocumentType(1, any()) } returns updatedType
 
@@ -188,7 +190,7 @@ class DocumentTypeRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals("UpdatedType", result.getOrNull()?.name)
         coVerify { api.updateDocumentType(1, UpdateDocumentTypeRequest(name = "UpdatedType")) }
-        coVerify(exactly = 1) { cachedDocumentTypeDao.insert(any()) }
+        assertEquals("UpdatedType", cachedDocumentTypeDao.getDocumentType(1)?.name)
     }
 
     @Test
@@ -201,26 +203,31 @@ class DocumentTypeRepositoryTest {
         assertTrue(result.exceptionOrNull()?.message?.contains("Timeout") == true)
     }
 
-    // Delete Tests (Cache Removal for Flow Trigger)
+    // ---------------- Delete ----------------
+
     @Test
-    fun `deleteDocumentType success removes from cache`() = runTest {
-        val mockResponse = mockk<retrofit2.Response<Unit>>(relaxed = true)
-        coEvery { api.deleteDocumentType(1) } returns mockResponse
+    fun `deleteDocumentType success soft-deletes the cached row`() = runTest {
+        cachedDocumentTypeDao.insert(cached(id = 1, name = "ToDelete"))
+        val successResponse = retrofit2.Response.success(Unit)
+        coEvery { api.deleteDocumentType(1) } returns successResponse
 
         val result = documentTypeRepository.deleteDocumentType(1)
 
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { api.deleteDocumentType(1) }
-        coVerify(exactly = 1) { cachedDocumentTypeDao.softDelete(1) }
+        assertEquals(0, cachedDocumentTypeDao.getAllDocumentTypes().size)
+        assertTrue(cachedDocumentTypeDao.getAllIds().contains(1))
     }
 
     @Test
-    fun `deleteDocumentType network error returns failure`() = runTest {
+    fun `deleteDocumentType network error returns failure and leaves cache untouched`() = runTest {
+        cachedDocumentTypeDao.insert(cached(id = 1, name = "Survivor"))
         coEvery { api.deleteDocumentType(any()) } throws IOException("Server error")
 
         val result = documentTypeRepository.deleteDocumentType(1)
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("Server error") == true)
+        assertEquals("Survivor", cachedDocumentTypeDao.getDocumentType(1)?.name)
     }
 }
