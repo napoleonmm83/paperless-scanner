@@ -1,0 +1,5 @@
+Version 1.5.94:
+
+🔧 Verbesserungen:
+- Mehr Datenbank-Tests laufen gegen echte Logik
+- Sync-Modul mit echten Schreibvorgängen abgesichert
