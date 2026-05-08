@@ -102,7 +102,7 @@ class DocumentCountRepositoryTest : BaseRoomRepositoryTest() {
 
     @Test
     fun `getDocumentCount with forceRefresh true and online fetches from API`() = runTest {
-        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        every { networkMonitor.checkOnlineStatus() } returns true
         coEvery { api.getDocuments(page = 1, pageSize = 1) } returns
             DocumentsResponse(count = 42, next = null, previous = null, results = emptyList())
 
