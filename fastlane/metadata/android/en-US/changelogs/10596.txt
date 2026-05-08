@@ -1,0 +1,5 @@
+Version 1.5.96:
+
+🔧 Improvements:
+- Trash tests now run against real database logic
+- Rollback behavior and operation ordering verified
