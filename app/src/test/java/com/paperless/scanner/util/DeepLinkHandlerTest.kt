@@ -169,4 +169,61 @@ class DeepLinkHandlerTest {
         val result = DeepLinkHandler.parseIntent(intent)
         assertNull(result)
     }
+
+    // ==================== Widget-style intent regression tests (Issue #111) ====================
+    //
+    // F-084 / Issue #111 claimed that explicit `ComponentName(MainActivity)` on a
+    // widget-launch intent "short-circuits implicit-deep-link resolution" so the
+    // AppLock interceptor wouldn't fire. The actual code path is:
+    //   parseIntent → checks ACTION_VIEW + intent.data only → ignores component
+    // and the AppLock defer is enforced downstream by `PaperlessNavGraph` reading
+    // `AppLockManager.lockState`. These tests pin the URI-parsing half of that
+    // contract so a regression where the component-set intent stops parsing
+    // correctly would fail loudly.
+
+    @Test
+    fun `parseIntent with widget-style explicit ComponentName still parses scan URI`() {
+        // Mirror exactly what ScannerWidget.createDeepLinkIntent does.
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("paperless://scan")).apply {
+            component = android.content.ComponentName(
+                "com.paperless.scanner",
+                "com.paperless.scanner.MainActivity",
+            )
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val result = DeepLinkHandler.parseIntent(intent)
+
+        assertEquals(DeepLinkAction.SCAN, result)
+    }
+
+    @Test
+    fun `parseIntent with widget-style explicit ComponentName still parses scan camera URI`() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("paperless://scan/camera")).apply {
+            component = android.content.ComponentName(
+                "com.paperless.scanner",
+                "com.paperless.scanner.MainActivity",
+            )
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val result = DeepLinkHandler.parseIntent(intent)
+
+        assertEquals(DeepLinkAction.SCAN_CAMERA, result)
+    }
+
+    @Test
+    fun `parseIntent with widget-style explicit ComponentName still parses status URI`() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("paperless://status")).apply {
+            component = android.content.ComponentName(
+                "com.paperless.scanner",
+                "com.paperless.scanner.MainActivity",
+            )
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val result = DeepLinkHandler.parseIntent(intent)
+
+        assertEquals(DeepLinkAction.STATUS, result)
+    }
 }

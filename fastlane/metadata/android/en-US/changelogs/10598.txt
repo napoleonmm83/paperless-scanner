@@ -1,0 +1,4 @@
+Version 1.5.98:
+
+🔧 Improvements:
+- Widget security documented and verified by tests

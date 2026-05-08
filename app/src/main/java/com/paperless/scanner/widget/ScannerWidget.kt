@@ -727,7 +727,25 @@ class ScannerWidget : GlanceAppWidget() {
 
     /**
      * Helper to create explicit DeepLink Intents.
-     * Direct Intent launch avoids Glance's callback trampoline crash on some devices.
+     *
+     * Direct Intent launch avoids Glance's callback trampoline crash on some
+     * devices (OnePlus / Samsung / Xiaomi / OPPO — see [WidgetDeviceChecker]).
+     *
+     * **AppLock interaction (Issue #111 / F-084 verified, 2026-05-08):** the
+     * explicit `ComponentName` does NOT bypass authentication. The AppLock
+     * defer is enforced downstream:
+     *  1. [MainActivity.onCreate] / `onNewIntent` calls
+     *     `DeepLinkHandler.parseIntent(intent)` and pushes the result into
+     *     `_pendingDeepLink`. `parseIntent` only inspects `ACTION_VIEW` +
+     *     `intent.data`, so the explicit component is irrelevant.
+     *  2. [com.paperless.scanner.util.AppLockManager] sets
+     *     `lockState = Locked` synchronously in its `init` when AppLock is
+     *     enabled and credentials are stored, before any deep link runs.
+     *  3. `PaperlessNavGraph` watches `lockState` in a `LaunchedEffect` and
+     *     defers the deep link until unlock.
+     *
+     * Regression tests for the URI-parsing half of this contract live in
+     * `DeepLinkHandlerTest` ("widget-style explicit ComponentName" cases).
      */
     private fun createDeepLinkIntent(context: Context, uri: String): Intent {
         return Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {

@@ -1,0 +1,4 @@
+Version 1.5.98:
+
+🔧 Verbesserungen:
+- Widget-Sicherheit dokumentiert und mit Tests abgesichert
