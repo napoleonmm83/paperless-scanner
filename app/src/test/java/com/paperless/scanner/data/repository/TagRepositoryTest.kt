@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.LargeTest
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateTagRequest
@@ -29,7 +30,11 @@ import java.io.IOException
  * behavior — onConflict REPLACE, soft delete, ordering, Flow emissions — is
  * verified for real instead of mocked away. Only the network/system boundary
  * collaborators (`PaperlessApi`, `NetworkMonitor`) are mocked.
+ *
+ * Marked `@LargeTest` because the suite exercises a real Room schema, which
+ * is heavier than pure unit tests (per Issue #137 acceptance criteria).
  */
+@LargeTest
 class TagRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var api: PaperlessApi

@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import androidx.test.filters.LargeTest
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.Correspondent
 import com.paperless.scanner.data.api.models.CorrespondentsResponse
@@ -29,7 +30,11 @@ import java.io.IOException
  * behavior — observeCorrespondents Flow, soft delete, REPLACE conflict
  * strategy — is verified against the actual schema. Only `PaperlessApi` and
  * `NetworkMonitor` are mocked.
+ *
+ * Marked `@LargeTest` because the suite exercises a real Room schema, which
+ * is heavier than pure unit tests (per Issue #137 acceptance criteria).
  */
+@LargeTest
 class CorrespondentRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var api: PaperlessApi
