@@ -1,0 +1,4 @@
+Version 1.5.107:
+
+🔧 Verbesserungen:
+- Dokumentenliste: Lade- und Fehleranzeige beim Nachladen weiterer Seiten verhalten sich jetzt verlässlicher, wenn der Zustand zwischen Laden und Fehler wechselt.

@@ -581,7 +581,7 @@ fun DocumentsScreen(
                 // Append LoadState (Loading at bottom while scrolling)
                 when (val appendState = pagedDocuments.loadState.append) {
                     is LoadState.Loading -> {
-                        item(span = { GridItemSpan(columns) }) {
+                        item(key = "append-loading", span = { GridItemSpan(columns) }) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -596,7 +596,7 @@ fun DocumentsScreen(
                         }
                     }
                     is LoadState.Error -> {
-                        item(span = { GridItemSpan(columns) }) {
+                        item(key = "append-error", span = { GridItemSpan(columns) }) {
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
