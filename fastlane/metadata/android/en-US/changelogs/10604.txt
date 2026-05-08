@@ -1,0 +1,4 @@
+Version 1.5.104:
+
+🎨 Design:
+- Suggestions on the upload screen: the animated border now matches the app theme (no more out-of-place cyan in light mode).
