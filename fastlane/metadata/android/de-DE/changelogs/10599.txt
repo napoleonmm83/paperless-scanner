@@ -1,0 +1,5 @@
+Version 1.5.99:
+
+🔐 Sicherheit:
+- App-Sperre: Biometrie respektiert PIN-Sperrzeit
+- Schutz gegen Bypass durch wiederholte Biometrie-Versuche

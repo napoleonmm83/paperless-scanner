@@ -351,7 +351,10 @@ class AppLockManagerTest {
     }
 
     @Test
-    fun `biometric works even during temporary lockout`() = runTest {
+    fun `biometric is rejected during temporary lockout (Issue #32)`() = runTest {
+        // Issue #32 changed the contract: biometric MUST NOT bypass the
+        // temporary PIN lockout, otherwise the 30-minute brute-force window
+        // can be circumvented via a biometric-spoof flaw or a coerced caller.
         every { tokenManager.isAppLockBiometricEnabled() } returns true
         enableAppLock()
         every { tokenManager.getAppLockFailedAttemptsSync() } returns 5
@@ -359,12 +362,39 @@ class AppLockManagerTest {
 
         val manager = newManager()
         assertTrue(manager.isInTemporaryLockout())
+        assertTrue(manager.lockState.value is AppLockState.LockedOut)
 
         manager.unlockWithBiometric()
         Thread.sleep(50)
 
-        // PIN would be blocked, but biometric bypasses the lockout window.
+        // Biometric must NOT have unlocked the app — state stays LockedOut.
+        assertTrue(manager.lockState.value is AppLockState.LockedOut)
+        // The lockout-clear side effects must not have fired.
+        coVerify(exactly = 0) { tokenManager.clearAppLockLockoutState() }
+    }
+
+    @Test
+    fun `biometric is throttled when called twice in rapid succession (Issue #32)`() = runTest {
+        // Defense-in-depth against a caller spamming unlockWithBiometric.
+        every { tokenManager.isAppLockBiometricEnabled() } returns true
+        enableAppLock()
+
+        val manager = newManager()
+        assertTrue(manager.lockState.value is AppLockState.Locked)
+
+        // First call unlocks.
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
+
+        // Re-lock the app and immediately call again — second call must be
+        // throttled (well under the 1s threshold).
+        manager.lock()
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
+
+        // Throttled: state stays Locked.
+        assertTrue(manager.lockState.value is AppLockState.Locked)
     }
 
     // ==================== Lock + Refresh ====================
