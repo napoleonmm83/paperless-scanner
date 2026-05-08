@@ -102,6 +102,10 @@ class AppLockManager @Inject constructor(
     private var suspendedBy: String? = null // For debugging
     private var autoResumeJob: Job? = null // Auto-resume coroutine job
 
+    // Biometric throttle (Issue #32) — uses SystemClock.elapsedRealtime() so a
+    // device clock change can't shorten or extend the throttle window.
+    private var lastBiometricAttemptTime: Long = 0L
+
     companion object {
         private const val TAG = "AppLockManager"
         private const val BCRYPT_ROUNDS = 10
@@ -112,6 +116,12 @@ class AppLockManager @Inject constructor(
         // SECURITY: Maximum time timeout can be suspended (10 minutes)
         // Prevents "permanently suspended" attack if resume() is never called
         private const val MAX_SUSPEND_DURATION_MILLIS = 10 * 60 * 1000L
+
+        // SECURITY: Minimum interval between biometric unlock attempts (Issue #32).
+        // Defense against a coerced caller spamming unlockWithBiometric().
+        // 1 second is short enough to not impact legitimate UX (BiometricPrompt
+        // can't fire faster than the user can dismiss + re-trigger anyway).
+        private const val BIOMETRIC_THROTTLE_MS = 1_000L
     }
 
     init {
@@ -233,18 +243,54 @@ class AppLockManager @Inject constructor(
 
     /**
      * Unlock app with biometric authentication.
-     * Should only be called after successful biometric authentication.
-     * NOTE: Biometric works even during temporary lockout (only PIN is blocked)
+     *
+     * Should only be called after successful biometric authentication via
+     * [androidx.biometric.BiometricPrompt]. The OS-level guarantee from
+     * BiometricPrompt is the primary defense; the checks below add
+     * defense-in-depth for Issue #32:
+     *
+     *  1. **Rate-limit** repeat invocations to one per
+     *     [BIOMETRIC_THROTTLE_MS] so a coerced caller can't spam-unlock.
+     *  2. **Respect PIN lockout** — biometric MUST NOT bypass the
+     *     temporary or permanent lockout state, otherwise the 30-minute
+     *     PIN brute-force window can be circumvented.
      */
     fun unlockWithBiometric() {
         scope.launch {
+            // Defense #1: throttle rapid-fire invocations.
+            // First call (lastBiometricAttemptTime == 0L) is always allowed —
+            // both for legitimate UX and because SystemClock.elapsedRealtime()
+            // can be 0 under Robolectric tests, which would otherwise spuriously
+            // throttle the first invocation.
+            val now = SystemClock.elapsedRealtime()
+            if (lastBiometricAttemptTime != 0L &&
+                now - lastBiometricAttemptTime < BIOMETRIC_THROTTLE_MS) {
+                Log.w(TAG, "unlockWithBiometric: throttled (${now - lastBiometricAttemptTime} ms since last attempt)")
+                return@launch
+            }
+            lastBiometricAttemptTime = now.coerceAtLeast(1L) // never re-arm to 0
+
+            // Defense #2: don't let biometric bypass the PIN lockout state.
+            // Per Issue #32 the previous "Biometric works even during temporary
+            // lockout" behavior was a vulnerability — an attacker that abuses
+            // a biometric-spoof flaw could circumvent the 30-minute lockout.
+            val currentState = _lockState.value
+            if (currentState is AppLockState.LockedOut) {
+                Log.w(TAG, "unlockWithBiometric: rejected, app is in lockout (permanent=${currentState.isPermanent})")
+                return@launch
+            }
+            if (isInTemporaryLockout()) {
+                Log.w(TAG, "unlockWithBiometric: rejected, in-memory lockout still active")
+                return@launch
+            }
+
             if (tokenManager.isAppLockBiometricEnabled()) {
-                // Reset all counters on successful biometric unlock
+                // Reset all counters on successful biometric unlock.
                 failedAttempts = 0
                 lockoutUntil = 0L
-                // SECURITY: Clear persisted lockout state
+                // SECURITY: Clear persisted lockout state.
                 tokenManager.clearAppLockLockoutState()
-                // Reset timestamp to current time so next lock check works correctly
+                // Reset timestamp to current time so next lock check works correctly.
                 backgroundTimestamp = System.currentTimeMillis()
                 _lockState.update { AppLockState.Unlocked }
                 Log.d(TAG, "unlockWithBiometric: Success, counters reset")

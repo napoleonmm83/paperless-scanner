@@ -351,7 +351,10 @@ class AppLockManagerTest {
     }
 
     @Test
-    fun `biometric works even during temporary lockout`() = runTest {
+    fun `biometric is rejected during temporary lockout (Issue #32)`() = runTest {
+        // Issue #32 changed the contract: biometric MUST NOT bypass the
+        // temporary PIN lockout, otherwise the 30-minute brute-force window
+        // can be circumvented via a biometric-spoof flaw or a coerced caller.
         every { tokenManager.isAppLockBiometricEnabled() } returns true
         enableAppLock()
         every { tokenManager.getAppLockFailedAttemptsSync() } returns 5
@@ -359,11 +362,48 @@ class AppLockManagerTest {
 
         val manager = newManager()
         assertTrue(manager.isInTemporaryLockout())
+        assertTrue(manager.lockState.value is AppLockState.LockedOut)
 
         manager.unlockWithBiometric()
         Thread.sleep(50)
 
-        // PIN would be blocked, but biometric bypasses the lockout window.
+        // Biometric must NOT have unlocked the app — state stays LockedOut.
+        // The state assertion is enough; no need to peek at collaborator calls.
+        assertTrue(manager.lockState.value is AppLockState.LockedOut)
+    }
+
+    @Test
+    fun `biometric throttle blocks within 1s window and clears after (Issue #32)`() = runTest {
+        // Defense-in-depth against a caller spamming unlockWithBiometric.
+        // Uses ShadowSystemClock to drive the clock deterministically rather
+        // than relying on Robolectric's default elapsedRealtime() == 0
+        // happening to round-trip through the throttle math.
+        every { tokenManager.isAppLockBiometricEnabled() } returns true
+        enableAppLock()
+
+        val manager = newManager()
+        assertTrue(manager.lockState.value is AppLockState.Locked)
+
+        // Call 1: unlocks.
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
+        assertTrue(manager.lockState.value is AppLockState.Unlocked)
+
+        // Re-lock; advance only 500 ms (still within the 1s throttle window).
+        manager.lock()
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(500))
+
+        // Call 2: must be throttled — state stays Locked.
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
+        assertTrue(manager.lockState.value is AppLockState.Locked)
+
+        // Advance past the 1 s threshold.
+        org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(550))
+
+        // Call 3: throttle window has elapsed — unlocks.
+        manager.unlockWithBiometric()
+        Thread.sleep(50)
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
     }
 

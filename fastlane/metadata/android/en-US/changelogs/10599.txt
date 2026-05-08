@@ -1,0 +1,5 @@
+Version 1.5.99:
+
+🔐 Security:
+- App lock: biometric now respects the PIN lockout window
+- Protected against bypass via rapid biometric retries
