@@ -1,0 +1,4 @@
+Version 1.5.104:
+
+🎨 Design:
+- Vorschläge im Upload-Bildschirm: animierter Rahmen passt sich jetzt korrekt an das App-Design an (kein fremdes Türkis mehr im Light Mode).
