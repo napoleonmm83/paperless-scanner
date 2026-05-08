@@ -137,7 +137,7 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
 
     @Test
     fun `getDocuments cache hit returns response with totalCount and next previous derivation`() = runTest {
-        // Insert 25 documents; page 2 size 10 should yield 2 results, next + previous non-null.
+        // Insert 25 documents; page 2 with size 10 should yield 10 results, with next/previous non-null.
         cachedDocumentDao.insertAll((1..25).map { cachedDoc(id = it) })
 
         val result = repo.getDocuments(page = 2, pageSize = 10, forceRefresh = false)
