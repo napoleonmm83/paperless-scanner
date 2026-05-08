@@ -1,0 +1,5 @@
+Version 1.5.92:
+
+🔧 Improvements:
+- Improved internal tests for more stability
+- Database tests now verify real logic

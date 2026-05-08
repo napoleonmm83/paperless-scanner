@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.Tag
@@ -7,8 +8,9 @@ import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.network.NetworkMonitor
-import com.google.gson.Gson
+import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -17,11 +19,18 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import java.io.IOException
 
-class TagRepositoryTest {
+/**
+ * Repository tests for [TagRepository].
+ *
+ * Uses a real in-memory Room database (see [BaseRoomRepositoryTest]) so DAO
+ * behavior — onConflict REPLACE, soft delete, ordering, Flow emissions — is
+ * verified for real instead of mocked away. Only the network/system boundary
+ * collaborators (`PaperlessApi`, `NetworkMonitor`) are mocked.
+ */
+class TagRepositoryTest : BaseRoomRepositoryTest() {
 
     private lateinit var api: PaperlessApi
     private lateinit var cachedTagDao: CachedTagDao
@@ -34,11 +43,11 @@ class TagRepositoryTest {
     @Before
     fun setup() {
         api = mockk()
-        cachedTagDao = mockk(relaxed = true)
-        cachedDocumentDao = mockk(relaxed = true)
-        pendingChangeDao = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
-        gson = mockk(relaxed = true)
+        cachedTagDao = database.cachedTagDao()
+        cachedDocumentDao = database.cachedDocumentDao()
+        pendingChangeDao = database.pendingChangeDao()
+        gson = Gson()
         tagRepository = TagRepository(
             api,
             cachedTagDao,
@@ -50,11 +59,8 @@ class TagRepositoryTest {
     }
 
     @Test
-    fun `getTags success returns list of tags`() = runTest {
-        // Mock: Online, cache empty, force refresh
+    fun `getTags success returns list of tags and persists them to cache`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedTagDao.getAllTags() } returns emptyList()
-
         val expectedTags = listOf(
             Tag(id = 1, name = "Invoice", color = "#ff0000"),
             Tag(id = 2, name = "Receipt", color = "#00ff00"),
@@ -70,24 +76,30 @@ class TagRepositoryTest {
         assertTrue(result.isSuccess)
         assertEquals(3, result.getOrNull()?.size)
         coVerify(exactly = 1) { api.getTags(page = 1, pageSize = 100) }
+        // Real DB verification: tags actually written and queryable
+        val cached = cachedTagDao.getAllTags().sortedBy { it.id }
+        assertEquals(listOf(1, 2, 3), cached.map { it.id })
+        assertEquals("Invoice", cached[0].name)
     }
 
     @Test
-    fun `getTags with empty list returns empty result`() = runTest {
+    fun `getTags with empty list returns empty result and leaves cache empty`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedTagDao.getAllTags() } returns emptyList()
-        coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(count = 0, results = emptyList())
+        coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(
+            count = 0,
+            results = emptyList()
+        )
 
         val result = tagRepository.getTags(forceRefresh = true)
 
         assertTrue(result.isSuccess)
         assertEquals(emptyList<com.paperless.scanner.domain.model.Tag>(), result.getOrNull())
+        assertEquals(0, cachedTagDao.getAllTags().size)
     }
 
     @Test
     fun `getTags network error returns failure`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns true
-        coEvery { cachedTagDao.getAllTags() } returns emptyList()
         coEvery { api.getTags(page = 1, pageSize = 100) } throws IOException("Network error")
 
         val result = tagRepository.getTags(forceRefresh = true)
@@ -98,7 +110,28 @@ class TagRepositoryTest {
     }
 
     @Test
-    fun `createTag success returns new tag`() = runTest {
+    fun `getTags returns cached data when offline`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns false
+        cachedTagDao.insert(
+            CachedTag(
+                id = 42,
+                name = "Cached",
+                color = null,
+                match = null,
+                matchingAlgorithm = null,
+                isInboxTag = false
+            )
+        )
+
+        val result = tagRepository.getTags(forceRefresh = true)
+
+        assertTrue(result.isSuccess)
+        assertEquals(listOf(42), result.getOrNull()?.map { it.id })
+        coVerify(exactly = 0) { api.getTags(any(), any()) }
+    }
+
+    @Test
+    fun `createTag success returns new tag and inserts into cache`() = runTest {
         val newTag = Tag(id = 10, name = "NewTag", color = "#abcdef")
         coEvery { api.createTag(any()) } returns newTag
 
@@ -108,6 +141,10 @@ class TagRepositoryTest {
         assertEquals("NewTag", result.getOrNull()?.name)
         assertEquals("#abcdef", result.getOrNull()?.color)
         coVerify { api.createTag(CreateTagRequest(name = "NewTag", color = "#abcdef")) }
+        // Real DB verification
+        val cached = cachedTagDao.getTag(10)
+        assertEquals("NewTag", cached?.name)
+        assertEquals("#abcdef", cached?.color)
     }
 
     @Test
@@ -119,16 +156,18 @@ class TagRepositoryTest {
 
         assertTrue(result.isSuccess)
         coVerify { api.createTag(CreateTagRequest(name = "NoColorTag", color = null)) }
+        assertEquals(null, cachedTagDao.getTag(11)?.color)
     }
 
     @Test
-    fun `createTag network error returns failure`() = runTest {
+    fun `createTag network error returns failure and leaves cache empty`() = runTest {
         coEvery { api.createTag(any()) } throws IOException("Connection refused")
 
         val result = tagRepository.createTag("FailTag", "#000000")
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull()?.message?.contains("Connection refused") == true)
+        assertEquals(0, cachedTagDao.getAllTags().size)
     }
 
     @Test
