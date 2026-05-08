@@ -727,7 +727,38 @@ class ScannerWidget : GlanceAppWidget() {
 
     /**
      * Helper to create explicit DeepLink Intents.
-     * Direct Intent launch avoids Glance's callback trampoline crash on some devices.
+     *
+     * Direct Intent launch avoids Glance's callback trampoline crash on some
+     * devices (OnePlus / Samsung / Xiaomi / OPPO — see [WidgetDeviceChecker]).
+     *
+     * **AppLock interaction (Issue #111 / F-084 verified, 2026-05-08):** the
+     * explicit `ComponentName` does NOT bypass authentication. The AppLock
+     * defer is enforced downstream:
+     *  1. [MainActivity.onCreate] / `onNewIntent` calls
+     *     `DeepLinkHandler.parseIntent(intent)` and pushes the result into
+     *     `_pendingDeepLink`. `parseIntent` only inspects `ACTION_VIEW` +
+     *     `intent.data`, so the explicit component is irrelevant.
+     *  2. [com.paperless.scanner.util.AppLockManager] sets
+     *     `lockState = Locked` synchronously in its `init` when AppLock is
+     *     enabled and credentials are stored, before any deep link runs.
+     *  3. `PaperlessNavGraph` watches `lockState` in a `LaunchedEffect` and
+     *     defers the deep link until unlock.
+     *
+     * Regression tests for the URI-parsing half of this contract live in
+     * `DeepLinkHandlerTest` ("widget-style explicit ComponentName" cases).
+     *
+     * **Manual verification path** (runs the full chain end-to-end):
+     *  1. Enable AppLock and store credentials, then fully background/kill
+     *     the app so `AppLockManager.lockState == Locked` on next launch.
+     *  2. Tap a widget action (e.g. camera/status). The intent built here
+     *     is parsed by `DeepLinkHandler.parseIntent` and pushed into
+     *     `MainActivity._pendingDeepLink`.
+     *  3. Confirm the unlock prompt appears BEFORE the deep-link destination
+     *     screen opens — `PaperlessNavGraph`'s `LaunchedEffect(pendingDeepLink,
+     *     lockState, ...)` must defer navigation while `lockState` is `Locked`
+     *     or `LockedOut`.
+     *  4. Unlock; confirm the deep-link destination (scan / status) then
+     *     opens, proving the deferred navigation resumes after unlock.
      */
     private fun createDeepLinkIntent(context: Context, uri: String): Intent {
         return Intent(Intent.ACTION_VIEW, Uri.parse(uri)).apply {
