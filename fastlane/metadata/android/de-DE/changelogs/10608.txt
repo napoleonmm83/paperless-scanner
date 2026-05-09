@@ -1,0 +1,4 @@
+Version 1.5.108:
+
+🔐 Sicherheit:
+- Auto-Backup: Vertrauliche App-Daten (Login, Einstellungen, Dokumenten-Cache) werden noch zuverlässiger von Android-Backups und Geräte-Übertragungen ausgeschlossen.
