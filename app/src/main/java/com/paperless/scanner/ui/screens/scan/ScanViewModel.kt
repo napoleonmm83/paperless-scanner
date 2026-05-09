@@ -402,6 +402,9 @@ class ScanViewModel @Inject constructor(
      *
      * Returns the post-commit state so callers can compare against a captured
      * pre-state for "did anything change?" checks (e.g. movePage analytics).
+     *
+     * On no-op (transform returns state unchanged), the sync still runs but is
+     * idempotent (same URIs already in [SavedStateHandle]).
      */
     private inline fun mutatePagesAndSync(
         crossinline transform: (ScanUiState) -> ScanUiState
@@ -588,6 +591,7 @@ class ScanViewModel @Inject constructor(
     }
 
     fun movePage(fromIndex: Int, toIndex: Int) {
+        // Safe: both reads and the CAS happen on Main (no other dispatcher can interleave).
         val pagesBefore = _uiState.value.pages
         val updated = mutatePagesAndSync { state ->
             if (fromIndex < 0 || fromIndex >= state.pageCount ||
