@@ -21,7 +21,10 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LabelsViewModelTest {
@@ -78,7 +81,7 @@ class LabelsViewModelTest {
         customFieldRepository = customFieldRepository
     )
 
-    @org.junit.Test
+    @Test
     fun `tab switch recomputes entities without manual trigger`() = runTest {
         tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
         correspondentFlow.value = listOf(Correspondent(id = 10, name = "Corr-X", documentCount = 0))
@@ -87,7 +90,7 @@ class LabelsViewModelTest {
         runCurrent()
 
         // Active tab defaults to TAG.
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Tag-A"),
             viewModel.uiState.value.entities.map { it.name }
         )
@@ -95,13 +98,13 @@ class LabelsViewModelTest {
         viewModel.setEntityType(EntityType.CORRESPONDENT)
         runCurrent()
 
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Corr-X"),
             viewModel.uiState.value.entities.map { it.name }
         )
     }
 
-    @org.junit.Test
+    @Test
     fun `search query update flows into uiState entities`() = runTest {
         tagFlow.value = listOf(
             Tag(id = 1, name = "Invoice", color = "#FFFFFF", documentCount = 0),
@@ -110,18 +113,18 @@ class LabelsViewModelTest {
 
         val viewModel = createViewModel()
         runCurrent()
-        org.junit.Assert.assertEquals(2, viewModel.uiState.value.entities.size)
+        assertEquals(2, viewModel.uiState.value.entities.size)
 
         viewModel.search("inv")
         runCurrent()
 
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Invoice"),
             viewModel.uiState.value.entities.map { it.name }
         )
     }
 
-    @org.junit.Test
+    @Test
     fun `late subscriber sees latest entities on first emission`() = runTest {
         tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
 
@@ -130,13 +133,13 @@ class LabelsViewModelTest {
 
         // Late subscriber: collect AFTER the source flow has emitted and the VM has processed it.
         val firstEmission = viewModel.uiState.value
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Tag-A"),
             firstEmission.entities.map { it.name }
         )
     }
 
-    @org.junit.Test
+    @Test
     fun `interleaved tag and correspondent emissions stay consistent on TAG tab`() = runTest {
         val viewModel = createViewModel()
         runCurrent()
@@ -146,7 +149,7 @@ class LabelsViewModelTest {
         correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = 0))
         runCurrent()
 
-        org.junit.Assert.assertTrue(
+        assertTrue(
             "uiState.entities must not contain a correspondent while TAG is the active tab",
             viewModel.uiState.value.entities.none { it.entityType == EntityType.CORRESPONDENT }
         )
@@ -155,7 +158,7 @@ class LabelsViewModelTest {
         tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
         runCurrent()
 
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Tag-A" to EntityType.TAG),
             viewModel.uiState.value.entities.map { it.name to it.entityType }
         )
@@ -165,7 +168,7 @@ class LabelsViewModelTest {
         viewModel.setEntityType(EntityType.CORRESPONDENT)
         runCurrent()
 
-        org.junit.Assert.assertEquals(
+        assertEquals(
             listOf("Corr-Leak" to EntityType.CORRESPONDENT),
             viewModel.uiState.value.entities.map { it.name to it.entityType }
         )
