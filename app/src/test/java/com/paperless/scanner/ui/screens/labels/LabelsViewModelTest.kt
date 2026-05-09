@@ -120,4 +120,19 @@ class LabelsViewModelTest {
             viewModel.uiState.value.entities.map { it.name }
         )
     }
+
+    @org.junit.Test
+    fun `late subscriber sees latest entities on first emission`() = runTest {
+        tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
+
+        val viewModel = createViewModel()
+        runCurrent()
+
+        // Late subscriber: collect AFTER the source flow has emitted and the VM has processed it.
+        val firstEmission = viewModel.uiState.value
+        org.junit.Assert.assertEquals(
+            listOf("Tag-A"),
+            firstEmission.entities.map { it.name }
+        )
+    }
 }
