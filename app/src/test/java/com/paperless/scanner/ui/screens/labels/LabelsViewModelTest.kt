@@ -1,6 +1,7 @@
 package com.paperless.scanner.ui.screens.labels
 
 import android.content.Context
+import app.cash.turbine.test
 import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.CustomFieldRepository
@@ -87,21 +88,32 @@ class LabelsViewModelTest {
         correspondentFlow.value = listOf(Correspondent(id = 10, name = "Corr-X", documentCount = 0))
 
         val viewModel = createViewModel()
-        runCurrent()
 
-        // Active tab defaults to TAG.
-        assertEquals(
-            listOf("Tag-A"),
-            viewModel.uiState.value.entities.map { it.name }
-        )
+        viewModel.uiState.test {
+            // Drive the combine pipeline and collect the settled state.
+            // expectMostRecentItem() drains all buffered emissions and returns the last one,
+            // avoiding fragile "skip N items" counts when intermediate settings-update
+            // emissions arrive between the combine re-derivation step.
+            runCurrent()
+            val initialState = expectMostRecentItem()
 
-        viewModel.setEntityType(EntityType.CORRESPONDENT)
-        runCurrent()
+            // Active tab defaults to TAG.
+            assertEquals(
+                listOf("Tag-A"),
+                initialState.entities.map { it.name }
+            )
 
-        assertEquals(
-            listOf("Corr-X"),
-            viewModel.uiState.value.entities.map { it.name }
-        )
+            viewModel.setEntityType(EntityType.CORRESPONDENT)
+            runCurrent()
+            val afterSwitch = expectMostRecentItem()
+
+            assertEquals(
+                listOf("Corr-X"),
+                afterSwitch.entities.map { it.name }
+            )
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -112,16 +124,23 @@ class LabelsViewModelTest {
         )
 
         val viewModel = createViewModel()
-        runCurrent()
-        assertEquals(2, viewModel.uiState.value.entities.size)
 
-        viewModel.search("inv")
-        runCurrent()
+        viewModel.uiState.test {
+            runCurrent()
+            val initialState = expectMostRecentItem()
+            assertEquals(2, initialState.entities.size)
 
-        assertEquals(
-            listOf("Invoice"),
-            viewModel.uiState.value.entities.map { it.name }
-        )
+            viewModel.search("inv")
+            runCurrent()
+            val filteredState = expectMostRecentItem()
+
+            assertEquals(
+                listOf("Invoice"),
+                filteredState.entities.map { it.name }
+            )
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -129,51 +148,72 @@ class LabelsViewModelTest {
         tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
 
         val viewModel = createViewModel()
+        // Drive the combine pipeline BEFORE subscribing — the settled StateFlow value
+        // will already reflect the tags, so a late subscriber's first awaitItem() directly
+        // returns the non-empty state. This is the strongest test of the StateFlow replay contract.
         runCurrent()
 
-        // Late subscriber: collect AFTER the source flow has emitted and the VM has processed it.
-        val firstEmission = viewModel.uiState.value
-        assertEquals(
-            listOf("Tag-A"),
-            firstEmission.entities.map { it.name }
-        )
+        viewModel.uiState.test {
+            val firstEmission = awaitItem()
+            assertEquals(
+                listOf("Tag-A"),
+                firstEmission.entities.map { it.name }
+            )
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `interleaved tag and correspondent emissions stay consistent on TAG tab`() = runTest {
         val viewModel = createViewModel()
-        runCurrent()
 
-        // Active tab is TAG. Emit on the correspondent flow first to ensure
-        // the unrelated source does not leak into uiState.entities.
-        correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = null))
-        runCurrent()
+        viewModel.uiState.test {
+            // Drive the initial combine pipeline. All source flows are empty so the combine
+            // produces entities=emptyList() — same as the StateFlow's initial value — and
+            // StateFlow suppresses the duplicate. expectMostRecentItem() returns whatever
+            // is buffered (the initial replay), then we proceed with mutations.
+            runCurrent()
+            expectMostRecentItem()
 
-        assertTrue(
-            "uiState.entities must not contain a correspondent while TAG is the active tab",
-            viewModel.uiState.value.entities.none { it.entityType == EntityType.CORRESPONDENT }
-        )
+            // Active tab is TAG. Emit on the correspondent flow first to ensure
+            // the unrelated source does not leak into uiState.entities.
+            // Because the TAG entity list is still empty, the combine produces the same
+            // empty entities list → StateFlow suppresses the duplicate → no new emission.
+            // We verify via the current snapshot value rather than awaitItem / expectMostRecentItem.
+            correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = null))
+            runCurrent()
 
-        // Now emit on the tag flow — this MUST land in uiState.entities.
-        tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
-        runCurrent()
+            assertTrue(
+                "uiState.entities must not contain a correspondent while TAG is the active tab",
+                viewModel.uiState.value.entities.none { it.entityType == EntityType.CORRESPONDENT }
+            )
 
-        assertEquals(
-            listOf("Tag-A" to EntityType.TAG),
-            viewModel.uiState.value.entities.map { it.name to it.entityType }
-        )
+            // Now emit on the tag flow — entities change → StateFlow emits a new item.
+            tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
+            runCurrent()
+            val afterTagEmit = expectMostRecentItem()
 
-        // Switch to CORRESPONDENT — the correspondent that arrived earlier must
-        // now be the visible state, with no tag bleed-through.
-        viewModel.setEntityType(EntityType.CORRESPONDENT)
-        runCurrent()
+            assertEquals(
+                listOf("Tag-A" to EntityType.TAG),
+                afterTagEmit.entities.map { it.name to it.entityType }
+            )
 
-        // documentCount = null in the domain model must be coalesced to 0 by the ViewModel mapping.
-        assertEquals(0, viewModel.uiState.value.entities.first().documentCount)
+            // Switch to CORRESPONDENT — the correspondent that arrived earlier must
+            // now be the visible state, with no tag bleed-through.
+            viewModel.setEntityType(EntityType.CORRESPONDENT)
+            runCurrent()
+            val afterTabSwitch = expectMostRecentItem()
 
-        assertEquals(
-            listOf("Corr-Leak" to EntityType.CORRESPONDENT),
-            viewModel.uiState.value.entities.map { it.name to it.entityType }
-        )
+            // documentCount = null in the domain model must be coalesced to 0 by the ViewModel mapping.
+            assertEquals(0, afterTabSwitch.entities.first().documentCount)
+
+            assertEquals(
+                listOf("Corr-Leak" to EntityType.CORRESPONDENT),
+                afterTabSwitch.entities.map { it.name to it.entityType }
+            )
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }
