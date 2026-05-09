@@ -655,11 +655,11 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun resetState() {
-        _uiState.update { LabelsUiState() }
         _allTags.value = emptyList()
         _allCorrespondents.value = emptyList()
         _allDocumentTypes.value = emptyList()
         _allCustomFields.value = emptyList()
+        _uiState.update { LabelsUiState() }
         refresh()
     }
 }
