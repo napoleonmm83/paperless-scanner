@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.google.gson.Gson
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
@@ -17,6 +18,7 @@ import com.paperless.scanner.util.AppLockManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -341,7 +343,7 @@ class ScanViewModelTest {
         viewModel.movePage(fromIndex = 0, toIndex = 10)
         advanceUntilIdle()
 
-        io.mockk.verify(exactly = 0) {
+        verify(exactly = 0) {
             analyticsService.trackEvent(any())
         }
     }
@@ -354,8 +356,8 @@ class ScanViewModelTest {
         viewModel.movePage(fromIndex = 0, toIndex = 2)
         advanceUntilIdle()
 
-        io.mockk.verify(exactly = 1) {
-            analyticsService.trackEvent(com.paperless.scanner.data.analytics.AnalyticsEvent.ScanPagesReordered)
+        verify(exactly = 1) {
+            analyticsService.trackEvent(AnalyticsEvent.ScanPagesReordered)
         }
     }
 
