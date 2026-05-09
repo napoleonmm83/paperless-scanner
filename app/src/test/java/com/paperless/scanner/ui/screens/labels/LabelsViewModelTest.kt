@@ -146,7 +146,7 @@ class LabelsViewModelTest {
 
         // Active tab is TAG. Emit on the correspondent flow first to ensure
         // the unrelated source does not leak into uiState.entities.
-        correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = 0))
+        correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = null))
         runCurrent()
 
         assertTrue(
@@ -167,6 +167,9 @@ class LabelsViewModelTest {
         // now be the visible state, with no tag bleed-through.
         viewModel.setEntityType(EntityType.CORRESPONDENT)
         runCurrent()
+
+        // documentCount = null in the domain model must be coalesced to 0 by the ViewModel mapping.
+        assertEquals(0, viewModel.uiState.value.entities.first().documentCount)
 
         assertEquals(
             listOf("Corr-Leak" to EntityType.CORRESPONDENT),
