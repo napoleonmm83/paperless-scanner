@@ -17,7 +17,8 @@
 ## Conventions used throughout
 
 - **JDK 21 must be exported on every Bash invocation:**
-  ```
+
+  ```bash
   export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-21.0.9.10-hotspot"
   export PATH="$JAVA_HOME/bin:$PATH"
   ```
@@ -264,6 +265,7 @@ Immediately AFTER `syncPagesToSavedState`, insert the new helper:
 - [ ] **Step 4.3: Rewrite `undoRemovePage` (currently L547-L563)**
 
 Find the current body:
+
 ```kotlin
     fun undoRemovePage() {
         _uiState.update { state ->
@@ -285,6 +287,7 @@ Find the current body:
 ```
 
 Replace with:
+
 ```kotlin
     fun undoRemovePage() {
         mutatePagesAndSync { state ->
@@ -309,6 +312,7 @@ The `syncPagesToSavedState(renumberedPages)` call is gone — `mutatePagesAndSyn
 - [ ] **Step 4.4: Rewrite `movePage` (currently L569-L587)**
 
 Find the current body:
+
 ```kotlin
     fun movePage(fromIndex: Int, toIndex: Int) {
         _uiState.update { state ->
@@ -332,6 +336,7 @@ Find the current body:
 ```
 
 Replace with:
+
 ```kotlin
     fun movePage(fromIndex: Int, toIndex: Int) {
         val pagesBefore = _uiState.value.pages
