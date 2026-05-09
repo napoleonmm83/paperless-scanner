@@ -16,6 +16,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -99,18 +102,54 @@ class LabelsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(LabelsUiState())
     val uiState: StateFlow<LabelsUiState> = _uiState.asStateFlow()
 
-    // Separate collections for each entity type (all as EntityItem)
-    private var allTags: List<EntityItem> = emptyList()
-    private var allCorrespondents: List<EntityItem> = emptyList()
-    private var allDocumentTypes: List<EntityItem> = emptyList()
-    private var allCustomFields: List<EntityItem> = emptyList()
+    // Source-of-truth StateFlows for each entity type — race-free, replayable.
+    private val _allTags = MutableStateFlow<List<EntityItem>>(emptyList())
+    private val _allCorrespondents = MutableStateFlow<List<EntityItem>>(emptyList())
+    private val _allDocumentTypes = MutableStateFlow<List<EntityItem>>(emptyList())
+    private val _allCustomFields = MutableStateFlow<List<EntityItem>>(emptyList())
+
+    // Settings tuple consumed by the reactive entities pipeline.
+    private data class ListSettings(
+        val type: EntityType,
+        val query: String,
+        val sort: LabelSortOption,
+        val filter: LabelFilterOption
+    )
 
     init {
-        // BEST PRACTICE: Start Flow observer FIRST, then trigger API refresh
+        // BEST PRACTICE: Start Flow observer FIRST, then trigger API refresh.
         observeTagsReactively()
         observeCorrespondentsReactively()
         observeDocumentTypesReactively()
         observeCustomFieldsReactively()
+
+        // Single reactive pipeline that derives uiState.entities from
+        // (active source flow) × (search/sort/filter settings). Replaces the
+        // old applyCurrentFilters() manual-trigger pattern.
+        viewModelScope.launch {
+            val settingsFlow = _uiState
+                .map { ListSettings(it.currentEntityType, it.searchQuery, it.sortOption, it.filterOption) }
+                .distinctUntilChanged()
+
+            combine(
+                _allTags,
+                _allCorrespondents,
+                _allDocumentTypes,
+                _allCustomFields,
+                settingsFlow
+            ) { tags, corr, docTypes, custom, settings ->
+                val active = when (settings.type) {
+                    EntityType.TAG            -> tags
+                    EntityType.CORRESPONDENT  -> corr
+                    EntityType.DOCUMENT_TYPE  -> docTypes
+                    EntityType.CUSTOM_FIELD   -> custom
+                }
+                applySearchFilterSortEntities(active, settings)
+            }.collect { processed ->
+                _uiState.update { it.copy(entities = processed) }
+            }
+        }
+
         detectCustomFieldsAvailability()
         refresh()
     }
@@ -162,18 +201,17 @@ class LabelsViewModel @Inject constructor(
      */
     private fun getActiveEntities(): List<EntityItem> {
         return when (_uiState.value.currentEntityType) {
-            EntityType.TAG -> allTags
-            EntityType.CORRESPONDENT -> allCorrespondents
-            EntityType.DOCUMENT_TYPE -> allDocumentTypes
-            EntityType.CUSTOM_FIELD -> allCustomFields
+            EntityType.TAG -> _allTags.value
+            EntityType.CORRESPONDENT -> _allCorrespondents.value
+            EntityType.DOCUMENT_TYPE -> _allDocumentTypes.value
+            EntityType.CUSTOM_FIELD -> _allCustomFields.value
         }
     }
 
     /**
-     * Switches the active entity type (tab change).
-     * Clears selection and reapplies current search/filter/sort to new entity type.
-     *
-     * @param type The entity type to switch to (TAG, CORRESPONDENT, DOCUMENT_TYPE, CUSTOM_FIELD)
+     * Switches the active entity type (tab change). Clears selection and pending document list.
+     * The reactive `combine` pipeline in `init` observes the change to `currentEntityType`
+     * and re-derives `uiState.entities` for the new tab without further action here.
      */
     fun setEntityType(type: EntityType) {
         _uiState.update {
@@ -181,25 +219,6 @@ class LabelsViewModel @Inject constructor(
                 currentEntityType = type,
                 selectedEntity = null,
                 documentsForEntity = emptyList()
-            )
-        }
-
-        // Reapply current filters to the new entity type
-        applyCurrentFilters()
-    }
-
-    /**
-     * Applies current search, filter, and sort settings to the active entity type.
-     * Updates the UI state with processed entities.
-     */
-    private fun applyCurrentFilters() {
-        val activeEntities = getActiveEntities()
-        val processed = applySearchFilterSortEntities(activeEntities, _uiState.value)
-
-        _uiState.update {
-            it.copy(
-                entities = processed,
-                isLoading = false
             )
         }
     }
@@ -212,8 +231,7 @@ class LabelsViewModel @Inject constructor(
     private fun observeTagsReactively() {
         viewModelScope.launch {
             tagRepository.observeTags().collect { tags ->
-                // Convert to EntityItem
-                allTags = tags.map { tag ->
+                _allTags.value = tags.map { tag ->
                     EntityItem(
                         id = tag.id,
                         name = tag.name,
@@ -221,18 +239,6 @@ class LabelsViewModel @Inject constructor(
                         documentCount = tag.documentCount ?: 0,
                         entityType = EntityType.TAG
                     )
-                }
-
-                // If Tags is the active entity type, update UI state
-                if (_uiState.value.currentEntityType == EntityType.TAG) {
-                    val processed = applySearchFilterSortEntities(allTags, _uiState.value)
-                    _uiState.update {
-                        it.copy(
-                            entities = processed,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
                 }
             }
         }
@@ -244,26 +250,13 @@ class LabelsViewModel @Inject constructor(
     private fun observeCorrespondentsReactively() {
         viewModelScope.launch {
             correspondentRepository.observeCorrespondents().collect { correspondents ->
-                // Convert to EntityItem
-                allCorrespondents = correspondents.map { correspondent ->
+                _allCorrespondents.value = correspondents.map { correspondent ->
                     EntityItem(
                         id = correspondent.id,
                         name = correspondent.name,
                         documentCount = correspondent.documentCount ?: 0,
                         entityType = EntityType.CORRESPONDENT
                     )
-                }
-
-                // If Correspondents is the active entity type, update UI state
-                if (_uiState.value.currentEntityType == EntityType.CORRESPONDENT) {
-                    val processed = applySearchFilterSortEntities(allCorrespondents, _uiState.value)
-                    _uiState.update {
-                        it.copy(
-                            entities = processed,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
                 }
             }
         }
@@ -275,26 +268,13 @@ class LabelsViewModel @Inject constructor(
     private fun observeDocumentTypesReactively() {
         viewModelScope.launch {
             documentTypeRepository.observeDocumentTypes().collect { documentTypes ->
-                // Convert to EntityItem
-                allDocumentTypes = documentTypes.map { documentType ->
+                _allDocumentTypes.value = documentTypes.map { documentType ->
                     EntityItem(
                         id = documentType.id,
                         name = documentType.name,
                         documentCount = documentType.documentCount ?: 0,
                         entityType = EntityType.DOCUMENT_TYPE
                     )
-                }
-
-                // If Document Types is the active entity type, update UI state
-                if (_uiState.value.currentEntityType == EntityType.DOCUMENT_TYPE) {
-                    val processed = applySearchFilterSortEntities(allDocumentTypes, _uiState.value)
-                    _uiState.update {
-                        it.copy(
-                            entities = processed,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
                 }
             }
         }
@@ -306,8 +286,7 @@ class LabelsViewModel @Inject constructor(
     private fun observeCustomFieldsReactively() {
         viewModelScope.launch {
             customFieldRepository.observeCustomFields().collect { customFields ->
-                // Convert to EntityItem
-                allCustomFields = customFields.map { customField ->
+                _allCustomFields.value = customFields.map { customField ->
                     EntityItem(
                         id = customField.id,
                         name = customField.name,
@@ -315,18 +294,6 @@ class LabelsViewModel @Inject constructor(
                         entityType = EntityType.CUSTOM_FIELD,
                         dataType = customField.dataType
                     )
-                }
-
-                // If Custom Fields is the active entity type, update UI state
-                if (_uiState.value.currentEntityType == EntityType.CUSTOM_FIELD) {
-                    val processed = applySearchFilterSortEntities(allCustomFields, _uiState.value)
-                    _uiState.update {
-                        it.copy(
-                            entities = processed,
-                            isLoading = false,
-                            error = null
-                        )
-                    }
                 }
             }
         }
@@ -338,17 +305,17 @@ class LabelsViewModel @Inject constructor(
      */
     private fun applySearchFilterSortEntities(
         entities: List<EntityItem>,
-        state: LabelsUiState
+        settings: ListSettings
     ): List<EntityItem> {
         // 1. Apply search
-        var result = if (state.searchQuery.isBlank()) {
+        var result = if (settings.query.isBlank()) {
             entities
         } else {
-            entities.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
+            entities.filter { it.name.contains(settings.query, ignoreCase = true) }
         }
 
         // 2. Apply filter
-        result = when (state.filterOption) {
+        result = when (settings.filter) {
             LabelFilterOption.ALL -> result
             LabelFilterOption.WITH_DOCUMENTS -> result.filter { it.documentCount > 0 }
             LabelFilterOption.EMPTY -> result.filter { it.documentCount == 0 }
@@ -356,7 +323,7 @@ class LabelsViewModel @Inject constructor(
         }
 
         // 3. Apply sort
-        result = when (state.sortOption) {
+        result = when (settings.sort) {
             LabelSortOption.NAME_ASC -> result.sortedBy { it.name.lowercase() }
             LabelSortOption.NAME_DESC -> result.sortedByDescending { it.name.lowercase() }
             LabelSortOption.COUNT_DESC -> result.sortedByDescending { it.documentCount }
@@ -418,22 +385,18 @@ class LabelsViewModel @Inject constructor(
 
     fun search(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        applyCurrentFilters()
     }
 
     fun setSortOption(option: LabelSortOption) {
         _uiState.update { it.copy(sortOption = option) }
-        applyCurrentFilters()
     }
 
     fun setFilterOption(option: LabelFilterOption) {
         _uiState.update { it.copy(filterOption = option) }
-        applyCurrentFilters()
     }
 
     fun setSortAndFilter(sort: LabelSortOption, filter: LabelFilterOption) {
         _uiState.update { it.copy(sortOption = sort, filterOption = filter) }
-        applyCurrentFilters()
     }
 
     fun resetSortAndFilter() {
@@ -443,7 +406,6 @@ class LabelsViewModel @Inject constructor(
                 filterOption = LabelFilterOption.ALL
             )
         }
-        applyCurrentFilters()
     }
 
     /**
@@ -473,8 +435,7 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
+                _uiState.update { it.copy(error = null) }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = getEntityErrorMessage("create", _uiState.value.currentEntityType))
@@ -513,8 +474,7 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
+                _uiState.update { it.copy(error = null) }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = getEntityErrorMessage("update", _uiState.value.currentEntityType))
@@ -568,12 +528,11 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
                 _uiState.update {
                     it.copy(
                         pendingDeleteEntity = null,
-                        isDeleting = false
+                        isDeleting = false,
+                        error = null
                     )
                 }
             }.onFailure { error ->
@@ -689,7 +648,6 @@ class LabelsViewModel @Inject constructor(
 
     fun clearSearch() {
         _uiState.update { it.copy(searchQuery = "") }
-        applyCurrentFilters()
     }
 
     fun clearError() {
@@ -697,11 +655,11 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun resetState() {
+        _allTags.value = emptyList()
+        _allCorrespondents.value = emptyList()
+        _allDocumentTypes.value = emptyList()
+        _allCustomFields.value = emptyList()
         _uiState.update { LabelsUiState() }
-        allTags = emptyList()
-        allCorrespondents = emptyList()
-        allDocumentTypes = emptyList()
-        allCustomFields = emptyList()
         refresh()
     }
 }
