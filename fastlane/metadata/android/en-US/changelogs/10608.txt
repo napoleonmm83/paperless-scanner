@@ -1,0 +1,4 @@
+Version 1.5.108:
+
+🔐 Security:
+- Auto Backup: sensitive app data (login, settings, document cache) is now more reliably excluded from Android backups and device transfers.
