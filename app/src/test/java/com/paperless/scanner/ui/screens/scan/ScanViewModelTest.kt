@@ -346,6 +346,19 @@ class ScanViewModelTest {
         }
     }
 
+    @Test
+    fun `movePage in-bounds fires analytics exactly once`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b", "c"))
+        advanceUntilIdle()
+
+        viewModel.movePage(fromIndex = 0, toIndex = 2)
+        advanceUntilIdle()
+
+        io.mockk.verify(exactly = 1) {
+            analyticsService.trackEvent(com.paperless.scanner.data.analytics.AnalyticsEvent.ScanPagesReordered)
+        }
+    }
+
     // ==================== clearPages ====================
 
     @Test
