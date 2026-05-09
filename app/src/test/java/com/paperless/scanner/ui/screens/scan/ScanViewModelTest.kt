@@ -333,6 +333,19 @@ class ScanViewModelTest {
         assertEquals("file:///tmp/b.jpg", pages[1].uri.toString())
     }
 
+    @Test
+    fun `movePage out-of-bounds does not fire analytics`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b"))
+        advanceUntilIdle()
+
+        viewModel.movePage(fromIndex = 0, toIndex = 10)
+        advanceUntilIdle()
+
+        io.mockk.verify(exactly = 0) {
+            analyticsService.trackEvent(any())
+        }
+    }
+
     // ==================== clearPages ====================
 
     @Test
