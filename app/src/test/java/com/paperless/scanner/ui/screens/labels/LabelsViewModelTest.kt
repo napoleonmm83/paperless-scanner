@@ -100,4 +100,24 @@ class LabelsViewModelTest {
             viewModel.uiState.value.entities.map { it.name }
         )
     }
+
+    @org.junit.Test
+    fun `search query update flows into uiState entities`() = runTest {
+        tagFlow.value = listOf(
+            Tag(id = 1, name = "Invoice", color = "#FFFFFF", documentCount = 0),
+            Tag(id = 2, name = "Receipt", color = "#FFFFFF", documentCount = 0)
+        )
+
+        val viewModel = createViewModel()
+        runCurrent()
+        org.junit.Assert.assertEquals(2, viewModel.uiState.value.entities.size)
+
+        viewModel.search("inv")
+        runCurrent()
+
+        org.junit.Assert.assertEquals(
+            listOf("Invoice"),
+            viewModel.uiState.value.entities.map { it.name }
+        )
+    }
 }
