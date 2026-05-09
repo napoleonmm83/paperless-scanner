@@ -300,8 +300,11 @@ class ScanViewModelTest {
 
         val urisAfterUndo = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
         assertNotNull(urisAfterUndo)
-        // After undo, three URIs are back.
-        assertEquals(3, urisAfterUndo!!.split("|").size)
+        val partsAfterUndo = urisAfterUndo!!.split("|")
+        assertEquals(3, partsAfterUndo.size)
+        assertTrue(partsAfterUndo.any { it.contains("a.jpg") })
+        assertTrue(partsAfterUndo.any { it.contains("b.jpg") })  // the restored page
+        assertTrue(partsAfterUndo.any { it.contains("c.jpg") })
     }
 
     // ==================== movePage ====================
