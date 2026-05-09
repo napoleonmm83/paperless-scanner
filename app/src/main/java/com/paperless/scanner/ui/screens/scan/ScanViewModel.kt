@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -390,6 +391,30 @@ class ScanViewModel @Inject constructor(
     }
 
     /**
+     * Atomically applies [transform] to the UI state via `updateAndGet`, then
+     * syncs the resulting pages to [SavedStateHandle] exactly once.
+     *
+     * The [transform] lambda is required to be pure: `MutableStateFlow.update`-
+     * family operators are allowed to invoke it multiple times under CAS
+     * contention, so any side effect inside the lambda would fire multiple
+     * times. The sync side-effect runs here, after the CAS commits, with the
+     * final committed state.
+     *
+     * Returns the post-commit state so callers can compare against a captured
+     * pre-state for "did anything change?" checks (e.g. movePage analytics).
+     *
+     * On no-op (transform returns state unchanged), the sync still runs but is
+     * idempotent (same URIs already in [SavedStateHandle]).
+     */
+    private inline fun mutatePagesAndSync(
+        crossinline transform: (ScanUiState) -> ScanUiState
+    ): ScanUiState {
+        val updated = _uiState.updateAndGet { state -> transform(state) }
+        syncPagesToSavedState(updated.pages)
+        return updated
+    }
+
+    /**
      * Observe AI usage limits reactively.
      */
     private fun observeUsageLimits() {
@@ -545,8 +570,8 @@ class ScanViewModel @Inject constructor(
     }
 
     fun undoRemovePage() {
-        _uiState.update { state ->
-            val removedPageInfo = state.lastRemovedPage ?: return@update state
+        mutatePagesAndSync { state ->
+            val removedPageInfo = state.lastRemovedPage ?: return@mutatePagesAndSync state
 
             val mutablePages = state.pages.toMutableList()
             mutablePages.add(removedPageInfo.originalIndex, removedPageInfo.page)
@@ -554,7 +579,6 @@ class ScanViewModel @Inject constructor(
             val renumberedPages = mutablePages.mapIndexed { index, page ->
                 page.copy(pageNumber = index + 1)
             }
-            syncPagesToSavedState(renumberedPages)
             state.copy(
                 pages = renumberedPages,
                 lastRemovedPage = null
@@ -567,13 +591,14 @@ class ScanViewModel @Inject constructor(
     }
 
     fun movePage(fromIndex: Int, toIndex: Int) {
-        _uiState.update { state ->
+        // Safe: both reads and the CAS happen on Main (no other dispatcher can interleave).
+        val pagesBefore = _uiState.value.pages
+        val updated = mutatePagesAndSync { state ->
             if (fromIndex < 0 || fromIndex >= state.pageCount ||
                 toIndex < 0 || toIndex >= state.pageCount) {
-                return@update state
+                return@mutatePagesAndSync state
             }
 
-            analyticsService.trackEvent(AnalyticsEvent.ScanPagesReordered)
             val mutablePages = state.pages.toMutableList()
             val page = mutablePages.removeAt(fromIndex)
             mutablePages.add(toIndex, page)
@@ -581,8 +606,10 @@ class ScanViewModel @Inject constructor(
             val renumberedPages = mutablePages.mapIndexed { index, p ->
                 p.copy(pageNumber = index + 1)
             }
-            syncPagesToSavedState(renumberedPages)
             state.copy(pages = renumberedPages)
+        }
+        if (updated.pages !== pagesBefore) {
+            analyticsService.trackEvent(AnalyticsEvent.ScanPagesReordered)
         }
     }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.google.gson.Gson
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
@@ -17,6 +18,7 @@ import com.paperless.scanner.util.AppLockManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -273,6 +275,38 @@ class ScanViewModelTest {
         assertTrue(pageUris.contains("c.jpg"))
     }
 
+    @Test
+    fun `undoRemovePage updates SavedStateHandle pageUris with restored page`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b", "c"))
+        advanceUntilIdle()
+
+        // Capture the original three URIs in the SavedStateHandle.
+        val urisBefore = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisBefore)
+
+        // Remove the middle page.
+        val midId = viewModel.uiState.value.pages[1].id
+        viewModel.removePage(midId)
+        advanceUntilIdle()
+
+        val urisAfterRemove = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisAfterRemove)
+        // After removal, two URIs remain.
+        assertEquals(2, urisAfterRemove!!.split("|").size)
+
+        // Undo the removal.
+        viewModel.undoRemovePage()
+        advanceUntilIdle()
+
+        val urisAfterUndo = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisAfterUndo)
+        val partsAfterUndo = urisAfterUndo!!.split("|")
+        assertEquals(3, partsAfterUndo.size)
+        assertTrue(partsAfterUndo.any { it.contains("a.jpg") })
+        assertTrue(partsAfterUndo.any { it.contains("b.jpg") })  // the restored page
+        assertTrue(partsAfterUndo.any { it.contains("c.jpg") })
+    }
+
     // ==================== movePage ====================
 
     @Test
@@ -302,6 +336,32 @@ class ScanViewModelTest {
         val pages = viewModel.uiState.value.pages
         assertEquals("file:///tmp/a.jpg", pages[0].uri.toString())
         assertEquals("file:///tmp/b.jpg", pages[1].uri.toString())
+    }
+
+    @Test
+    fun `movePage out-of-bounds does not fire analytics`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b"))
+        advanceUntilIdle()
+
+        viewModel.movePage(fromIndex = 0, toIndex = 10)
+        advanceUntilIdle()
+
+        verify(exactly = 0) {
+            analyticsService.trackEvent(any())
+        }
+    }
+
+    @Test
+    fun `movePage in-bounds fires analytics exactly once`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b", "c"))
+        advanceUntilIdle()
+
+        viewModel.movePage(fromIndex = 0, toIndex = 2)
+        advanceUntilIdle()
+
+        verify(exactly = 1) {
+            analyticsService.trackEvent(AnalyticsEvent.ScanPagesReordered)
+        }
     }
 
     // ==================== clearPages ====================
