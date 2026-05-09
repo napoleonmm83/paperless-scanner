@@ -273,6 +273,35 @@ class ScanViewModelTest {
         assertTrue(pageUris.contains("c.jpg"))
     }
 
+    @Test
+    fun `undoRemovePage updates SavedStateHandle pageUris with restored page`() = runTest {
+        val viewModel = viewModelWithPages(listOf("a", "b", "c"))
+        advanceUntilIdle()
+
+        // Capture the original three URIs in the SavedStateHandle.
+        val urisBefore = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisBefore)
+
+        // Remove the middle page.
+        val midId = viewModel.uiState.value.pages[1].id
+        viewModel.removePage(midId)
+        advanceUntilIdle()
+
+        val urisAfterRemove = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisAfterRemove)
+        // After removal, two URIs remain.
+        assertEquals(2, urisAfterRemove!!.split("|").size)
+
+        // Undo the removal.
+        viewModel.undoRemovePage()
+        advanceUntilIdle()
+
+        val urisAfterUndo = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertNotNull(urisAfterUndo)
+        // After undo, three URIs are back.
+        assertEquals(3, urisAfterUndo!!.split("|").size)
+    }
+
     // ==================== movePage ====================
 
     @Test
