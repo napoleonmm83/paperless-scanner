@@ -435,8 +435,7 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
+                _uiState.update { it.copy(error = null) }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = getEntityErrorMessage("create", _uiState.value.currentEntityType))
@@ -475,8 +474,7 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
+                _uiState.update { it.copy(error = null) }
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(error = getEntityErrorMessage("update", _uiState.value.currentEntityType))
@@ -530,12 +528,11 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                // BEST PRACTICE: No manual refresh needed!
-                // Reactive observers automatically update UI.
                 _uiState.update {
                     it.copy(
                         pendingDeleteEntity = null,
-                        isDeleting = false
+                        isDeleting = false,
+                        error = null
                     )
                 }
             }.onFailure { error ->
