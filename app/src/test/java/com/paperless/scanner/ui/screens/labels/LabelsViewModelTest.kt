@@ -135,4 +135,39 @@ class LabelsViewModelTest {
             firstEmission.entities.map { it.name }
         )
     }
+
+    @org.junit.Test
+    fun `interleaved tag and correspondent emissions stay consistent on TAG tab`() = runTest {
+        val viewModel = createViewModel()
+        runCurrent()
+
+        // Active tab is TAG. Emit on the correspondent flow first to ensure
+        // the unrelated source does not leak into uiState.entities.
+        correspondentFlow.value = listOf(Correspondent(id = 99, name = "Corr-Leak", documentCount = 0))
+        runCurrent()
+
+        org.junit.Assert.assertTrue(
+            "uiState.entities must not contain a correspondent while TAG is the active tab",
+            viewModel.uiState.value.entities.none { it.entityType == EntityType.CORRESPONDENT }
+        )
+
+        // Now emit on the tag flow — this MUST land in uiState.entities.
+        tagFlow.value = listOf(Tag(id = 1, name = "Tag-A", color = "#FFFFFF", documentCount = 0))
+        runCurrent()
+
+        org.junit.Assert.assertEquals(
+            listOf("Tag-A" to EntityType.TAG),
+            viewModel.uiState.value.entities.map { it.name to it.entityType }
+        )
+
+        // Switch to CORRESPONDENT — the correspondent that arrived earlier must
+        // now be the visible state, with no tag bleed-through.
+        viewModel.setEntityType(EntityType.CORRESPONDENT)
+        runCurrent()
+
+        org.junit.Assert.assertEquals(
+            listOf("Corr-Leak" to EntityType.CORRESPONDENT),
+            viewModel.uiState.value.entities.map { it.name to it.entityType }
+        )
+    }
 }
