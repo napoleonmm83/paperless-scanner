@@ -209,10 +209,9 @@ class LabelsViewModel @Inject constructor(
     }
 
     /**
-     * Switches the active entity type (tab change).
-     * Clears selection and reapplies current search/filter/sort to new entity type.
-     *
-     * @param type The entity type to switch to (TAG, CORRESPONDENT, DOCUMENT_TYPE, CUSTOM_FIELD)
+     * Switches the active entity type (tab change). Clears selection and pending document list.
+     * The reactive `combine` pipeline in `init` observes the change to `currentEntityType`
+     * and re-derives `uiState.entities` for the new tab without further action here.
      */
     fun setEntityType(type: EntityType) {
         _uiState.update {
