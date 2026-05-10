@@ -15,6 +15,7 @@ import com.paperless.scanner.data.repository.CustomFieldRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import app.cash.turbine.test
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -170,5 +171,24 @@ class UploadViewModelInitTest {
         val viewModel = buildViewModel(savedStateHandle = SavedStateHandle())
 
         assertEquals(emptyList<Uri>(), viewModel.documentUris.value)
+    }
+
+    @Test
+    fun `documentUris first emission to a fresh subscriber is the populated list, never empty`() = runTest {
+        val uri = Uri.parse("content://media/external/images/media/789")
+        val encoded = Uri.encode(uri.toString())
+        val savedStateWithNavArg = SavedStateHandle(mapOf(UploadViewModel.KEY_DOCUMENT_URIS to encoded))
+
+        val viewModel = buildViewModel(savedStateHandle = savedStateWithNavArg)
+
+        viewModel.documentUris.test {
+            // First emission MUST be the populated list. If we ever see an empty one first,
+            // the LaunchedEffect(observedDocumentUris) in MultiPageUploadScreen would fire twice
+            // and dependent flows would race.
+            assertEquals(listOf(uri), awaitItem())
+            // No further emissions: the StateFlow has reached its terminal value.
+            expectNoEvents()
+            cancelAndConsumeRemainingEvents()
+        }
     }
 }
