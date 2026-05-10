@@ -150,4 +150,18 @@ class UploadViewModelInitTest {
         // by init {}. This is the contract that breaks the LaunchedEffect race.
         assertEquals(listOf(uri1, uri2), viewModel.documentUris.value)
     }
+
+    @Test
+    fun `init parses unencoded documentUris from process-death SavedStateHandle synchronously`() = runTest {
+        val uri1 = Uri.parse("content://media/external/images/media/123")
+        val uri2 = Uri.parse("content://media/external/images/media/456")
+        // Unencoded form — what we re-write to SavedStateHandle on init so subsequent
+        // process-death restorations are idempotent.
+        val unencoded = listOf(uri1, uri2).joinToString("|") { it.toString() }
+        val savedStateAfterDeath = SavedStateHandle(mapOf(UploadViewModel.KEY_DOCUMENT_URIS to unencoded))
+
+        val viewModel = buildViewModel(savedStateHandle = savedStateAfterDeath)
+
+        assertEquals(listOf(uri1, uri2), viewModel.documentUris.value)
+    }
 }
