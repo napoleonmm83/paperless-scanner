@@ -110,6 +110,8 @@ class UploadViewModelInitTest {
         every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
+        every { networkMonitor.isWifiConnected } returns MutableStateFlow(true)
+        every { premiumFeatureManager.isPremiumAccessEnabled } returns flowOf(false)
     }
 
     @After
