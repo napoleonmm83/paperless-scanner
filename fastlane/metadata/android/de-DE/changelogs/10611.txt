@@ -1,0 +1,5 @@
+Version 1.5.111:
+
+🔧 Verbesserungen:
+- Mehrseitiger Upload öffnet sofort, kein leeres Raster
+- Zuverlässigere Upload-Wiederherstellung nach AppLock

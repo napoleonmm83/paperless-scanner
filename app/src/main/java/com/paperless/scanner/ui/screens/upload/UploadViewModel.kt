@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -70,43 +69,44 @@ class UploadViewModel @Inject constructor(
         const val KEY_DOCUMENT_URIS = "documentUris"
     }
 
-    // Reactive documentUris using SavedStateHandle.getStateFlow()
-    // Automatically survives process death and configuration changes
-    private val documentUrisStateFlow: StateFlow<List<Uri>> =
-        savedStateHandle.getStateFlow<String?>(KEY_DOCUMENT_URIS, null)
-            .map { urisString ->
-                val parsed = if (urisString.isNullOrEmpty()) {
-                    emptyList()
-                } else {
-                    urisString.split("|").mapNotNull { uriString ->
-                        try {
-                            Uri.parse(uriString)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to parse URI: $uriString", e)
-                            null
-                        }
-                    }
-                }
+    // Reactive documentUris with synchronous initialization from SavedStateHandle.
+    //
+    // The SavedStateHandle is populated either:
+    //   (a) by Navigation Compose with the URL-encoded `documentUris` route argument
+    //       (initial navigation; segments need URL-decoding), OR
+    //   (b) by process-death restoration with the unencoded form we wrote here last time
+    //       (segments don't need decoding — Uri.decode is a no-op for them).
+    // parseDocumentUrisFromSavedState() handles both. After init {} returns, SavedStateHandle
+    // holds the unencoded canonical form so subsequent restorations are idempotent.
+    private val _documentUris = MutableStateFlow(parseDocumentUrisFromSavedState())
+    val documentUris: StateFlow<List<Uri>> = _documentUris.asStateFlow()
+
+    private fun parseDocumentUrisFromSavedState(): List<Uri> {
+        val raw = savedStateHandle.get<String>(KEY_DOCUMENT_URIS) ?: return emptyList()
+        if (raw.isEmpty()) return emptyList()
+        return raw.split("|").withIndex().mapNotNull { (index, segment) ->
+            // Try a direct Uri.parse first. The canonicalised (process-death) form is
+            // a valid URI string and round-trips correctly — even when the original URI
+            // contains percent-encoded characters in the path (e.g. "%23"), which a
+            // blind Uri.decode would corrupt by turning into a literal "#" and shifting
+            // it into the fragment position. If the direct parse returns no scheme,
+            // we're dealing with the URL-encoded nav-arg form and need an explicit
+            // Uri.decode pass before re-parsing.
+            val parsed = runCatching {
+                val direct = Uri.parse(segment)
+                if (!direct.scheme.isNullOrBlank()) direct
+                else Uri.parse(Uri.decode(segment))
+            }.getOrNull()
+
+            if (parsed == null || parsed.scheme.isNullOrBlank()) {
+                // Don't log the segment itself — content:// URIs can contain provider/file IDs
+                // that count as user-identifiable. Index + length are enough to debug.
+                Log.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})")
+                null
+            } else {
                 parsed
             }
-            .stateIn(
-                scope = viewModelScope,
-                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
-
-    val documentUris: StateFlow<List<Uri>> = documentUrisStateFlow
-
-    /**
-     * Initialize document URIs from navigation arguments.
-     * Called from the Screen when navigation arguments are received.
-     */
-    fun setDocumentUris(uris: List<Uri>) {
-        if (uris.isEmpty()) {
-            return
         }
-        val urisString = uris.joinToString("|") { it.toString() }
-        savedStateHandle[KEY_DOCUMENT_URIS] = urisString
     }
 
     private val _uiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
@@ -182,6 +182,11 @@ class UploadViewModel @Inject constructor(
     val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
 
     init {
+        // Canonicalise SavedStateHandle to the unencoded form so process-death restoration
+        // and the Screen's BackStackEntry-sync (which writes unencoded) stay consistent.
+        val canonical = _documentUris.value.joinToString("|") { it.toString() }
+        savedStateHandle[KEY_DOCUMENT_URIS] = canonical.takeIf { it.isNotEmpty() }
+
         observeTagsReactively()
         observeDocumentTypesReactively()
         observeCorrespondentsReactively()

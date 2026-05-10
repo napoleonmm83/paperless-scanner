@@ -84,8 +84,9 @@ class UploadViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
 
-        // Mock SavedStateHandle
-        savedStateHandle = mockk(relaxed = true)
+        // Real SavedStateHandle (empty) — VM init {} reads documentUris from it; a relaxed
+        // mock would return java.lang.Object for the typed get, breaking the post-#70 cast.
+        savedStateHandle = androidx.lifecycle.SavedStateHandle()
 
         // Mock android.util.Log to prevent UnsatisfiedLinkError in unit tests
         mockkStatic(Log::class)

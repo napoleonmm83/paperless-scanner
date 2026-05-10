@@ -1,0 +1,5 @@
+Version 1.5.111:
+
+🔧 Improvements:
+- Multi-page upload opens instantly, no empty-grid flash
+- More reliable upload restore after AppLock unlock
