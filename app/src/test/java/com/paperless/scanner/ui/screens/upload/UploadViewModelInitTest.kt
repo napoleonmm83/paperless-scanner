@@ -164,4 +164,11 @@ class UploadViewModelInitTest {
 
         assertEquals(listOf(uri1, uri2), viewModel.documentUris.value)
     }
+
+    @Test
+    fun `init with empty SavedStateHandle exposes empty documentUris`() = runTest {
+        val viewModel = buildViewModel(savedStateHandle = SavedStateHandle())
+
+        assertEquals(emptyList<Uri>(), viewModel.documentUris.value)
+    }
 }
