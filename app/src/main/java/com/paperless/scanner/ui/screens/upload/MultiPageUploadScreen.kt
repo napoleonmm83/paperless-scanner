@@ -88,19 +88,11 @@ fun MultiPageUploadScreen(
     viewModel: UploadViewModel = hiltViewModel(),
     navBackStackEntry: NavBackStackEntry? = null
 ) {
-    // Observe ViewModel's documentUris (reactive, survives process death)
+    // Observe ViewModel's documentUris (reactive, survives process death).
+    // The VM's init {} populates this synchronously from its own SavedStateHandle
+    // (URL-encoded nav arg or unencoded process-death restoration), so no
+    // initialisation LaunchedEffect is needed here — see Issue #70.
     val observedDocumentUris by viewModel.documentUris.collectAsState()
-
-    // Initialize ViewModel with navigation arguments (survives process death)
-    // CRITICAL: Only initialize from navigation args if ViewModel doesn't already have state
-    // This prevents stale route arguments from overwriting correct SavedStateHandle data after AppLock
-    LaunchedEffect(documentUris) {
-        if (documentUris.isNotEmpty() && observedDocumentUris.isEmpty()) {
-            // ViewModel is empty → initialize from navigation arguments
-            viewModel.setDocumentUris(documentUris)
-        }
-        // If ViewModel already has URIs (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
-    }
 
     // Sync URIs to Navigation BackStackEntry SavedStateHandle for AppLock route reconstruction.
     // Separate from ViewModel SavedStateHandle (process death) — AppLockNavigationInterceptor

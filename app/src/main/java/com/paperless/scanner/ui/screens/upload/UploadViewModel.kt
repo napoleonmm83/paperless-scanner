@@ -39,7 +39,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -70,43 +69,31 @@ class UploadViewModel @Inject constructor(
         const val KEY_DOCUMENT_URIS = "documentUris"
     }
 
-    // Reactive documentUris using SavedStateHandle.getStateFlow()
-    // Automatically survives process death and configuration changes
-    private val documentUrisStateFlow: StateFlow<List<Uri>> =
-        savedStateHandle.getStateFlow<String?>(KEY_DOCUMENT_URIS, null)
-            .map { urisString ->
-                val parsed = if (urisString.isNullOrEmpty()) {
-                    emptyList()
-                } else {
-                    urisString.split("|").mapNotNull { uriString ->
-                        try {
-                            Uri.parse(uriString)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to parse URI: $uriString", e)
-                            null
-                        }
-                    }
-                }
-                parsed
+    // Reactive documentUris with synchronous initialization from SavedStateHandle.
+    //
+    // The SavedStateHandle is populated either:
+    //   (a) by Navigation Compose with the URL-encoded `documentUris` route argument
+    //       (initial navigation; segments need URL-decoding), OR
+    //   (b) by process-death restoration with the unencoded form we wrote here last time
+    //       (segments don't need decoding — Uri.decode is a no-op for them).
+    // parseDocumentUrisFromSavedState() handles both. After init {} returns, SavedStateHandle
+    // holds the unencoded canonical form so subsequent restorations are idempotent.
+    private val _documentUris = MutableStateFlow(parseDocumentUrisFromSavedState())
+    val documentUris: StateFlow<List<Uri>> = _documentUris.asStateFlow()
+
+    private fun parseDocumentUrisFromSavedState(): List<Uri> {
+        val raw = savedStateHandle.get<String>(KEY_DOCUMENT_URIS) ?: return emptyList()
+        if (raw.isEmpty()) return emptyList()
+        return raw.split("|").mapNotNull { segment ->
+            try {
+                // Uri.decode is idempotent for already-unencoded URIs (no '%' triplets),
+                // so this single path handles both nav-arg (encoded) and process-death (unencoded).
+                Uri.parse(Uri.decode(segment))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse URI segment: $segment", e)
+                null
             }
-            .stateIn(
-                scope = viewModelScope,
-                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
-
-    val documentUris: StateFlow<List<Uri>> = documentUrisStateFlow
-
-    /**
-     * Initialize document URIs from navigation arguments.
-     * Called from the Screen when navigation arguments are received.
-     */
-    fun setDocumentUris(uris: List<Uri>) {
-        if (uris.isEmpty()) {
-            return
         }
-        val urisString = uris.joinToString("|") { it.toString() }
-        savedStateHandle[KEY_DOCUMENT_URIS] = urisString
     }
 
     private val _uiState = MutableStateFlow<UploadUiState>(UploadUiState.Idle)
@@ -182,6 +169,11 @@ class UploadViewModel @Inject constructor(
     val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
 
     init {
+        // Canonicalise SavedStateHandle to the unencoded form so process-death restoration
+        // and the Screen's BackStackEntry-sync (which writes unencoded) stay consistent.
+        val canonical = _documentUris.value.joinToString("|") { it.toString() }
+        savedStateHandle[KEY_DOCUMENT_URIS] = canonical.takeIf { it.isNotEmpty() }
+
         observeTagsReactively()
         observeDocumentTypesReactively()
         observeCorrespondentsReactively()
