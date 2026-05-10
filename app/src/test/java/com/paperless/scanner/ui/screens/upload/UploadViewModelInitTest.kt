@@ -191,4 +191,23 @@ class UploadViewModelInitTest {
             cancelAndConsumeRemainingEvents()
         }
     }
+
+    @Test
+    fun `init preserves percent-encoded characters in URI path on process-death restore`() = runTest {
+        // Edge case: a URI whose path contains a percent-encoded character that, if
+        // blindly Uri.decoded, would change the URI's structural semantics
+        // (e.g., %23 -> '#' would shift content into the fragment position).
+        // The canonicalised process-death form must round-trip without that corruption.
+        val uri = Uri.parse("content://media/external/file/foo%2Bbar.jpg")
+        val unencoded = uri.toString()
+        val savedState = SavedStateHandle(mapOf(UploadViewModel.KEY_DOCUMENT_URIS to unencoded))
+
+        val viewModel = buildViewModel(savedStateHandle = savedState)
+
+        val parsed = viewModel.documentUris.value
+        assertEquals(1, parsed.size)
+        // The literal "%2B" in the URI's path must survive parsing; a naive
+        // Uri.decode-then-parse would turn it into "+".
+        assertEquals(uri.path, parsed[0].path)
+    }
 }

@@ -85,15 +85,26 @@ class UploadViewModel @Inject constructor(
         val raw = savedStateHandle.get<String>(KEY_DOCUMENT_URIS) ?: return emptyList()
         if (raw.isEmpty()) return emptyList()
         return raw.split("|").withIndex().mapNotNull { (index, segment) ->
-            try {
-                // Uri.decode is idempotent for already-unencoded URIs (no '%' triplets),
-                // so this single path handles both nav-arg (encoded) and process-death (unencoded).
-                Uri.parse(Uri.decode(segment))
-            } catch (e: Exception) {
+            // Try a direct Uri.parse first. The canonicalised (process-death) form is
+            // a valid URI string and round-trips correctly — even when the original URI
+            // contains percent-encoded characters in the path (e.g. "%23"), which a
+            // blind Uri.decode would corrupt by turning into a literal "#" and shifting
+            // it into the fragment position. If the direct parse returns no scheme,
+            // we're dealing with the URL-encoded nav-arg form and need an explicit
+            // Uri.decode pass before re-parsing.
+            val parsed = runCatching {
+                val direct = Uri.parse(segment)
+                if (!direct.scheme.isNullOrBlank()) direct
+                else Uri.parse(Uri.decode(segment))
+            }.getOrNull()
+
+            if (parsed == null || parsed.scheme.isNullOrBlank()) {
                 // Don't log the segment itself — content:// URIs can contain provider/file IDs
                 // that count as user-identifiable. Index + length are enough to debug.
-                Log.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})", e)
+                Log.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})")
                 null
+            } else {
+                parsed
             }
         }
     }
