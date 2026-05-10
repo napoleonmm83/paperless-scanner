@@ -1,5 +1,5 @@
 Version 1.5.111:
 
 🔧 Verbesserungen:
-- Mehrseitiger Upload: Dokumente erscheinen sofort, kein kurzes Aufblitzen einer leeren Liste
-- Wiederherstellung des Upload-Bildschirms nach AppLock-Entsperren ist zuverlässiger
+- Mehrseitiger Upload öffnet sofort, kein leeres Raster
+- Zuverlässigere Upload-Wiederherstellung nach AppLock

@@ -133,8 +133,11 @@ fun MultiPageUploadScreen(
 
     // Auto-populate title with filename of first document if no preTitle is provided
     val context = LocalContext.current
-    val defaultTitle = remember(documentUris) {
-        preTitle ?: documentUris.firstOrNull()?.let { uri ->
+    // Derive title from the VM-backed observedDocumentUris so it stays consistent with the
+    // thumbnail grid after process-death restore or AppLock unlock — the parameter
+    // `documentUris` may be a stale nav arg in those flows.
+    val defaultTitle = remember(observedDocumentUris, preTitle) {
+        preTitle ?: observedDocumentUris.firstOrNull()?.let { uri ->
             FileUtils.getFileName(context, uri)
         } ?: ""
     }

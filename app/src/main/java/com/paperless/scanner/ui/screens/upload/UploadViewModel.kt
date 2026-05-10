@@ -84,13 +84,15 @@ class UploadViewModel @Inject constructor(
     private fun parseDocumentUrisFromSavedState(): List<Uri> {
         val raw = savedStateHandle.get<String>(KEY_DOCUMENT_URIS) ?: return emptyList()
         if (raw.isEmpty()) return emptyList()
-        return raw.split("|").mapNotNull { segment ->
+        return raw.split("|").withIndex().mapNotNull { (index, segment) ->
             try {
                 // Uri.decode is idempotent for already-unencoded URIs (no '%' triplets),
                 // so this single path handles both nav-arg (encoded) and process-death (unencoded).
                 Uri.parse(Uri.decode(segment))
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse URI segment: $segment", e)
+                // Don't log the segment itself — content:// URIs can contain provider/file IDs
+                // that count as user-identifiable. Index + length are enough to debug.
+                Log.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})", e)
                 null
             }
         }

@@ -1,5 +1,5 @@
 Version 1.5.111:
 
 🔧 Improvements:
-- Multi-page upload: documents now appear instantly, no brief flash of an empty grid
-- Restoring the upload screen after AppLock unlock is more reliable
+- Multi-page upload opens instantly, no empty-grid flash
+- More reliable upload restore after AppLock unlock
