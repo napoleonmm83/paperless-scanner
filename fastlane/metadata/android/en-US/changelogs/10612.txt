@@ -1,0 +1,5 @@
+Version 1.5.112:
+
+🔧 Improvements:
+- Widget config saves atomically (SharedPrefs + Glance)
+- Fixes brief wrong-type flash on first widget render

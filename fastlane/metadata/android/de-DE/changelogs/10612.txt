@@ -1,0 +1,5 @@
+Version 1.5.112:
+
+🔧 Verbesserungen:
+- Widget-Config: atomares Speichern (SharedPrefs + Glance)
+- Behebt Flackern des falschen Widget-Typs

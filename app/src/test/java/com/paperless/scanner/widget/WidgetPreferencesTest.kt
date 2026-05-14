@@ -1,6 +1,7 @@
 package com.paperless.scanner.widget
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -177,6 +178,31 @@ class WidgetPreferencesTest {
         val retrieved2 = widgetPreferences.getWidgetConfig(widgetId2)
         assertEquals(WidgetType.STATUS, retrieved2.type)
     }
+
+    // ==================== Commit return value tests (Issue #109 AC #1) ====================
+
+    @Test
+    fun `setWidgetConfig returns true on successful commit`() {
+        val committed = widgetPreferences.setWidgetConfig(70, WidgetConfig(type = WidgetType.STATUS))
+
+        assertTrue(committed)
+    }
+
+    @Test
+    fun `setWidgetConfig commit is synchronous — readable immediately after return`() {
+        // Verifies there is no async gap between the commit and the readable state.
+        // This is the property that makes the atomic-write fix in WidgetConfigActivity
+        // effective: provideGlance reading SharedPrefs after setWidgetConfig returns
+        // always sees the new value, never a stale intermediate state.
+        val widgetId = 71
+        widgetPreferences.setWidgetConfig(widgetId, WidgetConfig(type = WidgetType.STATUS))
+
+        // No yield/sleep — immediately readable without any async boundary
+        val retrieved = widgetPreferences.getWidgetConfig(widgetId)
+        assertEquals(WidgetType.STATUS, retrieved.type)
+    }
+
+    // ==================== Multiple widget independence tests ====================
 
     @Test
     fun `updating one widget config does not affect another`() {

@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.AppWidgetId
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -103,39 +104,49 @@ class WidgetConfigActivity : ComponentActivity() {
     private fun saveConfigAndFinish(config: WidgetConfig) {
         Log.d(TAG, "Saving widget config: id=$appWidgetId, type=${config.type}")
 
-        // 1. Save config synchronously (SharedPreferences with commit())
-        widgetPreferences.setWidgetConfig(appWidgetId, config)
-
-        // 2. Verify config was saved correctly
-        val savedConfig = widgetPreferences.getWidgetConfig(appWidgetId)
-        Log.d(TAG, "Verified saved config: id=$appWidgetId, type=${savedConfig.type}")
-
-        if (savedConfig.type != config.type) {
-            Log.e(TAG, "CONFIG MISMATCH! Saved=${savedConfig.type}, Expected=${config.type}")
-        }
-
-        // 3. Update widget
         if (!WidgetDeviceChecker.shouldUseLegacyWidget()) {
-            // Glance: update Glance state to trigger reactive recomposition
             val glanceId = AppWidgetId(appWidgetId)
+            var resultCode = RESULT_CANCELED
             lifecycleScope.launch {
                 try {
-                    Log.d(TAG, "Updating Glance state: id=$appWidgetId, type=${config.type}")
-                    // Write widget type to Glance state → triggers recomposition
+                    // Atomic: commit SharedPrefs then immediately write Glance state in the same
+                    // coroutine — no gap for provideGlance to observe diverged state between
+                    // the two writes.
+                    val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
+                    if (!committed) {
+                        Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                        return@launch  // resultCode stays RESULT_CANCELED; finally closes activity
+                    }
                     updateAppWidgetState(this@WidgetConfigActivity, glanceId) { prefs ->
                         prefs[ScannerWidget.WIDGET_TYPE_KEY] = config.type.name
                     }
                     ScannerWidget().update(this@WidgetConfigActivity, glanceId)
-                    Log.d(TAG, "Glance widget updated successfully")
+                    Log.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
+                    resultCode = RESULT_OK
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Direct Glance update failed, sending broadcast fallback", e)
+                    Log.e(TAG, "Glance update failed, sending broadcast fallback", e)
+                    // SharedPrefs committed — broadcast so widget still updates eventually
                     sendWidgetUpdateBroadcast()
+                    resultCode = RESULT_OK
                 } finally {
-                    finishWithResult()
+                    val resultIntent = Intent().apply {
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    }
+                    setResult(resultCode, resultIntent)
+                    finish()
                 }
             }
         } else {
-            // Legacy: broadcast triggers LegacyScannerWidget.onUpdate
+            // Legacy: commit SharedPrefs synchronously, then broadcast triggers LegacyScannerWidget.onUpdate
+            val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
+            if (!committed) {
+                Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
             sendWidgetUpdateBroadcast()
             finishWithResult()
         }
