@@ -130,7 +130,12 @@ class WidgetConfigActivity : ComponentActivity() {
             }
         } else {
             // Legacy: commit SharedPrefs synchronously, then broadcast triggers LegacyScannerWidget.onUpdate
-            widgetPreferences.setWidgetConfig(appWidgetId, config)
+            val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
+            if (!committed) {
+                Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                finishWithResult()
+                return
+            }
             sendWidgetUpdateBroadcast()
             finishWithResult()
         }
