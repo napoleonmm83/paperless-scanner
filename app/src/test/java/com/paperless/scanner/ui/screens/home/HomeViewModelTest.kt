@@ -214,13 +214,11 @@ class HomeViewModelTest {
 
     @Test
     fun `observeTagsReactively sets LoadFailed on errorState when tags observer encounters error`() = runTest {
-        every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
+        every { tagRepository.observeTags() } returns flow { throw RuntimeException("tags DB error") }
 
         val vm = createViewModel()
         advanceUntilIdle()
 
-        // FAILS: errorState should contain LoadFailed("tags") after Task 6 wires asUiResult()
-        // Currently null because observe* doesn't catch errors yet
         val error = vm.errorState.value
         assertNotNull("errorState should have LoadFailed after Task 6", error)
         assertTrue("error should be LoadFailed", error is HomeError.LoadFailed)
@@ -231,13 +229,11 @@ class HomeViewModelTest {
 
     @Test
     fun `observeRecentDocumentsReactively sets LoadFailed on errorState when documents observer encounters error`() = runTest {
-        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns MutableStateFlow(emptyList())
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns flow { throw RuntimeException("docs DB error") }
 
         val vm = createViewModel()
         advanceUntilIdle()
 
-        // FAILS: errorState should contain LoadFailed("recentDocuments") after Task 6 wires asUiResult()
-        // Currently null because observe* doesn't catch errors yet
         val error = vm.errorState.value
         assertNotNull("errorState should have LoadFailed after Task 6", error)
         assertTrue("error should be LoadFailed", error is HomeError.LoadFailed)
