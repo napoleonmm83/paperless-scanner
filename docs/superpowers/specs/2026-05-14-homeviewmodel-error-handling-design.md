@@ -157,33 +157,34 @@ Two new string resources needed:
 
 **File: `app/src/test/java/com/paperless/scanner/ui/screens/home/HomeViewModelTest.kt`**
 
-Three new test groups using Turbine + fake repositories:
+Three new test groups using MockK + `advanceUntilIdle()` + direct StateFlow read:
 
 **Group 1: observe* error propagation**
 ```kotlin
 @Test
-fun `observeTagsReactively emits LoadFailed when repository throws`() = runTest {
-    tagRepository.setTagsError(RuntimeException("DB failure"))
-    val vm = buildViewModel()
-    vm.errorState.test {
-        assertThat(awaitItem()).isInstanceOf(HomeError.LoadFailed::class.java)
-        assertThat((awaitItem() as HomeError.LoadFailed).source).isEqualTo("tags")
-    }
+fun `observeTagsReactively sets LoadFailed on errorState when tags flow throws`() = runTest {
+    every { tagRepository.observeTags() } returns flow { throw RuntimeException("DB failure") }
+    val vm = createViewModel()
+    advanceUntilIdle()
+    val error = vm.errorState.value
+    assertNotNull(error)
+    assertTrue(error is HomeError.LoadFailed)
+    assertEquals("tags", (error as HomeError.LoadFailed).source)
 }
 ```
 
 **Group 2: action error propagation**
 ```kotlin
 @Test
-fun `deleteRecentDocument emits ActionFailed when trash delete fails`() = runTest {
-    trashRepository.setDeleteError(RuntimeException("Network failure"))
-    val vm = buildViewModel()
+fun `deleteRecentDocument sets ActionFailed on errorState when trash delete fails`() = runTest {
+    coEvery { trashRepository.deleteDocument(any()) } returns Result.failure(RuntimeException("Network failure"))
+    val vm = createViewModel()
     vm.deleteRecentDocument(documentId = 1, documentTitle = "Test")
-    vm.errorState.test {
-        val error = awaitItem()
-        assertThat(error).isInstanceOf(HomeError.ActionFailed::class.java)
-        assertThat((error as HomeError.ActionFailed).action).isEqualTo("deleteDocument")
-    }
+    advanceUntilIdle()
+    val error = vm.errorState.value
+    assertNotNull(error)
+    assertTrue(error is HomeError.ActionFailed)
+    assertEquals("deleteDocument", (error as HomeError.ActionFailed).action)
 }
 ```
 
@@ -191,17 +192,17 @@ fun `deleteRecentDocument emits ActionFailed when trash delete fails`() = runTes
 ```kotlin
 @Test
 fun `clearHomeError resets errorState to null`() = runTest {
-    val vm = buildViewModel()
-    vm.errorState.test {
-        // trigger an error first
-        trashRepository.setDeleteError(RuntimeException("fail"))
-        vm.deleteRecentDocument(1, "Test")
-        awaitItem() // consume the error
-        vm.clearHomeError()
-        assertNull(awaitItem())
-    }
+    every { tagRepository.observeTags() } returns flow { throw RuntimeException("fail") }
+    val vm = createViewModel()
+    advanceUntilIdle()
+    assertNotNull(vm.errorState.value)
+    vm.clearHomeError()
+    assertNull(vm.errorState.value)
 }
 ```
+
+Note: `errorState` is initialized to `null`. Tests use `advanceUntilIdle()` to let
+coroutines run, then read `.value` directly — no need to handle an initial null emission.
 
 ---
 
