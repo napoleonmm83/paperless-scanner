@@ -822,14 +822,14 @@ class HomeViewModel @Inject constructor(
                 }.onFailure { error ->
                     _uiState.update { it.copy(deletedDocument = null) }
                     _errorState.value = HomeError.ActionFailed(
-                        context.getString(R.string.error_delete_document),
+                        "deleteDocument",
                         error
                     )
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(deletedDocument = null) }
                 _errorState.value = HomeError.ActionFailed(
-                    context.getString(R.string.error_delete_document),
+                    "deleteDocument",
                     e
                 )
             }
@@ -851,13 +851,13 @@ class HomeViewModel @Inject constructor(
             try {
                 trashRepository.restoreDocument(deletedDoc.id).onFailure {
                     _errorState.value = HomeError.ActionFailed(
-                        context.getString(R.string.error_restore_document),
+                        "restoreDocument",
                         it
                     )
                 }
             } catch (e: Exception) {
                 _errorState.value = HomeError.ActionFailed(
-                    context.getString(R.string.error_restore_document),
+                    "restoreDocument",
                     e
                 )
             }
