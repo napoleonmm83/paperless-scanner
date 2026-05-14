@@ -21,6 +21,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import kotlinx.coroutines.flow.flow
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -92,6 +93,12 @@ class HomeViewModelTest {
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns MutableStateFlow(emptyList())
+        every { taskRepository.observeUnacknowledgedTasksExcludingDeleted() } returns MutableStateFlow(emptyList())
+        every { documentCountRepository.observeUntaggedDocumentsCount() } returns MutableStateFlow(0)
+        every { trashRepository.observeTrashedDocumentsCount() } returns MutableStateFlow(0)
+        every { trashRepository.observeOldestDeletedTimestamp() } returns MutableStateFlow(null)
+        every { syncHistoryRepository.observeFailedCount() } returns MutableStateFlow(0)
         every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
