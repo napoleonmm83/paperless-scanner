@@ -1,0 +1,8 @@
+Version 1.5.113:
+
+🔧 Verbesserungen:
+- Premium-Status der App ist eindeutig und beobachtbar
+- Automatischer Reconnect bei Play-Billing-Verbindungsabbruch
+
+🐛 Fehlerbehebungen:
+- "Käufe wiederherstellen" hängt nicht mehr ohne Play-Service

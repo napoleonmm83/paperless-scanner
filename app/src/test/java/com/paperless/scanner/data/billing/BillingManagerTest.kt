@@ -51,6 +51,8 @@ class BillingManagerTest {
         // Mock string resources for billing error messages
         every { context.getString(R.string.billing_error_product_not_found) } returns "Product not found. Please try again later."
         every { context.getString(R.string.billing_error_no_offers) } returns "No subscription offers available"
+        every { context.getString(R.string.billing_error_not_ready) } returns "Billing service is not ready"
+        every { context.getString(R.string.billing_error_disconnected) } returns "Billing service disconnected"
         mockActivity = mockk(relaxed = true)
         mockBillingClient = mockk(relaxed = true)
         mockBuilder = mockk(relaxed = true)
@@ -112,6 +114,21 @@ class BillingManagerTest {
         }
     }
 
+    /**
+     * Fires onBillingSetupFinished(OK) so the manager transitions Initializing → Ready.
+     * Also pre-installs the async-query mocks so the queryPurchases/queryProductDetails
+     * triggered on the Ready transition don't leave hanging coroutines in the
+     * manager's internal scope.
+     */
+    private fun transitionToReady() {
+        setupBillingClientMocks()
+        val okResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+        capturedBillingClientStateListener.onBillingSetupFinished(okResult)
+    }
+
     // ==================== Initialization Tests ====================
 
     @Test
@@ -139,7 +156,7 @@ class BillingManagerTest {
     // The connection logic is tested implicitly through other tests
 
     @Test
-    fun `connection failure logs error`() {
+    fun `connection failure transitions state to Failed`() {
         billingManager.initialize()
 
         val billingResult = mockk<BillingResult> {
@@ -147,19 +164,74 @@ class BillingManagerTest {
             every { debugMessage } returns "Service unavailable"
         }
 
-        // Should not crash
         capturedBillingClientStateListener.onBillingSetupFinished(billingResult)
+
+        val state = billingManager.billingState.value
+        assertTrue("Expected Failed state, was $state", state is BillingState.Failed)
+        assertEquals("Service unavailable", (state as BillingState.Failed).reason)
     }
 
     @Test
-    fun `disconnection triggers reconnect`() {
+    fun `setup success transitions state to Ready`() {
         billingManager.initialize()
-        clearMocks(mockBillingClient, answers = false)
-        every { mockBillingClient.startConnection(any()) } just Runs
+        assertEquals(BillingState.Initializing, billingManager.billingState.value)
+
+        transitionToReady()
+
+        assertEquals(BillingState.Ready, billingManager.billingState.value)
+    }
+
+    @Test
+    fun `disconnection transitions state to Disconnected with retry attempt`() {
+        billingManager.initialize()
+        transitionToReady()
+        assertEquals(BillingState.Ready, billingManager.billingState.value)
 
         capturedBillingClientStateListener.onBillingServiceDisconnected()
 
+        // Backoff reconnect is scheduled inside scope.launch { delay(...); ... }.
+        // We assert the synchronous state transition only — that's the contract
+        // observable to consumers. Timing of the retry is not unit-tested.
+        val state = billingManager.billingState.value
+        assertTrue("Expected Disconnected state, was $state", state is BillingState.Disconnected)
+        assertEquals(1, (state as BillingState.Disconnected).retryAttempt)
+    }
+
+    @Test
+    fun `initialize from Failed state allows retry`() {
+        // First attempt: setup fails
+        billingManager.initialize()
+        val failResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
+            every { debugMessage } returns "Billing unavailable"
+        }
+        capturedBillingClientStateListener.onBillingSetupFinished(failResult)
+        assertTrue(billingManager.billingState.value is BillingState.Failed)
+
+        clearMocks(mockBillingClient, answers = false)
+        every { mockBillingClient.startConnection(capture(stateListenerSlot)) } answers {
+            capturedBillingClientStateListener = firstArg()
+        }
+        every { mockBillingClient.isReady } returns true
+
+        // Second attempt: from Failed state should re-initialize
+        billingManager.initialize()
+
+        assertEquals(BillingState.Initializing, billingManager.billingState.value)
         verify { mockBillingClient.startConnection(any()) }
+    }
+
+    @Test
+    fun `initialize from Ready state is a no-op`() {
+        billingManager.initialize()
+        transitionToReady()
+        clearMocks(mockBillingClient, answers = false)
+
+        billingManager.initialize()
+
+        // Already Ready — no new connection
+        verify(exactly = 0) { mockBillingClient.startConnection(any()) }
+        assertEquals(BillingState.Ready, billingManager.billingState.value)
     }
 
     // ==================== Purchase Flow Tests ====================
@@ -278,6 +350,7 @@ class BillingManagerTest {
     @Test
     fun `restorePurchases returns Success when purchases found`() = runTest {
         billingManager.initialize()
+        transitionToReady()
 
         val mockPurchase = mockk<Purchase> {
             every { purchaseState } returns Purchase.PurchaseState.PURCHASED
@@ -307,6 +380,7 @@ class BillingManagerTest {
     @Test
     fun `restorePurchases returns NoPurchasesFound when no purchases`() = runTest {
         billingManager.initialize()
+        transitionToReady()
 
         every {
             mockBillingClient.queryPurchasesAsync(
@@ -329,6 +403,7 @@ class BillingManagerTest {
     @Test
     fun `restorePurchases returns Error when query fails`() = runTest {
         billingManager.initialize()
+        transitionToReady()
 
         every {
             mockBillingClient.queryPurchasesAsync(
@@ -343,6 +418,20 @@ class BillingManagerTest {
             }
             callback.onQueryPurchasesResponse(billingResult, emptyList())
         }
+
+        val result = billingManager.restorePurchases()
+
+        assertTrue(result is RestoreResult.Error)
+    }
+
+    @Test
+    fun `restorePurchases returns Error when state is not Ready (regression - prior code hung)`() = runTest {
+        // Manager initialized but never transitions to Ready (setup callback never fires).
+        // Prior code: billingClient?.queryPurchasesAsync was a no-op when client wasn't
+        // ready and the continuation was never resumed, hanging the coroutine forever.
+        // Now: explicit Ready-state gate returns RestoreResult.Error immediately.
+        billingManager.initialize()
+        assertEquals(BillingState.Initializing, billingManager.billingState.value)
 
         val result = billingManager.restorePurchases()
 
@@ -365,12 +454,15 @@ class BillingManagerTest {
     // ==================== Destroy Tests ====================
 
     @Test
-    fun `destroy ends billing connection`() {
+    fun `destroy ends billing connection and resets state to Uninitialized`() {
         billingManager.initialize()
+        transitionToReady()
+        assertEquals(BillingState.Ready, billingManager.billingState.value)
 
         billingManager.destroy()
 
         verify { mockBillingClient.endConnection() }
+        assertEquals(BillingState.Uninitialized, billingManager.billingState.value)
     }
 
     // ==================== Helper Methods ====================
