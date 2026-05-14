@@ -105,6 +105,7 @@ class WidgetConfigActivity : ComponentActivity() {
 
         if (!WidgetDeviceChecker.shouldUseLegacyWidget()) {
             val glanceId = AppWidgetId(appWidgetId)
+            var resultCode = RESULT_CANCELED
             lifecycleScope.launch {
                 try {
                     // Atomic: commit SharedPrefs then immediately write Glance state in the same
@@ -113,19 +114,25 @@ class WidgetConfigActivity : ComponentActivity() {
                     val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
                     if (!committed) {
                         Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
-                        sendWidgetUpdateBroadcast()
-                        return@launch
+                        return@launch  // resultCode stays RESULT_CANCELED; finally closes activity
                     }
                     updateAppWidgetState(this@WidgetConfigActivity, glanceId) { prefs ->
                         prefs[ScannerWidget.WIDGET_TYPE_KEY] = config.type.name
                     }
                     ScannerWidget().update(this@WidgetConfigActivity, glanceId)
                     Log.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
+                    resultCode = RESULT_OK
                 } catch (e: Exception) {
                     Log.e(TAG, "Glance update failed, sending broadcast fallback", e)
+                    // SharedPrefs committed — broadcast so widget still updates eventually
                     sendWidgetUpdateBroadcast()
+                    resultCode = RESULT_OK
                 } finally {
-                    finishWithResult()
+                    val resultIntent = Intent().apply {
+                        putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                    }
+                    setResult(resultCode, resultIntent)
+                    finish()
                 }
             }
         } else {
@@ -133,7 +140,8 @@ class WidgetConfigActivity : ComponentActivity() {
             val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
             if (!committed) {
                 Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
-                finishWithResult()
+                setResult(RESULT_CANCELED)
+                finish()
                 return
             }
             sendWidgetUpdateBroadcast()
