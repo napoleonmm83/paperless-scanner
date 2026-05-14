@@ -9,7 +9,7 @@
 
 ## Problem
 
-`HomeViewModel.kt` (1346 lines) contains 8 `observe*` functions that use `viewModelScope.launch { flow.collect { } }` with **zero error handling**. If any Room Flow throws, the coroutine dies silently and reactive updates stop permanently. Additionally, ~9 action `launch` blocks handle errors inconsistently — some use `try/catch`, some use `onFailure`, some do nothing.
+`HomeViewModel.kt` (1346 lines) contains 9 `observe*` functions that use `viewModelScope.launch { flow.collect { } }` with **zero error handling**. If any Room Flow throws, the coroutine dies silently and reactive updates stop permanently. Additionally, ~9 action `launch` blocks handle errors inconsistently — some use `try/catch`, some use `onFailure`, some do nothing.
 
 `HomeUiState.error: String?` exists but was never connected to `HomeScreen` (dead code). Errors from `deleteRecentDocument()` and `undoDelete()` update this field but are never shown to the user.
 
@@ -78,7 +78,7 @@ fun clearHomeError() { _errorState.value = null }
 
 `clearError()` method removed (replaced by `clearHomeError()`).
 
-**All 8 observe* functions** rewritten with `asUiResult()`:
+**All 9 observe* functions** rewritten with `asUiResult()`:
 
 | Function | Flow Source | Error `source` key |
 |---|---|---|
@@ -207,7 +207,7 @@ fun `clearHomeError resets errorState to null`() = runTest {
 
 ## Acceptance Criteria
 
-- [x] All 8 observe* flows funnel through `asUiResult()` shared helper (AC #1)
+- [x] All 9 observe* flows funnel through `asUiResult()` shared helper (AC #1)
 - [x] Single `errorState: StateFlow<HomeError?>` owns all user-visible errors (AC #2)
 - [x] Tests verify error propagation + recovery (AC #3)
 
