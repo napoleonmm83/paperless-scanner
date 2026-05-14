@@ -1,0 +1,5 @@
+Version 1.5.114:
+
+🔧 Verbesserungen:
+- Einheitliche Fehlerbehandlung im Home-Screen
+- Fehler werden jetzt per Snackbar angezeigt statt still ignoriert

@@ -945,6 +945,8 @@
     <string name="error_restore_document">Error restoring document</string>
     <string name="error_restore_all_documents">Error restoring all documents</string>
     <string name="error_delete_document">Error deleting document</string>
+    <string name="error_load_data">Failed to load data. Please try again.</string>
+    <string name="error_action_failed">Action failed. Please try again.</string>
     <string name="error_empty_trash">Error emptying trash</string>
     <string name="unknown">Unknown</string>
 

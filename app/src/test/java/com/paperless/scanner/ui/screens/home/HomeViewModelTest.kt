@@ -21,6 +21,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import kotlinx.coroutines.flow.flow
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -37,6 +38,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -92,6 +94,12 @@ class HomeViewModelTest {
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns MutableStateFlow(emptyList())
+        every { taskRepository.observeUnacknowledgedTasksExcludingDeleted() } returns MutableStateFlow(emptyList())
+        every { documentCountRepository.observeUntaggedDocumentsCount() } returns MutableStateFlow(0)
+        every { trashRepository.observeTrashedDocumentsCount() } returns MutableStateFlow(0)
+        every { trashRepository.observeOldestDeletedTimestamp() } returns MutableStateFlow(null)
+        every { syncHistoryRepository.observeFailedCount() } returns MutableStateFlow(0)
         every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
@@ -140,7 +148,7 @@ class HomeViewModelTest {
         // Check initial state before loading completes
         val initialState = viewModel.uiState.value
         assertTrue(initialState.isLoading)
-        assertNull(initialState.error)
+        assertNull(viewModel.errorState.value)
     }
     
     @Test
@@ -198,5 +206,69 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Renamed", viewModel.uiState.value.recentDocuments.first().tagName)
+    }
+
+    // ==================== Error Handling (Issue #85) ====================
+    // These 4 tests FAIL until Task 6 implements asUiResult() in observe* functions.
+    // Task 6 is responsible for catching Result.failure in observe* and emitting LoadFailed.
+
+    @Test
+    fun `observeTagsReactively sets LoadFailed on errorState when tags observer encounters error`() = runTest {
+        every { tagRepository.observeTags() } returns flow { throw RuntimeException("tags DB error") }
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        val error = vm.errorState.value
+        assertNotNull("errorState should have LoadFailed after Task 6", error)
+        assertTrue("error should be LoadFailed", error is HomeError.LoadFailed)
+        if (error is HomeError.LoadFailed) {
+            assertEquals("source should be tags", "tags", error.source)
+        }
+    }
+
+    @Test
+    fun `observeRecentDocumentsReactively sets LoadFailed on errorState when documents observer encounters error`() = runTest {
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns flow { throw RuntimeException("docs DB error") }
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        val error = vm.errorState.value
+        assertNotNull("errorState should have LoadFailed after Task 6", error)
+        assertTrue("error should be LoadFailed", error is HomeError.LoadFailed)
+        if (error is HomeError.LoadFailed) {
+            assertEquals("source should be recentDocuments", "recentDocuments", error.source)
+        }
+    }
+
+    @Test
+    fun `deleteRecentDocument sets ActionFailed on errorState when delete fails`() = runTest {
+        coEvery { trashRepository.deleteDocument(any()) } returns Result.failure(RuntimeException("Network error"))
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.deleteRecentDocument(documentId = 1, documentTitle = "Test Doc")
+        advanceUntilIdle()
+
+        // PASSES if Task 3 already implemented deleteRecentDocument error wiring
+        // or FAILS if error handling not yet complete in deleteRecentDocument
+        val error = vm.errorState.value
+        assertNotNull("errorState should have ActionFailed for failed delete", error)
+        assertTrue("error should be ActionFailed", error is HomeError.ActionFailed)
+        if (error is HomeError.ActionFailed) {
+            assertEquals("action should be deleteDocument", "deleteDocument", error.action)
+        }
+    }
+
+    @Test
+    fun `clearHomeError resets errorState to null`() = runTest {
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        // This test PASSES (clearHomeError always works, doesn't depend on error catching)
+        vm.clearHomeError()
+        assertNull("errorState should be null after clearHomeError", vm.errorState.value)
     }
 }

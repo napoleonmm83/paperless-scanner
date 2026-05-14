@@ -118,6 +118,14 @@ fun HomeScreen(
     val createTagState by viewModel.createTagState.collectAsState()
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
+    // Error state
+    val errorState by viewModel.errorState.collectAsState()
+    val errorMessage = when (errorState) {
+        is HomeError.LoadFailed -> stringResource(R.string.error_load_data)
+        is HomeError.ActionFailed -> stringResource(R.string.error_action_failed)
+        null -> null
+    }
+
     // Snackbar for undo delete
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
 
@@ -154,6 +162,15 @@ fun HomeScreen(
                 // Keep dialog open to show error, user can dismiss manually
             }
             else -> {}
+        }
+    }
+
+    // Show error snackbar for load/action failures
+    LaunchedEffect(errorState) {
+        errorMessage?.let { msg ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearHomeError()
         }
     }
 

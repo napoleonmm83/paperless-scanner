@@ -1,0 +1,5 @@
+Version 1.5.114:
+
+🔧 Improvements:
+- Consistent error handling in home screen
+- Errors now shown via Snackbar instead of silent failures

@@ -22,8 +22,10 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.util.asUiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -109,8 +111,7 @@ data class HomeUiState(
     val activeUploadsCount: Int = 0,           // NEW: Active uploads in queue
     val failedSyncCount: Int = 0,              // NEW: Failed sync operations
     val lastSyncedAt: Long? = null,            // NEW: Timestamp of last successful sync
-    val isLoading: Boolean = true,
-    val error: String? = null
+    val isLoading: Boolean = true
 ) {
     companion object {
         const val PROCESSING_TASKS_DISPLAY_LIMIT = 10
@@ -224,6 +225,9 @@ class HomeViewModel @Inject constructor(
     private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())
     private var wasOffline = false
 
+    private val _errorState = MutableStateFlow<HomeError?>(null)
+    val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
+
     // Tag Suggestions Sheet state
     private val _tagSuggestionsState = MutableStateFlow(TagSuggestionsState())
     val tagSuggestionsState: StateFlow<TagSuggestionsState> = _tagSuggestionsState.asStateFlow()
@@ -264,9 +268,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeTagsReactively() {
         viewModelScope.launch {
-            tagRepository.observeTags().collect { tags ->
-                _tagMap.value = tags.associateBy { it.id }
-            }
+            tagRepository.observeTags()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { tags ->
+                        _tagMap.value = tags.associateBy { it.id }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("tags", e)
+                    }
+                }
         }
     }
 
@@ -281,16 +291,12 @@ class HomeViewModel @Inject constructor(
     private fun observeRecentDocumentsReactively() {
         viewModelScope.launch {
             combine(
-                documentListRepository.observeDocuments(
-                    page = 1,
-                    pageSize = 5
-                ),
+                documentListRepository.observeDocuments(page = 1, pageSize = 5),
                 _tagMap
             ) { documents, currentTagMap ->
                 documents.map { doc ->
                     val firstTagId = doc.tags.firstOrNull()
                     val tag = firstTagId?.let { currentTagMap[it] }
-
                     RecentDocument(
                         id = doc.id,
                         title = doc.title,
@@ -299,14 +305,15 @@ class HomeViewModel @Inject constructor(
                         tagColor = tag?.color?.let { parseColorToLong(it) }
                     )
                 }
-            }.collect { recentDocs ->
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        recentDocuments = recentDocs,
-                        isLoading = false
-                    )
-                }
             }
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { recentDocs ->
+                        _uiState.update { it.copy(recentDocuments = recentDocs, isLoading = false) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("recentDocuments", e)
+                    }
+                }
         }
     }
 
@@ -325,47 +332,45 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeProcessingTasksReactively() {
         viewModelScope.launch {
-            taskRepository.observeUnacknowledgedTasksExcludingDeleted().collect { tasks ->
-                val processingTasks = tasks
-                    // Only show document processing tasks, not system tasks like train_classifier
-                    .filter { task -> task.taskFileName != null }
-                    .map { task ->
-                        ProcessingTask(
-                            id = task.id,
-                            taskId = task.taskId,
-                            fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
-                            status = mapTaskStatus(task.status),
-                            timeAgo = formatTimeAgo(task.dateCreated),
-                            resultMessage = task.result,
-                            documentId = task.relatedDocument?.toIntOrNull()
-                        )
+            taskRepository.observeUnacknowledgedTasksExcludingDeleted()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { tasks ->
+                        val processingTasks = tasks
+                            .filter { task -> task.taskFileName != null }
+                            .map { task ->
+                                ProcessingTask(
+                                    id = task.id,
+                                    taskId = task.taskId,
+                                    fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
+                                    status = mapTaskStatus(task.status),
+                                    timeAgo = formatTimeAgo(task.dateCreated),
+                                    resultMessage = task.result,
+                                    documentId = task.relatedDocument?.toIntOrNull()
+                                )
+                            }
+                            .sortedByDescending { it.id }
+
+                        val activeTasksCount = processingTasks.count {
+                            it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
+                        }
+
+                        val previousTasks = _uiState.value.processingTasks
+                        syncCompletedDocuments(previousTasks, processingTasks)
+
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                processingTasks = processingTasks,
+                                allProcessingTasksCount = activeTasksCount,
+                                isLoading = false
+                            )
+                        }
+
+                        if (activeTasksCount > 0) startTaskPolling() else stopTaskPolling()
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("processingTasks", e)
                     }
-                    .sortedByDescending { it.id }
-
-                // Count active tasks for Hero Card (unlimited count)
-                val activeTasksCount = processingTasks.count {
-                    it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
                 }
-
-                // Track newly completed tasks for document sync
-                val previousTasks = _uiState.value.processingTasks
-                syncCompletedDocuments(previousTasks, processingTasks)
-
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        processingTasks = processingTasks,
-                        allProcessingTasksCount = activeTasksCount,
-                        isLoading = false
-                    )
-                }
-
-                // Start/stop polling based on task status
-                if (activeTasksCount > 0) {
-                    startTaskPolling()
-                } else {
-                    stopTaskPolling()
-                }
-            }
         }
     }
 
@@ -375,9 +380,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeUntaggedCountReactively() {
         viewModelScope.launch {
-            documentCountRepository.observeUntaggedDocumentsCount().collect { count ->
-                _uiState.update { it.copy(untaggedCount = count) }
-            }
+            documentCountRepository.observeUntaggedDocumentsCount()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(untaggedCount = count) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("untaggedCount", e)
+                    }
+                }
         }
     }
 
@@ -387,9 +398,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeDeletedCountReactively() {
         viewModelScope.launch {
-            trashRepository.observeTrashedDocumentsCount().collect { count ->
-                _uiState.update { it.copy(deletedCount = count) }
-            }
+            trashRepository.observeTrashedDocumentsCount()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(deletedCount = count) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("deletedCount", e)
+                    }
+                }
         }
     }
 
@@ -399,9 +416,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeOldestDeletedTimestampReactively() {
         viewModelScope.launch {
-            trashRepository.observeOldestDeletedTimestamp().collect { timestamp ->
-                _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
-            }
+            trashRepository.observeOldestDeletedTimestamp()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { timestamp ->
+                        _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("deletedTimestamp", e)
+                    }
+                }
         }
     }
 
@@ -412,9 +435,15 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeActiveUploadsCountReactively() {
         viewModelScope.launch {
-            uploadQueueRepository.pendingCount.collect { count ->
-                _uiState.update { it.copy(activeUploadsCount = count) }
-            }
+            uploadQueueRepository.pendingCount
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(activeUploadsCount = count) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("activeUploads", e)
+                    }
+                }
         }
     }
 
@@ -425,15 +454,21 @@ class HomeViewModel @Inject constructor(
      */
     private fun observeFailedSyncCountReactively() {
         viewModelScope.launch {
-            syncHistoryRepository.observeFailedCount().collect { count ->
-                _uiState.update { it.copy(failedSyncCount = count) }
-            }
+            syncHistoryRepository.observeFailedCount()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(failedSyncCount = count) }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("failedSync", e)
+                    }
+                }
         }
     }
 
     fun loadDashboardData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true) }
 
             val stats = loadStats()
 
@@ -802,8 +837,8 @@ class HomeViewModel @Inject constructor(
         _uiState.update { HomeUiState() }
     }
 
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
+    fun clearHomeError() {
+        _errorState.value = null
     }
 
     fun deleteRecentDocument(documentId: Int, documentTitle: String) {
@@ -818,20 +853,19 @@ class HomeViewModel @Inject constructor(
                     // Recent documents list updates automatically via reactive Flow
                     analyticsService.trackEvent(AnalyticsEvent.DocumentDeleted)
                 }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            deletedDocument = null,
-                            error = context.getString(R.string.error_delete_document)
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        deletedDocument = null,
-                        error = context.getString(R.string.error_delete_document)
+                    _uiState.update { it.copy(deletedDocument = null) }
+                    _errorState.value = HomeError.ActionFailed(
+                        "deleteDocument",
+                        error
                     )
                 }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _uiState.update { it.copy(deletedDocument = null) }
+                _errorState.value = HomeError.ActionFailed(
+                    "deleteDocument",
+                    e
+                )
             }
         }
     }
@@ -850,14 +884,17 @@ class HomeViewModel @Inject constructor(
             // Restore document via repository
             try {
                 trashRepository.restoreDocument(deletedDoc.id).onFailure {
-                    _uiState.update {
-                        it.copy(error = context.getString(R.string.error_restore_document))
-                    }
+                    _errorState.value = HomeError.ActionFailed(
+                        "restoreDocument",
+                        it
+                    )
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(error = context.getString(R.string.error_restore_document))
-                }
+                if (e is CancellationException) throw e
+                _errorState.value = HomeError.ActionFailed(
+                    "restoreDocument",
+                    e
+                )
             }
         }
     }
@@ -892,14 +929,17 @@ class HomeViewModel @Inject constructor(
 
     private fun observePendingUploads() {
         viewModelScope.launch {
-            pendingChangesCount.collect { count ->
-                // Update stats with new pending count
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        stats = currentState.stats.copy(pendingUploads = count)
-                    )
+            pendingChangesCount
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { currentState ->
+                            currentState.copy(stats = currentState.stats.copy(pendingUploads = count))
+                        }
+                    }.onFailure { e ->
+                        _errorState.value = HomeError.LoadFailed("pendingUploads", e)
+                    }
                 }
-            }
         }
     }
 
@@ -964,9 +1004,8 @@ class HomeViewModel @Inject constructor(
                 }
             }.onFailure { error ->
                 logger.log(Level.WARNING, "Failed to load untagged documents: ${error.message}")
-                _tagSuggestionsState.update {
-                    it.copy(isLoading = false)
-                }
+                _tagSuggestionsState.update { it.copy(isLoading = false) }
+                _errorState.value = HomeError.LoadFailed("untaggedDocuments", error)
             }
         }
     }
