@@ -58,12 +58,13 @@ class WidgetPreferences @Inject constructor(
      * Saves widget config synchronously using commit() to ensure data is persisted
      * before the widget attempts to read it.
      */
-    fun setWidgetConfig(widgetId: Int, config: WidgetConfig) {
+    fun setWidgetConfig(widgetId: Int, config: WidgetConfig): Boolean {
         val success = prefs.edit()
             .putString(widgetTypeKey(widgetId), config.type.name)
             .commit() // commit() not apply() - ensures synchronous write before widget renders
 
         Log.d(TAG, "setWidgetConfig: id=$widgetId, type=${config.type}, success=$success")
+        return success
     }
 
     fun removeWidgetConfig(widgetId: Int) {

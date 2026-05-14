@@ -103,39 +103,34 @@ class WidgetConfigActivity : ComponentActivity() {
     private fun saveConfigAndFinish(config: WidgetConfig) {
         Log.d(TAG, "Saving widget config: id=$appWidgetId, type=${config.type}")
 
-        // 1. Save config synchronously (SharedPreferences with commit())
-        widgetPreferences.setWidgetConfig(appWidgetId, config)
-
-        // 2. Verify config was saved correctly
-        val savedConfig = widgetPreferences.getWidgetConfig(appWidgetId)
-        Log.d(TAG, "Verified saved config: id=$appWidgetId, type=${savedConfig.type}")
-
-        if (savedConfig.type != config.type) {
-            Log.e(TAG, "CONFIG MISMATCH! Saved=${savedConfig.type}, Expected=${config.type}")
-        }
-
-        // 3. Update widget
         if (!WidgetDeviceChecker.shouldUseLegacyWidget()) {
-            // Glance: update Glance state to trigger reactive recomposition
             val glanceId = AppWidgetId(appWidgetId)
             lifecycleScope.launch {
                 try {
-                    Log.d(TAG, "Updating Glance state: id=$appWidgetId, type=${config.type}")
-                    // Write widget type to Glance state → triggers recomposition
+                    // Atomic: commit SharedPrefs then immediately write Glance state in the same
+                    // coroutine — no gap for provideGlance to observe diverged state between
+                    // the two writes.
+                    val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
+                    if (!committed) {
+                        Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                        sendWidgetUpdateBroadcast()
+                        return@launch
+                    }
                     updateAppWidgetState(this@WidgetConfigActivity, glanceId) { prefs ->
                         prefs[ScannerWidget.WIDGET_TYPE_KEY] = config.type.name
                     }
                     ScannerWidget().update(this@WidgetConfigActivity, glanceId)
-                    Log.d(TAG, "Glance widget updated successfully")
+                    Log.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Direct Glance update failed, sending broadcast fallback", e)
+                    Log.e(TAG, "Glance update failed, sending broadcast fallback", e)
                     sendWidgetUpdateBroadcast()
                 } finally {
                     finishWithResult()
                 }
             }
         } else {
-            // Legacy: broadcast triggers LegacyScannerWidget.onUpdate
+            // Legacy: commit SharedPrefs synchronously, then broadcast triggers LegacyScannerWidget.onUpdate
+            widgetPreferences.setWidgetConfig(appWidgetId, config)
             sendWidgetUpdateBroadcast()
             finishWithResult()
         }
