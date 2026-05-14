@@ -20,9 +20,12 @@ import com.paperless.scanner.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -76,6 +79,12 @@ class BillingManager @Inject constructor(
         private const val TAG = "BillingManager"
         const val PRODUCT_ID_MONTHLY = "paperless_ai_monthly"
         const val PRODUCT_ID_YEARLY = "paperless_ai_yearly"
+
+        // Reconnect backoff schedule for transient Disconnected state.
+        // Cap at 16s, infinite retries — each retry is a cheap binder call;
+        // failure stays in Disconnected and consumers can observe billingState.
+        private const val RECONNECT_BACKOFF_INITIAL_MS = 1_000L
+        private const val RECONNECT_BACKOFF_CAP_MS = 16_000L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -86,8 +95,19 @@ class BillingManager @Inject constructor(
     private val _isSubscriptionActive = MutableStateFlow(false)
     val isSubscriptionActive: Flow<Boolean> = _isSubscriptionActive.asStateFlow()
 
+    // Explicit billing state machine — replaces the implicit
+    // "billingClient != null && isReady" check that existed before.
+    // Disconnected auto-retries with exponential backoff; Failed waits
+    // for an explicit initialize() call (next user action).
+    private val _billingState: MutableStateFlow<BillingState> = MutableStateFlow(BillingState.Uninitialized)
+    val billingState: StateFlow<BillingState> = _billingState.asStateFlow()
+
     private var billingClient: BillingClient? = null
     private var productDetailsCache: Map<String, ProductDetails> = emptyMap()
+
+    // Tracks the in-flight Disconnected-state reconnect coroutine so destroy()
+    // can cancel it. A new disconnect cancels the previous schedule.
+    private var reconnectJob: Job? = null
 
     // Store pending purchase continuation to resume after purchasesUpdatedListener callback
     private var pendingPurchaseContinuation: kotlin.coroutines.Continuation<PurchaseResult>? = null
@@ -141,13 +161,39 @@ class BillingManager @Inject constructor(
     /**
      * Initialize billing connection.
      * Should be called early in app lifecycle (Application.onCreate).
+     *
+     * Idempotent: safe to call multiple times. Allowed transitions:
+     *  - Uninitialized → Initializing (first call)
+     *  - Failed → Initializing (retry after a previous setup failure)
+     *
+     * Calls from Ready/Initializing/Disconnected are no-ops (Disconnected
+     * self-heals via the reconnect backoff scheduler).
      */
+    @Synchronized
     fun initialize() {
-        if (billingClient != null) {
-            Log.w(TAG, "BillingClient already initialized")
-            return
+        when (val current = _billingState.value) {
+            is BillingState.Ready,
+            is BillingState.Initializing,
+            is BillingState.Disconnected -> {
+                Log.w(TAG, "initialize() ignored — state is $current")
+                return
+            }
+            is BillingState.Uninitialized,
+            is BillingState.Failed -> {
+                Log.d(TAG, "initialize() — transitioning $current → Initializing")
+            }
         }
 
+        // Tear down any stale client (only possible when re-initializing from Failed).
+        billingClient?.let {
+            try {
+                it.endConnection()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to end stale connection before re-init", e)
+            }
+        }
+
+        _billingState.value = BillingState.Initializing
         billingClient = BillingClient.newBuilder(context)
             .setListener(purchasesUpdatedListener)
             .enablePendingPurchases(
@@ -162,28 +208,72 @@ class BillingManager @Inject constructor(
 
     /**
      * Connect to Google Play Billing.
+     *
+     * Used for both initial connection (from initialize) and reconnect attempts
+     * (scheduled by the Disconnected backoff handler). The same listener
+     * handles state transitions in both cases.
      */
     private fun connectToPlayBilling() {
-        billingClient?.startConnection(object : BillingClientStateListener {
+        val client = billingClient ?: run {
+            Log.e(TAG, "connectToPlayBilling() called with null client — transitioning to Failed")
+            _billingState.value = BillingState.Failed("client was null at connect time")
+            return
+        }
+        client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d(TAG, "Billing setup successful")
+                    Log.d(TAG, "Billing setup successful — state = Ready")
+                    _billingState.value = BillingState.Ready
+                    // Reaching Ready cancels any pending reconnect schedule from a
+                    // previous Disconnected episode (success after retry).
+                    reconnectJob?.cancel()
+                    reconnectJob = null
                     // Query existing purchases
                     scope.launch {
                         queryPurchases()
                         queryProductDetails()
                     }
                 } else {
-                    Log.e(TAG, "Billing setup failed: ${billingResult.debugMessage}")
+                    val reason = billingResult.debugMessage.ifBlank { "code=${billingResult.responseCode}" }
+                    Log.e(TAG, "Billing setup failed: $reason — state = Failed (no auto-retry)")
+                    _billingState.value = BillingState.Failed(reason)
+                    // No auto-retry on setup failure — wait for next explicit
+                    // initialize() call (e.g., user opens Premium screen).
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.w(TAG, "Billing service disconnected")
-                // Try reconnecting
-                connectToPlayBilling()
+                Log.w(TAG, "Billing service disconnected — scheduling backoff reconnect")
+                scheduleReconnectWithBackoff()
             }
         })
+    }
+
+    /**
+     * Schedules a reconnect attempt with exponential backoff capped at
+     * [RECONNECT_BACKOFF_CAP_MS]. Each Disconnected state carries the
+     * current retry attempt for consumers/debug. Cancels any previous
+     * pending schedule.
+     */
+    private fun scheduleReconnectWithBackoff() {
+        reconnectJob?.cancel()
+        val previousAttempt = (_billingState.value as? BillingState.Disconnected)?.retryAttempt ?: 0
+        val nextAttempt = previousAttempt + 1
+        _billingState.value = BillingState.Disconnected(nextAttempt)
+
+        // Exponential: 1s, 2s, 4s, 8s, 16s, 16s, 16s, ...
+        val delayMs = (RECONNECT_BACKOFF_INITIAL_MS shl (nextAttempt - 1).coerceAtMost(4))
+            .coerceAtMost(RECONNECT_BACKOFF_CAP_MS)
+
+        Log.d(TAG, "Reconnect attempt #$nextAttempt scheduled in ${delayMs}ms")
+        reconnectJob = scope.launch {
+            delay(delayMs)
+            if (billingClient != null) {
+                connectToPlayBilling()
+            } else {
+                Log.w(TAG, "Reconnect aborted — billingClient was destroyed")
+            }
+        }
     }
 
     /**
@@ -495,14 +585,25 @@ class BillingManager @Inject constructor(
     /**
      * Restore previous purchases.
      * Useful when user reinstalls app or switches devices.
+     *
+     * Bug-fix history: previously `billingClient?.queryPurchasesAsync(...)`
+     * was a silent no-op when the client was null/not-ready, leaving the
+     * continuation forever-suspended. The Ready-state gate now resolves
+     * with an explicit Error result so callers never hang.
      */
     suspend fun restorePurchases(): RestoreResult {
+        val client = billingClient
+        if (_billingState.value !is BillingState.Ready || client == null || !client.isReady) {
+            Log.e(TAG, "restorePurchases: client not Ready (state = ${_billingState.value})")
+            return RestoreResult.Error(context.getString(R.string.billing_error_not_ready))
+        }
+
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
 
         return suspendCancellableCoroutine { continuation ->
-            billingClient?.queryPurchasesAsync(params) { billingResult, purchases ->
+            client.queryPurchasesAsync(params) { billingResult, purchases ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val activePurchases = purchases.filter {
                         it.purchaseState == Purchase.PurchaseState.PURCHASED
@@ -727,6 +828,11 @@ class BillingManager @Inject constructor(
     fun destroy() {
         Log.d(TAG, "destroy() called")
 
+        // Cancel pending reconnect schedule (if any) — prevents the backoff
+        // coroutine from trying to reconnect after the client is gone.
+        reconnectJob?.cancel()
+        reconnectJob = null
+
         // Cancel any pending purchase flow to prevent continuation leak
         pendingPurchaseContinuation?.let {
             Log.w(TAG, "Cancelling pending purchase continuation on destroy")
@@ -746,8 +852,50 @@ class BillingManager @Inject constructor(
         }
 
         billingClient = null
+        _billingState.value = BillingState.Uninitialized
         Log.d(TAG, "BillingClient destroyed")
     }
+}
+
+/**
+ * Explicit billing state machine for [BillingManager].
+ *
+ * Transitions:
+ * ```
+ * Uninitialized ──initialize()──> Initializing ──onBillingSetupFinished(OK)──> Ready
+ *                                              ──onBillingSetupFinished(err)─> Failed (terminal until next initialize())
+ *
+ * Ready ──onBillingServiceDisconnected──> Disconnected ──backoff retry──> Ready (success)
+ *                                                                       ──backoff retry──> Disconnected (next attempt)
+ *
+ * Failed ──initialize()──> Initializing (explicit retry path)
+ * ```
+ *
+ * - **Disconnected** auto-retries with exponential backoff (1s → 16s cap, infinite attempts).
+ * - **Failed** is terminal until the next explicit [BillingManager.initialize] call.
+ */
+sealed class BillingState {
+    /** Initial state before [BillingManager.initialize] is called. */
+    data object Uninitialized : BillingState()
+
+    /** [BillingClient.startConnection] in flight — awaiting [BillingClientStateListener.onBillingSetupFinished]. */
+    data object Initializing : BillingState()
+
+    /** Billing client connected and ready to accept purchase / query calls. */
+    data object Ready : BillingState()
+
+    /**
+     * Setup failed permanently. No auto-retry — next [BillingManager.initialize] call
+     * (typically triggered by user reopening the Premium screen) will retry.
+     * @property reason Debug message from the failed [BillingResult] (for Crashlytics).
+     */
+    data class Failed(val reason: String) : BillingState()
+
+    /**
+     * Service disconnected mid-session. Backoff reconnect is scheduled.
+     * @property retryAttempt 1-based counter; resets on transition to [Ready].
+     */
+    data class Disconnected(val retryAttempt: Int) : BillingState()
 }
 
 /**
