@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.glance.appwidget.AppWidgetId
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -122,6 +123,8 @@ class WidgetConfigActivity : ComponentActivity() {
                     ScannerWidget().update(this@WidgetConfigActivity, glanceId)
                     Log.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
                     resultCode = RESULT_OK
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Glance update failed, sending broadcast fallback", e)
                     // SharedPrefs committed — broadcast so widget still updates eventually
