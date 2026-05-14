@@ -25,6 +25,7 @@ import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.asUiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -859,6 +860,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _uiState.update { it.copy(deletedDocument = null) }
                 _errorState.value = HomeError.ActionFailed(
                     "deleteDocument",
@@ -888,6 +890,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 _errorState.value = HomeError.ActionFailed(
                     "restoreDocument",
                     e
@@ -1001,9 +1004,8 @@ class HomeViewModel @Inject constructor(
                 }
             }.onFailure { error ->
                 logger.log(Level.WARNING, "Failed to load untagged documents: ${error.message}")
-                _tagSuggestionsState.update {
-                    it.copy(isLoading = false)
-                }
+                _tagSuggestionsState.update { it.copy(isLoading = false) }
+                _errorState.value = HomeError.LoadFailed("untaggedDocuments", error)
             }
         }
     }
