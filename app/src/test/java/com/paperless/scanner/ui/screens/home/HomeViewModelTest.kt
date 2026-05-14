@@ -140,7 +140,7 @@ class HomeViewModelTest {
         // Check initial state before loading completes
         val initialState = viewModel.uiState.value
         assertTrue(initialState.isLoading)
-        assertNull(initialState.error)
+        assertNull(viewModel.errorState.value)
     }
     
     @Test

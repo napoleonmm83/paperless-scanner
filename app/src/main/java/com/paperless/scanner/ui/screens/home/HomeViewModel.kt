@@ -109,8 +109,7 @@ data class HomeUiState(
     val activeUploadsCount: Int = 0,           // NEW: Active uploads in queue
     val failedSyncCount: Int = 0,              // NEW: Failed sync operations
     val lastSyncedAt: Long? = null,            // NEW: Timestamp of last successful sync
-    val isLoading: Boolean = true,
-    val error: String? = null
+    val isLoading: Boolean = true
 ) {
     companion object {
         const val PROCESSING_TASKS_DISPLAY_LIMIT = 10
@@ -223,6 +222,9 @@ class HomeViewModel @Inject constructor(
     // the previous unsynchronized `var Map`.
     private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())
     private var wasOffline = false
+
+    private val _errorState = MutableStateFlow<HomeError?>(null)
+    val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
 
     // Tag Suggestions Sheet state
     private val _tagSuggestionsState = MutableStateFlow(TagSuggestionsState())
@@ -433,7 +435,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadDashboardData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true) }
 
             val stats = loadStats()
 
@@ -802,8 +804,8 @@ class HomeViewModel @Inject constructor(
         _uiState.update { HomeUiState() }
     }
 
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
+    fun clearHomeError() {
+        _errorState.value = null
     }
 
     fun deleteRecentDocument(documentId: Int, documentTitle: String) {
@@ -818,20 +820,18 @@ class HomeViewModel @Inject constructor(
                     // Recent documents list updates automatically via reactive Flow
                     analyticsService.trackEvent(AnalyticsEvent.DocumentDeleted)
                 }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            deletedDocument = null,
-                            error = context.getString(R.string.error_delete_document)
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        deletedDocument = null,
-                        error = context.getString(R.string.error_delete_document)
+                    _uiState.update { it.copy(deletedDocument = null) }
+                    _errorState.value = HomeError.ActionFailed(
+                        context.getString(R.string.error_delete_document),
+                        error
                     )
                 }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(deletedDocument = null) }
+                _errorState.value = HomeError.ActionFailed(
+                    context.getString(R.string.error_delete_document),
+                    e
+                )
             }
         }
     }
@@ -850,14 +850,16 @@ class HomeViewModel @Inject constructor(
             // Restore document via repository
             try {
                 trashRepository.restoreDocument(deletedDoc.id).onFailure {
-                    _uiState.update {
-                        it.copy(error = context.getString(R.string.error_restore_document))
-                    }
+                    _errorState.value = HomeError.ActionFailed(
+                        context.getString(R.string.error_restore_document),
+                        it
+                    )
                 }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(error = context.getString(R.string.error_restore_document))
-                }
+                _errorState.value = HomeError.ActionFailed(
+                    context.getString(R.string.error_restore_document),
+                    e
+                )
             }
         }
     }
