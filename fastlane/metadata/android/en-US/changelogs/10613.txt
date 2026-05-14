@@ -5,4 +5,4 @@ Version 1.5.113:
 - Auto-reconnect with backoff when Play Billing disconnects
 
 🐛 Fixes:
-- Restore Purchases no longer hangs when Play Billing isn't ready
+- Restore Purchases no longer hangs if Play Billing not ready

@@ -674,7 +674,9 @@ class BillingManager @Inject constructor(
                         
                     crashlytics.log("Purchase PENDING: ${purchase.products}")
                     crashlytics.setCustomKey("purchase_state", "PENDING")
-                    crashlytics.setCustomKey("purchase_token", purchase.purchaseToken)
+                    // Purchase token is sensitive (can be replayed to mutate the purchase).
+                    // Track presence/length only — never the value. CLAUDE.md: no secrets in logs.
+                    crashlytics.setCustomKey("purchase_token_present", purchase.purchaseToken.isNotEmpty())
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to log pending purchase to Crashlytics", e)
                 }
