@@ -35,11 +35,16 @@ object ServerUrlParser {
          * @param host The hostname/IP (lowercase for domains)
          * @param port The port number, or null if not specified
          * @param isIpv6 Whether this is an IPv6 address
+         * @param userScheme The protocol the user explicitly typed ("http" or "https"),
+         *                   or null if the user did not specify a protocol. Detection
+         *                   layer uses this to honor the user's choice instead of
+         *                   always probing HTTPS first (see AuthRepository#detectServerProtocol).
          */
         data class Success(
             val host: String,
             val port: Int?,
-            val isIpv6: Boolean = false
+            val isIpv6: Boolean = false,
+            val userScheme: String? = null
         ) : ParseResult() {
             /**
              * Returns host with port for URL construction.
@@ -86,20 +91,38 @@ object ServerUrlParser {
             return ParseResult.Error(R.string.error_server_address_missing)
         }
 
-        // Step 2: Remove protocol prefix
-        val withoutProtocol = cleaned
-            .removePrefix("https://")
-            .removePrefix("http://")
+        // Step 2: Capture user-chosen scheme BEFORE stripping. Case-insensitive
+        // so "HTTP://" is recognised as an explicit choice too. Issue #233.
+        val userScheme: String? = when {
+            cleaned.startsWith("https://", ignoreCase = true) -> "https"
+            cleaned.startsWith("http://", ignoreCase = true) -> "http"
+            else -> null
+        }
 
-        // Step 3: Remove path (everything after first / that's not part of IPv6)
+        // Step 3: Remove protocol prefix (case-insensitive)
+        val withoutProtocol = when (userScheme) {
+            "https" -> cleaned.substring("https://".length)
+            "http" -> cleaned.substring("http://".length)
+            else -> cleaned
+        }
+
+        // Step 4: Reject leading/trailing dot — partial IPs like "192." or ".com"
+        // are not valid hostnames. Pre-empts spurious detect attempts while user
+        // is still typing. Issue #233.
+        val trimmedForDotCheck = extractHostPort(withoutProtocol).trim()
+        if (trimmedForDotCheck.startsWith(".") || trimmedForDotCheck.endsWith(".")) {
+            return ParseResult.Error(R.string.error_invalid_server_address)
+        }
+
+        // Step 5: Remove path (everything after first / that's not part of IPv6)
         val hostPortPart = extractHostPort(withoutProtocol)
 
         if (hostPortPart.isBlank()) {
             return ParseResult.Error(R.string.error_invalid_server_address)
         }
 
-        // Step 4: Parse host and port based on format
-        return when {
+        // Step 6: Parse host and port based on format
+        val result = when {
             // IPv6 with brackets: [::1] or [::1]:8000
             hostPortPart.startsWith("[") -> parseIpv6(hostPortPart)
 
@@ -108,6 +131,13 @@ object ServerUrlParser {
 
             // Domain name: example.com or example.com:8000
             else -> parseDomain(hostPortPart)
+        }
+
+        // Step 7: Attach captured userScheme to successful results so detection
+        // layer can honor the user's protocol choice.
+        return when (result) {
+            is ParseResult.Success -> result.copy(userScheme = userScheme)
+            is ParseResult.Error -> result
         }
     }
 
@@ -219,6 +249,13 @@ object ServerUrlParser {
         // Validate domain
         if (domain.isBlank() || domain.length < 1) {
             return ParseResult.Error(R.string.error_address_too_short)
+        }
+
+        // Reject single-label all-digit hostnames ("192", "10"). Almost always a
+        // partial IPv4 the user is mid-typing. RFC 952 forbids these as hostnames.
+        // Issue #233.
+        if (!domain.contains('.') && domain.all { it.isDigit() }) {
+            return ParseResult.Error(R.string.error_invalid_server_address)
         }
 
         // Check for invalid port (non-numeric)
