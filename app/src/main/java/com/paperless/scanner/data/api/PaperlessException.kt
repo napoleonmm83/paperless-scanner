@@ -190,6 +190,19 @@ sealed class PaperlessException(
         override val messageResId: Int = R.string.error_unknown
     }
 
+    /**
+     * Cleartext HTTP was attempted against a host the user has not yet
+     * accepted via the in-app warning. Surfaced by HttpAllowlistInterceptor
+     * and translated from CleartextNotAllowlistedException in the network
+     * layer. UI uses [host] to populate the accept-dialog. Issue #233.
+     */
+    data class CleartextBlocked(
+        val host: String
+    ) : PaperlessException("Cleartext HTTP not allowlisted for host: $host") {
+        @StringRes
+        override val messageResId: Int = R.string.error_cleartext_blocked_explain
+    }
+
     companion object {
         /**
          * Creates appropriate PaperlessException from HTTP status code.
@@ -223,6 +236,12 @@ sealed class PaperlessException(
 
                 is SocketTimeoutException ->
                     ServerUnreachable(ServerOfflineReason.TIMEOUT)
+
+                // Cleartext block — must come BEFORE the IOException branch
+                // because CleartextNotAllowlistedException extends IOException.
+                // Issue #233.
+                is CleartextNotAllowlistedException ->
+                    CleartextBlocked(throwable.host)
 
                 // General network errors (keep existing behavior)
                 is IOException -> NetworkError(throwable)

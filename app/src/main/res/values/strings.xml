@@ -1313,4 +1313,13 @@
     <!-- Step-by-Step Metadata -->
     <string name="step_metadata_no_pages">No pages available</string>
     <string name="cd_page_preview">Page %1$d preview</string>
+
+    <!-- Issue #233: cleartext-HTTP allowlist accept-flow -->
+    <string name="error_cleartext_blocked_explain">This server uses an unencrypted (HTTP) connection. Tap to accept the risk for this host, or set up HTTPS on the server (see SELF_HOSTED_HTTPS.md).</string>
+    <string name="setup_http_accept_required">This server uses HTTP (unencrypted). Tap to review.</string>
+    <string name="setup_http_accept_dialog_title_explicit">Allow unencrypted connection?</string>
+    <string name="setup_http_accept_dialog_title_fallback">Server uses HTTP only</string>
+    <string name="setup_http_accept_dialog_message_explicit">You entered an http:// URL for %1$s. Traffic — including your password and API token — will not be encrypted. Only allow this on a network you fully trust.</string>
+    <string name="setup_http_accept_dialog_message_fallback">%1$s does not respond to HTTPS. The app can fall back to HTTP, but your password and API token will not be encrypted. Only allow this on a network you fully trust.</string>
+    <string name="setup_generate_diagnostic">Generate diagnostic report</string>
 </resources>

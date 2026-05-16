@@ -174,4 +174,43 @@ class HttpAllowlistInterceptorTest {
             interceptor.intercept(chain)
         }
     }
+
+    // Issue #233: typed exception so upstream can route to accept-dialog
+    // instead of a generic network error.
+
+    @Test
+    fun `denied request throws CleartextNotAllowlistedException with host field`() {
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns emptySet()
+        val interceptor = HttpAllowlistInterceptor(holder)
+        val request = Request.Builder().url("http://192.168.178.19:80/api/").build()
+        val chain = mockk<Interceptor.Chain>()
+        every { chain.request() } returns request
+
+        val thrown = assertThrows(CleartextNotAllowlistedException::class.java) {
+            interceptor.intercept(chain)
+        }
+        assertEquals("192.168.178.19", thrown.host)
+    }
+
+    @Test
+    fun `CleartextNotAllowlistedException is an IOException for backwards compat`() {
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns emptySet()
+        val interceptor = HttpAllowlistInterceptor(holder)
+        val request = Request.Builder().url("http://blocked.example.com/").build()
+        val chain = mockk<Interceptor.Chain>()
+        every { chain.request() } returns request
+
+        // Existing catch(IOException) chains must keep matching the new
+        // typed exception, otherwise OkHttp Call.execute()'s contract and
+        // PaperlessException.from(...) both break.
+        try {
+            interceptor.intercept(chain)
+            error("expected throw")
+        } catch (e: IOException) {
+            assertTrue("should be the typed subclass", e is CleartextNotAllowlistedException)
+            assertEquals("blocked.example.com", (e as CleartextNotAllowlistedException).host)
+        }
+    }
 }
