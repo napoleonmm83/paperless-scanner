@@ -1,0 +1,11 @@
+Version 1.5.115:
+
+Fixes:
+- Self-hosted servers on LAN HTTP now connect on first try.
+- Typing partial IPs no longer shows false errors.
+- Explicit http:// URLs no longer try HTTPS first.
+
+Improvements:
+- Clearer dialog when accepting unencrypted connections.
+- Diagnostic report shows which protocol was tried.
+- New guide: docs/SELF_HOSTED_HTTPS.md for self-hosters.

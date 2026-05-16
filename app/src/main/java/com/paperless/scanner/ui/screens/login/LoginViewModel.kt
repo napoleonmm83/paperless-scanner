@@ -8,11 +8,14 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.api.HttpAllowlistInterceptor
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import com.paperless.scanner.util.LoginRateLimiter
 import com.paperless.scanner.util.LoginRateLimitState
+import com.paperless.scanner.util.ServerUrlParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -71,10 +74,22 @@ class LoginViewModel @Inject constructor(
         // Cancel previous detection job
         detectionJob?.cancel()
 
-        if (serverUrl.isBlank() || serverUrl.length < 4) {
+        if (serverUrl.isBlank()) {
             _serverStatus.update { ServerStatus.Idle }
             detectedServerUrl = null
-            Log.d(TAG, "URL too short, status = Idle")
+            return
+        }
+
+        // Issue #233: parse-shape gate. Cheaply validate the URL before
+        // spending a network round-trip and (more importantly) before
+        // surfacing a false error to the user while they are still typing.
+        // "192." / "192" / ".com" are silently kept in Idle until the user
+        // finishes typing something parseable.
+        val parsed = ServerUrlParser.parse(serverUrl)
+        if (parsed is ServerUrlParser.ParseResult.Error) {
+            _serverStatus.update { ServerStatus.Idle }
+            detectedServerUrl = null
+            Log.d(TAG, "URL not parseable yet, status = Idle")
             return
         }
 
@@ -87,6 +102,26 @@ class LoginViewModel @Inject constructor(
 
     private suspend fun detectServerInternal(serverUrl: String) {
         Log.d(TAG, "Starting detection for: $serverUrl")
+
+        // Issue #233: pre-detection gate. When the user typed http:// explicitly
+        // for a non-loopback host they have not yet accepted, surface the
+        // RequiresHttpAccept state BEFORE any network probe. This unblocks the
+        // chicken-and-egg: previously the accept-dialog only fired on a
+        // ServerStatus.Success branch that we could never reach because the
+        // interceptor was blocking the HTTP probe.
+        val parsed = ServerUrlParser.parse(serverUrl)
+        if (parsed is ServerUrlParser.ParseResult.Success && parsed.userScheme == "http") {
+            val host = parsed.host.lowercase()
+            val isHardAllowed = host in HttpAllowlistInterceptor.HARD_ALLOWED_HOSTS
+            val isUserAccepted = tokenManager.isHostAcceptedForHttp(host)
+            if (!isHardAllowed && !isUserAccepted) {
+                withContext(Dispatchers.Main) {
+                    _serverStatus.update { ServerStatus.RequiresHttpAccept(host, ServerStatus.RequiresHttpAccept.Reason.USER_CHOSE_HTTP) }
+                    Log.d(TAG, "Status = RequiresHttpAccept(USER_CHOSE_HTTP, host=$host)")
+                }
+                return
+            }
+        }
 
         // Check if user explicitly entered http:// (not a fallback in this case)
         val userExplicitlyUsedHttp = serverUrl.trim().lowercase().startsWith("http://")
@@ -115,10 +150,37 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
-                    val message = exception.message ?: context.getString(R.string.error_server_unreachable)
-                    _serverStatus.update { ServerStatus.Error(message) }
-                    Log.d(TAG, "Status = Error, message = $message")
+                    // Issue #233: a CleartextBlocked failure means the interceptor
+                    // refused a non-loopback HTTP request the user has not yet
+                    // accepted. Surface the accept-dialog state with the
+                    // HTTPS_FAILED_HTTP_BLOCKED reason so the dialog copy can
+                    // explain "HTTPS unreachable, allow HTTP fallback?".
+                    if (exception is PaperlessException.CleartextBlocked) {
+                        _serverStatus.update { ServerStatus.RequiresHttpAccept(exception.host, ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED) }
+                        Log.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
+                    } else {
+                        val message = exception.message ?: context.getString(R.string.error_server_unreachable)
+                        _serverStatus.update { ServerStatus.Error(message) }
+                        Log.d(TAG, "Status = Error, message = $message")
+                    }
                 }
+        }
+    }
+
+    /**
+     * Issue #233: called by the setup UI when the user accepts the
+     * cleartext-HTTP warning. Persists the host into the allowlist and
+     * re-runs detection. The brief delay lets [TokenManager]'s DataStore
+     * write propagate to [HttpAllowlistHolder]'s atomic cache before the
+     * next request hits the interceptor.
+     */
+    fun onHttpAcceptedForRequiresHttpAccept(host: String, serverUrl: String) {
+        viewModelScope.launch {
+            tokenManager.acceptHttpForHost(host)
+            Log.d(TAG, "HTTP accepted (RequiresHttpAccept path) for host: $host")
+            // Allow allowlist Flow to propagate to HttpAllowlistHolder's atomic cache.
+            delay(50L)
+            detectServerInternal(serverUrl)
         }
     }
 
@@ -451,6 +513,27 @@ sealed class ServerStatus {
         val isHttps: Boolean,
         val isHttpFallback: Boolean = false
     ) : ServerStatus()
+
+    /**
+     * Issue #233: the app needs the user's explicit consent before sending
+     * traffic over cleartext HTTP to this host. Triggered in two scenarios
+     * distinguished by [reason]:
+     *
+     * - [Reason.USER_CHOSE_HTTP] — user typed an http:// URL for a non-
+     *   loopback host they have not previously accepted. We surface the
+     *   dialog BEFORE any network probe to avoid spurious SSL-handshake
+     *   errors against plain-HTTP servers.
+     * - [Reason.HTTPS_FAILED_HTTP_BLOCKED] — user typed no scheme; the
+     *   HTTPS probe failed and the HTTP fallback was blocked by
+     *   HttpAllowlistInterceptor (CleartextBlocked). The dialog asks the
+     *   user to allow HTTP for this host.
+     */
+    data class RequiresHttpAccept(
+        val host: String,
+        val reason: Reason
+    ) : ServerStatus() {
+        enum class Reason { USER_CHOSE_HTTP, HTTPS_FAILED_HTTP_BLOCKED }
+    }
 
     data class Error(val message: String) : ServerStatus()
 }

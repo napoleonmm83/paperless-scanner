@@ -99,16 +99,70 @@ class AuthRepository @Inject constructor(
         // Use ServerUrlParser for comprehensive URL validation
         val parseResult = ServerUrlParser.parse(host)
 
-        val cleanHost = when (parseResult) {
-            is ServerUrlParser.ParseResult.Success -> parseResult.toHostString()
+        val (cleanHost, userScheme) = when (parseResult) {
+            is ServerUrlParser.ParseResult.Success ->
+                parseResult.toHostString() to parseResult.userScheme
             is ServerUrlParser.ParseResult.Error -> {
                 return Result.failure(PaperlessException.ContentError(parseResult.messageResId))
             }
         }
 
-        Log.d(TAG, "Detecting protocol for: $cleanHost")
+        Log.d(TAG, "Detecting protocol for: $cleanHost (userScheme=$userScheme)")
 
-        // Try HTTPS first (preferred)
+        // Issue #233: honor the user's explicit scheme. If they typed http://,
+        // do NOT probe https — that produces a TLS handshake error against a
+        // plain-HTTP server. If they typed https://, do NOT silently fall
+        // back to cleartext. Only when no scheme was given do we keep the
+        // HTTPS-first / HTTP-fallback dual probe.
+        if (userScheme == "http") {
+            val httpResult = tryProtocol("http", cleanHost)
+            if (httpResult.isSuccess) {
+                crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "http://$cleanHost")
+                return httpResult
+            }
+            val httpError: Throwable = httpResult.exceptionOrNull()
+                ?: IOException("HTTP detection failed without exception")
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+                serverUrl = cleanHost,
+                errorType = "SERVER_DETECT_FAILED_HTTP_ONLY",
+                errorMessage = "HTTP: ${httpError.message}",
+                serverDetection = AuthDebugReport.ServerDetectionInfo(
+                    httpsAttempted = false,
+                    httpsResult = null,
+                    httpAttempted = true,
+                    httpResult = httpError.message
+                )
+            )
+            // Surface CleartextBlocked verbatim so LoginViewModel can route
+            // to the accept-dialog instead of a generic error.
+            return Result.failure(httpError)
+        }
+
+        if (userScheme == "https") {
+            val httpsResult = tryProtocol("https", cleanHost)
+            if (httpsResult.isSuccess) {
+                crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "https://$cleanHost")
+                return httpsResult
+            }
+            val httpsError: Throwable = httpsResult.exceptionOrNull()
+                ?: IOException("HTTPS detection failed without exception")
+            authDebugService.logAuthFailure(
+                authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+                serverUrl = cleanHost,
+                errorType = "SERVER_DETECT_FAILED_HTTPS_ONLY",
+                errorMessage = "HTTPS: ${httpsError.message}",
+                serverDetection = AuthDebugReport.ServerDetectionInfo(
+                    httpsAttempted = true,
+                    httpsResult = httpsError.message,
+                    httpAttempted = false,
+                    httpResult = null
+                )
+            )
+            return Result.failure(httpsError)
+        }
+
+        // userScheme == null: keep HTTPS-first / HTTP-fallback (current behavior).
         val httpsResult = tryProtocol("https", cleanHost)
         if (httpsResult.isSuccess) {
             crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "https://$cleanHost")
@@ -153,6 +207,12 @@ class AuthRepository @Inject constructor(
         val httpMsg = httpError.message ?: ""
 
         return when {
+            // Issue #233: CleartextBlocked must win the priority race so the
+            // UI can route to the accept-dialog instead of a generic error.
+            // HTTP-attempt-blocked is the deadlock fingerprint this PR fixes.
+            httpError is PaperlessException.CleartextBlocked -> Result.failure(httpError)
+            httpsError is PaperlessException.CleartextBlocked -> Result.failure(httpsError)
+
             // Server not found errors (English patterns - base language)
             httpsMsg.contains("not found", ignoreCase = true) -> Result.failure(httpsError)
             httpMsg.contains("not found", ignoreCase = true) -> Result.failure(httpError)
@@ -293,6 +353,13 @@ class AuthRepository @Inject constructor(
                 else -> context.getString(R.string.error_connection_check_server)
             }
             Result.failure(PaperlessException.NetworkError(IOException(errorText)))
+        } catch (e: com.paperless.scanner.data.api.CleartextNotAllowlistedException) {
+            // Issue #233: must come BEFORE the IOException catch because
+            // CleartextNotAllowlistedException extends IOException. Surface
+            // the typed exception so the UI can route to the accept-dialog
+            // instead of a generic network-error toast.
+            Log.d(TAG, "$protocol - Cleartext blocked for host: ${e.host}")
+            Result.failure(PaperlessException.CleartextBlocked(e.host))
         } catch (e: IOException) {
             Log.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
@@ -382,6 +449,10 @@ class AuthRepository @Inject constructor(
                     }
                 }
             }
+        } catch (e: com.paperless.scanner.data.api.CleartextNotAllowlistedException) {
+            // Issue #233: typed exception must precede IOException catch.
+            Log.d(TAG, "$protocol - Cleartext blocked at documents endpoint: ${e.host}")
+            Result.failure(PaperlessException.CleartextBlocked(e.host))
         } catch (e: IOException) {
             Log.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(

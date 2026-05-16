@@ -8,6 +8,22 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Thrown by [HttpAllowlistInterceptor] when a cleartext-HTTP request targets
+ * a host that is neither in the loopback hard-allowlist nor in the
+ * user-accepted set. Subclass of [IOException] so existing catch-IOException
+ * chains keep matching, but typed so upstream layers (repository, ViewModel)
+ * can distinguish "interceptor blocked, prompt the user to accept" from
+ * "real network failure". Issue #233.
+ *
+ * @param host The lowercased host that was blocked. UI layers use this to
+ *             populate the accept-dialog.
+ */
+class CleartextNotAllowlistedException(val host: String) : IOException(
+    "Cleartext HTTP not permitted for non-allowlisted host: $host. " +
+        "Accept the insecure-connection warning in app settings to allow this host."
+)
+
+/**
  * Fail-closed runtime enforcement of the user's cleartext-HTTP allowlist.
  *
  * The base `network_security_config.xml` permits cleartext to all domains
@@ -56,19 +72,22 @@ class HttpAllowlistInterceptor @Inject constructor(
             return chain.proceed(request)
         }
 
-        throw IOException(
-            "Cleartext HTTP not permitted for non-allowlisted host: $host. " +
-                "Accept the insecure-connection warning in app settings to allow this host."
-        )
+        throw CleartextNotAllowlistedException(host)
     }
 
     companion object {
         private const val TAG = "HttpAllowlist"
 
-        // Loopback hosts never leave the device, so they're hard-allowed
-        // without requiring the user to accept the in-app warning.
-        // 10.0.2.2 is the Android emulator's host-machine loopback alias.
-        private val HARD_ALLOWED_HOSTS: Set<String> = setOf(
+        /**
+         * Loopback hosts never leave the device, so they're hard-allowed
+         * without requiring the user to accept the in-app warning.
+         * 10.0.2.2 is the Android emulator's host-machine loopback alias.
+         *
+         * Visibility is `internal` so LoginViewModel can mirror this set when
+         * deciding whether to prompt the cleartext-accept dialog pre-detection
+         * (Issue #233). Source of truth lives here.
+         */
+        internal val HARD_ALLOWED_HOSTS: Set<String> = setOf(
             "localhost",
             "127.0.0.1",
             "::1",

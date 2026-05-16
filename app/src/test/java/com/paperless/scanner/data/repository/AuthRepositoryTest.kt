@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -214,6 +215,93 @@ class AuthRepositoryTest {
         assertTrue(
             "Expected ContentError, got: ${result.exceptionOrNull()?.javaClass?.simpleName}",
             result.exceptionOrNull() is com.paperless.scanner.data.api.PaperlessException.ContentError
+        )
+    }
+
+    // --- Issue #233: userScheme respect + CleartextBlocked propagation ---
+
+    @Test
+    fun `detectServerProtocol with explicit http scheme only probes HTTP`() = runTest {
+        // MockWebServer runs HTTP only. Enqueue exactly ONE Paperless-shaped
+        // response — if the code under test also probed HTTPS, the
+        // enqueue queue would still serve this for the HTTP attempt and
+        // requestCount would be >1 (any extra probe), or the call would
+        // fail trying to TLS-handshake against a non-TLS port. Either way
+        // the test below detects regression to the old dual-probe behavior.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"correspondents":"/api/correspondents/","documents":"/api/documents/","tags":"/api/tags/"}""")
+        )
+
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val result = authRepository.detectServerProtocol("http://$host")
+
+        assertTrue("Expected success when HTTP /api/ is Paperless", result.isSuccess)
+        assertEquals("http://$host", result.getOrNull())
+        assertEquals(
+            "Should make exactly one request (HTTP only, no HTTPS probe)",
+            1, mockWebServer.requestCount
+        )
+    }
+
+    @Test
+    fun `detectServerProtocol with explicit https scheme does not fall back to HTTP`() = runTest {
+        // MockWebServer is HTTP-only — the HTTPS probe will fail. We must
+        // NOT see a subsequent HTTP request — that would be the old fallback
+        // behavior that turns "user typed https://" into an unencrypted
+        // connection silently. AC-A explicitly forbids that.
+        //
+        // We can't use mockWebServer.requestCount as the assertion: depending
+        // on the host OS, MockWebServer's TCP listener may count the failed
+        // TLS ClientHello bytes as 0 or 1 connections. Instead we verify via
+        // the AuthDebugService breadcrumb — the https-only path logs
+        // SERVER_DETECT_FAILED_HTTPS_ONLY, the dual-probe path logs
+        // SERVER_DETECT_FAILED with both attempts populated.
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val result = authRepository.detectServerProtocol("https://$host")
+
+        assertTrue("HTTPS-only probe must fail when server is plain HTTP", result.isFailure)
+        verify {
+            authDebugService.logAuthFailure(
+                authType = any(),
+                serverUrl = any(),
+                errorType = "SERVER_DETECT_FAILED_HTTPS_ONLY",
+                errorMessage = any(),
+                serverDetection = any()
+            )
+        }
+    }
+
+    @Test
+    fun `detectServerProtocol propagates CleartextBlocked when interceptor denies`() = runTest {
+        // Wire a HttpAllowlistInterceptor with an empty allowlist into a
+        // fresh OkHttpClient and a fresh AuthRepository. detectServerProtocol
+        // for a non-loopback http:// URL must surface CleartextBlocked, not
+        // a generic NetworkError, so LoginViewModel can route to the dialog.
+        val allowlistHolder = mockk<com.paperless.scanner.data.api.HttpAllowlistHolder>()
+        every { allowlistHolder.snapshot() } returns emptySet()
+        val interceptor = com.paperless.scanner.data.api.HttpAllowlistInterceptor(allowlistHolder)
+        val wiredClient = OkHttpClient.Builder().addInterceptor(interceptor).build()
+        val wiredRepo = AuthRepository(
+            context, tokenManager, wiredClient, cloudflareDetectionInterceptor,
+            crashlyticsHelper, authDebugService
+        )
+
+        // Non-loopback host that the interceptor will refuse. We pass with
+        // explicit http:// so detectServerProtocol takes the http-only path.
+        val result = wiredRepo.detectServerProtocol("http://192.168.178.19")
+
+        assertTrue("Expected failure when interceptor blocks", result.isFailure)
+        val cause = result.exceptionOrNull()
+        assertTrue(
+            "Expected CleartextBlocked, got: ${cause?.javaClass?.simpleName} - ${cause?.message}",
+            cause is com.paperless.scanner.data.api.PaperlessException.CleartextBlocked
+        )
+        assertEquals(
+            "Host field should match the requested host",
+            "192.168.178.19",
+            (cause as com.paperless.scanner.data.api.PaperlessException.CleartextBlocked).host
         )
     }
 }

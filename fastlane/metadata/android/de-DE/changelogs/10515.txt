@@ -1,0 +1,11 @@
+Version 1.5.115:
+
+Fehlerbehebungen:
+- Selbst-gehostete LAN-HTTP-Server verbinden sich nun direkt.
+- Teil-IPs zeigen keine falschen Fehler mehr.
+- Explizite http://-URLs versuchen nicht mehr zuerst HTTPS.
+
+Verbesserungen:
+- Klarerer Dialog für unverschlüsselte Verbindungen.
+- Diagnose-Bericht zeigt versuchtes Protokoll.
+- Neuer Leitfaden: docs/SELF_HOSTED_HTTPS.md für Self-Hoster.
