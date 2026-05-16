@@ -16,8 +16,20 @@
       - HTTPS                            → pass through
       - HTTP to localhost / 127.0.0.1 / 10.0.2.2 (loopback + emulator) → pass
       - HTTP to user-accepted host       → pass + WARN log
-      - HTTP to anything else            → IOException, fail-closed before
-                                            socket open / token attached
+      - HTTP to anything else            → CleartextNotAllowlistedException
+                                            (IOException subclass), fail-closed
+                                            before socket open / token attached
+
+    Pre-detection accept flow (Issue #233):
+    When the user types an explicit http:// URL or HTTPS detection fails
+    with the HTTP fallback being interceptor-blocked, LoginViewModel
+    surfaces a ServerStatus.RequiresHttpAccept state. The setup screen
+    shows the HttpFallbackWarningDialog BEFORE any further network probe;
+    accepting persists the host into TokenManager → HttpAllowlistHolder
+    so the interceptor passes subsequent requests through. This unblocks
+    the first-run case where a brand-new install could never connect to
+    a LAN plain-HTTP server because the accept-dialog hung off a Success
+    branch the interceptor was preventing us from reaching.
     -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
