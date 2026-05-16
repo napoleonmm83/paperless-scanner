@@ -280,11 +280,28 @@ class LoginViewModelTest {
     // ==================== Server Detection Tests ====================
 
     @Test
-    fun `onServerUrlChanged with short URL sets status to Idle`() = runTest {
+    fun `onServerUrlChanged with partial IP sets status to Idle`() = runTest {
+        // Issue #233: parser-shape gate now silently stays on Idle for inputs
+        // the parser rejects (partial IPs, trailing dots). Previously a
+        // hardcoded length < 4 heuristic served this purpose but accepted
+        // "192." as detection-ready.
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.onServerUrlChanged("abc")
+        viewModel.onServerUrlChanged("192.")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.serverStatus.value is ServerStatus.Idle)
+    }
+
+    @Test
+    fun `onServerUrlChanged with bare digit host sets status to Idle`() = runTest {
+        // Single-label all-digit hostnames are rejected by the parser as of #233
+        // because they are almost always a partial IPv4 the user is mid-typing.
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("192")
         advanceUntilIdle()
 
         assertTrue(viewModel.serverStatus.value is ServerStatus.Idle)
@@ -493,5 +510,125 @@ class LoginViewModelTest {
         kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         coVerify { authRepository.login("https://example.com", "user", "pass") }
+    }
+
+    // --- Issue #233: RequiresHttpAccept state ---
+
+    @Test
+    fun `onServerUrlChanged with explicit http scheme and unaccepted host yields RequiresHttpAccept USER_CHOSE_HTTP`() = runTest {
+        every { tokenManager.isHostAcceptedForHttp("192.168.178.19") } returns false
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.success("https://shouldnt-call.example")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("http://192.168.178.19")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+
+        val status = viewModel.serverStatus.value
+        assertTrue("Expected RequiresHttpAccept, got $status", status is ServerStatus.RequiresHttpAccept)
+        status as ServerStatus.RequiresHttpAccept
+        assertEquals("192.168.178.19", status.host)
+        assertEquals(ServerStatus.RequiresHttpAccept.Reason.USER_CHOSE_HTTP, status.reason)
+        // Network probe must NOT have been attempted yet — the dialog precedes it.
+        coVerify(exactly = 0) { authRepository.detectServerProtocol(any()) }
+    }
+
+    @Test
+    fun `onServerUrlChanged with explicit http scheme and previously-accepted host proceeds to detection`() = runTest {
+        every { tokenManager.isHostAcceptedForHttp("192.168.178.19") } returns true
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.success("http://192.168.178.19")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("http://192.168.178.19")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        coVerify { authRepository.detectServerProtocol(any()) }
+    }
+
+    @Test
+    fun `onServerUrlChanged with explicit http to loopback proceeds without dialog`() = runTest {
+        // localhost is in HARD_ALLOWED_HOSTS — dialog must not fire even
+        // though the user has never accepted anything in tokenManager.
+        every { tokenManager.isHostAcceptedForHttp(any()) } returns false
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.success("http://localhost:8000")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("http://localhost:8000")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        coVerify { authRepository.detectServerProtocol(any()) }
+        // No dialog state — must transition to Success (or Checking briefly).
+        val status = viewModel.serverStatus.value
+        assertTrue(
+            "Expected Success on loopback path, got $status",
+            status is ServerStatus.Success
+        )
+    }
+
+    @Test
+    fun `detection failure with CleartextBlocked yields RequiresHttpAccept HTTPS_FAILED_HTTP_BLOCKED`() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            com.paperless.scanner.data.api.PaperlessException.CleartextBlocked("192.168.1.1")
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // No explicit scheme — exercises the failure-path branch (not the
+        // pre-detection gate).
+        viewModel.onServerUrlChanged("192.168.1.1")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        val status = viewModel.serverStatus.value
+        assertTrue("Expected RequiresHttpAccept on CleartextBlocked, got $status", status is ServerStatus.RequiresHttpAccept)
+        status as ServerStatus.RequiresHttpAccept
+        assertEquals("192.168.1.1", status.host)
+        assertEquals(ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED, status.reason)
+    }
+
+    @Test
+    fun `onHttpAcceptedForRequiresHttpAccept persists host and re-runs detection`() = runTest {
+        // Mock first call: returns CleartextBlocked. Second call (after accept):
+        // returns success. The viewModel call sequence should:
+        //  1. acceptHttpForHost("192.168.1.1")
+        //  2. delay(50) for cache propagation
+        //  3. detectServerProtocol again
+        every { tokenManager.isHostAcceptedForHttp("192.168.1.1") } returns false
+        coEvery { authRepository.detectServerProtocol(any()) } returnsMany listOf(
+            Result.failure(com.paperless.scanner.data.api.PaperlessException.CleartextBlocked("192.168.1.1")),
+            Result.success("http://192.168.1.1")
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("192.168.1.1")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        // Confirm we landed on the dialog state first.
+        assertTrue(viewModel.serverStatus.value is ServerStatus.RequiresHttpAccept)
+
+        // Now accept.
+        viewModel.onHttpAcceptedForRequiresHttpAccept("192.168.1.1", "192.168.1.1")
+        advanceTimeBy(100) // Cover the 50ms delay inside the VM + slack
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        coVerify { tokenManager.acceptHttpForHost("192.168.1.1") }
+        coVerify(exactly = 2) { authRepository.detectServerProtocol(any()) }
     }
 }

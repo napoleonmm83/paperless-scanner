@@ -143,9 +143,15 @@ fun SimplifiedSetupScreen(
         status.isHttpFallback && !httpFallbackAcceptedForSession && !viewModel.isHttpAcceptedForHost(host)
     }
 
-    // Show HTTP fallback dialog when needed
-    LaunchedEffect(needsHttpFallbackWarning) {
-        if (needsHttpFallbackWarning) {
+    // Issue #233: derived host for the RequiresHttpAccept state. Used to
+    // populate the dialog when detection is paused awaiting consent (either
+    // pre-detection because the user typed http://, or post-detection
+    // because the HTTP fallback was interceptor-blocked).
+    val requiresAcceptHost = (serverStatus as? ServerStatus.RequiresHttpAccept)?.host
+
+    // Show HTTP fallback dialog when EITHER trigger fires.
+    LaunchedEffect(needsHttpFallbackWarning, requiresAcceptHost) {
+        if (needsHttpFallbackWarning || requiresAcceptHost != null) {
             showHttpFallbackDialog = true
         }
     }
@@ -253,10 +259,14 @@ fun SimplifiedSetupScreen(
                                     stringResource(R.string.setup_http_unencrypted)
                                 }
                             }
+                            // Issue #233: cleartext accept-prompt is not an error,
+                            // it's a question. Use the neutral "tap to review" hint.
+                            is ServerStatus.RequiresHttpAccept -> stringResource(R.string.setup_http_accept_required)
                             is ServerStatus.Error -> (serverStatus as ServerStatus.Error).message
                         },
                         color = when (serverStatus) {
                             is ServerStatus.Success -> MaterialTheme.colorScheme.primary
+                            is ServerStatus.RequiresHttpAccept -> MaterialTheme.colorScheme.tertiary
                             is ServerStatus.Error -> MaterialTheme.colorScheme.error
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         }
@@ -278,6 +288,15 @@ fun SimplifiedSetupScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
+                        // Issue #233: tertiary-tinted unlock icon — same family as
+                        // Success.unencrypted but signals "user attention required".
+                        is ServerStatus.RequiresHttpAccept -> {
+                            Icon(
+                                imageVector = Icons.Default.LockOpen,
+                                contentDescription = stringResource(R.string.setup_http),
+                                tint = MaterialTheme.colorScheme.tertiary
+                            )
+                        }
                         is ServerStatus.Error -> {
                             Icon(
                                 imageVector = Icons.Default.Error,
@@ -288,6 +307,8 @@ fun SimplifiedSetupScreen(
                         else -> {}
                     }
                 },
+                // RequiresHttpAccept is NOT a hard error — keep the field's
+                // visual valid so the user can keep typing or hit accept.
                 isError = serverStatus is ServerStatus.Error,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
@@ -670,16 +691,31 @@ fun SimplifiedSetupScreen(
             )
         }
 
-        // HTTP Fallback Warning Dialog
-        if (showHttpFallbackDialog && currentHost != null) {
+        // HTTP Fallback Warning Dialog — triggered by EITHER:
+        //   - Success.isHttpFallback (existing): user typed no scheme, HTTPS
+        //     failed, app silently fell back to HTTP; needs user consent.
+        //   - RequiresHttpAccept (Issue #233): user typed http:// for a non-
+        //     loopback host (pre-detection consent), or HTTP-fallback was
+        //     interceptor-blocked (post-detection consent).
+        val dialogHost = currentHost ?: requiresAcceptHost
+        if (showHttpFallbackDialog && dialogHost != null) {
             HttpFallbackWarningDialog(
-                host = currentHost,
+                host = dialogHost,
                 onAccept = { rememberChoice ->
                     showHttpFallbackDialog = false
                     httpFallbackAcceptedForSession = true
+                    // Issue #233: route to the RequiresHttpAccept handler so
+                    // the host is persisted AND detection re-runs. The legacy
+                    // Success.isHttpFallback path only persists (the original
+                    // detection already completed), so the rememberChoice
+                    // toggle still controls persistence there.
+                    val acceptState = serverStatus as? ServerStatus.RequiresHttpAccept
+                    if (acceptState != null) {
+                        viewModel.onHttpAcceptedForRequiresHttpAccept(acceptState.host, serverUrl)
+                    }
                     if (rememberChoice) {
-                        // Store permanently
-                        viewModel.acceptHttpForHost(currentHost)
+                        // Store permanently (dialogHost is non-null in this branch).
+                        viewModel.acceptHttpForHost(dialogHost)
                     }
                 },
                 onCancel = {
