@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -247,17 +248,29 @@ class AuthRepositoryTest {
     @Test
     fun `detectServerProtocol with explicit https scheme does not fall back to HTTP`() = runTest {
         // MockWebServer is HTTP-only — the HTTPS probe will fail. We must
-        // NOT see an HTTP request follow it: that would be the old fallback
+        // NOT see a subsequent HTTP request — that would be the old fallback
         // behavior that turns "user typed https://" into an unencrypted
         // connection silently. AC-A explicitly forbids that.
+        //
+        // We can't use mockWebServer.requestCount as the assertion: depending
+        // on the host OS, MockWebServer's TCP listener may count the failed
+        // TLS ClientHello bytes as 0 or 1 connections. Instead we verify via
+        // the AuthDebugService breadcrumb — the https-only path logs
+        // SERVER_DETECT_FAILED_HTTPS_ONLY, the dual-probe path logs
+        // SERVER_DETECT_FAILED with both attempts populated.
         val host = "${mockWebServer.hostName}:${mockWebServer.port}"
         val result = authRepository.detectServerProtocol("https://$host")
 
         assertTrue("HTTPS-only probe must fail when server is plain HTTP", result.isFailure)
-        assertEquals(
-            "Should make zero requests reaching the HTTP-only mock server",
-            0, mockWebServer.requestCount
-        )
+        verify {
+            authDebugService.logAuthFailure(
+                authType = any(),
+                serverUrl = any(),
+                errorType = "SERVER_DETECT_FAILED_HTTPS_ONLY",
+                errorMessage = any(),
+                serverDetection = any()
+            )
+        }
     }
 
     @Test
