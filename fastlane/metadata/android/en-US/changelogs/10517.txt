@@ -1,6 +1,6 @@
 Version 1.5.117:
 
 🔧 Improvements:
-- Labels screen search & dialogs now survive app lock and system restart
-- Edit sheet shows the freshest data after restore
-- More stable navigation around tags, correspondents & document types
+- Labels search & dialogs survive app lock + restart
+- Edit sheet shows freshest data after restore
+- More stable navigation around tags & types

@@ -307,6 +307,7 @@ class LabelsViewModelTest {
             set(LabelsViewModel.KEY_SHOW_CREATE_SHEET, true)
             set(LabelsViewModel.KEY_EDITING_ENTITY_ID, 99)
             set(LabelsViewModel.KEY_SHOW_SORT_FILTER_SHEET, true)
+            set(LabelsViewModel.KEY_CURRENT_ENTITY_TYPE, EntityType.CORRESPONDENT.name)
         }
 
         val viewModel = createViewModel(savedStateHandle = handle)
@@ -317,6 +318,54 @@ class LabelsViewModelTest {
         assertTrue(restored.showCreateSheet)
         assertEquals(99, restored.editingEntityId)
         assertTrue(restored.showSortFilterSheet)
+        // CR R2: tab must round-trip so editingEntityId resolves against the
+        // correct dataset (cross-tab ID collision guard).
+        assertEquals(EntityType.CORRESPONDENT, restored.currentEntityType)
+    }
+
+    @Test
+    fun `setEntityType writes through to SavedStateHandle`() = runTest {
+        val handle = SavedStateHandle()
+        val viewModel = createViewModel(savedStateHandle = handle)
+
+        viewModel.setEntityType(EntityType.DOCUMENT_TYPE)
+        runCurrent()
+
+        assertEquals("DOCUMENT_TYPE", handle.get<String>(LabelsViewModel.KEY_CURRENT_ENTITY_TYPE))
+        assertEquals(EntityType.DOCUMENT_TYPE, viewModel.uiState.value.currentEntityType)
+    }
+
+    @Test
+    fun `clearSearch writes empty string through to SavedStateHandle`() = runTest {
+        // CR R1: clearSearch must keep the write-through invariant in sync
+        // with search(), otherwise a process-death restore can resurrect a
+        // stale query that the user had explicitly cleared.
+        val handle = SavedStateHandle().apply {
+            set(LabelsViewModel.KEY_SEARCH_QUERY, "stale-query")
+        }
+        val viewModel = createViewModel(savedStateHandle = handle)
+        runCurrent()
+        assertEquals("stale-query", viewModel.uiState.value.searchQuery)
+
+        viewModel.clearSearch()
+        runCurrent()
+
+        assertEquals("", handle.get<String>(LabelsViewModel.KEY_SEARCH_QUERY))
+        assertEquals("", viewModel.uiState.value.searchQuery)
+    }
+
+    @Test
+    fun `restore with unknown entity type name falls back to TAG`() = runTest {
+        // Defensive: if SavedStateHandle holds a bogus enum name (e.g. removed
+        // in a future version), restore must not crash — falls back to TAG.
+        val handle = SavedStateHandle().apply {
+            set(LabelsViewModel.KEY_CURRENT_ENTITY_TYPE, "REMOVED_FUTURE_TYPE")
+        }
+
+        val viewModel = createViewModel(savedStateHandle = handle)
+        runCurrent()
+
+        assertEquals(EntityType.TAG, viewModel.uiState.value.currentEntityType)
     }
 
     @Test
@@ -326,6 +375,7 @@ class LabelsViewModelTest {
             set(LabelsViewModel.KEY_SHOW_CREATE_SHEET, true)
             set(LabelsViewModel.KEY_EDITING_ENTITY_ID, 5)
             set(LabelsViewModel.KEY_SHOW_SORT_FILTER_SHEET, true)
+            set(LabelsViewModel.KEY_CURRENT_ENTITY_TYPE, EntityType.CORRESPONDENT.name)
         }
         val viewModel = createViewModel(savedStateHandle = handle)
 
@@ -336,5 +386,6 @@ class LabelsViewModelTest {
         assertEquals(false, handle.get<Boolean>(LabelsViewModel.KEY_SHOW_CREATE_SHEET))
         assertEquals(null, handle.get<Int>(LabelsViewModel.KEY_EDITING_ENTITY_ID))
         assertEquals(false, handle.get<Boolean>(LabelsViewModel.KEY_SHOW_SORT_FILTER_SHEET))
+        assertEquals("TAG", handle.get<String>(LabelsViewModel.KEY_CURRENT_ENTITY_TYPE))
     }
 }
