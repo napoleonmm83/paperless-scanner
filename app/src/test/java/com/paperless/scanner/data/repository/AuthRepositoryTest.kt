@@ -13,6 +13,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -42,6 +43,7 @@ class AuthRepositoryTest {
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var authDebugService: AuthDebugService
+    private lateinit var httpCache: Cache
     private lateinit var authRepository: AuthRepository
     private lateinit var client: OkHttpClient
 
@@ -57,8 +59,9 @@ class AuthRepositoryTest {
         cloudflareDetectionInterceptor = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
         authDebugService = mockk(relaxed = true)
+        httpCache = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService)
+        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache)
     }
 
     @After
@@ -169,6 +172,34 @@ class AuthRepositoryTest {
         authRepository.logout()
 
         coVerify { tokenManager.clearCredentials() }
+    }
+
+    @Test
+    fun `logout evicts shared http cache`() = runTest {
+        // Issue #131 AC: cache cleared on logout so a different account or
+        // server on the same device starts cold, not on the prior user's
+        // cached document/tag responses.
+        coEvery { tokenManager.clearCredentials() } returns Unit
+
+        authRepository.logout()
+
+        verify { httpCache.evictAll() }
+    }
+
+    @Test
+    fun `logout swallows IOException from cache eviction`() = runTest {
+        // CR PR #235 R1: evictAll() does blocking disk I/O and can throw
+        // IOException (full disk, corrupt journal, etc.). Credentials are
+        // already cleared at this point, so a disk hiccup must not surface
+        // as a logout failure to the UI.
+        coEvery { tokenManager.clearCredentials() } returns Unit
+        every { httpCache.evictAll() } throws java.io.IOException("disk full")
+
+        // Must not throw — assertion is the absence of an exception escaping.
+        authRepository.logout()
+
+        coVerify { tokenManager.clearCredentials() }
+        verify { httpCache.evictAll() }
     }
 
     // --- detectServerProtocol tests (Issue #140: NPE safety on null error variables) ---
@@ -285,7 +316,7 @@ class AuthRepositoryTest {
         val wiredClient = OkHttpClient.Builder().addInterceptor(interceptor).build()
         val wiredRepo = AuthRepository(
             context, tokenManager, wiredClient, cloudflareDetectionInterceptor,
-            crashlyticsHelper, authDebugService
+            crashlyticsHelper, authDebugService, httpCache
         )
 
         // Non-loopback host that the interceptor will refuse. We pass with

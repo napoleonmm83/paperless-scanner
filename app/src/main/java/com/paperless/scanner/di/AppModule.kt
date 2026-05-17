@@ -6,6 +6,7 @@ import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
+import com.paperless.scanner.data.api.CacheControlInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
 import com.paperless.scanner.data.api.DynamicBaseUrlInterceptor
@@ -66,6 +67,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import com.google.gson.Gson
@@ -97,6 +99,9 @@ annotation class ApplicationScope
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    // 50 MB disk cache for the Paperless-ngx default OkHttpClient (Issue #131).
+    private const val HTTP_CACHE_SIZE_BYTES: Long = 50L * 1024 * 1024
 
     // ============================================================
     // Helper Functions
@@ -216,11 +221,32 @@ object AppModule {
         cloudflareDetectionHolder: CloudflareDetectionHolder
     ): AdaptiveWriteTimeoutInterceptor = AdaptiveWriteTimeoutInterceptor(cloudflareDetectionHolder)
 
+    @Provides
+    @Singleton
+    fun provideCacheControlInterceptor(): CacheControlInterceptor = CacheControlInterceptor()
+
+    /**
+     * Disk-backed HTTP cache for the Paperless-ngx default client. 50 MB at
+     * `<cacheDir>/http`. Paired with [CacheControlInterceptor], which injects
+     * `Cache-Control: public, max-age=300` on successful GETs lacking server
+     * hints. Cleared on logout via [com.paperless.scanner.data.repository.AuthRepository.logout].
+     *
+     * Scoped to the Paperless-ngx client only — auth/discovery is fail-fast,
+     * Paperless-GPT responses are unique, and Coil owns its own image cache.
+     */
+    @Provides
+    @Singleton
+    fun provideHttpCache(@ApplicationContext context: Context): Cache {
+        val cacheDir = File(context.cacheDir, "http")
+        return Cache(cacheDir, HTTP_CACHE_SIZE_BYTES)
+    }
+
     /**
      * Default OkHttpClient for Paperless-ngx API.
      * - Dynamic base URL from TokenManager
      * - Auto-injected auth token
      * - Cloudflare detection
+     * - Disk cache (50 MB) for safe idempotent GETs (Issue #131)
      *
      * Retry now lives at the suspend boundary in repositories via
      * [com.paperless.scanner.util.withRetry]; uploads rely on
@@ -235,9 +261,12 @@ object AppModule {
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
-        adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor
+        adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor,
+        cacheControlInterceptor: CacheControlInterceptor,
+        cache: Cache,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .cache(cache)
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(dynamicBaseUrlInterceptor)
             // Allowlist must run AFTER URL rewrite (sees real host) and BEFORE
@@ -257,6 +286,9 @@ object AppModule {
             }
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
+            // Network interceptor so the cache layer sees the injected
+            // Cache-Control header when writing the response to disk.
+            .addNetworkInterceptor(cacheControlInterceptor)
             .applyTimeouts()
             .build()
     }
@@ -345,8 +377,9 @@ object AppModule {
         @AuthClient client: OkHttpClient,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         crashlyticsHelper: CrashlyticsHelper,
-        authDebugService: AuthDebugService
-    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService)
+        authDebugService: AuthDebugService,
+        httpCache: Cache,
+    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache)
 
     @Provides
     @Singleton
