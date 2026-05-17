@@ -1,0 +1,6 @@
+Version 1.5.117:
+
+🔧 Verbesserungen:
+- Suche & Dialoge im Labels-Bildschirm bleiben jetzt erhalten — auch nach App-Sperre oder System-Neustart
+- Editier-Sheet zeigt nach Wiederherstellung immer die aktuellsten Daten
+- Stabilere Navigation rund um Tags, Korrespondenten & Dokumenttypen
