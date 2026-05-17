@@ -97,15 +97,25 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToSmartTagging: () -> Unit = {},
     onNavigateToTrash: () -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    serverHealthViewModel: ServerHealthViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isOnline by viewModel.isOnline.collectAsState()
-    val isServerReachable by viewModel.isServerReachable.collectAsState()
-    val pendingChanges by viewModel.pendingChangesCount.collectAsState()
+    val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
+    val isOnline by serverHealthViewModel.isOnline.collectAsState()
+    val isServerReachable by serverHealthViewModel.isServerReachable.collectAsState()
+    val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
     val serverUrl by viewModel.serverUrl.collectAsState()
     val showThumbnails by viewModel.showThumbnails.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Auto-refresh dashboard on offline -> online transition. The two ViewModels
+    // share no direct reference; the screen layer is the wiring point.
+    LaunchedEffect(serverHealthViewModel) {
+        serverHealthViewModel.onlineTransition.collect {
+            viewModel.onNetworkReconnected()
+        }
+    }
 
     // Tag Suggestions Sheet state
     val showTagSuggestionsSheet by viewModel.showTagSuggestionsSheet.collectAsState()
@@ -263,7 +273,7 @@ fun HomeScreen(
             item(key = "hero-card") {
                 HeroDocumentCard(
                     totalDocuments = uiState.stats.totalDocuments,
-                    processingCount = uiState.totalProcessingCount,
+                    processingCount = serverHealthUiState.activeUploadsCount + uiState.allProcessingTasksCount,
                     onClick = onNavigateToDocuments,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -287,8 +297,10 @@ fun HomeScreen(
                 }
 
                 CompactStatsRow(
-                    syncActiveCount = uiState.activeUploadsCount + uiState.stats.pendingUploads,
-                    syncFailedCount = uiState.failedSyncCount,
+                    // pendingChanges already combines upload-queue + sync-pending;
+                    // adding activeUploadsCount on top double-counted upload-queue items.
+                    syncActiveCount = pendingChanges,
+                    syncFailedCount = serverHealthUiState.failedSyncCount,
                     untaggedCount = uiState.untaggedCount,
                     trashCount = uiState.deletedCount,
                     trashExpiresInDays = null, // Expiration info shown only in Trash screen

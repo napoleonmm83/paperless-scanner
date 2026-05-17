@@ -13,9 +13,6 @@ import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
-import com.paperless.scanner.data.repository.SyncHistoryRepository
-import com.paperless.scanner.data.network.NetworkMonitor
-import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
@@ -57,9 +54,6 @@ class HomeViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
-    private lateinit var syncHistoryRepository: SyncHistoryRepository
-    private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var syncManager: SyncManager
     private lateinit var analyticsService: AnalyticsService
     private lateinit var suggestionOrchestrator: SuggestionOrchestrator
@@ -79,9 +73,6 @@ class HomeViewModelTest {
         tagRepository = mockk(relaxed = true)
         taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
-        syncHistoryRepository = mockk(relaxed = true)
-        networkMonitor = mockk(relaxed = true)
-        serverHealthMonitor = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
         suggestionOrchestrator = mockk(relaxed = true)
@@ -89,8 +80,6 @@ class HomeViewModelTest {
         premiumFeatureManager = mockk(relaxed = true)
 
         // Default mock responses
-        every { networkMonitor.isOnline } returns MutableStateFlow(true)
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
@@ -99,7 +88,6 @@ class HomeViewModelTest {
         every { documentCountRepository.observeUntaggedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeTrashedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeOldestDeletedTimestamp() } returns MutableStateFlow(null)
-        every { syncHistoryRepository.observeFailedCount() } returns MutableStateFlow(0)
         every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
@@ -128,9 +116,6 @@ class HomeViewModelTest {
             tagRepository = tagRepository,
             taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
-            syncHistoryRepository = syncHistoryRepository,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
             syncManager = syncManager,
             analyticsService = analyticsService,
             suggestionOrchestrator = suggestionOrchestrator,

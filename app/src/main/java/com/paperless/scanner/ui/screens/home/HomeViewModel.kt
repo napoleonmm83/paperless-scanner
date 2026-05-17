@@ -17,7 +17,6 @@ import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
 import com.paperless.scanner.data.repository.DocumentMetadataRepository
-import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.TrashRepository
@@ -108,21 +107,12 @@ data class HomeUiState(
     val untaggedCount: Int = 0,
     val deletedCount: Int = 0,
     val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
-    val activeUploadsCount: Int = 0,           // NEW: Active uploads in queue
-    val failedSyncCount: Int = 0,              // NEW: Failed sync operations
-    val lastSyncedAt: Long? = null,            // NEW: Timestamp of last successful sync
+    val lastSyncedAt: Long? = null,            // Timestamp of last successful sync
     val isLoading: Boolean = true
 ) {
     companion object {
         const val PROCESSING_TASKS_DISPLAY_LIMIT = 10
     }
-
-    /**
-     * Total processing count for Hero Card progress indicator.
-     * Combines active uploads + ALL Paperless server tasks (not limited).
-     */
-    val totalProcessingCount: Int
-        get() = activeUploadsCount + allProcessingTasksCount
 
     /**
      * Number of hidden tasks (for "show X more" button).
@@ -159,9 +149,6 @@ class HomeViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
-    private val syncHistoryRepository: SyncHistoryRepository,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
     private val suggestionOrchestrator: SuggestionOrchestrator,
@@ -183,22 +170,17 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    // Live network status from NetworkMonitor
-    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
-
-    // Server reachability status (internet + server online)
-    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
-
-    // Combined pending changes: Upload Queue + Sync Pending Changes
-    val pendingChangesCount: StateFlow<Int> = kotlinx.coroutines.flow.combine(
+    /**
+     * Combined pending-changes flow used internally by [observePendingUploads]
+     * and [loadStats]. The screen consumes the public counterpart from
+     * [ServerHealthViewModel.pendingChangesCount]; both flows are derived from
+     * the same repositories so values stay aligned.
+     */
+    private val pendingChangesCountInternal: StateFlow<Int> = kotlinx.coroutines.flow.combine(
         uploadQueueRepository.pendingCount,
         syncManager.pendingChangesCount
     ) { uploadQueueCount, syncPendingCount ->
-        val total = uploadQueueCount + syncPendingCount
-        if (total > 0) {
-            logger.log(Level.INFO, "Pending changes - Upload Queue: $uploadQueueCount, Sync Pending: $syncPendingCount, Total: $total")
-        }
-        total
+        uploadQueueCount + syncPendingCount
     }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), 0)
 
     // Server URL for constructing thumbnail URLs
@@ -223,7 +205,6 @@ class HomeViewModel @Inject constructor(
     // tag-suggestion code paths via .value. Atomic StateFlow setter replaces
     // the previous unsynchronized `var Map`.
     private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())
-    private var wasOffline = false
 
     private val _errorState = MutableStateFlow<HomeError?>(null)
     val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
@@ -250,7 +231,6 @@ class HomeViewModel @Inject constructor(
     init {
         analyticsService.trackEvent(AnalyticsEvent.AppOpened)
         loadDashboardData()
-        startNetworkMonitoring()
         observePendingUploads()
         observeTagsReactively()
         observeRecentDocumentsReactively()
@@ -258,8 +238,15 @@ class HomeViewModel @Inject constructor(
         observeUntaggedCountReactively()
         observeDeletedCountReactively()
         observeOldestDeletedTimestampReactively()
-        observeActiveUploadsCountReactively()
-        observeFailedSyncCountReactively()
+    }
+
+    /**
+     * Trigger an auto-refresh of the dashboard when [ServerHealthViewModel]
+     * observes an offline -> online transition. Wired in HomeScreen.
+     */
+    fun onNetworkReconnected() {
+        logger.log(Level.INFO, "Network reconnected - auto-refreshing data")
+        loadDashboardData()
     }
 
     /**
@@ -423,44 +410,6 @@ class HomeViewModel @Inject constructor(
                         _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
                     }.onFailure { e ->
                         _errorState.value = HomeError.LoadFailed("deletedTimestamp", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for active uploads count.
-     * Automatically updates UI when uploads are queued/completed.
-     * Used by Hero Card to show processing progress.
-     */
-    private fun observeActiveUploadsCountReactively() {
-        viewModelScope.launch {
-            uploadQueueRepository.pendingCount
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { count ->
-                        _uiState.update { it.copy(activeUploadsCount = count) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("activeUploads", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for failed sync count.
-     * Automatically updates UI when sync operations fail/succeed.
-     * Used by Stats Row to show red badge.
-     */
-    private fun observeFailedSyncCountReactively() {
-        viewModelScope.launch {
-            syncHistoryRepository.observeFailedCount()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { count ->
-                        _uiState.update { it.copy(failedSyncCount = count) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("failedSync", e)
                     }
                 }
         }
@@ -746,7 +695,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadStats(forceRefresh: Boolean = true): DocumentStat {
-        val pendingCount = pendingChangesCount.value // Use live flow value
+        val pendingCount = pendingChangesCountInternal.value // Use live flow value
         var totalDocuments = 0
         var thisMonth = 0
 
@@ -906,30 +855,9 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(deletedDocument = null) }
     }
 
-    private fun startNetworkMonitoring() {
-        viewModelScope.launch {
-            networkMonitor.isOnline.collect { currentlyOnline ->
-                // Track network status changes
-                analyticsService.trackEvent(AnalyticsEvent.NetworkStatusChanged(isOnline = currentlyOnline))
-
-                if (!currentlyOnline) {
-                    analyticsService.trackEvent(AnalyticsEvent.OfflineModeUsed)
-                }
-
-                // Auto-refresh when coming back online
-                if (currentlyOnline && wasOffline) {
-                    logger.log(Level.INFO, "Network reconnected - auto-refreshing data")
-                    loadDashboardData()
-                }
-
-                wasOffline = !currentlyOnline
-            }
-        }
-    }
-
     private fun observePendingUploads() {
         viewModelScope.launch {
-            pendingChangesCount
+            pendingChangesCountInternal
                 .asUiResult()
                 .collect { result ->
                     result.onSuccess { count ->
