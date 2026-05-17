@@ -1,0 +1,10 @@
+Version 1.5.118:
+
+🔧 Improvements:
+- Home screen: separated network and server status
+- More stable connection status display
+- Faster refresh after reconnection
+
+🛠 Under the hood:
+- Internal Home screen refactor (1/5)
+- Improved modularity for future enhancements

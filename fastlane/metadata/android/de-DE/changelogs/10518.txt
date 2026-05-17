@@ -1,0 +1,10 @@
+Version 1.5.118:
+
+🔧 Verbesserungen:
+- Home-Bildschirm: Netzwerk- und Server-Status getrennt
+- Stabilere Anzeige des Verbindungsstatus
+- Schnellere Aktualisierung nach Wiederherstellung der Verbindung
+
+🛠 Unter der Haube:
+- Interner Refactor des Home-Bildschirms (1/5)
+- Mehr Modularität für künftige Verbesserungen
