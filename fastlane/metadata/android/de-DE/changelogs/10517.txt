@@ -1,0 +1,6 @@
+Version 1.5.117:
+
+🔧 Verbesserungen:
+- Labels: Suche & Dialoge nach App-Sperre erhalten
+- Editier-Sheet zeigt nach Restore frische Daten
+- Stabilere Navigation um Tags & Korrespondenten

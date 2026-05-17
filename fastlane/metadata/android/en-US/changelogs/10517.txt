@@ -1,0 +1,6 @@
+Version 1.5.117:
+
+🔧 Improvements:
+- Labels search & dialogs survive app lock + restart
+- Edit sheet shows freshest data after restore
+- More stable navigation around tags & types

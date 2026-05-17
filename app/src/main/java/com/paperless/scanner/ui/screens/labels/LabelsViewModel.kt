@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.labels
 
 import android.content.Context
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
@@ -87,7 +88,14 @@ data class LabelsUiState(
     val searchQuery: String = "",
     val sortOption: LabelSortOption = LabelSortOption.NAME_ASC,
     val filterOption: LabelFilterOption = LabelFilterOption.ALL,
-    val customFieldsAvailable: Boolean = false  // NEW: Feature flag for custom fields API
+    val customFieldsAvailable: Boolean = false,  // NEW: Feature flag for custom fields API
+    // Issue #104: sheet/dialog state lives in VM so it survives process death and
+    // AppLock. editingEntityId references uiState.entities — the Composable
+    // resolves the full EntityItem from the current list (fresh data after
+    // any Room update).
+    val showCreateSheet: Boolean = false,
+    val showSortFilterSheet: Boolean = false,
+    val editingEntityId: Int? = null
 )
 
 @HiltViewModel
@@ -96,10 +104,11 @@ class LabelsViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
     private val documentTypeRepository: DocumentTypeRepository,
-    private val customFieldRepository: CustomFieldRepository
+    private val customFieldRepository: CustomFieldRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(LabelsUiState())
+    private val _uiState = MutableStateFlow(restoreInitialState(savedStateHandle))
     val uiState: StateFlow<LabelsUiState> = _uiState.asStateFlow()
 
     // Source-of-truth StateFlows for each entity type — race-free, replayable.
@@ -214,6 +223,11 @@ class LabelsViewModel @Inject constructor(
      * and re-derives `uiState.entities` for the new tab without further action here.
      */
     fun setEntityType(type: EntityType) {
+        // Issue #104 / CR R2: persist the active tab so that on process-death
+        // restore, an `editingEntityId` is resolved against the same dataset
+        // it was saved from. Without this, a user editing correspondent #5
+        // could come back to a tag #5 edit sheet (cross-tab ID collision).
+        savedStateHandle[KEY_CURRENT_ENTITY_TYPE] = type.name
         _uiState.update {
             it.copy(
                 currentEntityType = type,
@@ -384,6 +398,7 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun search(query: String) {
+        savedStateHandle[KEY_SEARCH_QUERY] = query
         _uiState.update { it.copy(searchQuery = query) }
     }
 
@@ -406,6 +421,60 @@ class LabelsViewModel @Inject constructor(
                 filterOption = LabelFilterOption.ALL
             )
         }
+    }
+
+    /**
+     * Issue #104: opens the create-or-edit sheet for a new entity. Clears any
+     * previous edit target so the sheet starts in "create" mode.
+     */
+    fun openCreateSheet() {
+        savedStateHandle[KEY_EDITING_ENTITY_ID] = null
+        savedStateHandle[KEY_SHOW_CREATE_SHEET] = true
+        _uiState.update {
+            it.copy(showCreateSheet = true, editingEntityId = null)
+        }
+    }
+
+    /**
+     * Issue #104: opens the same sheet pre-populated for editing an existing
+     * entity. Only the ID is persisted — the Composable resolves the live
+     * [EntityItem] from `uiState.entities` so it always sees fresh data after
+     * any Room update during the lifetime of the sheet.
+     */
+    fun startEditingEntity(entityId: Int) {
+        savedStateHandle[KEY_EDITING_ENTITY_ID] = entityId
+        savedStateHandle[KEY_SHOW_CREATE_SHEET] = true
+        _uiState.update {
+            it.copy(showCreateSheet = true, editingEntityId = entityId)
+        }
+    }
+
+    /**
+     * Issue #104: closes the create-or-edit sheet and clears the edit target.
+     */
+    fun closeCreateSheet() {
+        savedStateHandle[KEY_SHOW_CREATE_SHEET] = false
+        savedStateHandle[KEY_EDITING_ENTITY_ID] = null
+        _uiState.update {
+            it.copy(showCreateSheet = false, editingEntityId = null)
+        }
+    }
+
+    /**
+     * Issue #104: shows the sort/filter sheet.
+     */
+    fun openSortFilterSheet() {
+        savedStateHandle[KEY_SHOW_SORT_FILTER_SHEET] = true
+        _uiState.update { it.copy(showSortFilterSheet = true) }
+    }
+
+    /**
+     * Issue #104: hides the sort/filter sheet without changing sort/filter
+     * selection (use [setSortAndFilter] or [resetSortAndFilter] for that).
+     */
+    fun closeSortFilterSheet() {
+        savedStateHandle[KEY_SHOW_SORT_FILTER_SHEET] = false
+        _uiState.update { it.copy(showSortFilterSheet = false) }
     }
 
     /**
@@ -647,6 +716,7 @@ class LabelsViewModel @Inject constructor(
     }
 
     fun clearSearch() {
+        savedStateHandle[KEY_SEARCH_QUERY] = ""
         _uiState.update { it.copy(searchQuery = "") }
     }
 
@@ -659,7 +729,46 @@ class LabelsViewModel @Inject constructor(
         _allCorrespondents.value = emptyList()
         _allDocumentTypes.value = emptyList()
         _allCustomFields.value = emptyList()
+        savedStateHandle[KEY_SEARCH_QUERY] = ""
+        savedStateHandle[KEY_SHOW_CREATE_SHEET] = false
+        savedStateHandle[KEY_SHOW_SORT_FILTER_SHEET] = false
+        savedStateHandle[KEY_EDITING_ENTITY_ID] = null
+        savedStateHandle[KEY_CURRENT_ENTITY_TYPE] = EntityType.TAG.name
         _uiState.update { LabelsUiState() }
         refresh()
+    }
+
+    companion object {
+        // Issue #104: SavedStateHandle keys for state that must survive
+        // process death and AppLock. searchQuery, sheet visibility, the edit
+        // target, AND the active entity tab round-trip the bundle. The tab
+        // (CR R2) is required so editingEntityId is restored against the
+        // same dataset it was saved from — avoids cross-tab ID collisions
+        // when an ID exists in more than one entity type.
+        internal const val KEY_SEARCH_QUERY = "labels_search_query"
+        internal const val KEY_SHOW_CREATE_SHEET = "labels_show_create_sheet"
+        internal const val KEY_SHOW_SORT_FILTER_SHEET = "labels_show_sort_filter_sheet"
+        internal const val KEY_EDITING_ENTITY_ID = "labels_editing_entity_id"
+        internal const val KEY_CURRENT_ENTITY_TYPE = "labels_current_entity_type"
+
+        /**
+         * Rebuilds [LabelsUiState] from [SavedStateHandle] on process restart
+         * or AppLock unlock. Only the fields backed by the handle are
+         * restored; everything else (entities list, selectedEntity, loading
+         * flags, error) reloads from the reactive pipeline + `refresh()`.
+         */
+        private fun restoreInitialState(handle: SavedStateHandle): LabelsUiState {
+            val tabName = handle.get<String>(KEY_CURRENT_ENTITY_TYPE)
+            val restoredTab = tabName
+                ?.let { runCatching { EntityType.valueOf(it) }.getOrNull() }
+                ?: EntityType.TAG
+            return LabelsUiState(
+                currentEntityType = restoredTab,
+                searchQuery = handle.get<String>(KEY_SEARCH_QUERY).orEmpty(),
+                showCreateSheet = handle.get<Boolean>(KEY_SHOW_CREATE_SHEET) ?: false,
+                showSortFilterSheet = handle.get<Boolean>(KEY_SHOW_SORT_FILTER_SHEET) ?: false,
+                editingEntityId = handle.get<Int>(KEY_EDITING_ENTITY_ID)
+            )
+        }
     }
 }

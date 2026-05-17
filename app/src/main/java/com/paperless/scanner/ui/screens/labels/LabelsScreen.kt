@@ -109,12 +109,15 @@ fun LabelsScreen(
     viewModel: LabelsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
-    var showCreateSheet by remember { mutableStateOf(false) }
-    var showSortFilterSheet by remember { mutableStateOf(false) }
-    var editingLabel by remember { mutableStateOf<LabelItem?>(null) }
+    // Issue #104: sheet/dialog state + search query live in VM SavedStateHandle
+    // and survive process death + AppLock. Resolve the editing entity from
+    // the live `uiState.entities` list so the sheet always sees fresh data
+    // (or null if the entity was deleted while the sheet was backgrounded).
+    val editingEntity: EntityItem? = uiState.editingEntityId?.let { id ->
+        uiState.entities.find { it.id == id }
+    }
 
-    // Pull-to-refresh state
+    // Pull-to-refresh state — transient UI feedback, not in #104 scope.
     var isRefreshing by remember { mutableStateOf(false) }
 
     // BEST PRACTICE: selectedLabel moved to ViewModel to survive navigation
@@ -191,10 +194,7 @@ fun LabelsScreen(
 
             // Add Entity Button - label changes based on currentEntityType
             Card(
-                onClick = {
-                    editingLabel = null
-                    showCreateSheet = true
-                },
+                onClick = { viewModel.openCreateSheet() },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -247,11 +247,8 @@ fun LabelsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    viewModel.search(it)
-                },
+                value = uiState.searchQuery,
+                onValueChange = viewModel::search,
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(stringResource(R.string.labels_search_placeholder))
@@ -264,11 +261,8 @@ fun LabelsScreen(
                     )
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = {
-                            searchQuery = ""
-                            viewModel.search("")
-                        }) {
+                    if (uiState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.search("") }) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = stringResource(R.string.labels_search_clear),
@@ -289,7 +283,7 @@ fun LabelsScreen(
 
             // Sort/Filter Button
             Card(
-                onClick = { showSortFilterSheet = true },
+                onClick = { viewModel.openSortFilterSheet() },
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (uiState.sortOption != LabelSortOption.NAME_ASC || uiState.filterOption != LabelFilterOption.ALL) {
@@ -336,16 +330,7 @@ fun LabelsScreen(
                         // BEST PRACTICE: Use ViewModel state to survive navigation
                         viewModel.selectEntity(entity)
                     },
-                    onEdit = {
-                        // Convert EntityItem to LabelItem for editing (temporary)
-                        editingLabel = LabelItem(
-                            id = entity.id,
-                            name = entity.name,
-                            color = entity.color ?: Color(0xFFE1FF8D),
-                            documentCount = entity.documentCount
-                        )
-                        showCreateSheet = true
-                    },
+                    onEdit = { viewModel.startEditingEntity(entity.id) },
                     onDelete = { viewModel.prepareDeleteEntity(entity.id) }
                 )
             }
@@ -354,42 +339,27 @@ fun LabelsScreen(
     }
 
     // Create/Edit Entity Dialog
-    if (showCreateSheet) {
-        // Convert editingLabel to EntityItem if editing
-        val editingEntity = editingLabel?.let {
-            EntityItem(
-                id = it.id,
-                name = it.name,
-                color = it.color,
-                documentCount = it.documentCount,
-                entityType = EntityType.TAG
-            )
-        }
-
+    if (uiState.showCreateSheet) {
         CreateEntityDialog(
             entityType = uiState.currentEntityType,
             existingEntity = editingEntity,
             isCreating = false, // TODO: Add isCreating state to ViewModel
-            onDismiss = {
-                showCreateSheet = false
-                editingLabel = null
-            },
+            onDismiss = { viewModel.closeCreateSheet() },
             onCreate = { name, color, dataType ->
                 if (editingEntity != null) {
                     viewModel.updateEntity(editingEntity.id, name, color, dataType)
                 } else {
                     viewModel.createEntity(name, color, dataType)
                 }
-                showCreateSheet = false
-                editingLabel = null
+                viewModel.closeCreateSheet()
             }
         )
     }
 
     // Sort/Filter Bottom Sheet
-    if (showSortFilterSheet) {
+    if (uiState.showSortFilterSheet) {
         ModalBottomSheet(
-            onDismissRequest = { showSortFilterSheet = false },
+            onDismissRequest = { viewModel.closeSortFilterSheet() },
             sheetState = sortFilterSheetState,
             containerColor = MaterialTheme.colorScheme.background
         ) {
@@ -400,20 +370,20 @@ fun LabelsScreen(
                     viewModel.setSortAndFilter(sort, filter)
                     scope.launch {
                         sortFilterSheetState.hide()
-                        showSortFilterSheet = false
+                        viewModel.closeSortFilterSheet()
                     }
                 },
                 onReset = {
                     viewModel.resetSortAndFilter()
                     scope.launch {
                         sortFilterSheetState.hide()
-                        showSortFilterSheet = false
+                        viewModel.closeSortFilterSheet()
                     }
                 },
                 onDismiss = {
                     scope.launch {
                         sortFilterSheetState.hide()
-                        showSortFilterSheet = false
+                        viewModel.closeSortFilterSheet()
                     }
                 }
             )
