@@ -297,7 +297,9 @@ fun HomeScreen(
                 }
 
                 CompactStatsRow(
-                    syncActiveCount = serverHealthUiState.activeUploadsCount + uiState.stats.pendingUploads,
+                    // pendingChanges already combines upload-queue + sync-pending;
+                    // adding activeUploadsCount on top double-counted upload-queue items.
+                    syncActiveCount = pendingChanges,
                     syncFailedCount = serverHealthUiState.failedSyncCount,
                     untaggedCount = uiState.untaggedCount,
                     trashCount = uiState.deletedCount,
