@@ -8,6 +8,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.util.ServerUrlParser
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Cache
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -57,6 +60,8 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
  * @property client OkHttpClient for network requests
  * @property cloudflareDetectionInterceptor Handles Cloudflare-protected servers
  * @property crashlyticsHelper Analytics breadcrumb logging
+ * @property httpCache Disk cache shared with the Paperless-ngx OkHttpClient;
+ *           evicted on logout so a new account/server starts cold (Issue #131)
  *
  * @see PaperlessApi.getToken For underlying token endpoint
  * @see TokenManager For credential persistence
@@ -68,7 +73,8 @@ class AuthRepository @Inject constructor(
     private val client: OkHttpClient,
     private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
     private val crashlyticsHelper: CrashlyticsHelper,
-    private val authDebugService: AuthDebugService
+    private val authDebugService: AuthDebugService,
+    private val httpCache: Cache,
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -724,12 +730,15 @@ class AuthRepository @Inject constructor(
      * **CLEANUP ACTIONS:**
      * 1. Resets Cloudflare detection state (allows fresh detection on next login)
      * 2. Clears all credentials from [TokenManager] (server URL, token, settings)
+     * 3. Evicts the shared OkHttp disk cache (Issue #131) so the next account
+     *    or server does not see responses cached under the previous identity
      *
      * **IMPORTANT:** This enables server switching - after logout, the user can
      * connect to a different Paperless-ngx instance.
      *
      * @see TokenManager.clearCredentials For credential cleanup details
      * @see CloudflareDetectionInterceptor.resetDetection For Cloudflare state reset
+     * @see okhttp3.Cache.evictAll Disk cache eviction
      */
     suspend fun logout() {
         // Reset Cloudflare detection to allow fresh detection on next login
@@ -738,5 +747,12 @@ class AuthRepository @Inject constructor(
 
         // Clear all credentials and settings (includes Cloudflare flag in DataStore)
         tokenManager.clearCredentials()
+
+        // Evict the OkHttp disk cache so a new login on the same device does
+        // not serve responses cached under the previous account/server.
+        // evictAll() does blocking disk I/O — confine it to Dispatchers.IO.
+        withContext(Dispatchers.IO) {
+            httpCache.evictAll()
+        }
     }
 }

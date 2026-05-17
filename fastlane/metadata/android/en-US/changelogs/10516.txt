@@ -1,0 +1,10 @@
+Version 1.5.116:
+
+🔧 Improvements:
+- Faster list views via local HTTP cache (50 MB)
+- Lists served from cache for up to 5 min
+- Reduced mobile data usage
+- Cache fully cleared on logout
+
+🐛 Fixes:
+- No user-facing fix — internal performance work

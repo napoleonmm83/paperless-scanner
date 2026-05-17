@@ -1,0 +1,10 @@
+Version 1.5.116:
+
+🔧 Verbesserungen:
+- Schnellere Listen-Ansichten dank lokalem HTTP-Cache (50 MB)
+- Listen werden bis zu 5 Min. aus dem Cache geladen
+- Weniger Datenverbrauch im Mobilfunknetz
+- Cache wird beim Logout vollständig geleert
+
+🐛 Fehlerbehebungen:
+- Kein Code-Fix nutzerseitig — interne Performance-Optimierung
