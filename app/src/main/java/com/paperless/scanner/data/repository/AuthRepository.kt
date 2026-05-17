@@ -750,9 +750,22 @@ class AuthRepository @Inject constructor(
 
         // Evict the OkHttp disk cache so a new login on the same device does
         // not serve responses cached under the previous account/server.
-        // evictAll() does blocking disk I/O — confine it to Dispatchers.IO.
+        // evictAll() does blocking disk I/O — confine it to Dispatchers.IO and
+        // swallow IOException: credentials are already cleared, so a failed
+        // disk eviction must not surface as a logout failure to the UI. Stale
+        // cache entries are isolated by Vary-less key collisions only on the
+        // same server+path, which the next login renders harmless via a fresh
+        // identity, and the next clean logout will clear them.
         withContext(Dispatchers.IO) {
-            httpCache.evictAll()
+            try {
+                httpCache.evictAll()
+            } catch (e: IOException) {
+                Log.w(TAG, "Failed to evict OkHttp cache on logout", e)
+                crashlyticsHelper.logStateBreadcrumb(
+                    "LOGOUT_CACHE_EVICT_FAILED",
+                    "${e.javaClass.simpleName}: ${e.message}"
+                )
+            }
         }
     }
 }

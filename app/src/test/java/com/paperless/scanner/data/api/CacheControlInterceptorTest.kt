@@ -97,6 +97,19 @@ class CacheControlInterceptorTest {
     }
 
     @Test
+    fun `does not inject on PUT`() {
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/1/")
+            .put("payload".toRequestBody(null))
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
     fun `does not inject on DELETE`() {
         val request = Request.Builder()
             .url("https://paperless.example.com/api/documents/1/")

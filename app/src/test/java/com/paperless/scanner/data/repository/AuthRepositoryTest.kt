@@ -186,6 +186,22 @@ class AuthRepositoryTest {
         verify { httpCache.evictAll() }
     }
 
+    @Test
+    fun `logout swallows IOException from cache eviction`() = runTest {
+        // CR PR #235 R1: evictAll() does blocking disk I/O and can throw
+        // IOException (full disk, corrupt journal, etc.). Credentials are
+        // already cleared at this point, so a disk hiccup must not surface
+        // as a logout failure to the UI.
+        coEvery { tokenManager.clearCredentials() } returns Unit
+        every { httpCache.evictAll() } throws java.io.IOException("disk full")
+
+        // Must not throw — assertion is the absence of an exception escaping.
+        authRepository.logout()
+
+        coVerify { tokenManager.clearCredentials() }
+        verify { httpCache.evictAll() }
+    }
+
     // --- detectServerProtocol tests (Issue #140: NPE safety on null error variables) ---
 
     @Test
