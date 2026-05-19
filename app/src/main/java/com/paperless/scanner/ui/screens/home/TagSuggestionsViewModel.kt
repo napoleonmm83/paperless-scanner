@@ -457,36 +457,7 @@ class TagSuggestionsViewModel @Inject constructor(
     // ==================== TAG CREATION ====================
 
     fun createTag(name: String, color: String? = null) {
-        viewModelScope.launch {
-            _createTagState.update { CreateTagState.Creating }
-
-            tagRepository.createTag(name = name, color = color)
-                .onSuccess { newTag ->
-                    logger.log(Level.INFO, "Tag created: ${newTag.name}")
-                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
-                    _createTagState.update { CreateTagState.Success(newTag) }
-                }
-                .onFailure { e ->
-                    logger.log(Level.WARNING, "Failed to create tag: ${e.message}")
-                    if (e.message?.contains("unique constraint") == true ||
-                        e.message?.contains("already exists") == true
-                    ) {
-                        val existingTag = tagRepository.observeTags().first()
-                            .find { it.name.equals(name, ignoreCase = true) }
-                        if (existingTag != null) {
-                            _createTagState.update { CreateTagState.Success(existingTag) }
-                        } else {
-                            _createTagState.update {
-                                CreateTagState.Error(context.getString(R.string.error_create_tag))
-                            }
-                        }
-                    } else {
-                        _createTagState.update {
-                            CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
-                        }
-                    }
-                }
-        }
+        viewModelScope.launch { doCreateTag(name = name, color = color) }
     }
 
     fun resetCreateTagState() {
@@ -495,41 +466,70 @@ class TagSuggestionsViewModel @Inject constructor(
 
     /**
      * Creates a suggested new tag and auto-selects it for the specified
-     * document, then removes it from the document's suggestedNewTags list.
+     * document, then removes the entry from the document's suggestedNewTags
+     * list. Falls back to looking up an existing same-named tag if the
+     * repository reports a duplicate.
      */
     fun createSuggestedTag(documentId: Int, tagName: String) {
         viewModelScope.launch {
-            _createTagState.update { CreateTagState.Creating }
+            doCreateTag(name = tagName, color = null) { tag ->
+                autoSelectTagForDocument(documentId, tag.id, tagName)
+            }
+        }
+    }
 
-            tagRepository.createTag(name = tagName, color = null)
-                .onSuccess { newTag ->
-                    logger.log(Level.INFO, "Suggested tag created: ${newTag.name}")
-                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
-                    autoSelectTagForDocument(documentId, newTag.id, tagName)
-                    _createTagState.update { CreateTagState.Success(newTag) }
-                }
-                .onFailure { e ->
-                    logger.log(Level.WARNING, "Failed to create suggested tag: ${e.message}")
-                    if (e.message?.contains("unique constraint") == true ||
-                        e.message?.contains("already exists") == true
-                    ) {
-                        val existingTag = tagRepository.observeTags().first()
-                            .find { it.name.equals(tagName, ignoreCase = true) }
-                        if (existingTag != null) {
-                            autoSelectTagForDocument(documentId, existingTag.id, tagName)
-                            _createTagState.update { CreateTagState.Success(existingTag) }
-                        } else {
-                            _createTagState.update {
-                                CreateTagState.Error(context.getString(R.string.error_create_tag))
-                            }
-                        }
+    /**
+     * Shared core for [createTag] and [createSuggestedTag]:
+     * - Idle → Creating
+     * - calls tagRepository.createTag
+     * - on success: tracks TagCreated, runs the optional onResolved hook
+     *   (used by createSuggestedTag to auto-select the resulting tag),
+     *   transitions to Success(tag)
+     * - on failure: if the repository reports a unique-constraint /
+     *   already-exists collision, looks up the existing same-named tag and
+     *   reports Success(existing) — also via onResolved; otherwise reports
+     *   Error
+     *
+     * NOTE: the duplicate-detection still relies on substring-matching the
+     * repository's error message. That pattern is pre-existing (also used in
+     * Document/Scan/Upload VMs) and is tracked as a cross-cutting follow-up
+     * — see PR #244 decline reply.
+     */
+    private suspend fun doCreateTag(
+        name: String,
+        color: String?,
+        onResolved: (Tag) -> Unit = {},
+    ) {
+        _createTagState.update { CreateTagState.Creating }
+
+        tagRepository.createTag(name = name, color = color)
+            .onSuccess { newTag ->
+                logger.log(Level.INFO, "Tag created: ${newTag.name}")
+                analyticsService.trackEvent(AnalyticsEvent.TagCreated)
+                onResolved(newTag)
+                _createTagState.update { CreateTagState.Success(newTag) }
+            }
+            .onFailure { e ->
+                logger.log(Level.WARNING, "Failed to create tag: ${e.message}")
+                if (e.message?.contains("unique constraint") == true ||
+                    e.message?.contains("already exists") == true
+                ) {
+                    val existingTag = tagRepository.observeTags().first()
+                        .find { it.name.equals(name, ignoreCase = true) }
+                    if (existingTag != null) {
+                        onResolved(existingTag)
+                        _createTagState.update { CreateTagState.Success(existingTag) }
                     } else {
                         _createTagState.update {
-                            CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
+                            CreateTagState.Error(context.getString(R.string.error_create_tag))
                         }
                     }
+                } else {
+                    _createTagState.update {
+                        CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
+                    }
                 }
-        }
+            }
     }
 
     private fun autoSelectTagForDocument(documentId: Int, newTagId: Int, originalSuggestionName: String) {
