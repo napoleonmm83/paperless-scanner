@@ -7,15 +7,12 @@ import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
-import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.billing.PremiumFeatureManager
 import kotlinx.coroutines.flow.flow
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -48,14 +45,11 @@ class HomeViewModelTest {
     private lateinit var documentListRepository: DocumentListRepository
     private lateinit var documentCountRepository: DocumentCountRepository
     private lateinit var trashRepository: TrashRepository
-    private lateinit var documentMetadataRepository: DocumentMetadataRepository
     private lateinit var tagRepository: TagRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var syncManager: SyncManager
     private lateinit var analyticsService: AnalyticsService
-    private lateinit var suggestionOrchestrator: SuggestionOrchestrator
     private lateinit var tokenManager: TokenManager
-    private lateinit var premiumFeatureManager: PremiumFeatureManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -66,14 +60,11 @@ class HomeViewModelTest {
         documentListRepository = mockk(relaxed = true)
         documentCountRepository = mockk(relaxed = true)
         trashRepository = mockk(relaxed = true)
-        documentMetadataRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
-        suggestionOrchestrator = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
-        premiumFeatureManager = mockk(relaxed = true)
 
         // Default mock responses
         every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
@@ -83,7 +74,6 @@ class HomeViewModelTest {
         every { documentCountRepository.observeUntaggedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeTrashedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeOldestDeletedTimestamp() } returns MutableStateFlow(null)
-        every { premiumFeatureManager.isAiEnabled } returns MutableStateFlow(false)
         coEvery { tagRepository.getTags() } returns Result.success(emptyList())
         coEvery { tagRepository.getTags(any()) } returns Result.success(emptyList())
         coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(0)
@@ -106,14 +96,11 @@ class HomeViewModelTest {
             documentListRepository = documentListRepository,
             documentCountRepository = documentCountRepository,
             trashRepository = trashRepository,
-            documentMetadataRepository = documentMetadataRepository,
             tagRepository = tagRepository,
             uploadQueueRepository = uploadQueueRepository,
             syncManager = syncManager,
             analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
             tokenManager = tokenManager,
-            premiumFeatureManager = premiumFeatureManager
         )
     }
 

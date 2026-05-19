@@ -82,7 +82,7 @@ import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 fun SmartTaggingScreen(
     onNavigateBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: TagSuggestionsViewModel = hiltViewModel(),
 ) {
     val tagSuggestionsState by viewModel.tagSuggestionsState.collectAsState()
     val availableTags by viewModel.availableTags.collectAsState()

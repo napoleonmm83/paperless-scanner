@@ -1,0 +1,10 @@
+Version 1.5.120:
+
+🔧 Improvements:
+- Tag suggestions: faster load time
+- Smart tagging: smaller memory footprint
+- More stable AI analysis on rapid taps
+
+🛠 Under the hood:
+- Internal Home refactor (3/5)
+- TagSuggestions extracted into its own module

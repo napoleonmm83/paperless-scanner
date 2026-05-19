@@ -100,7 +100,8 @@ fun HomeScreen(
     onNavigateToTrash: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     serverHealthViewModel: ServerHealthViewModel = hiltViewModel(),
-    processingTasksViewModel: ProcessingTasksViewModel = hiltViewModel()
+    processingTasksViewModel: ProcessingTasksViewModel = hiltViewModel(),
+    tagSuggestionsViewModel: TagSuggestionsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
@@ -128,15 +129,15 @@ fun HomeScreen(
         }
     }
 
-    // Tag Suggestions Sheet state
-    val showTagSuggestionsSheet by viewModel.showTagSuggestionsSheet.collectAsState()
-    val tagSuggestionsState by viewModel.tagSuggestionsState.collectAsState()
-    val availableTags by viewModel.availableTags.collectAsState()
-    val isAiAvailable by viewModel.isAiAvailable.collectAsState()
+    // Tag Suggestions Sheet state (owned by TagSuggestionsViewModel since Phase 3)
+    val showTagSuggestionsSheet by tagSuggestionsViewModel.showTagSuggestionsSheet.collectAsState()
+    val tagSuggestionsState by tagSuggestionsViewModel.tagSuggestionsState.collectAsState()
+    val availableTags by tagSuggestionsViewModel.availableTags.collectAsState()
+    val isAiAvailable by tagSuggestionsViewModel.isAiAvailable.collectAsState()
     val tagSuggestionsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Tag creation state
-    val createTagState by viewModel.createTagState.collectAsState()
+    val createTagState by tagSuggestionsViewModel.createTagState.collectAsState()
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
     // Error state
@@ -153,6 +154,14 @@ fun HomeScreen(
     val processingTasksError by processingTasksViewModel.error.collectAsState()
     val processingTasksErrorMessage = when (processingTasksError) {
         is ProcessingTasksError.LoadFailed -> stringResource(R.string.error_load_data)
+        null -> null
+    }
+
+    // Same pipeline for TagSuggestionsViewModel — the formerly inline
+    // HomeError.LoadFailed("untaggedDocuments", e) emission now lives here.
+    val tagSuggestionsError by tagSuggestionsViewModel.error.collectAsState()
+    val tagSuggestionsErrorMessage = when (tagSuggestionsError) {
+        is TagSuggestionsError.LoadFailed -> stringResource(R.string.error_load_data)
         null -> null
     }
 
@@ -186,7 +195,7 @@ fun HomeScreen(
         when (createTagState) {
             is CreateTagState.Success -> {
                 showCreateTagDialog = false
-                viewModel.resetCreateTagState()
+                tagSuggestionsViewModel.resetCreateTagState()
             }
             is CreateTagState.Error -> {
                 // Keep dialog open to show error, user can dismiss manually
@@ -213,6 +222,16 @@ fun HomeScreen(
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(msg)
             processingTasksViewModel.clearError()
+        }
+    }
+
+    // Same pipeline + undo-guard for TagSuggestionsViewModel errors.
+    LaunchedEffect(tagSuggestionsError, uiState.deletedDocument?.id) {
+        if (uiState.deletedDocument != null) return@LaunchedEffect
+        tagSuggestionsErrorMessage?.let { msg ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+            tagSuggestionsViewModel.clearError()
         }
     }
 
@@ -623,14 +642,14 @@ fun HomeScreen(
             state = tagSuggestionsState,
             availableTags = availableTags,
             isAiAvailable = isAiAvailable,
-            onDismiss = { viewModel.closeTagSuggestionsSheet() },
-            onAnalyzeDocument = { documentId -> viewModel.analyzeDocument(documentId) },
-            onApplyTags = { documentId, tagIds -> viewModel.applyTagsToDocument(documentId, tagIds) },
-            onSkipDocument = { documentId -> viewModel.skipDocument(documentId) },
-            onOpenTagPicker = { documentId -> viewModel.openTagPicker(documentId) },
-            onCloseTagPicker = { viewModel.closeTagPicker() },
-            onToggleTagInPicker = { documentId, tagId -> viewModel.toggleTagInPicker(documentId, tagId) },
-            onApplyPickerTags = { documentId -> viewModel.applyPickerTags(documentId) },
+            onDismiss = { tagSuggestionsViewModel.closeTagSuggestionsSheet() },
+            onAnalyzeDocument = { documentId -> tagSuggestionsViewModel.analyzeDocument(documentId) },
+            onApplyTags = { documentId, tagIds -> tagSuggestionsViewModel.applyTagsToDocument(documentId, tagIds) },
+            onSkipDocument = { documentId -> tagSuggestionsViewModel.skipDocument(documentId) },
+            onOpenTagPicker = { documentId -> tagSuggestionsViewModel.openTagPicker(documentId) },
+            onCloseTagPicker = { tagSuggestionsViewModel.closeTagPicker() },
+            onToggleTagInPicker = { documentId, tagId -> tagSuggestionsViewModel.toggleTagInPicker(documentId, tagId) },
+            onApplyPickerTags = { documentId -> tagSuggestionsViewModel.applyPickerTags(documentId) },
             onUpgradeToPremium = { showPremiumUpgradeSheet = true },
             onCreateNewTag = { showCreateTagDialog = true }
         )
@@ -659,10 +678,10 @@ fun HomeScreen(
             isCreating = createTagState is CreateTagState.Creating,
             onDismiss = {
                 showCreateTagDialog = false
-                viewModel.resetCreateTagState()
+                tagSuggestionsViewModel.resetCreateTagState()
             },
             onCreate = { name, color ->
-                viewModel.createTag(name, color)
+                tagSuggestionsViewModel.createTag(name, color)
             }
         )
     }
