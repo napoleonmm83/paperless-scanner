@@ -105,6 +105,14 @@ class TagSuggestionsViewModel @Inject constructor(
      */
     private val analyzeJobs = mutableMapOf<Int, Job>()
 
+    /**
+     * Per-document in-flight guard for [applyTagsToDocument]. A rapid double
+     * tap before the first updateDocument() resolves would otherwise increment
+     * taggedCount twice and emit two AiSuggestionAccepted analytics events for
+     * a single user action. Same shape as [analyzeJobs] but for the apply path.
+     */
+    private val applyJobs = mutableMapOf<Int, Job>()
+
     // ==================== SHEET LIFECYCLE ====================
 
     fun openTagSuggestionsSheet() {
@@ -123,11 +131,13 @@ class TagSuggestionsViewModel @Inject constructor(
     fun closeTagSuggestionsSheet() {
         _showTagSuggestionsSheet.value = false
         _tagSuggestionsState.value = TagSuggestionsState()
-        // Cancel any in-flight analyses and drop completed Job references so
-        // the map can't accumulate or confuse the re-entry guard if a doc id
-        // is reused in a fresh session.
+        // Cancel any in-flight analyses / applies and drop completed Job
+        // references so the maps can't accumulate or confuse the re-entry
+        // guards if a doc id is reused in a fresh session.
         analyzeJobs.values.forEach { it.cancel() }
         analyzeJobs.clear()
+        applyJobs.values.forEach { it.cancel() }
+        applyJobs.clear()
     }
 
     private fun loadUntaggedDocuments() {
@@ -258,7 +268,13 @@ class TagSuggestionsViewModel @Inject constructor(
 
                 when (result) {
                     is SuggestionResult.Success -> {
-                        val existingTags = availableTags.value
+                        // Snapshot the repository directly. availableTags is a
+                        // WhileSubscribed StateFlow seeded with emptyList(); if
+                        // no UI is collecting it when analyze finishes (e.g.
+                        // user navigated away mid-analyze), reading .value
+                        // would misclassify existing tags as suggestedNewTags
+                        // and skip preselection.
+                        val existingTags = tagRepository.observeTags().first()
 
                         val preSelectedIds = result.analysis.suggestedTags
                             .mapNotNull { suggestion ->
@@ -339,7 +355,9 @@ class TagSuggestionsViewModel @Inject constructor(
     // ==================== APPLY / SKIP ====================
 
     fun applyTagsToDocument(documentId: Int, tagIds: List<Int>) {
-        viewModelScope.launch {
+        if (applyJobs[documentId]?.isActive == true) return
+
+        applyJobs[documentId] = viewModelScope.launch {
             try {
                 documentMetadataRepository.updateDocument(documentId, tags = tagIds)
                     .onSuccess {
@@ -381,6 +399,8 @@ class TagSuggestionsViewModel @Inject constructor(
                         e.message ?: context.getString(R.string.error_unknown),
                     ),
                 )
+            } finally {
+                applyJobs.remove(documentId)
             }
         }
     }

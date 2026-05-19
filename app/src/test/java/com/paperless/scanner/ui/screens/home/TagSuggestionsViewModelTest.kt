@@ -409,6 +409,23 @@ class TagSuggestionsViewModelTest {
     }
 
     @Test
+    fun `applyTagsToDocument re-entry guard prevents double taggedCount on rapid double-tap`() = runTest {
+        coEvery { documentListRepository.getUntaggedDocuments() } returns Result.success(listOf(doc(1)))
+
+        val vm = createViewModel()
+        vm.openTagSuggestionsSheet()
+        runCurrent()
+
+        // Two rapid taps — second must short-circuit while the first job is
+        // still active, so taggedCount lands at 1 and not 2.
+        vm.applyTagsToDocument(documentId = 1, tagIds = listOf(10, 20))
+        vm.applyTagsToDocument(documentId = 1, tagIds = listOf(10, 20))
+        runCurrent()
+
+        assertEquals(1, vm.tagSuggestionsState.value.taggedCount)
+    }
+
+    @Test
     fun `analyzeDocument re-entry guard prevents duplicate jobs for same documentId`() = runTest {
         coEvery { documentListRepository.getUntaggedDocuments() } returns Result.success(listOf(doc(1)))
         every { tokenManager.serverUrl } returns MutableStateFlow("https://x")
