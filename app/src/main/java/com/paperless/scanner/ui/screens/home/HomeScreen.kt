@@ -58,6 +58,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -98,10 +99,12 @@ fun HomeScreen(
     onNavigateToSmartTagging: () -> Unit = {},
     onNavigateToTrash: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
-    serverHealthViewModel: ServerHealthViewModel = hiltViewModel()
+    serverHealthViewModel: ServerHealthViewModel = hiltViewModel(),
+    processingTasksViewModel: ProcessingTasksViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
+    val processingTasksUiState by processingTasksViewModel.uiState.collectAsState()
     val isOnline by serverHealthViewModel.isOnline.collectAsState()
     val isServerReachable by serverHealthViewModel.isServerReachable.collectAsState()
     val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
@@ -114,6 +117,14 @@ fun HomeScreen(
     LaunchedEffect(serverHealthViewModel) {
         serverHealthViewModel.onlineTransition.collect {
             viewModel.onNetworkReconnected()
+        }
+    }
+
+    // Refresh dashboard stats while ProcessingTasksViewModel is polling for
+    // task completion. Same no-direct-ref pattern as onlineTransition above.
+    LaunchedEffect(processingTasksViewModel) {
+        processingTasksViewModel.pollingTick.collect {
+            viewModel.onPollingTick()
         }
     }
 
@@ -133,6 +144,15 @@ fun HomeScreen(
     val errorMessage = when (errorState) {
         is HomeError.LoadFailed -> stringResource(R.string.error_load_data)
         is HomeError.ActionFailed -> stringResource(R.string.error_action_failed)
+        null -> null
+    }
+
+    // ProcessingTasksViewModel surfaces its own load errors. Route them through
+    // the same generic load-failure snackbar as HomeError to preserve the
+    // pre-extraction UX (formerly HomeError.LoadFailed("processingTasks", e)).
+    val processingTasksError by processingTasksViewModel.error.collectAsState()
+    val processingTasksErrorMessage = when (processingTasksError) {
+        is ProcessingTasksError.LoadFailed -> stringResource(R.string.error_load_data)
         null -> null
     }
 
@@ -184,6 +204,18 @@ fun HomeScreen(
         }
     }
 
+    // Same channel for ProcessingTasksViewModel errors — but defer while an
+    // undo snackbar is pending (deletedDocument != null) so a background
+    // polling failure can't preempt the user's chance to undo a delete.
+    LaunchedEffect(processingTasksError, uiState.deletedDocument?.id) {
+        if (uiState.deletedDocument != null) return@LaunchedEffect
+        processingTasksErrorMessage?.let { msg ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+            processingTasksViewModel.clearError()
+        }
+    }
+
     // Show undo snackbar when document is deleted (using shared component)
     DocumentListSnackbar(
         snackbarHostState = snackbarHostState,
@@ -202,6 +234,7 @@ fun HomeScreen(
         onRefresh = {
             isRefreshing = true
             viewModel.refreshDashboard()
+            processingTasksViewModel.refreshTasks()
             // Reset after a short delay (UI feedback)
             coroutineScope.launch {
                 delay(1000)
@@ -273,7 +306,7 @@ fun HomeScreen(
             item(key = "hero-card") {
                 HeroDocumentCard(
                     totalDocuments = uiState.stats.totalDocuments,
-                    processingCount = serverHealthUiState.activeUploadsCount + uiState.allProcessingTasksCount,
+                    processingCount = serverHealthUiState.activeUploadsCount + processingTasksUiState.activeCount,
                     onClick = onNavigateToDocuments,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -319,7 +352,7 @@ fun HomeScreen(
             }
 
             // Processing Tasks Section (only show if there are tasks)
-            if (uiState.processingTasks.isNotEmpty()) {
+            if (processingTasksUiState.tasks.isNotEmpty()) {
                 item(key = "processing-tasks") {
                     Column(
                         modifier = Modifier
@@ -341,9 +374,9 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Dismiss All button (only show if there are completed tasks)
-                        if (uiState.hasCompletedTasks) {
+                        if (processingTasksUiState.hasCompleted) {
                             IconButton(
-                                onClick = { viewModel.acknowledgeCompletedTasks() },
+                                onClick = { processingTasksViewModel.acknowledgeCompletedTasks() },
                                 modifier = Modifier.size(32.dp)
                             ) {
                                 Icon(
@@ -355,7 +388,7 @@ fun HomeScreen(
                             }
                         }
                         IconButton(
-                            onClick = { viewModel.refreshTasks() },
+                            onClick = { processingTasksViewModel.refreshTasks() },
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
@@ -370,28 +403,33 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                uiState.displayedProcessingTasks.forEach { task ->
-                    ProcessingTaskCard(
-                        task = task,
-                        onClick = {
-                            task.documentId?.let { onDocumentClick(it) }
-                        },
-                        onDismiss = { viewModel.acknowledgeTask(task.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                processingTasksUiState.displayed.forEach { task ->
+                    // Stable key so rememberSwipeToDismissBoxState/dismissTriggered
+                    // inside ProcessingTaskCard stays attached to the same task
+                    // identity when the list mutates (e.g. after acknowledgeTask).
+                    key(task.id) {
+                        ProcessingTaskCard(
+                            task = task,
+                            onClick = {
+                                task.documentId?.let { onDocumentClick(it) }
+                            },
+                            onDismiss = { processingTasksViewModel.acknowledgeTask(task.id) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 // Show more/less button
-                if (uiState.processingTasks.size > HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) {
+                if (processingTasksUiState.tasks.size > ProcessingTasksUiState.DISPLAY_LIMIT) {
                     TextButton(
-                        onClick = { viewModel.toggleShowAllProcessingTasks() },
+                        onClick = { processingTasksViewModel.toggleShowAll() },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = if (uiState.showAllProcessingTasks) {
+                            text = if (processingTasksUiState.showAll) {
                                 stringResource(R.string.home_processing_show_less)
                             } else {
-                                stringResource(R.string.home_processing_show_more, uiState.hiddenProcessingTasksCount)
+                                stringResource(R.string.home_processing_show_more, processingTasksUiState.hiddenCount)
                             },
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.primary
