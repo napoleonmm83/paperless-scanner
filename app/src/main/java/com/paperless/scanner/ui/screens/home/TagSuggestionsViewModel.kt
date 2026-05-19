@@ -123,6 +123,11 @@ class TagSuggestionsViewModel @Inject constructor(
     fun closeTagSuggestionsSheet() {
         _showTagSuggestionsSheet.value = false
         _tagSuggestionsState.value = TagSuggestionsState()
+        // Cancel any in-flight analyses and drop completed Job references so
+        // the map can't accumulate or confuse the re-entry guard if a doc id
+        // is reused in a fresh session.
+        analyzeJobs.values.forEach { it.cancel() }
+        analyzeJobs.clear()
     }
 
     private fun loadUntaggedDocuments() {
@@ -161,23 +166,35 @@ class TagSuggestionsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Shared thumbnail download for [loadThumbnailForDocument] (prefetch with
+     * the default user-facing timeout) and the [analyzeDocument] preflight
+     * (longer AI-analyze timeout). Returns null on any IO/decoding failure.
+     */
+    private suspend fun downloadThumbnail(
+        documentId: Int,
+        serverUrl: String,
+        authToken: String,
+        timeoutMs: Int = NetworkConfig.THUMBNAIL_TIMEOUT_MS,
+    ): android.graphics.Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
+            val connection = URL(thumbnailUrl).openConnection()
+            connection.setRequestProperty("Authorization", "Token $authToken")
+            connection.connectTimeout = timeoutMs
+            connection.readTimeout = timeoutMs
+            connection.getInputStream().use { inputStream ->
+                BitmapFactory.decodeStream(inputStream)
+            }
+        } catch (e: Exception) {
+            logger.log(Level.WARNING, "Failed to download thumbnail for doc $documentId: ${e.message}")
+            null
+        }
+    }
+
     private fun loadThumbnailForDocument(documentId: Int, serverUrl: String, authToken: String) {
         viewModelScope.launch {
-            val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
-            val bitmap = withContext(Dispatchers.IO) {
-                try {
-                    val connection = URL(thumbnailUrl).openConnection()
-                    connection.setRequestProperty("Authorization", "Token $authToken")
-                    connection.connectTimeout = NetworkConfig.THUMBNAIL_TIMEOUT_MS
-                    connection.readTimeout = NetworkConfig.THUMBNAIL_TIMEOUT_MS
-                    connection.getInputStream().use { inputStream ->
-                        BitmapFactory.decodeStream(inputStream)
-                    }
-                } catch (e: Exception) {
-                    logger.log(Level.WARNING, "Failed to load thumbnail for doc $documentId: ${e.message}")
-                    null
-                }
-            }
+            val bitmap = downloadThumbnail(documentId, serverUrl, authToken)
 
             if (bitmap != null) {
                 _tagSuggestionsState.update { state ->
@@ -211,21 +228,7 @@ class TagSuggestionsViewModel @Inject constructor(
                     return@launch
                 }
 
-                val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
-                val bitmap = withContext(Dispatchers.IO) {
-                    try {
-                        val connection = URL(thumbnailUrl).openConnection()
-                        connection.setRequestProperty("Authorization", "Token $authToken")
-                        connection.connectTimeout = ANALYZE_THUMBNAIL_TIMEOUT_MS
-                        connection.readTimeout = ANALYZE_THUMBNAIL_TIMEOUT_MS
-                        connection.getInputStream().use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream)
-                        }
-                    } catch (e: Exception) {
-                        logger.log(Level.WARNING, "Failed to download thumbnail: ${e.message}")
-                        null
-                    }
-                }
+                val bitmap = downloadThumbnail(documentId, serverUrl, authToken, ANALYZE_THUMBNAIL_TIMEOUT_MS)
 
                 if (bitmap == null) {
                     updateDocumentState(
