@@ -1,21 +1,14 @@
 package com.paperless.scanner.ui.screens.home
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperless.scanner.R
-import com.paperless.scanner.data.ai.SuggestionOrchestrator
-import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.billing.PremiumFeature
-import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
-import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
@@ -24,20 +17,16 @@ import com.paperless.scanner.util.formatTimeAgo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.URL
 import java.util.logging.Level
 import java.util.logging.Logger
 import javax.inject.Inject
@@ -73,14 +62,6 @@ enum class TaskStatus {
     FAILURE
 }
 
-// Tag creation state
-sealed class CreateTagState {
-    data object Idle : CreateTagState()
-    data object Creating : CreateTagState()
-    data class Success(val tag: Tag) : CreateTagState()
-    data class Error(val message: String) : CreateTagState()
-}
-
 /**
  * Tracks deleted document for undo functionality.
  */
@@ -106,14 +87,11 @@ class HomeViewModel @Inject constructor(
     private val documentListRepository: DocumentListRepository,
     private val documentCountRepository: DocumentCountRepository,
     private val trashRepository: TrashRepository,
-    private val documentMetadataRepository: DocumentMetadataRepository,
     private val tagRepository: TagRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
-    private val suggestionOrchestrator: SuggestionOrchestrator,
     private val tokenManager: TokenManager,
-    private val premiumFeatureManager: PremiumFeatureManager
 ) : ViewModel() {
 
     companion object {
@@ -166,25 +144,6 @@ class HomeViewModel @Inject constructor(
 
     private val _errorState = MutableStateFlow<HomeError?>(null)
     val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
-
-    // Tag Suggestions Sheet state
-    private val _tagSuggestionsState = MutableStateFlow(TagSuggestionsState())
-    val tagSuggestionsState: StateFlow<TagSuggestionsState> = _tagSuggestionsState.asStateFlow()
-
-    private val _showTagSuggestionsSheet = MutableStateFlow(false)
-    val showTagSuggestionsSheet: StateFlow<Boolean> = _showTagSuggestionsSheet.asStateFlow()
-
-    // Available tags for the tag picker
-    val availableTags: StateFlow<List<Tag>> = tagRepository.observeTags()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    // Check if AI is available (premium feature)
-    val isAiAvailable: StateFlow<Boolean> = premiumFeatureManager.isAiEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
-    // Tag creation state
-    private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
-    val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
 
     init {
         analyticsService.trackEvent(AnalyticsEvent.AppOpened)
@@ -580,439 +539,4 @@ class HomeViewModel @Inject constructor(
 
     // onCleared() — no overrides needed after Phase 2 (polling lifecycle moved
     // to ProcessingTasksViewModel.onCleared()).
-
-    // ==================== TAG SUGGESTIONS SHEET ====================
-
-    fun openTagSuggestionsSheet() {
-        _showTagSuggestionsSheet.value = true
-        loadUntaggedDocuments()
-    }
-
-    /**
-     * Load untagged documents for the SmartTaggingScreen.
-     * This is called when navigating to the full-screen tagging experience.
-     */
-    fun loadUntaggedDocumentsForScreen() {
-        loadUntaggedDocuments()
-    }
-
-    fun closeTagSuggestionsSheet() {
-        _showTagSuggestionsSheet.value = false
-        _tagSuggestionsState.value = TagSuggestionsState()
-    }
-
-    private fun loadUntaggedDocuments() {
-        viewModelScope.launch {
-            _tagSuggestionsState.update { it.copy(isLoading = true) }
-
-            // Get ALL untagged documents from local cache (no limit)
-            documentListRepository.getUntaggedDocuments().onSuccess { documents ->
-                val serverUrl = tokenManager.serverUrl.first() ?: ""
-                val authToken = tokenManager.token.first() ?: ""
-
-                // Map to UI model
-                val untaggedDocs = documents.map { doc ->
-                    UntaggedDocument(
-                        id = doc.id,
-                        title = doc.title,
-                        thumbnailUrl = if (serverUrl.isNotEmpty() && authToken.isNotEmpty()) {
-                            "$serverUrl/api/documents/${doc.id}/thumb/"
-                        } else null,
-                        analysisState = UntaggedDocAnalysisState.Idle
-                    )
-                }
-
-                _tagSuggestionsState.update {
-                    it.copy(
-                        documents = untaggedDocs,
-                        isLoading = false
-                    )
-                }
-
-                // Pre-load thumbnails for all documents in background
-                if (serverUrl.isNotEmpty() && authToken.isNotEmpty()) {
-                    untaggedDocs.forEach { doc ->
-                        loadThumbnailForDocument(doc.id, serverUrl, authToken)
-                    }
-                }
-            }.onFailure { error ->
-                logger.log(Level.WARNING, "Failed to load untagged documents: ${error.message}")
-                _tagSuggestionsState.update { it.copy(isLoading = false) }
-                _errorState.value = HomeError.LoadFailed("untaggedDocuments", error)
-            }
-        }
-    }
-
-    private fun loadThumbnailForDocument(documentId: Int, serverUrl: String, authToken: String) {
-        viewModelScope.launch {
-            val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
-            val bitmap = withContext(Dispatchers.IO) {
-                try {
-                    val connection = URL(thumbnailUrl).openConnection()
-                    connection.setRequestProperty("Authorization", "Token $authToken")
-                    connection.connectTimeout = com.paperless.scanner.util.NetworkConfig.THUMBNAIL_TIMEOUT_MS
-                    connection.readTimeout = com.paperless.scanner.util.NetworkConfig.THUMBNAIL_TIMEOUT_MS
-                    connection.getInputStream().use { inputStream ->
-                        BitmapFactory.decodeStream(inputStream)
-                    }
-                } catch (e: Exception) {
-                    logger.log(Level.WARNING, "Failed to load thumbnail for doc $documentId: ${e.message}")
-                    null
-                }
-            }
-
-            if (bitmap != null) {
-                _tagSuggestionsState.update { state ->
-                    state.copy(
-                        documents = state.documents.map { doc ->
-                            if (doc.id == documentId) {
-                                doc.copy(thumbnailBitmap = bitmap)
-                            } else doc
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    fun analyzeDocument(documentId: Int) {
-        viewModelScope.launch {
-            // Update state to loading
-            updateDocumentState(documentId, UntaggedDocAnalysisState.LoadingThumbnail)
-
-            try {
-                val serverUrl = tokenManager.serverUrl.first() ?: ""
-                val authToken = tokenManager.token.first() ?: ""
-
-                if (serverUrl.isEmpty() || authToken.isEmpty()) {
-                    updateDocumentState(documentId, UntaggedDocAnalysisState.Error(
-                        context.getString(R.string.error_not_authenticated)
-                    ))
-                    return@launch
-                }
-
-                // Download thumbnail for AI analysis
-                val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
-                val bitmap = withContext(Dispatchers.IO) {
-                    try {
-                        val connection = URL(thumbnailUrl).openConnection()
-                        connection.setRequestProperty("Authorization", "Token $authToken")
-                        connection.connectTimeout = 10000
-                        connection.readTimeout = 10000
-                        connection.getInputStream().use { inputStream ->
-                            BitmapFactory.decodeStream(inputStream)
-                        }
-                    } catch (e: Exception) {
-                        logger.log(Level.WARNING, "Failed to download thumbnail: ${e.message}")
-                        null
-                    }
-                }
-
-                if (bitmap == null) {
-                    updateDocumentState(documentId, UntaggedDocAnalysisState.Error(
-                        context.getString(R.string.tag_suggestions_error_thumbnail)
-                    ))
-                    return@launch
-                }
-
-                // Update document with bitmap and change state to analyzing
-                _tagSuggestionsState.update { state ->
-                    state.copy(
-                        documents = state.documents.map { doc ->
-                            if (doc.id == documentId) {
-                                doc.copy(
-                                    thumbnailBitmap = bitmap,
-                                    analysisState = UntaggedDocAnalysisState.Analyzing
-                                )
-                            } else doc
-                        }
-                    )
-                }
-
-                // Run AI analysis using the orchestrator
-                val result = suggestionOrchestrator.getSuggestions(
-                    bitmap = bitmap,
-                    documentId = documentId
-                )
-
-                when (result) {
-                    is SuggestionResult.Success -> {
-                        // Separate suggested tags into existing and new
-                        val existingTags = _tagMap.value.values.toList()
-
-                        // Find tags that exist in the system and pre-select them
-                        val preSelectedIds = result.analysis.suggestedTags
-                            .mapNotNull { suggestion ->
-                                suggestion.tagId ?: existingTags.find {
-                                    it.name.equals(suggestion.tagName, ignoreCase = true)
-                                }?.id
-                            }
-                            .toSet()
-
-                        // Find tags that DON'T exist in the system (new tag suggestions)
-                        val newTagSuggestions = result.analysis.suggestedTags
-                            .filter { suggestion ->
-                                val hasTagId = suggestion.tagId != null
-                                val existsInSystem = existingTags.any {
-                                    it.name.equals(suggestion.tagName, ignoreCase = true)
-                                }
-                                !hasTagId && !existsInSystem
-                            }
-
-                        _tagSuggestionsState.update { state ->
-                            state.copy(
-                                documents = state.documents.map { doc ->
-                                    if (doc.id == documentId) {
-                                        doc.copy(
-                                            analysisState = UntaggedDocAnalysisState.Success(result.analysis),
-                                            suggestions = result.analysis,
-                                            selectedTagIds = preSelectedIds,
-                                            suggestedNewTags = newTagSuggestions
-                                        )
-                                    } else doc
-                                }
-                            )
-                        }
-
-                        analyticsService.trackEvent(AnalyticsEvent.AiFeatureUsed(
-                            featureType = "tag_suggestions_home",
-                            inputTokens = 0, // Not tracked at this level
-                            outputTokens = 0,
-                            estimatedCostUsd = 0.0,
-                            subscriptionType = "unknown",
-                            success = true
-                        ))
-                    }
-                    is SuggestionResult.Error -> {
-                        updateDocumentState(documentId, UntaggedDocAnalysisState.Error(result.message))
-                    }
-                    is SuggestionResult.Loading -> {
-                        // Already in loading state, no action needed
-                    }
-                    is SuggestionResult.WiFiRequired -> {
-                        // WiFi-only restriction does not apply to HomeScreen analysis
-                        // (documents are already uploaded, only analyzing existing thumbnails)
-                        // This case should not occur here, but handle gracefully
-                        logger.log(Level.WARNING, "WiFiRequired in HomeViewModel - should not happen")
-                        updateDocumentState(documentId, UntaggedDocAnalysisState.Idle)
-                    }
-                }
-            } catch (e: Exception) {
-                logger.log(Level.WARNING, "Error analyzing document $documentId: ${e.message}")
-                updateDocumentState(documentId, UntaggedDocAnalysisState.Error(
-                    e.message ?: context.getString(R.string.error_unknown)
-                ))
-            }
-        }
-    }
-
-    private fun updateDocumentState(documentId: Int, state: UntaggedDocAnalysisState) {
-        _tagSuggestionsState.update { currentState ->
-            currentState.copy(
-                documents = currentState.documents.map { doc ->
-                    if (doc.id == documentId) {
-                        doc.copy(analysisState = state)
-                    } else doc
-                }
-            )
-        }
-    }
-
-    fun applyTagsToDocument(documentId: Int, tagIds: List<Int>) {
-        viewModelScope.launch {
-            try {
-                // Update document via repository
-                documentMetadataRepository.updateDocument(documentId, tags = tagIds)
-                    .onSuccess {
-                        logger.log(Level.INFO, "Applied tags $tagIds to document $documentId")
-
-                        // Mark as tagged and increment counter
-                        _tagSuggestionsState.update { state ->
-                            state.copy(
-                                documents = state.documents.map { doc ->
-                                    if (doc.id == documentId) {
-                                        doc.copy(isTagged = true)
-                                    } else doc
-                                },
-                                taggedCount = state.taggedCount + 1
-                            )
-                        }
-
-                        analyticsService.trackEvent(AnalyticsEvent.AiSuggestionAccepted(
-                            featureType = "tag_suggestions_home",
-                            suggestionCount = tagIds.size
-                        ))
-                    }
-                    .onFailure { error ->
-                        logger.log(Level.WARNING, "Failed to apply tags: ${error.message}")
-                        updateDocumentState(documentId, UntaggedDocAnalysisState.Error(
-                            error.message ?: context.getString(R.string.error_unknown)
-                        ))
-                    }
-            } catch (e: Exception) {
-                logger.log(Level.WARNING, "Error applying tags: ${e.message}")
-            }
-        }
-    }
-
-    fun skipDocument(documentId: Int) {
-        _tagSuggestionsState.update { state ->
-            state.copy(
-                documents = state.documents.map { doc ->
-                    if (doc.id == documentId) {
-                        doc.copy(isSkipped = true)
-                    } else doc
-                }
-            )
-        }
-    }
-
-    // Tag Picker methods
-    fun openTagPicker(documentId: Int) {
-        _tagSuggestionsState.update {
-            it.copy(showTagPicker = true, tagPickerDocumentId = documentId)
-        }
-    }
-
-    fun closeTagPicker() {
-        _tagSuggestionsState.update {
-            it.copy(showTagPicker = false, tagPickerDocumentId = null)
-        }
-    }
-
-    fun toggleTagInPicker(documentId: Int, tagId: Int) {
-        _tagSuggestionsState.update { state ->
-            state.copy(
-                documents = state.documents.map { doc ->
-                    if (doc.id == documentId) {
-                        val newSelectedIds = if (doc.selectedTagIds.contains(tagId)) {
-                            doc.selectedTagIds - tagId
-                        } else {
-                            doc.selectedTagIds + tagId
-                        }
-                        doc.copy(selectedTagIds = newSelectedIds)
-                    } else doc
-                }
-            )
-        }
-    }
-
-    fun applyPickerTags(documentId: Int) {
-        val document = _tagSuggestionsState.value.documents.find { it.id == documentId }
-        if (document != null && document.selectedTagIds.isNotEmpty()) {
-            applyTagsToDocument(documentId, document.selectedTagIds.toList())
-            closeTagPicker()
-        }
-    }
-
-    // ==================== TAG CREATION ====================
-
-    fun createTag(name: String, color: String? = null) {
-        viewModelScope.launch {
-            _createTagState.update { CreateTagState.Creating }
-
-            tagRepository.createTag(name = name, color = color)
-                .onSuccess { newTag ->
-                    logger.log(Level.INFO, "Tag created: ${newTag.name}")
-                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
-                    // BEST PRACTICE: Tag list updates automatically via observeTagsReactively()
-                    _createTagState.update { CreateTagState.Success(newTag) }
-                }
-                .onFailure { e ->
-                    logger.log(Level.WARNING, "Failed to create tag: ${e.message}")
-                    // Handle duplicate tag error
-                    if (e.message?.contains("unique constraint") == true ||
-                        e.message?.contains("already exists") == true) {
-                        // Try to find existing tag
-                        val existingTag = tagRepository.observeTags().first()
-                            .find { it.name.equals(name, ignoreCase = true) }
-                        if (existingTag != null) {
-                            _createTagState.update { CreateTagState.Success(existingTag) }
-                        } else {
-                            _createTagState.update { CreateTagState.Error(
-                                context.getString(R.string.error_create_tag)
-                            ) }
-                        }
-                    } else {
-                        _createTagState.update { CreateTagState.Error(
-                            e.message ?: context.getString(R.string.error_create_tag)
-                        ) }
-                    }
-                }
-        }
-    }
-
-    fun resetCreateTagState() {
-        _createTagState.update { CreateTagState.Idle }
-    }
-
-    /**
-     * Creates a suggested new tag and automatically selects it for the specified document.
-     * Also removes it from the suggestedNewTags list.
-     */
-    fun createSuggestedTag(documentId: Int, tagName: String) {
-        viewModelScope.launch {
-            _createTagState.update { CreateTagState.Creating }
-
-            tagRepository.createTag(name = tagName, color = null)
-                .onSuccess { newTag ->
-                    logger.log(Level.INFO, "Suggested tag created: ${newTag.name}")
-                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
-
-                    // Auto-select the newly created tag for this document
-                    // and remove it from suggestedNewTags
-                    _tagSuggestionsState.update { state ->
-                        state.copy(
-                            documents = state.documents.map { doc ->
-                                if (doc.id == documentId) {
-                                    doc.copy(
-                                        selectedTagIds = doc.selectedTagIds + newTag.id,
-                                        suggestedNewTags = doc.suggestedNewTags.filter {
-                                            !it.tagName.equals(tagName, ignoreCase = true)
-                                        }
-                                    )
-                                } else doc
-                            }
-                        )
-                    }
-
-                    _createTagState.update { CreateTagState.Success(newTag) }
-                }
-                .onFailure { e ->
-                    logger.log(Level.WARNING, "Failed to create suggested tag: ${e.message}")
-                    // Handle duplicate tag error - tag might have been created meanwhile
-                    if (e.message?.contains("unique constraint") == true ||
-                        e.message?.contains("already exists") == true) {
-                        val existingTag = tagRepository.observeTags().first()
-                            .find { it.name.equals(tagName, ignoreCase = true) }
-                        if (existingTag != null) {
-                            // Auto-select the existing tag
-                            _tagSuggestionsState.update { state ->
-                                state.copy(
-                                    documents = state.documents.map { doc ->
-                                        if (doc.id == documentId) {
-                                            doc.copy(
-                                                selectedTagIds = doc.selectedTagIds + existingTag.id,
-                                                suggestedNewTags = doc.suggestedNewTags.filter {
-                                                    !it.tagName.equals(tagName, ignoreCase = true)
-                                                }
-                                            )
-                                        } else doc
-                                    }
-                                )
-                            }
-                            _createTagState.update { CreateTagState.Success(existingTag) }
-                        } else {
-                            _createTagState.update { CreateTagState.Error(
-                                context.getString(R.string.error_create_tag)
-                            ) }
-                        }
-                    } else {
-                        _createTagState.update { CreateTagState.Error(
-                            e.message ?: context.getString(R.string.error_create_tag)
-                        ) }
-                    }
-                }
-        }
-    }
 }

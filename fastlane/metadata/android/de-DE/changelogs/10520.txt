@@ -1,0 +1,10 @@
+Version 1.5.120:
+
+🔧 Verbesserungen:
+- Tag-Vorschläge: schnellere Ladezeit
+- Smart-Tagging: kleinerer Speicherverbrauch
+- Stabilere AI-Analyse bei Mehrfach-Klicks
+
+🛠 Unter der Haube:
+- Interner Home-Refactor (3/5)
+- TagSuggestions in eigene Komponente ausgelagert
