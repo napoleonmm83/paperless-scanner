@@ -372,6 +372,15 @@ class TagSuggestionsViewModel @Inject constructor(
                     }
             } catch (e: Exception) {
                 logger.log(Level.WARNING, "Error applying tags: ${e.message}")
+                // Without this update the document stays on its prior state
+                // (e.g. Analyzing / Success) even though the apply silently
+                // failed — surface the error so the user can retry.
+                updateDocumentState(
+                    documentId,
+                    UntaggedDocAnalysisState.Error(
+                        e.message ?: context.getString(R.string.error_unknown),
+                    ),
+                )
             }
         }
     }
