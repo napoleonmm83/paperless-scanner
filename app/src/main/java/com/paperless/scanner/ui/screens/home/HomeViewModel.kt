@@ -12,22 +12,19 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
 import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.TagRepository
-import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.asUiResult
+import com.paperless.scanner.util.formatTimeAgo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,15 +34,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
-import java.time.Duration
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 import java.util.logging.Level
 import java.util.logging.Logger
 import javax.inject.Inject
@@ -101,43 +92,12 @@ data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
     val recentDocuments: List<RecentDocument> = emptyList(),
     val deletedDocument: DeletedDocumentInfo? = null, // For undo snackbar
-    val processingTasks: List<ProcessingTask> = emptyList(),
-    val allProcessingTasksCount: Int = 0,      // Total count for Hero Card (unlimited)
-    val showAllProcessingTasks: Boolean = false, // Toggle for "show more" in list
     val untaggedCount: Int = 0,
     val deletedCount: Int = 0,
     val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
     val lastSyncedAt: Long? = null,            // Timestamp of last successful sync
     val isLoading: Boolean = true
-) {
-    companion object {
-        const val PROCESSING_TASKS_DISPLAY_LIMIT = 10
-    }
-
-    /**
-     * Number of hidden tasks (for "show X more" button).
-     */
-    val hiddenProcessingTasksCount: Int
-        get() = if (showAllProcessingTasks) 0 else maxOf(0, processingTasks.size - PROCESSING_TASKS_DISPLAY_LIMIT)
-
-    /**
-     * Tasks to display in UI (limited or all based on toggle).
-     */
-    val displayedProcessingTasks: List<ProcessingTask>
-        get() = if (showAllProcessingTasks) processingTasks else processingTasks.take(PROCESSING_TASKS_DISPLAY_LIMIT)
-
-    /**
-     * Count of completed tasks (SUCCESS or FAILURE) that can be dismissed.
-     */
-    val completedTasksCount: Int
-        get() = processingTasks.count { it.status == TaskStatus.SUCCESS || it.status == TaskStatus.FAILURE }
-
-    /**
-     * Whether there are any completed tasks to dismiss.
-     */
-    val hasCompletedTasks: Boolean
-        get() = completedTasksCount > 0
-}
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -147,7 +107,6 @@ class HomeViewModel @Inject constructor(
     private val trashRepository: TrashRepository,
     private val documentMetadataRepository: DocumentMetadataRepository,
     private val tagRepository: TagRepository,
-    private val taskRepository: TaskRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
@@ -158,8 +117,6 @@ class HomeViewModel @Inject constructor(
 
     companion object {
         private val logger = Logger.getLogger(HomeViewModel::class.java.name)
-        private const val POLLING_INTERVAL_MS = 3000L
-        private const val NETWORK_CHECK_INTERVAL_MS = 1000L
         // Debounce: Only refresh if more than 30 seconds since last refresh
         private const val REFRESH_DEBOUNCE_MS = 30_000L
     }
@@ -234,7 +191,6 @@ class HomeViewModel @Inject constructor(
         observePendingUploads()
         observeTagsReactively()
         observeRecentDocumentsReactively()
-        observeProcessingTasksReactively()
         observeUntaggedCountReactively()
         observeDeletedCountReactively()
         observeOldestDeletedTimestampReactively()
@@ -247,6 +203,17 @@ class HomeViewModel @Inject constructor(
     fun onNetworkReconnected() {
         logger.log(Level.INFO, "Network reconnected - auto-refreshing data")
         loadDashboardData()
+    }
+
+    /**
+     * Refresh dashboard stats while [ProcessingTasksViewModel] is polling for
+     * task completion. Wired via pollingTick in HomeScreen.
+     */
+    fun onPollingTick() {
+        viewModelScope.launch {
+            val stats = loadStats()
+            _uiState.update { it.copy(stats = stats) }
+        }
     }
 
     /**
@@ -287,7 +254,7 @@ class HomeViewModel @Inject constructor(
                     RecentDocument(
                         id = doc.id,
                         title = doc.title,
-                        timeAgo = formatTimeAgo(doc.added),
+                        timeAgo = formatTimeAgo(context, doc.added),
                         tagName = tag?.name,
                         tagColor = tag?.color?.let { parseColorToLong(it) }
                     )
@@ -299,63 +266,6 @@ class HomeViewModel @Inject constructor(
                         _uiState.update { it.copy(recentDocuments = recentDocs, isLoading = false) }
                     }.onFailure { e ->
                         _errorState.value = HomeError.LoadFailed("recentDocuments", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow with multi-table observation.
-     * Uses @RawQuery with observedEntities=[CachedTask, CachedDocument]
-     * to ensure immediate UI updates when documents are deleted.
-     *
-     * The magic happens at DAO level:
-     * - observeUnacknowledgedTasksExcludingDeleted() uses @RawQuery
-     * - observedEntities tells Room to watch BOTH tables
-     * - When document.isDeleted changes, Room automatically re-emits Flow
-     * - No manual refresh, no navigation required!
-     *
-     * This is THE correct way to do reactive multi-table queries in Room.
-     */
-    private fun observeProcessingTasksReactively() {
-        viewModelScope.launch {
-            taskRepository.observeUnacknowledgedTasksExcludingDeleted()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { tasks ->
-                        val processingTasks = tasks
-                            .filter { task -> task.taskFileName != null }
-                            .map { task ->
-                                ProcessingTask(
-                                    id = task.id,
-                                    taskId = task.taskId,
-                                    fileName = task.taskFileName ?: context.getString(R.string.document_unknown),
-                                    status = mapTaskStatus(task.status),
-                                    timeAgo = formatTimeAgo(task.dateCreated),
-                                    resultMessage = task.result,
-                                    documentId = task.relatedDocument?.toIntOrNull()
-                                )
-                            }
-                            .sortedByDescending { it.id }
-
-                        val activeTasksCount = processingTasks.count {
-                            it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
-                        }
-
-                        val previousTasks = _uiState.value.processingTasks
-                        syncCompletedDocuments(previousTasks, processingTasks)
-
-                        _uiState.update { currentState ->
-                            currentState.copy(
-                                processingTasks = processingTasks,
-                                allProcessingTasksCount = activeTasksCount,
-                                isLoading = false
-                            )
-                        }
-
-                        if (activeTasksCount > 0) startTaskPolling() else stopTaskPolling()
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("processingTasks", e)
                     }
                 }
         }
@@ -421,9 +331,6 @@ class HomeViewModel @Inject constructor(
 
             val stats = loadStats()
 
-            // Force refresh tasks from API to populate cache (triggers reactive Flow update)
-            taskRepository.getTasks(forceRefresh = true)
-
             // Refresh untagged count from API
             var untaggedCount = 0
             documentCountRepository.getUntaggedCount().onSuccess { count ->
@@ -455,79 +362,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private var pollingJob: Job? = null
-
-    private fun startTaskPolling() {
-        // Cancel existing job if any
-        if (pollingJob?.isActive == true) return
-
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                delay(POLLING_INTERVAL_MS)
-
-                // Refresh tasks from API (triggers reactive Flow update automatically)
-                taskRepository.getTasks(forceRefresh = true)
-
-                // Refresh stats when polling (in case new documents were created)
-                val stats = loadStats()
-                _uiState.update { it.copy(stats = stats) }
-
-                // Stop polling if no more pending tasks
-                val currentTasks = _uiState.value.processingTasks
-                if (currentTasks.none { it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING }) {
-                    break
-                }
-            }
-        }
-    }
-
-    /**
-     * Sync completed documents to local DB so they appear in Recent Documents automatically.
-     * When a task changes from PROCESSING → SUCCESS and has a documentId,
-     * fetch the document from API and save to local DB.
-     */
-    private suspend fun syncCompletedDocuments(
-        previousTasks: List<ProcessingTask>,
-        currentTasks: List<ProcessingTask>
-    ) {
-        // Find tasks that just completed successfully
-        val newlyCompletedTasks = currentTasks.filter { currentTask ->
-            currentTask.status == TaskStatus.SUCCESS &&
-            currentTask.documentId != null &&
-            previousTasks.none { prevTask ->
-                prevTask.taskId == currentTask.taskId && prevTask.status == TaskStatus.SUCCESS
-            }
-        }
-
-        // Fetch and cache each completed document
-        newlyCompletedTasks.forEach { task ->
-            task.documentId?.let { docId ->
-                logger.log(Level.INFO, "Syncing completed document $docId to local DB")
-                documentMetadataRepository.getDocument(docId, forceRefresh = true)
-                    .onSuccess {
-                        logger.log(Level.INFO, "Document $docId synced successfully")
-                    }
-                    .onFailure { error ->
-                        logger.log(Level.WARNING, "Failed to sync document $docId: ${error.message}")
-                    }
-            }
-        }
-    }
-
-    private fun stopTaskPolling() {
-        pollingJob?.cancel()
-        pollingJob = null
-    }
-
-    fun refreshTasks() {
-        viewModelScope.launch {
-            // Force refresh tasks from API (triggers reactive Flow update automatically)
-            taskRepository.getTasks(forceRefresh = true)
-
-            // Polling will be started/stopped automatically by observeProcessingTasksReactively()
-        }
-    }
-
     /**
      * BEST PRACTICE: Refresh both stats and tasks.
      * Use this for:
@@ -547,9 +381,6 @@ class HomeViewModel @Inject constructor(
             lastRefreshTimestamp = now
 
             _uiState.update { it.copy(stats = stats, lastSyncedAt = now) }
-
-            // Refresh processing tasks from API (triggers reactive Flow update automatically)
-            taskRepository.getTasks(forceRefresh = true)
 
             // Refresh untagged count from API
             documentCountRepository.getUntaggedCount().onSuccess { count ->
@@ -611,89 +442,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun acknowledgeTask(taskId: Int) {
-        // Optimistic update - remove task from UI immediately
-        _uiState.update { state ->
-            val updatedTasks = state.processingTasks.filter { it.id != taskId }
-            // Find the acknowledged task to update the count correctly
-            val acknowledgedTask = state.processingTasks.find { it.id == taskId }
-            val wasActive = acknowledgedTask?.let {
-                it.status == TaskStatus.PENDING || it.status == TaskStatus.PROCESSING
-            } ?: false
-
-            state.copy(
-                processingTasks = updatedTasks,
-                // Decrement allProcessingTasksCount if the acknowledged task was active
-                allProcessingTasksCount = if (wasActive) maxOf(0, state.allProcessingTasksCount - 1) else state.allProcessingTasksCount,
-                // Reset showAllProcessingTasks when list becomes empty or small enough
-                showAllProcessingTasks = if (updatedTasks.size <= HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) false else state.showAllProcessingTasks
-            )
-        }
-
-        // Then acknowledge on server
-        viewModelScope.launch {
-            taskRepository.acknowledgeTasks(listOf(taskId))
-                .onSuccess {
-                    logger.log(Level.FINE, "Task $taskId acknowledged successfully")
-                }
-                .onFailure { error ->
-                    logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
-                }
-        }
-    }
-
-    /**
-     * Acknowledge all completed tasks (SUCCESS or FAILURE) at once.
-     * BULK ACTION: Dismisses all finished tasks in one API call.
-     */
-    fun acknowledgeCompletedTasks() {
-        val completedTasks = _uiState.value.processingTasks.filter {
-            it.status == TaskStatus.SUCCESS || it.status == TaskStatus.FAILURE
-        }
-
-        if (completedTasks.isEmpty()) {
-            logger.log(Level.FINE, "No completed tasks to acknowledge")
-            return
-        }
-
-        val taskIds = completedTasks.map { it.id }
-        logger.log(Level.INFO, "Acknowledging ${taskIds.size} completed tasks: $taskIds")
-
-        // Optimistic update - remove all completed tasks from UI immediately
-        _uiState.update { state ->
-            val remainingTasks = state.processingTasks.filter {
-                it.status != TaskStatus.SUCCESS && it.status != TaskStatus.FAILURE
-            }
-            state.copy(
-                processingTasks = remainingTasks,
-                // Reset showAllProcessingTasks when list becomes empty or small enough
-                showAllProcessingTasks = if (remainingTasks.size <= HomeUiState.PROCESSING_TASKS_DISPLAY_LIMIT) false else state.showAllProcessingTasks
-            )
-        }
-
-        // Then acknowledge on server
-        viewModelScope.launch {
-            taskRepository.acknowledgeTasks(taskIds)
-                .onSuccess {
-                    logger.log(Level.INFO, "Successfully acknowledged ${taskIds.size} tasks")
-                }
-                .onFailure { error ->
-                    logger.log(Level.WARNING, "Failed to acknowledge tasks: ${error.message}")
-                    // Optionally: refresh tasks to restore state on failure
-                    refreshTasks()
-                }
-        }
-    }
-
-    /**
-     * Toggle showing all processing tasks vs. limited display.
-     */
-    fun toggleShowAllProcessingTasks() {
-        _uiState.update { state ->
-            state.copy(showAllProcessingTasks = !state.showAllProcessingTasks)
-        }
-    }
-
     private suspend fun loadStats(forceRefresh: Boolean = true): DocumentStat {
         val pendingCount = pendingChangesCountInternal.value // Use live flow value
         var totalDocuments = 0
@@ -725,50 +473,6 @@ class HomeViewModel @Inject constructor(
     }
 
 
-    private fun mapTaskStatus(status: String): TaskStatus {
-        return when (status) {
-            PaperlessTask.STATUS_PENDING -> TaskStatus.PENDING
-            PaperlessTask.STATUS_STARTED -> TaskStatus.PROCESSING
-            PaperlessTask.STATUS_SUCCESS -> TaskStatus.SUCCESS
-            PaperlessTask.STATUS_FAILURE -> TaskStatus.FAILURE
-            else -> TaskStatus.PENDING
-        }
-    }
-
-    private fun formatTimeAgo(dateString: String): String {
-        return try {
-            // Try parsing with timezone offset first (API format: "2026-01-03T10:05:00.156005+01:00")
-            // Then fall back to local datetime format for tests
-            val localDateTime = try {
-                val zonedDateTime = ZonedDateTime.parse(dateString, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-                zonedDateTime.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
-            } catch (e: Exception) {
-                // Fallback for datetime without timezone (test format: "2026-01-03T10:05:00")
-                LocalDateTime.parse(dateString, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-            }
-
-            val now = LocalDateTime.now()
-            val duration = Duration.between(localDateTime, now)
-
-            val diffMinutes = duration.toMinutes()
-            val diffHours = duration.toHours()
-            val diffDays = duration.toDays()
-
-            when {
-                diffMinutes < 1 -> context.getString(R.string.time_just_now)
-                diffMinutes < 60 -> context.getString(R.string.time_minutes_ago, diffMinutes.toInt())
-                diffHours < 24 -> context.getString(R.string.time_hours_ago, diffHours.toInt())
-                diffDays < 7 -> context.getString(R.string.time_days_ago, diffDays.toInt())
-                else -> {
-                    val outputFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-                    localDateTime.format(outputFormatter)
-                }
-            }
-        } catch (e: Exception) {
-            context.getString(R.string.time_unknown)
-        }
-    }
-
     private fun parseColorToLong(colorString: String): Long? {
         return try {
             if (colorString.startsWith("#")) {
@@ -782,7 +486,6 @@ class HomeViewModel @Inject constructor(
     }
 
     fun resetState() {
-        stopTaskPolling()
         _uiState.update { HomeUiState() }
     }
 
@@ -871,10 +574,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        stopTaskPolling()
-    }
+    // onCleared() — no overrides needed after Phase 2 (polling lifecycle moved
+    // to ProcessingTasksViewModel.onCleared()).
 
     // ==================== TAG SUGGESTIONS SHEET ====================
 

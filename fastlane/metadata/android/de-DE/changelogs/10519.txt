@@ -1,0 +1,10 @@
+Version 1.5.119:
+
+🔧 Verbesserungen:
+- Home-Bildschirm: Verarbeitungsbereich entkoppelt
+- Schnellere Aktualisierung bei laufenden Uploads
+- Genauere Anzeige aktiver Aufgaben
+
+🛠 Unter der Haube:
+- Interner Refactor des Home-Bildschirms (2/5)
+- Mehr Modularität für künftige Verbesserungen

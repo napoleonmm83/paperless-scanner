@@ -4,14 +4,12 @@ import android.content.Context
 import app.cash.turbine.test
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.DocumentsResponse
-import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
 import com.paperless.scanner.data.repository.DocumentMetadataRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TrashRepository
-import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -52,7 +50,6 @@ class HomeViewModelTest {
     private lateinit var trashRepository: TrashRepository
     private lateinit var documentMetadataRepository: DocumentMetadataRepository
     private lateinit var tagRepository: TagRepository
-    private lateinit var taskRepository: TaskRepository
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var syncManager: SyncManager
     private lateinit var analyticsService: AnalyticsService
@@ -71,7 +68,6 @@ class HomeViewModelTest {
         trashRepository = mockk(relaxed = true)
         documentMetadataRepository = mockk(relaxed = true)
         tagRepository = mockk(relaxed = true)
-        taskRepository = mockk(relaxed = true)
         uploadQueueRepository = mockk(relaxed = true)
         syncManager = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
@@ -84,7 +80,6 @@ class HomeViewModelTest {
         every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
         every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns MutableStateFlow(emptyList())
-        every { taskRepository.observeUnacknowledgedTasksExcludingDeleted() } returns MutableStateFlow(emptyList())
         every { documentCountRepository.observeUntaggedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeTrashedDocumentsCount() } returns MutableStateFlow(0)
         every { trashRepository.observeOldestDeletedTimestamp() } returns MutableStateFlow(null)
@@ -97,7 +92,6 @@ class HomeViewModelTest {
         coEvery { documentListRepository.getRecentDocuments(any()) } returns Result.success(emptyList())
         coEvery { documentCountRepository.getUntaggedCount() } returns Result.success(0)
         coEvery { trashRepository.getTrashDocuments(any(), any()) } returns Result.success(DocumentsResponse(count = 0, results = emptyList(), next = null))
-        coEvery { taskRepository.getUnacknowledgedTasks() } returns Result.success(emptyList())
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
     }
 
@@ -114,7 +108,6 @@ class HomeViewModelTest {
             trashRepository = trashRepository,
             documentMetadataRepository = documentMetadataRepository,
             tagRepository = tagRepository,
-            taskRepository = taskRepository,
             uploadQueueRepository = uploadQueueRepository,
             syncManager = syncManager,
             analyticsService = analyticsService,
