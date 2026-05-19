@@ -123,12 +123,20 @@ class ProcessingTasksViewModel @Inject constructor(
                         }
 
                         val previousTasks = _uiState.value.tasks
-                        syncCompletedDocuments(previousTasks, processingTasks)
-
                         _uiState.update { it.copy(tasks = processingTasks, activeCount = activeTasksCount) }
 
                         if (activeTasksCount > 0) startTaskPolling() else stopTaskPolling()
+
+                        // Side-effect document sync runs off the collector path so a
+                        // slow getDocument() call doesn't delay state updates or
+                        // polling lifecycle decisions.
+                        viewModelScope.launch {
+                            syncCompletedDocuments(previousTasks, processingTasks)
+                        }
                     }.onFailure { e ->
+                        // Stop polling so a failing observer doesn't keep firing
+                        // forced refreshes every 3s until the VM is cleared.
+                        stopTaskPolling()
                         _error.value = ProcessingTasksError.LoadFailed("processingTasks", e)
                     }
                 }

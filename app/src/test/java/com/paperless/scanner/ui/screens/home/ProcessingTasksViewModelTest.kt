@@ -165,7 +165,11 @@ class ProcessingTasksViewModelTest {
         runCurrent()
         coVerify(exactly = 1) { documentMetadataRepository.getDocument(42, true) }
 
-        flow.value = successful.toList()
+        // MutableStateFlow drops equal values — vary fileName so the emission
+        // is distinct while the SUCCESS-with-documentId pair stays the same.
+        flow.value = listOf(
+            task(1, status = PaperlessTask.STATUS_SUCCESS, relatedDocument = "42", fileName = "updated.pdf"),
+        )
         runCurrent()
         coVerify(exactly = 1) { documentMetadataRepository.getDocument(42, true) }
         // No polling triggered (SUCCESS-only), but resetState for symmetry.

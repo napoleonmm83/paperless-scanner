@@ -25,6 +25,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -205,12 +206,17 @@ class HomeViewModel @Inject constructor(
         loadDashboardData()
     }
 
+    private var pollingRefreshJob: Job? = null
+
     /**
      * Refresh dashboard stats while [ProcessingTasksViewModel] is polling for
-     * task completion. Wired via pollingTick in HomeScreen.
+     * task completion. Wired via pollingTick in HomeScreen. Guarded so
+     * overlapping ticks don't queue concurrent network calls that could let an
+     * older response overwrite a newer one.
      */
     fun onPollingTick() {
-        viewModelScope.launch {
+        if (pollingRefreshJob?.isActive == true) return
+        pollingRefreshJob = viewModelScope.launch {
             val stats = loadStats()
             _uiState.update { it.copy(stats = stats) }
         }

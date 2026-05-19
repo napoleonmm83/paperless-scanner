@@ -204,8 +204,11 @@ fun HomeScreen(
         }
     }
 
-    // Same channel for ProcessingTasksViewModel errors.
-    LaunchedEffect(processingTasksError) {
+    // Same channel for ProcessingTasksViewModel errors — but defer while an
+    // undo snackbar is pending (deletedDocument != null) so a background
+    // polling failure can't preempt the user's chance to undo a delete.
+    LaunchedEffect(processingTasksError, uiState.deletedDocument?.id) {
+        if (uiState.deletedDocument != null) return@LaunchedEffect
         processingTasksErrorMessage?.let { msg ->
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(msg)
