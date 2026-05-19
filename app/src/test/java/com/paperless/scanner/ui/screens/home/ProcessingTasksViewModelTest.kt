@@ -188,7 +188,10 @@ class ProcessingTasksViewModelTest {
 
         advanceTimeBy(3_500)
         runCurrent()
-        coVerify(atLeast = 1) { taskRepository.getTasks(forceRefresh = true) }
+        // 1 from init + at least 1 from the polling loop. Tightened from
+        // atLeast = 1 (which the init refresh alone satisfies) so the test
+        // actually proves polling kicked in.
+        coVerify(atLeast = 2) { taskRepository.getTasks(forceRefresh = true) }
         assertTrue("pollingTick should have emitted at least once", tickCount >= 1)
         vm.resetState()
     }
