@@ -58,6 +58,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -400,14 +401,19 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 processingTasksUiState.displayed.forEach { task ->
-                    ProcessingTaskCard(
-                        task = task,
-                        onClick = {
-                            task.documentId?.let { onDocumentClick(it) }
-                        },
-                        onDismiss = { processingTasksViewModel.acknowledgeTask(task.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Stable key so rememberSwipeToDismissBoxState/dismissTriggered
+                    // inside ProcessingTaskCard stays attached to the same task
+                    // identity when the list mutates (e.g. after acknowledgeTask).
+                    key(task.id) {
+                        ProcessingTaskCard(
+                            task = task,
+                            onClick = {
+                                task.documentId?.let { onDocumentClick(it) }
+                            },
+                            onDismiss = { processingTasksViewModel.acknowledgeTask(task.id) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
 
                 // Show more/less button

@@ -103,7 +103,7 @@ class ProcessingTasksViewModelTest {
     }
 
     @Test
-    fun `activeCount counts PENDING and PROCESSING tasks only`() = runTest {
+    fun `activeCount counts PENDING and STARTED tasks only`() = runTest {
         val flow = MutableStateFlow(
             listOf(
                 task(1, status = PaperlessTask.STATUS_PENDING),

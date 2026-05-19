@@ -216,6 +216,9 @@ class ProcessingTasksViewModel @Inject constructor(
                 .onSuccess { logger.log(Level.FINE, "Task $taskId acknowledged successfully") }
                 .onFailure { error ->
                     logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
+                    // Resync from server so the optimistically-removed task reappears
+                    // if the ack failed — matches acknowledgeCompletedTasks recovery.
+                    refreshTasks()
                 }
         }
     }

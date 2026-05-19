@@ -397,8 +397,6 @@ class HomeViewModel @Inject constructor(
 
             // Full trash sync: fetch all pages and cleanup orphans
             syncTrashDocuments()
-
-            // Polling will be started/stopped automatically by observeProcessingTasksReactively()
         }
     }
 
