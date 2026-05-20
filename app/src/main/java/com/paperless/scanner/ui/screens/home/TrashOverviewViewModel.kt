@@ -148,10 +148,16 @@ class TrashOverviewViewModel @Inject constructor(
     /**
      * Full trash sync: fetches all pages from server and cleans up orphaned
      * local docs. Was [HomeViewModel.syncTrashDocuments] before Phase 5.
+     *
+     * Pagination failure semantics: if ANY page fails, [paginationComplete]
+     * flips to false and orphan cleanup is SKIPPED. The pre-extraction code
+     * silently exited the loop and ran cleanup with an incomplete server-id
+     * set, which could mark valid local docs as orphans (CodeRabbit R2 catch).
      */
     private suspend fun syncAllTrashDocuments() {
         var page = 1
         var hasMore = true
+        var paginationComplete = true
         val serverTrashIds = mutableSetOf<Int>()
 
         while (hasMore) {
@@ -161,12 +167,14 @@ class TrashOverviewViewModel @Inject constructor(
                     hasMore = response.next != null && response.results.isNotEmpty()
                     page++
                 }
-                .onFailure {
+                .onFailure { e ->
+                    logger.log(Level.WARNING, "syncAllTrashDocuments failed on page $page: ${e.message}", e)
+                    paginationComplete = false
                     hasMore = false
                 }
         }
 
-        if (serverTrashIds.isNotEmpty()) {
+        if (paginationComplete && serverTrashIds.isNotEmpty()) {
             trashRepository.cleanupOrphanedTrashDocs(serverTrashIds)
         }
     }

@@ -191,6 +191,32 @@ class TrashOverviewViewModelTest {
     }
 
     @Test
+    fun `full trash sync skips orphan cleanup when intermediate page fails`() = runTest {
+        // Page 1 succeeds (yields server IDs 1 and 2), page 2 fails. The pre-
+        // extraction code would have run cleanupOrphanedTrashDocs(setOf(1, 2))
+        // and incorrectly marked any docs from page 2+ as orphans.
+        coEvery { trashRepository.getTrashDocuments(page = 1, pageSize = 100) } returns
+                Result.success(
+                    DocumentsResponse(
+                        count = 5,
+                        results = listOf(trashedDoc(1), trashedDoc(2)),
+                        next = "https://srv/api/documents/?page=2",
+                    ),
+                )
+        coEvery { trashRepository.getTrashDocuments(page = 2, pageSize = 100) } returns
+                Result.failure(RuntimeException("page 2 network timeout"))
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.refreshTrashOverview(fullTrashSync = true)
+        advanceUntilIdle()
+
+        // CR R2 fix: skipping cleanup when pagination is incomplete.
+        coVerify(exactly = 0) { trashRepository.cleanupOrphanedTrashDocs(any()) }
+    }
+
+    @Test
     fun `full trash sync stops paginating on failure and skips orphan cleanup when empty`() = runTest {
         coEvery { trashRepository.getTrashDocuments(page = 1, pageSize = 100) } returns
                 Result.failure(RuntimeException("network down"))

@@ -221,9 +221,12 @@ class HomeViewModel @Inject constructor(
 
         // Always fetch stats from server (forceRefresh = true by default) to
         // ensure accurate counts in multi-client scenarios (web + mobile).
-        documentCountRepository.getDocumentCount(forceRefresh = forceRefresh).onSuccess { count ->
-            totalDocuments = count
-        }
+        // Failures log at WARNING — counts default to 0, matching the pre-
+        // extraction behavior. Snackbar suppression here is intentional: the
+        // hero stats are non-critical and not worth interrupting the user for.
+        documentCountRepository.getDocumentCount(forceRefresh = forceRefresh)
+            .onSuccess { count -> totalDocuments = count }
+            .onFailure { e -> logger.log(Level.WARNING, "loadStats getDocumentCount failed: ${e.message}", e) }
 
         // This month's document count — approximation from response.count.
         documentListRepository.getDocuments(
@@ -231,9 +234,9 @@ class HomeViewModel @Inject constructor(
             pageSize = 1,
             ordering = "-added",
             forceRefresh = forceRefresh,
-        ).onSuccess { response ->
-            thisMonth = minOf(response.count, 30)
-        }
+        )
+            .onSuccess { response -> thisMonth = minOf(response.count, 30) }
+            .onFailure { e -> logger.log(Level.WARNING, "loadStats getDocuments failed: ${e.message}", e) }
 
         return DocumentStat(
             totalDocuments = totalDocuments,
