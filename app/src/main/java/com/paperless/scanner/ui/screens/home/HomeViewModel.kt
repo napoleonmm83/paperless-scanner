@@ -147,12 +147,12 @@ class HomeViewModel @Inject constructor(
         if (pollingRefreshJob?.isActive == true) return
         pollingRefreshJob = viewModelScope.launch {
             val stats = loadStats()
-            // Preserve current pendingUploads — observePendingUploads is the
-            // authoritative source and may have emitted a newer count during
-            // the network calls above (CR R3.1 catch, same pattern as
-            // loadDashboardData / refreshDashboard).
+            // Re-read pendingUploads from the canonical StateFlow at apply
+            // time. Reading from currentState would be stale after
+            // resetState() zeroed it, because observePendingUploads only
+            // re-emits when the upstream count CHANGES (CR R4).
             _uiState.update { currentState ->
-                currentState.copy(stats = stats.copy(pendingUploads = currentState.stats.pendingUploads))
+                currentState.copy(stats = stats.copy(pendingUploads = pendingChangesCountInternal.value))
             }
         }
     }
@@ -164,13 +164,11 @@ class HomeViewModel @Inject constructor(
             val stats = loadStats()
             lastRefreshTimestamp = System.currentTimeMillis()
 
-            // Preserve current pendingUploads: observePendingUploads is the
-            // authoritative source and may have emitted a newer count during
-            // the network calls above. Overwriting with loadStats()'s captured
-            // value would clobber it until the next flow emission.
+            // Re-read pendingUploads from the canonical StateFlow at apply
+            // time (see onPollingTick comment for the resetState rationale).
             _uiState.update { currentState ->
                 currentState.copy(
-                    stats = stats.copy(pendingUploads = currentState.stats.pendingUploads),
+                    stats = stats.copy(pendingUploads = pendingChangesCountInternal.value),
                     lastSyncedAt = lastRefreshTimestamp,
                     isLoading = false,
                 )
@@ -190,10 +188,10 @@ class HomeViewModel @Inject constructor(
             val stats = loadStats(forceRefresh = true)
             val now = System.currentTimeMillis()
             lastRefreshTimestamp = now
-            // Preserve current pendingUploads (see loadDashboardData comment).
+            // Read pendingUploads from canonical StateFlow (see onPollingTick).
             _uiState.update { currentState ->
                 currentState.copy(
-                    stats = stats.copy(pendingUploads = currentState.stats.pendingUploads),
+                    stats = stats.copy(pendingUploads = pendingChangesCountInternal.value),
                     lastSyncedAt = now,
                 )
             }
