@@ -536,8 +536,11 @@ fun HomeScreen(
                 }
             }
 
-            // Empty state or document list
-            if (recentDocumentsUiState.recentDocuments.isEmpty()) {
+            // Empty state or document list. Gate the empty-state card on
+            // !isLoading so it doesn't flash on cold start before the Room
+            // cache hydrates. The observer always flips isLoading=false on
+            // both success and failure paths, so this can't get stuck.
+            if (recentDocumentsUiState.recentDocuments.isEmpty() && !recentDocumentsUiState.isLoading) {
                 item(key = "empty-state") {
                     Card(
                         modifier = Modifier

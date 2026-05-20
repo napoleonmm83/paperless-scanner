@@ -173,8 +173,14 @@ class HomeViewModelTest {
 
     @Test
     fun `clearHomeError resets errorState to null`() = runTest {
+        // Establish a real error first so the test would catch a no-op
+        // implementation of clearHomeError.
+        every { documentCountRepository.observeUntaggedDocumentsCount() } returns
+                flow { throw RuntimeException("seeded error") }
+
         val vm = createViewModel()
         advanceUntilIdle()
+        assertNotNull(vm.errorState.value)
 
         vm.clearHomeError()
         assertNull(vm.errorState.value)
