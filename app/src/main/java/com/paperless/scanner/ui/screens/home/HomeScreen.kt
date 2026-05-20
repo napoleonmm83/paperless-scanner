@@ -103,11 +103,13 @@ fun HomeScreen(
     processingTasksViewModel: ProcessingTasksViewModel = hiltViewModel(),
     tagSuggestionsViewModel: TagSuggestionsViewModel = hiltViewModel(),
     recentDocumentsViewModel: RecentDocumentsViewModel = hiltViewModel(),
+    trashOverviewViewModel: TrashOverviewViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
     val processingTasksUiState by processingTasksViewModel.uiState.collectAsState()
     val recentDocumentsUiState by recentDocumentsViewModel.uiState.collectAsState()
+    val trashOverviewUiState by trashOverviewViewModel.uiState.collectAsState()
     val isOnline by serverHealthViewModel.isOnline.collectAsState()
     val isServerReachable by serverHealthViewModel.isServerReachable.collectAsState()
     val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
@@ -123,6 +125,7 @@ fun HomeScreen(
         serverHealthViewModel.onlineTransition.collect {
             viewModel.onNetworkReconnected()
             recentDocumentsViewModel.refreshRecentDocuments()
+            trashOverviewViewModel.refreshTrashOverview(fullTrashSync = true)
         }
     }
 
@@ -191,6 +194,7 @@ fun HomeScreen(
                 // call here that the dashboard refresh just suppressed.
                 if (viewModel.refreshDashboardIfNeeded()) {
                     recentDocumentsViewModel.refreshRecentDocuments()
+                    trashOverviewViewModel.refreshTrashOverview(fullTrashSync = true)
                 }
             }
         }
@@ -267,6 +271,23 @@ fun HomeScreen(
         }
     }
 
+    // TrashOverviewViewModel surfaces its own load errors. Same generic
+    // snackbar + undo-guard pattern as the other sub-VMs (formerly
+    // HomeError.LoadFailed("untaggedCount"|"deletedCount"|"deletedTimestamp")).
+    val trashOverviewError by trashOverviewViewModel.error.collectAsState()
+    val trashOverviewErrorMessage = when (trashOverviewError) {
+        is TrashOverviewError.LoadFailed -> stringResource(R.string.error_load_data)
+        null -> null
+    }
+    LaunchedEffect(trashOverviewError, recentDocumentsUiState.deletedDocument?.id) {
+        if (recentDocumentsUiState.deletedDocument != null) return@LaunchedEffect
+        trashOverviewErrorMessage?.let { msg ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+            trashOverviewViewModel.clearError()
+        }
+    }
+
     // Show undo snackbar when document is deleted (using shared component)
     DocumentListSnackbar(
         snackbarHostState = snackbarHostState,
@@ -287,6 +308,7 @@ fun HomeScreen(
             viewModel.refreshDashboard()
             processingTasksViewModel.refreshTasks()
             recentDocumentsViewModel.refreshRecentDocuments()
+            trashOverviewViewModel.refreshTrashOverview(fullTrashSync = true)
             // Reset after a short delay (UI feedback)
             coroutineScope.launch {
                 delay(1000)
@@ -373,7 +395,7 @@ fun HomeScreen(
 
             // Compact Stats Row (Sync, Tags, Trash)
             item(key = "stats-row") {
-                val daysUntilExpiration = uiState.oldestDeletedTimestamp?.let { timestamp ->
+                val daysUntilExpiration = trashOverviewUiState.oldestDeletedTimestamp?.let { timestamp ->
                     val retentionDays = 30
                     val expirationTime = timestamp + (retentionDays * 24 * 60 * 60 * 1000L)
                     val now = System.currentTimeMillis()
@@ -386,11 +408,11 @@ fun HomeScreen(
                     // adding activeUploadsCount on top double-counted upload-queue items.
                     syncActiveCount = pendingChanges,
                     syncFailedCount = serverHealthUiState.failedSyncCount,
-                    untaggedCount = uiState.untaggedCount,
-                    trashCount = uiState.deletedCount,
+                    untaggedCount = trashOverviewUiState.untaggedCount,
+                    trashCount = trashOverviewUiState.deletedCount,
                     trashExpiresInDays = null, // Expiration info shown only in Trash screen
                     onSyncClick = onNavigateToPendingSync,
-                    onTagsClick = if (isServerReachable && uiState.untaggedCount > 0) {
+                    onTagsClick = if (isServerReachable && trashOverviewUiState.untaggedCount > 0) {
                         onNavigateToSmartTagging
                     } else null,
                     onTrashClick = onNavigateToTrash,

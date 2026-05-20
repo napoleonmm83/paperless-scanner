@@ -1,0 +1,6 @@
+Version 1.5.122:
+
+🔧 Verbesserungen:
+- Aufgeräumte Architektur der Startseite
+- Schnellere Aktualisierung von Papierkorb
+- Stabilere Anzeige der Statistik-Karten
