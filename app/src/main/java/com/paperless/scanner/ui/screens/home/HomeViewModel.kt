@@ -6,7 +6,6 @@ import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
-import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.asUiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -64,18 +64,32 @@ data class DeletedDocumentInfo(
 
 data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
-    val untaggedCount: Int = 0,
-    val deletedCount: Int = 0,
-    val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
-    val lastSyncedAt: Long? = null,            // Timestamp of last successful sync
-    val isLoading: Boolean = true
+    val lastSyncedAt: Long? = null,
+    val isLoading: Boolean = true,
 )
 
+/**
+ * Stats orchestrator for the Home dashboard.
+ *
+ * Issue #72 god-VM decomposition is complete after Phase 5/5 — the original
+ * 1313-LOC HomeViewModel is now distributed across 5 focused ViewModels:
+ * - [ServerHealthViewModel]      (Phase 1, PR #237) — network + reachability
+ * - [ProcessingTasksViewModel]   (Phase 2, PR #243) — upload-task polling
+ * - [TagSuggestionsViewModel]    (Phase 3, PR #244) — AI tag suggestions
+ * - [RecentDocumentsViewModel]   (Phase 4, PR #245) — recent docs + delete/undo
+ * - [TrashOverviewViewModel]     (Phase 5, this PR) — trash + untagged counts
+ *
+ * HomeViewModel keeps: hero stats ([DocumentStat]), pending-changes count,
+ * lastSyncedAt timestamp, and the refresh-debounce orchestration that fans
+ * out to sibling VMs via [refreshDashboardIfNeeded]'s Boolean return.
+ *
+ * The 5 sub-VMs share no direct reference; HomeScreen wires them via
+ * `LaunchedEffect` (pattern locked in by PR #237).
+ */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val documentListRepository: DocumentListRepository,
     private val documentCountRepository: DocumentCountRepository,
-    private val trashRepository: TrashRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
@@ -83,28 +97,41 @@ class HomeViewModel @Inject constructor(
 
     companion object {
         private val logger = Logger.getLogger(HomeViewModel::class.java.name)
-        // Debounce: Only refresh if more than 30 seconds since last refresh
+        // Debounce: Only refresh if more than 30 seconds since last refresh.
         private const val REFRESH_DEBOUNCE_MS = 30_000L
     }
 
-    // Track last refresh timestamp for debounce
     private var lastRefreshTimestamp = 0L
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     /**
-     * Combined pending-changes flow used internally by [observePendingUploads]
-     * and [loadStats]. The screen consumes the public counterpart from
-     * [ServerHealthViewModel.pendingChangesCount]; both flows are derived from
-     * the same repositories so values stay aligned.
+     * Combined pending-changes flow used internally by [loadStats] for
+     * apply-time `.value` reads. The screen consumes the public counterpart
+     * from [ServerHealthViewModel.pendingChangesCount]; both flows are derived
+     * from the same repositories so values stay aligned.
+     *
+     * **SharingStarted.Eagerly** is required: `.value` reads from
+     * [loadStats] / [onPollingTick] / [loadDashboardData] / [refreshDashboard]
+     * must reflect the live count. `WhileSubscribed` would leave this
+     * StateFlow cold (no in-VM collector — [observePendingUploads] collects
+     * the raw upstream directly for error surfacing per CR R1.2) and pin
+     * `.value` to the initial `0`, which would clobber any pending-upload
+     * count applied during refresh paths (CR R5.1 catch).
      */
     private val pendingChangesCountInternal: StateFlow<Int> = combine(
         uploadQueueRepository.pendingCount,
         syncManager.pendingChangesCount
     ) { uploadQueueCount, syncPendingCount ->
         uploadQueueCount + syncPendingCount
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    }
+        // Swallow upstream errors here — they surface to the snackbar
+        // pipeline via [observePendingUploads]'s separate raw-flow
+        // collector, and uncaught exceptions in an Eagerly-started
+        // stateIn would crash the entire viewModelScope.
+        .catch { /* see observePendingUploads */ }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     private val _errorState = MutableStateFlow<HomeError?>(null)
     val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
@@ -113,17 +140,14 @@ class HomeViewModel @Inject constructor(
         analyticsService.trackEvent(AnalyticsEvent.AppOpened)
         loadDashboardData()
         observePendingUploads()
-        observeUntaggedCountReactively()
-        observeDeletedCountReactively()
-        observeOldestDeletedTimestampReactively()
     }
 
     /**
-     * Trigger an auto-refresh of the dashboard when [ServerHealthViewModel]
-     * observes an offline -> online transition. Wired in HomeScreen.
+     * Trigger an auto-refresh of the stats when [ServerHealthViewModel] observes
+     * an offline -> online transition. Wired in HomeScreen.
      */
     fun onNetworkReconnected() {
-        logger.log(Level.INFO, "Network reconnected - auto-refreshing data")
+        logger.log(Level.INFO, "Network reconnected - auto-refreshing stats")
         loadDashboardData()
     }
 
@@ -131,69 +155,20 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Refresh dashboard stats while [ProcessingTasksViewModel] is polling for
-     * task completion. Wired via pollingTick in HomeScreen. Guarded so
-     * overlapping ticks don't queue concurrent network calls that could let an
-     * older response overwrite a newer one.
+     * task completion. Guarded so overlapping ticks don't queue concurrent
+     * network calls that could let an older response overwrite a newer one.
      */
     fun onPollingTick() {
         if (pollingRefreshJob?.isActive == true) return
         pollingRefreshJob = viewModelScope.launch {
             val stats = loadStats()
-            _uiState.update { it.copy(stats = stats) }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for untagged documents count.
-     * Automatically updates when documents are tagged or new documents are added.
-     */
-    private fun observeUntaggedCountReactively() {
-        viewModelScope.launch {
-            documentCountRepository.observeUntaggedDocumentsCount()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { count ->
-                        _uiState.update { it.copy(untaggedCount = count) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("untaggedCount", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for trash count.
-     * Automatically updates UI when documents are deleted/restored.
-     */
-    private fun observeDeletedCountReactively() {
-        viewModelScope.launch {
-            trashRepository.observeTrashedDocumentsCount()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { count ->
-                        _uiState.update { it.copy(deletedCount = count) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("deletedCount", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for oldest deleted document timestamp.
-     * Automatically updates UI for "Expires in X days" countdown on TrashCard.
-     */
-    private fun observeOldestDeletedTimestampReactively() {
-        viewModelScope.launch {
-            trashRepository.observeOldestDeletedTimestamp()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { timestamp ->
-                        _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("deletedTimestamp", e)
-                    }
-                }
+            // Re-read pendingUploads from the canonical StateFlow at apply
+            // time. Reading from currentState would be stale after
+            // resetState() zeroed it, because observePendingUploads only
+            // re-emits when the upstream count CHANGES (CR R4).
+            _uiState.update { currentState ->
+                currentState.copy(stats = stats.copy(pendingUploads = pendingChangesCountInternal.value))
+            }
         }
     }
 
@@ -202,95 +177,51 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             val stats = loadStats()
-
-            // Refresh untagged count from API
-            var untaggedCount = 0
-            documentCountRepository.getUntaggedCount().onSuccess { count ->
-                untaggedCount = count
-            }
-
-            // Sync trash documents (page 1 for quick init, full sync on pull-to-refresh)
-            trashRepository.getTrashDocuments(page = 1, pageSize = 100)
-
-            // Update lastSyncedAt on initial load too
             lastRefreshTimestamp = System.currentTimeMillis()
 
+            // Re-read pendingUploads from the canonical StateFlow at apply
+            // time (see onPollingTick comment for the resetState rationale).
             _uiState.update { currentState ->
                 currentState.copy(
-                    stats = stats,
-                    untaggedCount = untaggedCount,
+                    stats = stats.copy(pendingUploads = pendingChangesCountInternal.value),
                     lastSyncedAt = lastRefreshTimestamp,
-                    isLoading = false
+                    isLoading = false,
                 )
             }
         }
     }
 
     /**
-     * BEST PRACTICE: Refresh dashboard stats and trash from the server.
+     * Refresh hero stats from the server. Trash counts and recent documents
+     * are owned by sibling VMs — the screen layer calls each VM in parallel
+     * on pull-to-refresh.
      *
-     * Use this for pull-to-refresh, post-upload/delete, and reconnect.
-     * Recently-added documents are owned by [RecentDocumentsViewModel] — the
-     * screen layer calls both VMs in parallel on pull-to-refresh.
-     *
-     * For ON_RESUME events, use [refreshDashboardIfNeeded] to apply debounce.
+     * For ON_RESUME events, use [refreshDashboardIfNeeded] for debounce.
      */
     fun refreshDashboard() {
         viewModelScope.launch {
-            // Refresh stats from server (forceRefresh = true)
             val stats = loadStats(forceRefresh = true)
-
-            // Update lastSyncedAt timestamp
             val now = System.currentTimeMillis()
             lastRefreshTimestamp = now
-
-            _uiState.update { it.copy(stats = stats, lastSyncedAt = now) }
-
-            // Refresh untagged count from API
-            documentCountRepository.getUntaggedCount().onSuccess { count ->
-                _uiState.update { it.copy(untaggedCount = count) }
+            // Read pendingUploads from canonical StateFlow (see onPollingTick).
+            _uiState.update { currentState ->
+                currentState.copy(
+                    stats = stats.copy(pendingUploads = pendingChangesCountInternal.value),
+                    lastSyncedAt = now,
+                )
             }
-
-            // Full trash sync: fetch all pages and cleanup orphans
-            syncTrashDocuments()
         }
     }
 
     /**
-     * Full trash sync: fetches all pages from server and cleans up orphaned local docs.
-     */
-    private suspend fun syncTrashDocuments() {
-        var page = 1
-        var hasMore = true
-        val serverTrashIds = mutableSetOf<Int>()
-
-        while (hasMore) {
-            trashRepository.getTrashDocuments(page = page, pageSize = 100)
-                .onSuccess { response ->
-                    serverTrashIds.addAll(response.results.map { it.id })
-                    hasMore = response.next != null && response.results.isNotEmpty()
-                    page++
-                }
-                .onFailure {
-                    hasMore = false
-                }
-        }
-
-        // Clean up local trash docs that no longer exist on server
-        if (serverTrashIds.isNotEmpty()) {
-            trashRepository.cleanupOrphanedTrashDocs(serverTrashIds)
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Debounced refresh for ON_RESUME events.
-     * Only refreshes if more than 30 seconds since last refresh.
-     * Reduces server load and battery usage for quick app switches.
+     * Debounced refresh for ON_RESUME events. Only refreshes if more than
+     * 30 seconds since last refresh.
      *
      * Returns true when an actual refresh was kicked off so the screen layer
      * can fan the same decision out to sibling ViewModels
-     * (e.g. [RecentDocumentsViewModel.refreshRecentDocuments]) that share the
-     * dashboard-refresh contract.
+     * (e.g. [RecentDocumentsViewModel.refreshRecentDocuments],
+     * [TrashOverviewViewModel.refreshTrashOverview]) that share the dashboard-
+     * refresh contract.
      */
     fun refreshDashboardIfNeeded(): Boolean {
         val now = System.currentTimeMillis()
@@ -303,32 +234,33 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun loadStats(forceRefresh: Boolean = true): DocumentStat {
-        val pendingCount = pendingChangesCountInternal.value // Use live flow value
+        val pendingCount = pendingChangesCountInternal.value
         var totalDocuments = 0
         var thisMonth = 0
 
-        // BEST PRACTICE: Always fetch stats from server (forceRefresh = true by default)
-        // to ensure accurate counts in multi-client scenarios (web + mobile)
-        documentCountRepository.getDocumentCount(forceRefresh = forceRefresh).onSuccess { count ->
-            totalDocuments = count
-        }
+        // Always fetch stats from server (forceRefresh = true by default) to
+        // ensure accurate counts in multi-client scenarios (web + mobile).
+        // Failures log at WARNING — counts default to 0, matching the pre-
+        // extraction behavior. Snackbar suppression here is intentional: the
+        // hero stats are non-critical and not worth interrupting the user for.
+        documentCountRepository.getDocumentCount(forceRefresh = forceRefresh)
+            .onSuccess { count -> totalDocuments = count }
+            .onFailure { e -> logger.log(Level.WARNING, "loadStats getDocumentCount failed: ${e.message}", e) }
 
-        // Get this month's document count
+        // This month's document count — approximation from response.count.
         documentListRepository.getDocuments(
             page = 1,
             pageSize = 1,
             ordering = "-added",
-            forceRefresh = forceRefresh
-        ).onSuccess { response ->
-            // Count documents added this month from response.count
-            // Note: A more accurate approach would use date filtering if API supports it
-            thisMonth = minOf(response.count, 30) // Approximation
-        }
+            forceRefresh = forceRefresh,
+        )
+            .onSuccess { response -> thisMonth = minOf(response.count, 30) }
+            .onFailure { e -> logger.log(Level.WARNING, "loadStats getDocuments failed: ${e.message}", e) }
 
         return DocumentStat(
             totalDocuments = totalDocuments,
             thisMonth = thisMonth,
-            pendingUploads = pendingCount
+            pendingUploads = pendingCount,
         )
     }
 
@@ -340,9 +272,18 @@ class HomeViewModel @Inject constructor(
         _errorState.value = null
     }
 
+    /**
+     * Collect the raw upstream `combine` directly (NOT `pendingChangesCountInternal`)
+     * so an upstream exception surfaces to this collector. `stateIn` would swallow
+     * the upstream throw and leave the downstream collector blocked on the cached
+     * initial value, hiding errors from the snackbar pipeline.
+     */
     private fun observePendingUploads() {
         viewModelScope.launch {
-            pendingChangesCountInternal
+            combine(
+                uploadQueueRepository.pendingCount,
+                syncManager.pendingChangesCount,
+            ) { uploadQueueCount, syncPendingCount -> uploadQueueCount + syncPendingCount }
                 .asUiResult()
                 .collect { result ->
                     result.onSuccess { count ->

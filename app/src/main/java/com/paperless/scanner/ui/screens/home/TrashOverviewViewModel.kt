@@ -1,0 +1,185 @@
+package com.paperless.scanner.ui.screens.home
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.paperless.scanner.data.repository.DocumentCountRepository
+import com.paperless.scanner.data.repository.TrashRepository
+import com.paperless.scanner.util.asUiResult
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.logging.Level
+import java.util.logging.Logger
+import javax.inject.Inject
+
+/**
+ * UI state for the trash-overview surface of the Home screen.
+ *
+ * Owns the untagged-documents count (Smart-Tagging card), the trashed-documents
+ * count (Trash card), and the oldest-deleted timestamp that drives the
+ * "Expires in X days" countdown.
+ */
+data class TrashOverviewUiState(
+    val untaggedCount: Int = 0,
+    val deletedCount: Int = 0,
+    val oldestDeletedTimestamp: Long? = null,
+)
+
+sealed class TrashOverviewError {
+    data class LoadFailed(val source: String, val cause: Throwable) : TrashOverviewError()
+}
+
+/**
+ * Owns trash-overview indicators for HomeScreen: untagged count, trash count,
+ * oldest-deleted timestamp, and the full trash sync that reconciles local Room
+ * state with the server.
+ *
+ * Phase 5/5 of the [HomeViewModel] god-VM decomposition (issue #72). Closes
+ * #72 and unblocks the production-promote gate.
+ *
+ * Triggers an initial server sync in [init] (mirrors the pre-extraction
+ * loadDashboardData() behavior) so counts are current on cold start. The 4
+ * sub-VMs (Server/Processing/Tags/RecentDocs/TrashOverview) share no direct
+ * reference; the screen layer is the wiring point.
+ */
+@HiltViewModel
+class TrashOverviewViewModel @Inject constructor(
+    private val documentCountRepository: DocumentCountRepository,
+    private val trashRepository: TrashRepository,
+) : ViewModel() {
+
+    companion object {
+        private val logger = Logger.getLogger(TrashOverviewViewModel::class.java.name)
+        private const val TRASH_PAGE_SIZE = 100
+    }
+
+    private val _uiState = MutableStateFlow(TrashOverviewUiState())
+    val uiState: StateFlow<TrashOverviewUiState> = _uiState.asStateFlow()
+
+    private val _error = MutableStateFlow<TrashOverviewError?>(null)
+    val error: StateFlow<TrashOverviewError?> = _error.asStateFlow()
+
+    init {
+        observeUntaggedCountReactively()
+        observeDeletedCountReactively()
+        observeOldestDeletedTimestampReactively()
+        // Initial HTTP sync: matches the pre-extraction loadDashboardData() —
+        // refresh untagged count from API + sync first page of trash so the
+        // Room cache is current on cold start.
+        refreshTrashOverview(fullTrashSync = false)
+    }
+
+    private fun observeUntaggedCountReactively() {
+        viewModelScope.launch {
+            documentCountRepository.observeUntaggedDocumentsCount()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(untaggedCount = count) }
+                    }.onFailure { e ->
+                        _error.value = TrashOverviewError.LoadFailed("untaggedCount", e)
+                    }
+                }
+        }
+    }
+
+    private fun observeDeletedCountReactively() {
+        viewModelScope.launch {
+            trashRepository.observeTrashedDocumentsCount()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { count ->
+                        _uiState.update { it.copy(deletedCount = count) }
+                    }.onFailure { e ->
+                        _error.value = TrashOverviewError.LoadFailed("deletedCount", e)
+                    }
+                }
+        }
+    }
+
+    private fun observeOldestDeletedTimestampReactively() {
+        viewModelScope.launch {
+            trashRepository.observeOldestDeletedTimestamp()
+                .asUiResult()
+                .collect { result ->
+                    result.onSuccess { timestamp ->
+                        _uiState.update { it.copy(oldestDeletedTimestamp = timestamp) }
+                    }.onFailure { e ->
+                        _error.value = TrashOverviewError.LoadFailed("deletedTimestamp", e)
+                    }
+                }
+        }
+    }
+
+    /**
+     * Refresh the trash-overview counters from the server.
+     *
+     * - `fullTrashSync = false` (init): only page 1 of trash + untagged count.
+     *   Quick hydration for cold start.
+     * - `fullTrashSync = true` (pull-to-refresh / reconnect / ON_RESUME-after-
+     *   debounce): all pages + orphan cleanup. Same semantics as the
+     *   pre-extraction syncTrashDocuments().
+     *
+     * Reactive Room observers above re-emit when the cache updates.
+     */
+    fun refreshTrashOverview(fullTrashSync: Boolean = true) {
+        viewModelScope.launch {
+            // Log refresh failures at WARNING — the reactive Room observers
+            // above keep serving cached data, so we don't surface a snackbar,
+            // but a silent failure would be a diagnostic gap.
+            documentCountRepository.getUntaggedCount().onFailure { e ->
+                logger.log(Level.WARNING, "refreshTrashOverview untagged count failed: ${e.message}", e)
+            }
+
+            if (fullTrashSync) {
+                syncAllTrashDocuments()
+            } else {
+                // Page 1 only — quick init sync.
+                trashRepository.getTrashDocuments(page = 1, pageSize = TRASH_PAGE_SIZE).onFailure { e ->
+                    logger.log(Level.WARNING, "refreshTrashOverview page-1 sync failed: ${e.message}", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Full trash sync: fetches all pages from server and cleans up orphaned
+     * local docs. Was [HomeViewModel.syncTrashDocuments] before Phase 5.
+     *
+     * Pagination failure semantics: if ANY page fails, [paginationComplete]
+     * flips to false and orphan cleanup is SKIPPED. The pre-extraction code
+     * silently exited the loop and ran cleanup with an incomplete server-id
+     * set, which could mark valid local docs as orphans (CodeRabbit R2 catch).
+     */
+    private suspend fun syncAllTrashDocuments() {
+        var page = 1
+        var hasMore = true
+        var paginationComplete = true
+        val serverTrashIds = mutableSetOf<Int>()
+
+        while (hasMore) {
+            trashRepository.getTrashDocuments(page = page, pageSize = TRASH_PAGE_SIZE)
+                .onSuccess { response ->
+                    serverTrashIds.addAll(response.results.map { it.id })
+                    hasMore = response.next != null && response.results.isNotEmpty()
+                    page++
+                }
+                .onFailure { e ->
+                    logger.log(Level.WARNING, "syncAllTrashDocuments failed on page $page: ${e.message}", e)
+                    paginationComplete = false
+                    hasMore = false
+                }
+        }
+
+        if (paginationComplete && serverTrashIds.isNotEmpty()) {
+            trashRepository.cleanupOrphanedTrashDocs(serverTrashIds)
+        }
+    }
+
+    fun clearError() {
+        _error.value = null
+    }
+}
