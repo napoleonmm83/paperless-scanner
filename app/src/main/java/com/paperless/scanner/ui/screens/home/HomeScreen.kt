@@ -102,22 +102,27 @@ fun HomeScreen(
     serverHealthViewModel: ServerHealthViewModel = hiltViewModel(),
     processingTasksViewModel: ProcessingTasksViewModel = hiltViewModel(),
     tagSuggestionsViewModel: TagSuggestionsViewModel = hiltViewModel(),
+    recentDocumentsViewModel: RecentDocumentsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
     val processingTasksUiState by processingTasksViewModel.uiState.collectAsState()
+    val recentDocumentsUiState by recentDocumentsViewModel.uiState.collectAsState()
     val isOnline by serverHealthViewModel.isOnline.collectAsState()
     val isServerReachable by serverHealthViewModel.isServerReachable.collectAsState()
     val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
-    val serverUrl by viewModel.serverUrl.collectAsState()
-    val showThumbnails by viewModel.showThumbnails.collectAsState()
+    val serverUrl by recentDocumentsViewModel.serverUrl.collectAsState()
+    val showThumbnails by recentDocumentsViewModel.showThumbnails.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Auto-refresh dashboard on offline -> online transition. The two ViewModels
-    // share no direct reference; the screen layer is the wiring point.
+    // Auto-refresh dashboard on offline -> online transition. The three
+    // ViewModels share no direct reference; the screen layer is the wiring
+    // point. RecentDocumentsViewModel re-syncs in parallel so newly-arrived
+    // documents from the offline gap show up without a manual pull-to-refresh.
     LaunchedEffect(serverHealthViewModel) {
         serverHealthViewModel.onlineTransition.collect {
             viewModel.onNetworkReconnected()
+            recentDocumentsViewModel.refreshRecentDocuments()
         }
     }
 
@@ -181,7 +186,12 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.refreshDashboardIfNeeded()
+                // Share HomeViewModel's debounce decision with the recent-docs
+                // sibling so a quick app-switch doesn't trigger an extra HTTP
+                // call here that the dashboard refresh just suppressed.
+                if (viewModel.refreshDashboardIfNeeded()) {
+                    recentDocumentsViewModel.refreshRecentDocuments()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -216,8 +226,8 @@ fun HomeScreen(
     // Same channel for ProcessingTasksViewModel errors — but defer while an
     // undo snackbar is pending (deletedDocument != null) so a background
     // polling failure can't preempt the user's chance to undo a delete.
-    LaunchedEffect(processingTasksError, uiState.deletedDocument?.id) {
-        if (uiState.deletedDocument != null) return@LaunchedEffect
+    LaunchedEffect(processingTasksError, recentDocumentsUiState.deletedDocument?.id) {
+        if (recentDocumentsUiState.deletedDocument != null) return@LaunchedEffect
         processingTasksErrorMessage?.let { msg ->
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(msg)
@@ -226,8 +236,8 @@ fun HomeScreen(
     }
 
     // Same pipeline + undo-guard for TagSuggestionsViewModel errors.
-    LaunchedEffect(tagSuggestionsError, uiState.deletedDocument?.id) {
-        if (uiState.deletedDocument != null) return@LaunchedEffect
+    LaunchedEffect(tagSuggestionsError, recentDocumentsUiState.deletedDocument?.id) {
+        if (recentDocumentsUiState.deletedDocument != null) return@LaunchedEffect
         tagSuggestionsErrorMessage?.let { msg ->
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(msg)
@@ -235,14 +245,36 @@ fun HomeScreen(
         }
     }
 
+    // RecentDocumentsViewModel surfaces its own load/action errors. Route them
+    // through the same generic snackbar pipeline as HomeError to preserve the
+    // pre-extraction UX (formerly HomeError.LoadFailed("recentDocuments", e)
+    // and HomeError.ActionFailed("deleteDocument"/"restoreDocument", e)).
+    val recentDocumentsError by recentDocumentsViewModel.error.collectAsState()
+    val recentDocumentsErrorMessage = when (recentDocumentsError) {
+        is RecentDocumentsError.LoadFailed -> stringResource(R.string.error_load_data)
+        is RecentDocumentsError.ActionFailed -> stringResource(R.string.error_action_failed)
+        null -> null
+    }
+    LaunchedEffect(recentDocumentsError, recentDocumentsUiState.deletedDocument?.id) {
+        // Don't preempt the undo snackbar for a deleteDocument error — the
+        // delete VM already clears deletedDocument on failure, so when this
+        // fires there's no undo to preserve, only the load/restore cases.
+        if (recentDocumentsUiState.deletedDocument != null) return@LaunchedEffect
+        recentDocumentsErrorMessage?.let { msg ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(msg)
+            recentDocumentsViewModel.clearError()
+        }
+    }
+
     // Show undo snackbar when document is deleted (using shared component)
     DocumentListSnackbar(
         snackbarHostState = snackbarHostState,
-        deletedDocumentId = uiState.deletedDocument?.id,
+        deletedDocumentId = recentDocumentsUiState.deletedDocument?.id,
         message = stringResource(R.string.documents_deleted_snackbar),
         actionLabel = stringResource(R.string.documents_undo),
-        onUndo = { viewModel.undoDelete() },
-        onDismiss = { viewModel.clearDeletedDocument() }
+        onUndo = { recentDocumentsViewModel.undoDelete() },
+        onDismiss = { recentDocumentsViewModel.clearDeletedDocument() }
     )
 
     // BEST PRACTICE: Pull-to-refresh for user-triggered updates
@@ -254,6 +286,7 @@ fun HomeScreen(
             isRefreshing = true
             viewModel.refreshDashboard()
             processingTasksViewModel.refreshTasks()
+            recentDocumentsViewModel.refreshRecentDocuments()
             // Reset after a short delay (UI feedback)
             coroutineScope.launch {
                 delay(1000)
@@ -503,8 +536,11 @@ fun HomeScreen(
                 }
             }
 
-            // Empty state or document list
-            if (uiState.recentDocuments.isEmpty()) {
+            // Empty state or document list. Gate the empty-state card on
+            // !isLoading so it doesn't flash on cold start before the Room
+            // cache hydrates. The observer always flips isLoading=false on
+            // both success and failure paths, so this can't get stuck.
+            if (recentDocumentsUiState.recentDocuments.isEmpty() && !recentDocumentsUiState.isLoading) {
                 item(key = "empty-state") {
                     Card(
                         modifier = Modifier
@@ -545,7 +581,7 @@ fun HomeScreen(
             } else {
                 // BEST PRACTICE: Use items() with key for smooth Gmail-style animations
                 items(
-                    items = uiState.recentDocuments,
+                    items = recentDocumentsUiState.recentDocuments,
                     key = { document -> document.id }
                 ) { doc ->
                     Column(
@@ -559,7 +595,7 @@ fun HomeScreen(
                             documentId = doc.id,
                             externallyRevealed = swipePattern.isRevealed(doc.id),
                             swipePatternState = swipePattern,
-                            onDelete = { viewModel.deleteRecentDocument(doc.id, doc.title) }
+                            onDelete = { recentDocumentsViewModel.deleteRecentDocument(doc.id, doc.title) }
                         ) {
                             DocumentCardBase(
                                 documentId = doc.id,

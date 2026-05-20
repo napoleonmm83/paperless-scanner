@@ -1,0 +1,6 @@
+Version 1.5.120:
+
+🔧 Improvements:
+- Faster refresh of recently-added documents
+- Cleaner recovery after connection loss
+- More stable delete & undo behavior
