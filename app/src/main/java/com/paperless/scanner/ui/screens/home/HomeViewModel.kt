@@ -1,30 +1,22 @@
 package com.paperless.scanner.ui.screens.home
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
-import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.TrashRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.asUiResult
-import com.paperless.scanner.util.formatTimeAgo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.logging.Level
@@ -72,8 +64,6 @@ data class DeletedDocumentInfo(
 
 data class HomeUiState(
     val stats: DocumentStat = DocumentStat(),
-    val recentDocuments: List<RecentDocument> = emptyList(),
-    val deletedDocument: DeletedDocumentInfo? = null, // For undo snackbar
     val untaggedCount: Int = 0,
     val deletedCount: Int = 0,
     val oldestDeletedTimestamp: Long? = null, // For "Expires in X days" calculation
@@ -83,15 +73,12 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val documentListRepository: DocumentListRepository,
     private val documentCountRepository: DocumentCountRepository,
     private val trashRepository: TrashRepository,
-    private val tagRepository: TagRepository,
     private val uploadQueueRepository: UploadQueueRepository,
     private val syncManager: com.paperless.scanner.data.sync.SyncManager,
     private val analyticsService: AnalyticsService,
-    private val tokenManager: TokenManager,
 ) : ViewModel() {
 
     companion object {
@@ -112,35 +99,12 @@ class HomeViewModel @Inject constructor(
      * [ServerHealthViewModel.pendingChangesCount]; both flows are derived from
      * the same repositories so values stay aligned.
      */
-    private val pendingChangesCountInternal: StateFlow<Int> = kotlinx.coroutines.flow.combine(
+    private val pendingChangesCountInternal: StateFlow<Int> = combine(
         uploadQueueRepository.pendingCount,
         syncManager.pendingChangesCount
     ) { uploadQueueCount, syncPendingCount ->
         uploadQueueCount + syncPendingCount
-    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000), 0)
-
-    // Server URL for constructing thumbnail URLs
-    val serverUrl: StateFlow<String> = tokenManager.serverUrl
-        .map { it ?: "" }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = ""
-        )
-
-    // Whether to show document thumbnails (user preference)
-    val showThumbnails: StateFlow<Boolean> = tokenManager.showThumbnails
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = true
-        )
-
-    // Thread-safe tag cache. Written from observeTagsReactively, read by
-    // observeRecentDocumentsReactively (via combine) and on-demand from
-    // tag-suggestion code paths via .value. Atomic StateFlow setter replaces
-    // the previous unsynchronized `var Map`.
-    private val _tagMap = MutableStateFlow<Map<Int, Tag>>(emptyMap())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     private val _errorState = MutableStateFlow<HomeError?>(null)
     val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
@@ -149,8 +113,6 @@ class HomeViewModel @Inject constructor(
         analyticsService.trackEvent(AnalyticsEvent.AppOpened)
         loadDashboardData()
         observePendingUploads()
-        observeTagsReactively()
-        observeRecentDocumentsReactively()
         observeUntaggedCountReactively()
         observeDeletedCountReactively()
         observeOldestDeletedTimestampReactively()
@@ -178,61 +140,6 @@ class HomeViewModel @Inject constructor(
         pollingRefreshJob = viewModelScope.launch {
             val stats = loadStats()
             _uiState.update { it.copy(stats = stats) }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for tags.
-     * Atomically refreshes [_tagMap] when tags are added/modified/deleted.
-     */
-    private fun observeTagsReactively() {
-        viewModelScope.launch {
-            tagRepository.observeTags()
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { tags ->
-                        _tagMap.value = tags.associateBy { it.id }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("tags", e)
-                    }
-                }
-        }
-    }
-
-    /**
-     * BEST PRACTICE: Reactive Flow for recent documents.
-     *
-     * Combines the documents flow with [_tagMap] so a tag rename / recolor
-     * propagates to the recently-added cards immediately, instead of waiting
-     * for the next document update. Also removes the prior race where this
-     * collector could read a partial [_tagMap] mid-refresh.
-     */
-    private fun observeRecentDocumentsReactively() {
-        viewModelScope.launch {
-            combine(
-                documentListRepository.observeDocuments(page = 1, pageSize = 5),
-                _tagMap
-            ) { documents, currentTagMap ->
-                documents.map { doc ->
-                    val firstTagId = doc.tags.firstOrNull()
-                    val tag = firstTagId?.let { currentTagMap[it] }
-                    RecentDocument(
-                        id = doc.id,
-                        title = doc.title,
-                        timeAgo = formatTimeAgo(context, doc.added),
-                        tagName = tag?.name,
-                        tagColor = tag?.color?.let { parseColorToLong(it) }
-                    )
-                }
-            }
-                .asUiResult()
-                .collect { result ->
-                    result.onSuccess { recentDocs ->
-                        _uiState.update { it.copy(recentDocuments = recentDocs, isLoading = false) }
-                    }.onFailure { e ->
-                        _errorState.value = HomeError.LoadFailed("recentDocuments", e)
-                    }
-                }
         }
     }
 
@@ -302,14 +209,6 @@ class HomeViewModel @Inject constructor(
                 untaggedCount = count
             }
 
-            // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
-            documentListRepository.getDocuments(
-                page = 1,
-                pageSize = 10,
-                ordering = "-added",
-                forceRefresh = true
-            )
-
             // Sync trash documents (page 1 for quick init, full sync on pull-to-refresh)
             trashRepository.getTrashDocuments(page = 1, pageSize = 100)
 
@@ -328,13 +227,13 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * BEST PRACTICE: Refresh both stats and tasks.
-     * Use this for:
-     * - Pull-to-refresh user actions (forceRefresh = true)
-     * - After upload/delete operations (forceRefresh = true)
-     * - Network reconnect scenarios (forceRefresh = true)
+     * BEST PRACTICE: Refresh dashboard stats and trash from the server.
      *
-     * For ON_RESUME events, use refreshDashboardIfNeeded() to apply debounce.
+     * Use this for pull-to-refresh, post-upload/delete, and reconnect.
+     * Recently-added documents are owned by [RecentDocumentsViewModel] — the
+     * screen layer calls both VMs in parallel on pull-to-refresh.
+     *
+     * For ON_RESUME events, use [refreshDashboardIfNeeded] to apply debounce.
      */
     fun refreshDashboard() {
         viewModelScope.launch {
@@ -351,14 +250,6 @@ class HomeViewModel @Inject constructor(
             documentCountRepository.getUntaggedCount().onSuccess { count ->
                 _uiState.update { it.copy(untaggedCount = count) }
             }
-
-            // Refresh recent documents from API (updates Room cache, triggers reactive Flow)
-            documentListRepository.getDocuments(
-                page = 1,
-                pageSize = 10,
-                ordering = "-added",
-                forceRefresh = true
-            )
 
             // Full trash sync: fetch all pages and cleanup orphans
             syncTrashDocuments()
@@ -395,14 +286,20 @@ class HomeViewModel @Inject constructor(
      * BEST PRACTICE: Debounced refresh for ON_RESUME events.
      * Only refreshes if more than 30 seconds since last refresh.
      * Reduces server load and battery usage for quick app switches.
+     *
+     * Returns true when an actual refresh was kicked off so the screen layer
+     * can fan the same decision out to sibling ViewModels
+     * (e.g. [RecentDocumentsViewModel.refreshRecentDocuments]) that share the
+     * dashboard-refresh contract.
      */
-    fun refreshDashboardIfNeeded() {
+    fun refreshDashboardIfNeeded(): Boolean {
         val now = System.currentTimeMillis()
         if (now - lastRefreshTimestamp > REFRESH_DEBOUNCE_MS) {
             refreshDashboard()
-        } else {
-            logger.log(Level.FINE, "Skipping refresh - last refresh was ${(now - lastRefreshTimestamp) / 1000}s ago")
+            return true
         }
+        logger.log(Level.FINE, "Skipping refresh - last refresh was ${(now - lastRefreshTimestamp) / 1000}s ago")
+        return false
     }
 
     private suspend fun loadStats(forceRefresh: Boolean = true): DocumentStat {
@@ -435,90 +332,12 @@ class HomeViewModel @Inject constructor(
         )
     }
 
-
-    private fun parseColorToLong(colorString: String): Long? {
-        return try {
-            if (colorString.startsWith("#")) {
-                java.lang.Long.parseLong(colorString.removePrefix("#"), 16) or 0xFF000000
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
-
     fun resetState() {
         _uiState.update { HomeUiState() }
     }
 
     fun clearHomeError() {
         _errorState.value = null
-    }
-
-    fun deleteRecentDocument(documentId: Int, documentTitle: String) {
-        viewModelScope.launch {
-            // Set deleted document info for undo snackbar
-            _uiState.update {
-                it.copy(deletedDocument = DeletedDocumentInfo(documentId, documentTitle))
-            }
-
-            try {
-                trashRepository.deleteDocument(documentId).onSuccess {
-                    // Recent documents list updates automatically via reactive Flow
-                    analyticsService.trackEvent(AnalyticsEvent.DocumentDeleted)
-                }.onFailure { error ->
-                    _uiState.update { it.copy(deletedDocument = null) }
-                    _errorState.value = HomeError.ActionFailed(
-                        "deleteDocument",
-                        error
-                    )
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                _uiState.update { it.copy(deletedDocument = null) }
-                _errorState.value = HomeError.ActionFailed(
-                    "deleteDocument",
-                    e
-                )
-            }
-        }
-    }
-
-    /**
-     * Undo the most recent document deletion.
-     * Restores the document by clearing its soft-delete flag.
-     */
-    fun undoDelete() {
-        val deletedDoc = _uiState.value.deletedDocument ?: return
-
-        viewModelScope.launch {
-            // Clear deleted document state immediately for responsive UX
-            _uiState.update { it.copy(deletedDocument = null) }
-
-            // Restore document via repository
-            try {
-                trashRepository.restoreDocument(deletedDoc.id).onFailure {
-                    _errorState.value = HomeError.ActionFailed(
-                        "restoreDocument",
-                        it
-                    )
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                _errorState.value = HomeError.ActionFailed(
-                    "restoreDocument",
-                    e
-                )
-            }
-        }
-    }
-
-    /**
-     * Clear the deleted document info (when undo snackbar is dismissed).
-     */
-    fun clearDeletedDocument() {
-        _uiState.update { it.copy(deletedDocument = null) }
     }
 
     private fun observePendingUploads() {
@@ -536,7 +355,4 @@ class HomeViewModel @Inject constructor(
                 }
         }
     }
-
-    // onCleared() — no overrides needed after Phase 2 (polling lifecycle moved
-    // to ProcessingTasksViewModel.onCleared()).
 }
