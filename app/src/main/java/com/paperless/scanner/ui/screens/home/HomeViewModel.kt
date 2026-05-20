@@ -158,9 +158,13 @@ class HomeViewModel @Inject constructor(
             val stats = loadStats()
             lastRefreshTimestamp = System.currentTimeMillis()
 
+            // Preserve current pendingUploads: observePendingUploads is the
+            // authoritative source and may have emitted a newer count during
+            // the network calls above. Overwriting with loadStats()'s captured
+            // value would clobber it until the next flow emission.
             _uiState.update { currentState ->
                 currentState.copy(
-                    stats = stats,
+                    stats = stats.copy(pendingUploads = currentState.stats.pendingUploads),
                     lastSyncedAt = lastRefreshTimestamp,
                     isLoading = false,
                 )
@@ -180,7 +184,13 @@ class HomeViewModel @Inject constructor(
             val stats = loadStats(forceRefresh = true)
             val now = System.currentTimeMillis()
             lastRefreshTimestamp = now
-            _uiState.update { it.copy(stats = stats, lastSyncedAt = now) }
+            // Preserve current pendingUploads (see loadDashboardData comment).
+            _uiState.update { currentState ->
+                currentState.copy(
+                    stats = stats.copy(pendingUploads = currentState.stats.pendingUploads),
+                    lastSyncedAt = now,
+                )
+            }
         }
     }
 

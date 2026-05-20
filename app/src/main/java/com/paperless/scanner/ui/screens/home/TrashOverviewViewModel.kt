@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.logging.Level
+import java.util.logging.Logger
 import javax.inject.Inject
 
 /**
@@ -50,6 +52,7 @@ class TrashOverviewViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
+        private val logger = Logger.getLogger(TrashOverviewViewModel::class.java.name)
         private const val TRASH_PAGE_SIZE = 100
     }
 
@@ -124,14 +127,20 @@ class TrashOverviewViewModel @Inject constructor(
      */
     fun refreshTrashOverview(fullTrashSync: Boolean = true) {
         viewModelScope.launch {
-            // Refresh untagged count from API.
-            documentCountRepository.getUntaggedCount()
+            // Log refresh failures at WARNING — the reactive Room observers
+            // above keep serving cached data, so we don't surface a snackbar,
+            // but a silent failure would be a diagnostic gap.
+            documentCountRepository.getUntaggedCount().onFailure { e ->
+                logger.log(Level.WARNING, "refreshTrashOverview untagged count failed: ${e.message}", e)
+            }
 
             if (fullTrashSync) {
                 syncAllTrashDocuments()
             } else {
                 // Page 1 only — quick init sync.
-                trashRepository.getTrashDocuments(page = 1, pageSize = TRASH_PAGE_SIZE)
+                trashRepository.getTrashDocuments(page = 1, pageSize = TRASH_PAGE_SIZE).onFailure { e ->
+                    logger.log(Level.WARNING, "refreshTrashOverview page-1 sync failed: ${e.message}", e)
+                }
             }
         }
     }

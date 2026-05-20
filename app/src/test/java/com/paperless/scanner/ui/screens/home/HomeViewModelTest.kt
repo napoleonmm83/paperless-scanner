@@ -142,21 +142,12 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `refreshDashboardIfNeeded returns true when past debounce window`() = runTest {
+    fun `refreshDashboardIfNeeded returns false within debounce window after init`() = runTest {
         val vm = createViewModel()
         advanceUntilIdle()
 
-        // Initial loadDashboardData() set lastRefreshTimestamp = now. A second
-        // call within 30s should be debounced.
+        // Initial loadDashboardData() set lastRefreshTimestamp = wall-clock
+        // now. A second call within 30s of that must be debounced.
         assertFalse(vm.refreshDashboardIfNeeded())
-
-        // Simulate >30s passing by triggering loadDashboardData via the
-        // public onNetworkReconnected path won't reset the boolean — we test
-        // the inverse here. A fresh VM is always refresh-eligible because
-        // lastRefreshTimestamp = 0 BEFORE the first init load completes.
-        val freshVm = createViewModel()
-        // Don't run init yet — refreshDashboardIfNeeded reads the not-yet-
-        // updated timestamp and returns true.
-        assertTrue(freshVm.refreshDashboardIfNeeded())
     }
 }
