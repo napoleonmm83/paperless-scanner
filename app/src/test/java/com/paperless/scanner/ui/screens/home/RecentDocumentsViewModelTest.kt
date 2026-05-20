@@ -99,19 +99,26 @@ class RecentDocumentsViewModelTest {
     }
 
     @Test
-    fun `init triggers server refresh of recent documents`() = runTest {
-        createViewModel()
+    fun `init refresh propagates server data into recent documents state`() = runTest {
+        // Chain getDocuments into the Room flow: when the init refresh fires,
+        // the simulated Room cache emits the refreshed document, driving the
+        // reactive observer end-to-end without any internal-call assertions.
+        val docsFlow = MutableStateFlow<List<Document>>(emptyList())
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns docsFlow
+        coEvery {
+            documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any())
+        } coAnswers {
+            docsFlow.value = listOf(doc(id = 42, title = "Hydrated from server"))
+            Result.success(DocumentsResponse(count = 1, results = docsFlow.value))
+        }
+
+        val vm = createViewModel()
         advanceUntilIdle()
 
-        // refreshRecentDocuments() is called from init for cold-start hydration.
-        coVerify(atLeast = 1) {
-            documentListRepository.getDocuments(
-                page = 1,
-                pageSize = 10,
-                ordering = "-added",
-                forceRefresh = true,
-            )
-        }
+        val recent = vm.uiState.value.recentDocuments
+        assertEquals(1, recent.size)
+        assertEquals(42, recent.first().id)
+        assertEquals("Hydrated from server", recent.first().title)
     }
 
     /**
@@ -236,15 +243,19 @@ class RecentDocumentsViewModelTest {
     }
 
     @Test
-    fun `undoDelete is a no-op when no document is pending`() = runTest {
+    fun `undoDelete leaves state unchanged when no document is pending`() = runTest {
         val vm = createViewModel()
         advanceUntilIdle()
+
+        val before = vm.uiState.value
+        val errorBefore = vm.error.value
 
         vm.undoDelete()
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { trashRepository.restoreDocument(any()) }
-        assertNull(vm.error.value)
+        // No deletedDocument to restore → state and error must be unchanged.
+        assertEquals(before, vm.uiState.value)
+        assertEquals(errorBefore, vm.error.value)
     }
 
     @Test
@@ -318,22 +329,31 @@ class RecentDocumentsViewModelTest {
     }
 
     @Test
-    fun `refreshRecentDocuments forces server reload`() = runTest {
+    fun `refreshRecentDocuments propagates fresh server data into uiState`() = runTest {
+        // Each getDocuments() call updates the simulated Room cache so the
+        // reactive observer re-emits. State-based assertion verifies the
+        // refresh actually drove new data through the pipeline.
+        val docsFlow = MutableStateFlow<List<Document>>(emptyList())
+        var callCount = 0
+        every { documentListRepository.observeDocuments(page = 1, pageSize = 5) } returns docsFlow
+        coEvery {
+            documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any())
+        } coAnswers {
+            callCount += 1
+            docsFlow.value = listOf(doc(id = callCount, title = "Refresh-$callCount"))
+            Result.success(DocumentsResponse(count = 1, results = docsFlow.value))
+        }
+
         val vm = createViewModel()
         advanceUntilIdle()
+        // Init refresh produced Refresh-1.
+        assertEquals("Refresh-1", vm.uiState.value.recentDocuments.firstOrNull()?.title)
 
-        // Reset the per-init call by verifying total count rather than a clean
-        // baseline (mockk doesn't expose a reset-and-verify helper here).
         vm.refreshRecentDocuments()
         advanceUntilIdle()
 
-        coVerify(atLeast = 2) {
-            documentListRepository.getDocuments(
-                page = 1,
-                pageSize = 10,
-                ordering = "-added",
-                forceRefresh = true,
-            )
-        }
+        // Manual refresh produced Refresh-2 — confirms the API was hit AND
+        // the new data propagated through the reactive Room flow.
+        assertEquals("Refresh-2", vm.uiState.value.recentDocuments.firstOrNull()?.title)
     }
 }

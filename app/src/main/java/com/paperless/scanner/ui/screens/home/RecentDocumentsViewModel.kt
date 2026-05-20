@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.logging.Level
+import java.util.logging.Logger
 import javax.inject.Inject
 
 /**
@@ -66,6 +68,7 @@ class RecentDocumentsViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
+        private val logger = Logger.getLogger(RecentDocumentsViewModel::class.java.name)
         private const val RECENT_PAGE_SIZE = 5
         private const val REFRESH_PAGE_SIZE = 10
     }
@@ -165,7 +168,13 @@ class RecentDocumentsViewModel @Inject constructor(
                 pageSize = REFRESH_PAGE_SIZE,
                 ordering = "-added",
                 forceRefresh = true,
-            )
+            ).onFailure { e ->
+                // The reactive Room observer keeps serving cached data here, so
+                // we don't surface a snackbar — but a silent failure was the
+                // exact diagnostic gap CodeRabbit R1 flagged. Logging matches
+                // the same fire-and-forget pattern used by other VMs.
+                logger.log(Level.WARNING, "refreshRecentDocuments failed: ${e.message}", e)
+            }
         }
     }
 

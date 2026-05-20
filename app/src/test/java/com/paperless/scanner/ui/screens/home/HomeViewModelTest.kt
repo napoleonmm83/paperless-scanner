@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.home
 
+import app.cash.turbine.test
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
@@ -103,12 +104,19 @@ class HomeViewModelTest {
         every { documentCountRepository.observeUntaggedDocumentsCount() } returns untaggedFlow
 
         val vm = createViewModel()
-        advanceUntilIdle()
 
-        untaggedFlow.value = 7
-        advanceUntilIdle()
+        vm.uiState.test {
+            // Drain any state changes from init() until the count baseline is 0.
+            var state = awaitItem()
+            while (state.untaggedCount != 0 || state.isLoading) {
+                state = awaitItem()
+            }
 
-        assertEquals(7, vm.uiState.value.untaggedCount)
+            untaggedFlow.value = 7
+            assertEquals(7, awaitItem().untaggedCount)
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -117,12 +125,18 @@ class HomeViewModelTest {
         every { trashRepository.observeTrashedDocumentsCount() } returns trashCountFlow
 
         val vm = createViewModel()
-        advanceUntilIdle()
 
-        trashCountFlow.value = 3
-        advanceUntilIdle()
+        vm.uiState.test {
+            var state = awaitItem()
+            while (state.deletedCount != 0 || state.isLoading) {
+                state = awaitItem()
+            }
 
-        assertEquals(3, vm.uiState.value.deletedCount)
+            trashCountFlow.value = 3
+            assertEquals(3, awaitItem().deletedCount)
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
