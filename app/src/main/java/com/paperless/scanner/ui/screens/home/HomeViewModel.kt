@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -106,17 +107,31 @@ class HomeViewModel @Inject constructor(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     /**
-     * Combined pending-changes flow used internally by [observePendingUploads]
-     * and [loadStats]. The screen consumes the public counterpart from
-     * [ServerHealthViewModel.pendingChangesCount]; both flows are derived from
-     * the same repositories so values stay aligned.
+     * Combined pending-changes flow used internally by [loadStats] for
+     * apply-time `.value` reads. The screen consumes the public counterpart
+     * from [ServerHealthViewModel.pendingChangesCount]; both flows are derived
+     * from the same repositories so values stay aligned.
+     *
+     * **SharingStarted.Eagerly** is required: `.value` reads from
+     * [loadStats] / [onPollingTick] / [loadDashboardData] / [refreshDashboard]
+     * must reflect the live count. `WhileSubscribed` would leave this
+     * StateFlow cold (no in-VM collector — [observePendingUploads] collects
+     * the raw upstream directly for error surfacing per CR R1.2) and pin
+     * `.value` to the initial `0`, which would clobber any pending-upload
+     * count applied during refresh paths (CR R5.1 catch).
      */
     private val pendingChangesCountInternal: StateFlow<Int> = combine(
         uploadQueueRepository.pendingCount,
         syncManager.pendingChangesCount
     ) { uploadQueueCount, syncPendingCount ->
         uploadQueueCount + syncPendingCount
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    }
+        // Swallow upstream errors here — they surface to the snackbar
+        // pipeline via [observePendingUploads]'s separate raw-flow
+        // collector, and uncaught exceptions in an Eagerly-started
+        // stateIn would crash the entire viewModelScope.
+        .catch { /* see observePendingUploads */ }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0)
 
     private val _errorState = MutableStateFlow<HomeError?>(null)
     val errorState: StateFlow<HomeError?> = _errorState.asStateFlow()
