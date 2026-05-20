@@ -1,4 +1,4 @@
-Version 1.5.120:
+Version 1.5.121:
 
 🔧 Verbesserungen:
 - Schnellere Aktualisierung neuer Dokumente
