@@ -84,12 +84,12 @@ class TrashOverviewViewModelTest {
         every { documentCountRepository.observeUntaggedDocumentsCount() } returns untaggedFlow
 
         val vm = createViewModel()
+        advanceUntilIdle()
 
         vm.uiState.test {
-            var state = awaitItem()
-            while (state.untaggedCount != 0) {
-                state = awaitItem()
-            }
+            // expectMostRecentItem drops all queued emissions from init/setup
+            // and returns the latest, giving a clean baseline before mutation.
+            assertEquals(0, expectMostRecentItem().untaggedCount)
 
             untaggedFlow.value = 12
             assertEquals(12, awaitItem().untaggedCount)
@@ -104,12 +104,10 @@ class TrashOverviewViewModelTest {
         every { trashRepository.observeTrashedDocumentsCount() } returns trashCountFlow
 
         val vm = createViewModel()
+        advanceUntilIdle()
 
         vm.uiState.test {
-            var state = awaitItem()
-            while (state.deletedCount != 0) {
-                state = awaitItem()
-            }
+            assertEquals(0, expectMostRecentItem().deletedCount)
 
             trashCountFlow.value = 5
             assertEquals(5, awaitItem().deletedCount)
@@ -124,12 +122,10 @@ class TrashOverviewViewModelTest {
         every { trashRepository.observeOldestDeletedTimestamp() } returns timestampFlow
 
         val vm = createViewModel()
+        advanceUntilIdle()
 
         vm.uiState.test {
-            var state = awaitItem()
-            while (state.oldestDeletedTimestamp != null) {
-                state = awaitItem()
-            }
+            assertNull(expectMostRecentItem().oldestDeletedTimestamp)
 
             val now = 1_700_000_000_000L
             timestampFlow.value = now

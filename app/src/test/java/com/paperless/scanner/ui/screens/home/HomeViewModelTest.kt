@@ -96,16 +96,14 @@ class HomeViewModelTest {
         every { uploadQueueRepository.pendingCount } returns uploadCount
 
         val vm = createViewModel()
+        advanceUntilIdle()
 
         vm.uiState.test {
-            // Drain initial emissions until baseline is 0 and not loading.
-            var state = awaitItem()
-            while (state.isLoading || state.stats.pendingUploads != 0) {
-                state = awaitItem()
-            }
+            val baseline = expectMostRecentItem()
+            assertEquals(false, baseline.isLoading)
+            assertEquals(0, baseline.stats.pendingUploads)
 
             uploadCount.value = 4
-            // First emission updates stats via observePendingUploads.
             assertEquals(4, awaitItem().stats.pendingUploads)
 
             cancelAndIgnoreRemainingEvents()

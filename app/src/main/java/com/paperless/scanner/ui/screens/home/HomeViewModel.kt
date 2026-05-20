@@ -147,7 +147,13 @@ class HomeViewModel @Inject constructor(
         if (pollingRefreshJob?.isActive == true) return
         pollingRefreshJob = viewModelScope.launch {
             val stats = loadStats()
-            _uiState.update { it.copy(stats = stats) }
+            // Preserve current pendingUploads — observePendingUploads is the
+            // authoritative source and may have emitted a newer count during
+            // the network calls above (CR R3.1 catch, same pattern as
+            // loadDashboardData / refreshDashboard).
+            _uiState.update { currentState ->
+                currentState.copy(stats = stats.copy(pendingUploads = currentState.stats.pendingUploads))
+            }
         }
     }
 
