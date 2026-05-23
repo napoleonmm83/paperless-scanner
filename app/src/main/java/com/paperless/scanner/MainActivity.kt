@@ -61,6 +61,9 @@ class MainActivity : FragmentActivity() {
     lateinit var appLockManager: com.paperless.scanner.util.AppLockManager
 
     @Inject
+    lateinit var routeArgsHolder: com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
+
+    @Inject
     lateinit var crashlyticsHelper: CrashlyticsHelper
 
     /** Pending deep link action from widget or external source. Consumed once by NavGraph. */
@@ -179,6 +182,7 @@ class MainActivity : FragmentActivity() {
                         onDeepLinkConsumed = { consumeDeepLink() },
                         tokenManager = tokenManager,
                         appLockManager = appLockManager,
+                        routeArgsHolder = routeArgsHolder,
                         analyticsService = analyticsService,
                         crashlyticsHelper = crashlyticsHelper
                     )

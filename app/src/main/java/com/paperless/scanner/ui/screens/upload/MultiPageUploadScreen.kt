@@ -62,7 +62,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavBackStackEntry
 import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.util.FileUtils
@@ -85,8 +84,7 @@ fun MultiPageUploadScreen(
     preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: UploadViewModel = hiltViewModel(),
-    navBackStackEntry: NavBackStackEntry? = null
+    viewModel: UploadViewModel = hiltViewModel()
 ) {
     // Observe ViewModel's documentUris (reactive, survives process death).
     // The VM's init {} populates this synchronously from its own SavedStateHandle
@@ -94,19 +92,8 @@ fun MultiPageUploadScreen(
     // initialisation LaunchedEffect is needed here — see Issue #70.
     val observedDocumentUris by viewModel.documentUris.collectAsState()
 
-    // Sync URIs to Navigation BackStackEntry SavedStateHandle for AppLock route reconstruction.
-    // Separate from ViewModel SavedStateHandle (process death) — AppLockNavigationInterceptor
-    // reads from backStackEntry.savedStateHandle, not the ViewModel's.
-    LaunchedEffect(observedDocumentUris, navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle?.let { savedState ->
-            if (observedDocumentUris.isEmpty()) {
-                savedState[UploadViewModel.KEY_DOCUMENT_URIS] = null
-            } else {
-                savedState[UploadViewModel.KEY_DOCUMENT_URIS] =
-                    observedDocumentUris.joinToString("|") { it.toString() }
-            }
-        }
-    }
+    // Document URIs are mirrored to AppLockRouteArgsHolder by UploadViewModel itself
+    // (single source of truth, #30) — no Navigation SavedStateHandle sync needed here.
 
     // Use observedDocumentUris for displaying documents (falls back to parameter if empty)
     val activeDocumentUris = if (observedDocumentUris.isNotEmpty()) observedDocumentUris else documentUris

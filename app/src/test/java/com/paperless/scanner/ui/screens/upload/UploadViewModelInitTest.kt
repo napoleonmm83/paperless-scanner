@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.upload
 
+import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -73,6 +74,7 @@ class UploadViewModelInitTest {
     private lateinit var aiUsageRepository: AiUsageRepository
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var tokenManager: TokenManager
+    private lateinit var routeArgsHolder: AppLockRouteArgsHolder
 
     @Before
     fun setup() {
@@ -100,6 +102,7 @@ class UploadViewModelInitTest {
         aiUsageRepository = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
+        routeArgsHolder = AppLockRouteArgsHolder()
 
         // The init {}-block uses these reactive Flows; provide empty defaults.
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -137,8 +140,26 @@ class UploadViewModelInitTest {
         aiUsageRepository = aiUsageRepository,
         premiumFeatureManager = premiumFeatureManager,
         tokenManager = tokenManager,
+        routeArgsHolder = routeArgsHolder,
         ioDispatcher = testDispatcher
     )
+
+    @Test
+    fun `init mirrors documentUris into the route-args holder for AppLock reconstruction`() = runTest {
+        val uri1 = Uri.parse("content://media/external/images/media/123")
+        val uri2 = Uri.parse("content://media/external/images/media/456")
+        val encoded = listOf(uri1, uri2).joinToString("|") { Uri.encode(it.toString()) }
+        val savedState = SavedStateHandle(mapOf(UploadViewModel.KEY_DOCUMENT_URIS to encoded))
+
+        buildViewModel(savedStateHandle = savedState)
+
+        // Single source of truth (#30): the AppLock interceptor reads documentUris from
+        // the holder, which UploadViewModel populates in lock-step with its SavedStateHandle.
+        assertEquals(
+            listOf(uri1, uri2).joinToString("|") { it.toString() },
+            routeArgsHolder.get(UploadViewModel.KEY_DOCUMENT_URIS)
+        )
+    }
 
     @Test
     fun `init parses URL-encoded documentUris nav arg into documentUris StateFlow synchronously`() = runTest {

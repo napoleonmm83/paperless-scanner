@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.main
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.paperless.scanner.ui.components.AdaptiveNavigation
 import com.paperless.scanner.ui.navigation.Screen
@@ -18,7 +17,6 @@ fun MainScreen(
     currentRoute: String,
     scanPageUris: List<Uri> = emptyList(),
     scanAction: String? = null,
-    scanBackStackEntry: NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
     onStepByStepMetadata: (List<Uri>) -> Unit,
@@ -69,7 +67,6 @@ fun MainScreen(
             Screen.Scan.routeBase -> ScanScreen(
                 initialPageUris = scanPageUris,
                 initialScanAction = scanAction,
-                navBackStackEntry = scanBackStackEntry,
                 onDocumentScanned = onDocumentScanned,
                 onMultipleDocumentsScanned = onMultipleDocumentsScanned,
                 onStepByStepMetadata = onStepByStepMetadata

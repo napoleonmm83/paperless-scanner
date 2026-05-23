@@ -1,0 +1,4 @@
+Version 1.5.124:
+
+🔐 Sicherheit:
+- App-Sperre stellt offene Scans zuverlässiger wieder her

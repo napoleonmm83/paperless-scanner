@@ -123,7 +123,6 @@ private const val MAX_PAGES = 100
 fun ScanScreen(
     initialPageUris: List<Uri> = emptyList(),
     initialScanAction: String? = null,
-    navBackStackEntry: androidx.navigation.NavBackStackEntry? = null,
     onDocumentScanned: (Uri) -> Unit,
     onMultipleDocumentsScanned: (List<Uri>, Boolean) -> Unit,
     onStepByStepMetadata: (List<Uri>) -> Unit,
@@ -151,23 +150,8 @@ fun ScanScreen(
         // If ViewModel already has pages (e.g., after AppLock unlock), trust SavedStateHandle as source of truth
     }
 
-    // CRITICAL: Sync pages to Navigation SavedStateHandle for AppLock route reconstruction
-    // This is SEPARATE from ViewModel SavedStateHandle (which is used for process death)
-    // AppLockNavigationInterceptor reads from backStackEntry.savedStateHandle, not ViewModel.savedStateHandle
-    LaunchedEffect(uiState.pages, navBackStackEntry) {
-        navBackStackEntry?.savedStateHandle?.let { savedState ->
-            if (uiState.pages.isEmpty()) {
-                savedState[ScanViewModel.KEY_PAGE_URIS] = null
-            } else {
-                val urisString = uiState.pages.joinToString("|") { it.uri.toString() }
-                savedState[ScanViewModel.KEY_PAGE_URIS] = urisString
-                android.util.Log.d(
-                    "ScanScreen",
-                    "Synced ${uiState.pages.size} pages to Navigation SavedStateHandle"
-                )
-            }
-        }
-    }
+    // Page URIs are mirrored to AppLockRouteArgsHolder by ScanViewModel itself
+    // (single source of truth, #30) — no Navigation SavedStateHandle sync needed here.
 
     val scannerOptions = remember {
         GmsDocumentScannerOptions.Builder()

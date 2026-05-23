@@ -61,6 +61,7 @@ class UploadViewModel @Inject constructor(
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val tokenManager: TokenManager,
+    private val routeArgsHolder: com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder,
     private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
@@ -186,6 +187,10 @@ class UploadViewModel @Inject constructor(
         // and the Screen's BackStackEntry-sync (which writes unencoded) stay consistent.
         val canonical = _documentUris.value.joinToString("|") { it.toString() }
         savedStateHandle[KEY_DOCUMENT_URIS] = canonical.takeIf { it.isNotEmpty() }
+        // Single source of truth for AppLock route reconstruction (#30): mirror the
+        // URI write into the holder here, co-located with the SavedStateHandle write.
+        // documentUris is immutable after init, so this one write is sufficient.
+        routeArgsHolder.put(KEY_DOCUMENT_URIS, canonical.takeIf { it.isNotEmpty() })
 
         observeTagsReactively()
         observeDocumentTypesReactively()

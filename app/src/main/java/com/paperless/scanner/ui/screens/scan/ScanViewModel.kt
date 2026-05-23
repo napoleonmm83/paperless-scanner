@@ -29,6 +29,7 @@ import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import com.paperless.scanner.ui.screens.upload.AnalysisState
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -101,6 +102,7 @@ sealed class CreateTagState {
 @HiltViewModel
 class ScanViewModel @Inject constructor(
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
+    private val routeArgsHolder: AppLockRouteArgsHolder,
     private val authRepository: AuthRepository,
     private val analyticsService: AnalyticsService,
     private val tagRepository: TagRepository,
@@ -268,6 +270,11 @@ class ScanViewModel @Inject constructor(
      * Runs ONCE synchronously in init-block to prevent race conditions with scanner callbacks.
      */
     private fun restorePagesFromSavedState() {
+        // Clear first; the success path below re-sets it. The holder is an app-wide
+        // @Singleton, so a previous ScanViewModel's pageUris could otherwise linger
+        // and make AppLock reconstruct old pages on a fresh, empty Scan screen (#30).
+        routeArgsHolder.put(KEY_PAGE_URIS, null)
+
         // Read from SavedStateHandle directly (synchronous, no Flow overhead)
         val urisString = savedStateHandle.get<String>(KEY_PAGE_URIS)
         val idsString = savedStateHandle.get<String>(KEY_PAGE_IDS)
@@ -341,6 +348,10 @@ class ScanViewModel @Inject constructor(
 
                     // Update UI state ONCE
                     _uiState.update { it.copy(pages = restoredPages) }
+                    // Re-prime the holder after process-death restore (it is in-memory
+                    // and starts empty), so a lock right after restore still reconstructs
+                    // the scan route with the restored pages (#30).
+                    routeArgsHolder.put(KEY_PAGE_URIS, urisString)
                     Log.d(TAG, "✅ Restored ${restoredPages.size} pages from SavedStateHandle (one-time init)")
                 } else {
                     Log.w(TAG, "⚠️ Data mismatch: ${uris.size} URIs vs ${ids.size} IDs - skipping restoration")
@@ -360,10 +371,15 @@ class ScanViewModel @Inject constructor(
             savedStateHandle[KEY_PAGE_IDS] = null
             savedStateHandle[KEY_PAGE_ROTATIONS] = null
             savedStateHandle[KEY_PAGE_METADATA] = null
+            // Single source of truth for AppLock route reconstruction (#30): mirror
+            // the URI write into the holder in the SAME method, so the interceptor's
+            // read can never desync from the persisted ViewModel state.
+            routeArgsHolder.put(KEY_PAGE_URIS, null)
         } else {
             // Serialize URIs as pipe-separated string
             val urisString = pages.joinToString("|") { it.uri.toString() }
             savedStateHandle[KEY_PAGE_URIS] = urisString
+            routeArgsHolder.put(KEY_PAGE_URIS, urisString)
 
             // Serialize IDs as pipe-separated string
             val idsString = pages.joinToString("|") { it.id }

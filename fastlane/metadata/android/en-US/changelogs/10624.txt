@@ -1,0 +1,4 @@
+Version 1.5.124:
+
+🔐 Security:
+- App lock restores open scans more reliably
