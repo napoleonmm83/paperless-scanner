@@ -270,6 +270,11 @@ class ScanViewModel @Inject constructor(
      * Runs ONCE synchronously in init-block to prevent race conditions with scanner callbacks.
      */
     private fun restorePagesFromSavedState() {
+        // Clear first; the success path below re-sets it. The holder is an app-wide
+        // @Singleton, so a previous ScanViewModel's pageUris could otherwise linger
+        // and make AppLock reconstruct old pages on a fresh, empty Scan screen (#30).
+        routeArgsHolder.put(KEY_PAGE_URIS, null)
+
         // Read from SavedStateHandle directly (synchronous, no Flow overhead)
         val urisString = savedStateHandle.get<String>(KEY_PAGE_URIS)
         val idsString = savedStateHandle.get<String>(KEY_PAGE_IDS)

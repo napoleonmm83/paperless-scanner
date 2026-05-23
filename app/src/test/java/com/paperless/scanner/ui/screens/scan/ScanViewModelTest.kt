@@ -219,6 +219,19 @@ class ScanViewModelTest {
         assertNull(routeArgsHolder.get(ScanViewModel.KEY_PAGE_URIS))
     }
 
+    @Test
+    fun `fresh empty ScanViewModel clears a previous scan's stale holder args`() = runTest {
+        // The holder is an app-wide singleton; simulate a prior scan leaving URIs in it.
+        routeArgsHolder.put(ScanViewModel.KEY_PAGE_URIS, "file:///tmp/old.jpg")
+
+        // Opening a fresh Scan screen builds a new ScanViewModel with empty SavedStateHandle.
+        createViewModel()
+        advanceUntilIdle()
+
+        // It must clear the stale entry, else AppLock would reconstruct the old pages (#30).
+        assertNull(routeArgsHolder.get(ScanViewModel.KEY_PAGE_URIS))
+    }
+
     // ==================== removePage / undoRemovePage ====================
 
     @Test
