@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.login
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.util.Log
 import android.view.HapticFeedbackConstants
 import android.view.ViewGroup
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -79,6 +78,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.paperless.scanner.R
+import com.paperless.scanner.util.AppLogger
 import kotlinx.coroutines.delay
 import java.util.concurrent.Executors
 
@@ -143,7 +143,7 @@ fun TokenScannerSheet(
     // Auto-capture when token is stable
     LaunchedEffect(shouldAutoCapture) {
         if (shouldAutoCapture && !isProcessing && foundToken == null) {
-            Log.d(TAG, "Auto-capture triggered after stability period")
+            AppLogger.d(TAG, "Auto-capture triggered after stability period")
             isProcessing = true
             scanStatus = capturingText
 
@@ -162,7 +162,7 @@ fun TokenScannerSheet(
                             textRecognizer.process(image)
                                 .addOnSuccessListener { visionText ->
                                     val tokens = extractTokens(visionText.text)
-                                    Log.d(TAG, "High-res OCR found tokens: $tokens")
+                                    AppLogger.d(TAG, "High-res OCR found ${tokens.size} token(s)")
 
                                     if (tokens.isNotEmpty()) {
                                         foundToken = tokens.first()
@@ -179,7 +179,7 @@ fun TokenScannerSheet(
                                     isProcessing = false
                                 }
                                 .addOnFailureListener { e ->
-                                    Log.e(TAG, "High-res OCR failed", e)
+                                    AppLogger.e(TAG, "High-res OCR failed", e)
                                     errorMessage = recognitionErrorText
                                     isProcessing = false
                                     liveTokenDetected = false
@@ -190,7 +190,7 @@ fun TokenScannerSheet(
                     }
 
                     override fun onError(exception: ImageCaptureException) {
-                        Log.e(TAG, "Auto-capture failed", exception)
+                        AppLogger.e(TAG, "Auto-capture failed", exception)
                         errorMessage = captureFailedText
                         isProcessing = false
                         liveTokenDetected = false
@@ -334,7 +334,7 @@ fun TokenScannerSheet(
                                                     // Same token detected again - check stability
                                                     val elapsed = System.currentTimeMillis() - detectionStartTime
                                                     if (elapsed >= STABILITY_DELAY_MS && !shouldAutoCapture) {
-                                                        Log.d(TAG, "Token stable for ${elapsed}ms, triggering capture")
+                                                        AppLogger.d(TAG, "Token stable for ${elapsed}ms, triggering capture")
                                                         shouldAutoCapture = true
                                                     }
                                                 } else {
@@ -368,7 +368,7 @@ fun TokenScannerSheet(
                                     imageAnalysis
                                 )
                             } catch (e: Exception) {
-                                Log.e(TAG, "Camera binding failed", e)
+                                AppLogger.e(TAG, "Camera binding failed", e)
                             }
                         }, ContextCompat.getMainExecutor(context))
                     }
@@ -458,7 +458,7 @@ fun TokenScannerSheet(
                                         textRecognizer.process(image)
                                             .addOnSuccessListener { visionText ->
                                                 val tokens = extractTokens(visionText.text)
-                                                Log.d(TAG, "Manual capture found tokens: $tokens")
+                                                AppLogger.d(TAG, "Manual capture found ${tokens.size} token(s)")
 
                                                 if (tokens.isNotEmpty()) {
                                                     foundToken = tokens.first()
@@ -471,7 +471,7 @@ fun TokenScannerSheet(
                                                 isProcessing = false
                                             }
                                             .addOnFailureListener { e ->
-                                                Log.e(TAG, "Text recognition failed", e)
+                                                AppLogger.e(TAG, "Text recognition failed", e)
                                                 errorMessage = recognitionErrorText
                                                 isProcessing = false
                                             }
@@ -480,7 +480,7 @@ fun TokenScannerSheet(
                                 }
 
                                 override fun onError(exception: ImageCaptureException) {
-                                    Log.e(TAG, "Capture failed", exception)
+                                    AppLogger.e(TAG, "Capture failed", exception)
                                     errorMessage = captureFailedText
                                     isProcessing = false
                                 }
@@ -655,7 +655,7 @@ private fun extractTokensQuick(text: String): List<String> {
  * Handles common OCR errors like O/0, l/1/I, S/5, B/8, Z/2.
  */
 private fun extractTokens(text: String): List<String> {
-    Log.d(TAG, "Raw OCR text: $text")
+    AppLogger.d(TAG, "Raw OCR text length: ${text.length}")
 
     // Remove whitespace and newlines
     val cleanText = text.replace("\\s+".toRegex(), "")
@@ -668,7 +668,7 @@ private fun extractTokens(text: String): List<String> {
         .toList()
 
     if (exactMatches.isNotEmpty()) {
-        Log.d(TAG, "Found exact token match: ${exactMatches.first()}")
+        AppLogger.d(TAG, "Found exact token match (count: ${exactMatches.size})")
         return exactMatches
     }
 
@@ -681,9 +681,9 @@ private fun extractTokens(text: String): List<String> {
         .toList()
 
     if (fuzzyMatches.isNotEmpty()) {
-        Log.d(TAG, "Found token after OCR correction: ${fuzzyMatches.first()}")
+        AppLogger.d(TAG, "Found token after OCR correction (count: ${fuzzyMatches.size})")
     } else {
-        Log.d(TAG, "No token found in text (length: ${cleanText.length})")
+        AppLogger.d(TAG, "No token found in text (length: ${cleanText.length})")
     }
 
     return fuzzyMatches
