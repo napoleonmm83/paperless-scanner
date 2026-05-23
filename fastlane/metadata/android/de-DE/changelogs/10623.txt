@@ -1,0 +1,5 @@
+Version 1.5.123:
+
+🔐 Sicherheit:
+- Token-Scanner protokolliert keine API-Tokens oder gescannten Texte mehr
+- Besserer Schutz sensibler Zugangsdaten in App-Protokollen

@@ -1,0 +1,5 @@
+Version 1.5.123:
+
+🔐 Security:
+- Token scanner no longer logs API tokens or scanned text
+- Better protection of sensitive credentials in app logs
