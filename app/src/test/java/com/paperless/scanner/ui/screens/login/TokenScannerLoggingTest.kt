@@ -36,7 +36,11 @@ class TokenScannerLoggingTest {
         // The leak forms are the simple interpolations "$tokens" / "$text" and the
         // value accessors ".first()" / "visionText.text".
         val forbidden = listOf(
-            "\$text", "\$tokens", ".first()", "visionText.text",
+            // Simple and bare-braced interpolation of the raw values. Note that
+            // safe metadata like "${text.length}" / "${tokens.size}" is allowed
+            // because "${text}" / "${tokens}" (closing brace right after the
+            // name) is not a substring of those.
+            "\$text", "\$tokens", "\${text}", "\${tokens}", ".first()", "visionText.text",
             "tokens[", "tokens.get(", "tokens.toString()", "tokens.joinToString(",
             "text.take(", "text.substring(", "text.toString()",
         )
