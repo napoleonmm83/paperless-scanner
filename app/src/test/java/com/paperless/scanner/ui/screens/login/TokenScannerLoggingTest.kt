@@ -50,10 +50,26 @@ class TokenScannerLoggingTest {
         }
     }
 
-    private fun loggingLines(): List<Pair<Int, String>> =
-        source.lines()
-            .mapIndexed { index, line -> (index + 1) to line }
-            .filter { (_, line) -> Regex("""(AppLogger|Log)\.\w+\(""").containsMatchIn(line) }
+    private fun loggingLines(): List<Pair<Int, String>> {
+        // Capture each log call as one span by balancing parentheses from the
+        // opening '(' until it closes. A naive `.*?\)` would stop at the first
+        // ')' — e.g. inside a "token(s)" message — and miss a sensitive value
+        // after it; balancing also folds in multi-line argument lists.
+        val callStart = Regex("""\b(AppLogger|Log)\.\w+\(""")
+        return callStart.findAll(source).map { match ->
+            val openIdx = source.indexOf('(', match.range.first)
+            var depth = 0
+            var end = source.length - 1
+            loop@ for (k in openIdx until source.length) {
+                when (source[k]) {
+                    '(' -> depth++
+                    ')' -> if (--depth == 0) { end = k; break@loop }
+                }
+            }
+            val startLine = source.substring(0, match.range.first).count { it == '\n' } + 1
+            startLine to source.substring(match.range.first, end + 1)
+        }.toList()
+    }
 
     private fun tokenScannerSource(): String {
         val relative =
