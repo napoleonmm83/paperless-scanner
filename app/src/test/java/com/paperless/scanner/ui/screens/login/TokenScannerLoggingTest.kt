@@ -59,11 +59,21 @@ class TokenScannerLoggingTest {
         return callStart.findAll(source).map { match ->
             val openIdx = source.indexOf('(', match.range.first)
             var depth = 0
+            var inString = false
+            var inChar = false
+            var escaped = false
             var end = source.length - 1
             loop@ for (k in openIdx until source.length) {
-                when (source[k]) {
-                    '(' -> depth++
-                    ')' -> if (--depth == 0) { end = k; break@loop }
+                val ch = source[k]
+                when {
+                    escaped -> escaped = false
+                    ch == '\\' && (inString || inChar) -> escaped = true
+                    ch == '"' && !inChar -> inString = !inString
+                    ch == '\'' && !inString -> inChar = !inChar
+                    !inString && !inChar -> when (ch) {
+                        '(' -> depth++
+                        ')' -> if (--depth == 0) { end = k; break@loop }
+                    }
                 }
             }
             val startLine = source.substring(0, match.range.first).count { it == '\n' } + 1
