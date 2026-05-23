@@ -55,34 +55,49 @@ class TokenScannerLoggingTest {
     }
 
     private fun loggingLines(): List<Pair<Int, String>> {
-        // Capture each log call as one span by balancing parentheses from the
-        // opening '(' until it closes. A naive `.*?\)` would stop at the first
+        // Capture each log call as one span by balancing brackets from the
+        // opening one until it closes. A naive `.*?\)` would stop at the first
         // ')' — e.g. inside a "token(s)" message — and miss a sensitive value
         // after it; balancing also folds in multi-line argument lists.
         val callStart = Regex("""\b(AppLogger|Log)\.\w+\(""")
         return callStart.findAll(source).map { match ->
-            val openIdx = source.indexOf('(', match.range.first)
-            var depth = 0
-            var inString = false
-            var inChar = false
-            var escaped = false
-            var end = source.length - 1
-            loop@ for (k in openIdx until source.length) {
-                val ch = source[k]
-                when {
-                    escaped -> escaped = false
-                    ch == '\\' && (inString || inChar) -> escaped = true
-                    ch == '"' && !inChar -> inString = !inString
-                    ch == '\'' && !inString -> inChar = !inChar
-                    !inString && !inChar -> when (ch) {
-                        '(' -> depth++
-                        ')' -> if (--depth == 0) { end = k; break@loop }
-                    }
-                }
+            var end = matchingClose(source.indexOf('(', match.range.first), '(', ')')
+            // AppLogger exposes a lazy overload `d(tag) { ... }`; pull in the
+            // trailing lambda body so a sensitive value inside it is scanned too.
+            var next = end + 1
+            while (next < source.length && source[next].isWhitespace()) next++
+            if (next < source.length && source[next] == '{') {
+                end = matchingClose(next, '{', '}')
             }
             val startLine = source.substring(0, match.range.first).count { it == '\n' } + 1
             startLine to source.substring(match.range.first, end + 1)
         }.toList()
+    }
+
+    /**
+     * Index of the [close] bracket that balances the [open] at [openIdx],
+     * ignoring brackets inside string and char literals. Returns the last index
+     * if it never balances (so the whole tail still gets scanned).
+     */
+    private fun matchingClose(openIdx: Int, open: Char, close: Char): Int {
+        var depth = 0
+        var inString = false
+        var inChar = false
+        var escaped = false
+        for (k in openIdx until source.length) {
+            val ch = source[k]
+            when {
+                escaped -> escaped = false
+                ch == '\\' && (inString || inChar) -> escaped = true
+                ch == '"' && !inChar -> inString = !inString
+                ch == '\'' && !inString -> inChar = !inChar
+                !inString && !inChar -> when (ch) {
+                    open -> depth++
+                    close -> if (--depth == 0) return k
+                }
+            }
+        }
+        return source.length - 1
     }
 
     private fun tokenScannerSource(): String {
