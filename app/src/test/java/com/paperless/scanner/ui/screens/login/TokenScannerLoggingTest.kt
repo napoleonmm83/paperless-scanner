@@ -26,7 +26,7 @@ class TokenScannerLoggingTest {
         )
         assertFalse(
             "TokenScannerSheet must not call android.util.Log directly — use AppLogger",
-            Regex("""\bLog\.[dewiv]\(""").containsMatchIn(source)
+            Regex("""\bLog\.\w+\(""").containsMatchIn(source)
         )
     }
 
@@ -35,7 +35,11 @@ class TokenScannerLoggingTest {
         // Safe metadata uses block interpolation (e.g. "${tokens.size}", "${text.length}").
         // The leak forms are the simple interpolations "$tokens" / "$text" and the
         // value accessors ".first()" / "visionText.text".
-        val forbidden = listOf("\$text", "\$tokens", ".first()", "visionText.text")
+        val forbidden = listOf(
+            "\$text", "\$tokens", ".first()", "visionText.text",
+            "tokens[", "tokens.get(", "tokens.toString()", "tokens.joinToString(",
+            "text.take(", "text.substring(", "text.toString()",
+        )
         loggingLines().forEach { (lineNo, line) ->
             forbidden.forEach { needle ->
                 assertFalse(
@@ -49,7 +53,7 @@ class TokenScannerLoggingTest {
     private fun loggingLines(): List<Pair<Int, String>> =
         source.lines()
             .mapIndexed { index, line -> (index + 1) to line }
-            .filter { (_, line) -> Regex("""(AppLogger|Log)\.[dewiv]\(""").containsMatchIn(line) }
+            .filter { (_, line) -> Regex("""(AppLogger|Log)\.\w+\(""").containsMatchIn(line) }
 
     private fun tokenScannerSource(): String {
         val relative =
