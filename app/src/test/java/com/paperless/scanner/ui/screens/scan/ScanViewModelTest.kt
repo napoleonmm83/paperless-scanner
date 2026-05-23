@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.scan
 
+import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.google.gson.Gson
@@ -86,6 +87,7 @@ class ScanViewModelTest {
     private lateinit var tokenManager: TokenManager
     private lateinit var appLockManager: AppLockManager
     private lateinit var gson: Gson
+    private lateinit var routeArgsHolder: AppLockRouteArgsHolder
 
     @Before
     fun setUp() {
@@ -104,6 +106,7 @@ class ScanViewModelTest {
         tokenManager = mockk(relaxed = true)
         appLockManager = mockk(relaxed = true)
         gson = Gson()
+        routeArgsHolder = AppLockRouteArgsHolder()
 
         // Default flow stubs — init block in the VM subscribes to these.
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -122,6 +125,7 @@ class ScanViewModelTest {
 
     private fun createViewModel(): ScanViewModel = ScanViewModel(
         savedStateHandle = savedStateHandle,
+        routeArgsHolder = routeArgsHolder,
         authRepository = authRepository,
         analyticsService = analyticsService,
         tagRepository = tagRepository,
@@ -191,6 +195,28 @@ class ScanViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, viewModel.uiState.value.pageCount)
+    }
+
+    @Test
+    fun `restored pages are mirrored to the route-args holder for AppLock reconstruction`() = runTest {
+        // Single source of truth (#30): the AppLock interceptor reads pageUris from the
+        // holder, which the VM keeps in lock-step with its SavedStateHandle — including
+        // after process-death restore, so a lock right after restore rebuilds the route.
+        viewModelWithPages(listOf("a", "b"))
+        advanceUntilIdle()
+
+        assertEquals(
+            "file:///tmp/a.jpg|file:///tmp/b.jpg",
+            routeArgsHolder.get(ScanViewModel.KEY_PAGE_URIS)
+        )
+    }
+
+    @Test
+    fun `empty restore leaves the route-args holder cleared`() = runTest {
+        createViewModel()
+        advanceUntilIdle()
+
+        assertNull(routeArgsHolder.get(ScanViewModel.KEY_PAGE_URIS))
     }
 
     // ==================== removePage / undoRemovePage ====================

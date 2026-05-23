@@ -1,5 +1,7 @@
 package com.paperless.scanner.ui.screens.upload
 
+import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
+
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -168,6 +170,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
     }
@@ -206,6 +209,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -243,6 +247,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -559,6 +564,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -599,6 +605,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()
@@ -637,6 +644,7 @@ class UploadViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             tokenManager = tokenManager,
+            routeArgsHolder = AppLockRouteArgsHolder(),
             ioDispatcher = testDispatcher
         )
         advanceUntilIdle()

@@ -49,6 +49,7 @@ fun PaperlessNavGraph(
     onDeepLinkConsumed: () -> Unit = {},
     tokenManager: TokenManager,
     appLockManager: com.paperless.scanner.util.AppLockManager,
+    routeArgsHolder: AppLockRouteArgsHolder,
     analyticsService: AnalyticsService,
     crashlyticsHelper: CrashlyticsHelper
 ) {
@@ -58,7 +59,8 @@ fun PaperlessNavGraph(
     // App-Lock Navigation Interceptor
     AppLockNavigationInterceptor(
         navController = navController,
-        appLockManager = appLockManager
+        appLockManager = appLockManager,
+        routeArgsHolder = routeArgsHolder
     )
 
     // Screen Tracking Interceptor for Firebase Analytics & Crashlytics
@@ -213,7 +215,6 @@ fun PaperlessNavGraph(
                         currentRoute = Screen.Scan.routeBase,
                         scanPageUris = pageUris,
                         scanAction = scanAction,
-                        scanBackStackEntry = backStackEntry,
                         onDocumentScanned = { uri ->
                             navController.navigate(Screen.Upload.createRoute(uri))
                         },
@@ -282,8 +283,7 @@ fun PaperlessNavGraph(
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
-                },
-                navBackStackEntry = backStackEntry
+                }
             )
         }
 
@@ -421,8 +421,7 @@ fun PaperlessNavGraph(
                     },
                     onNavigateBack = {
                         navController.popBackStack()
-                    },
-                    navBackStackEntry = backStackEntry
+                    }
                 )
             }
         }

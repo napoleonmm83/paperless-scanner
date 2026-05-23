@@ -25,7 +25,10 @@ import com.paperless.scanner.util.AppLockState
  * - Arguments: ["documentId" = "133"]
  * - Result: "document/133"
  */
-private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String? {
+private fun reconstructRouteWithArgs(
+    backStackEntry: NavBackStackEntry?,
+    routeArgsHolder: AppLockRouteArgsHolder
+): String? {
     if (backStackEntry == null) return null
 
     val routeTemplate = backStackEntry.destination.route ?: return null
@@ -33,12 +36,13 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
 
     var reconstructed = routeTemplate
 
-    // Special handling for MultiPageUpload/Scan: Use current URIs from SavedStateHandle
-    // instead of stale navigation arguments (user may have added/removed images)
+    // Special handling for MultiPageUpload/Scan: read the CURRENT URIs from the
+    // single-source holder (issue #30), which the owning ViewModel keeps in lock-step
+    // with its SavedStateHandle. Replaces the old read from the navigation
+    // BackStackEntry SavedStateHandle, whose separate write site could desync.
     when {
         routeTemplate.startsWith("upload-multi/") -> {
-            // Read current URIs from SavedStateHandle (where UploadViewModel stores them)
-            val currentUris = backStackEntry.savedStateHandle.get<String>("documentUris")
+            val currentUris = routeArgsHolder.get("documentUris")
             if (!currentUris.isNullOrEmpty()) {
                 Log.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle")
                 // Encode each URI individually, keep raw '|' delimiter — matches
@@ -56,8 +60,8 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
             }
         }
         routeTemplate.startsWith("scan") -> {
-            // Read current page URIs from SavedStateHandle (where ScanViewModel stores them)
-            val currentPageUris = backStackEntry.savedStateHandle.get<String>("pageUris")
+            // Read current page URIs from the single-source holder (where ScanViewModel mirrors them)
+            val currentPageUris = routeArgsHolder.get("pageUris")
             if (currentPageUris != null && currentPageUris.isNotEmpty()) {
                 Log.d("AppLockInterceptor", "Scan: Using CURRENT page URIs from SavedStateHandle: $currentPageUris")
                 // Encode the entire pipe-separated URI string
@@ -101,7 +105,8 @@ private fun reconstructRouteWithArgs(backStackEntry: NavBackStackEntry?): String
 @Composable
 fun AppLockNavigationInterceptor(
     navController: NavHostController,
-    appLockManager: AppLockManager
+    appLockManager: AppLockManager,
+    routeArgsHolder: AppLockRouteArgsHolder
 ) {
     val lockState by appLockManager.lockState.collectAsState()
 
@@ -122,7 +127,7 @@ fun AppLockNavigationInterceptor(
         // Get the route template for checking if protected
         val currentRouteTemplate = navController.currentBackStackEntry?.destination?.route
         // Get the FULL route with actual argument values for saving/restoring
-        val currentFullRoute = reconstructRouteWithArgs(navController.currentBackStackEntry)
+        val currentFullRoute = reconstructRouteWithArgs(navController.currentBackStackEntry, routeArgsHolder)
 
         // SECURITY FIX: If currentRouteTemplate is null (NavController not yet initialized),
         // treat as protected to prevent bypassing lock screen on cold start.
