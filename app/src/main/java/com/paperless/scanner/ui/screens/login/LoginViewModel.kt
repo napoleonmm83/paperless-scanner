@@ -154,6 +154,23 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
+                    // Issue #36: a pin mismatch during detection means the server's
+                    // certificate changed since first contact. Surface the blocking
+                    // re-trust dialog via uiState (the setup screen renders it) and
+                    // clear the "Checking" indicator. Without this, detection would
+                    // fail as a generic error and the login button would stay disabled.
+                    if (exception is PaperlessException.CertificatePinMismatch) {
+                        _uiState.update {
+                            LoginUiState.CertChanged(
+                                host = exception.host,
+                                expectedPin = exception.expectedPin,
+                                actualPin = exception.actualPin
+                            )
+                        }
+                        _serverStatus.update { ServerStatus.Error(context.getString(R.string.error_certificate_changed_explain)) }
+                        Log.d(TAG, "Status = CertChanged (detection), host = ${exception.host}")
+                        return@onFailure
+                    }
                     // Issue #233: a CleartextBlocked failure means the interceptor
                     // refused a non-loopback HTTP request the user has not yet
                     // accepted. Surface the accept-dialog state with the

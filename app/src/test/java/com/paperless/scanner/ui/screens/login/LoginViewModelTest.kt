@@ -459,6 +459,32 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `onServerUrlChanged with pin mismatch surfaces CertChanged via uiState`() = runTest {
+        // Issue #36: a pin mismatch during detection must reach the blocking
+        // re-trust dialog (uiState), not be swallowed as a generic serverStatus Error.
+        coEvery { authRepository.detectServerProtocol(any()) } returns
+            Result.failure(
+                PaperlessException.CertificatePinMismatch(
+                    host = "paperless.lan",
+                    expectedPin = "sha256/OLD",
+                    actualPin = "sha256/NEW"
+                )
+            )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("https://paperless.lan")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        val state = viewModel.uiState.value
+        assertTrue("expected CertChanged but was $state", state is LoginUiState.CertChanged)
+        assertEquals("paperless.lan", (state as LoginUiState.CertChanged).host)
+    }
+
+    @Test
     fun `clearServerStatus resets to Idle`() = runTest {
         coEvery { authRepository.detectServerProtocol(any()) } returns
             Result.success("https://example.com")

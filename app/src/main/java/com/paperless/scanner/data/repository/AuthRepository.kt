@@ -213,6 +213,13 @@ class AuthRepository @Inject constructor(
         val httpMsg = httpError.message ?: ""
 
         return when {
+            // Issue #36: a changed pinned certificate must win the priority race so
+            // the UI routes to the blocking re-trust dialog instead of a generic
+            // "unreachable" error. HTTPS is where a pin can mismatch (cleartext is
+            // never pinned), so check it first.
+            httpsError is PaperlessException.CertificatePinMismatch -> Result.failure(httpsError)
+            httpError is PaperlessException.CertificatePinMismatch -> Result.failure(httpError)
+
             // Issue #233: CleartextBlocked must win the priority race so the
             // UI can route to the accept-dialog instead of a generic error.
             // HTTP-attempt-blocked is the deadlock fingerprint this PR fixes.
@@ -366,6 +373,12 @@ class AuthRepository @Inject constructor(
             // instead of a generic network-error toast.
             Log.d(TAG, "$protocol - Cleartext blocked for host: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: must precede the IOException catch (it extends IOException).
+            // Surface the typed mismatch so the UI routes to the re-trust dialog
+            // instead of a generic "server unreachable" error during detection.
+            Log.d(TAG, "$protocol - Certificate pin mismatch for host: ${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             Log.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
@@ -459,6 +472,10 @@ class AuthRepository @Inject constructor(
             // Issue #233: typed exception must precede IOException catch.
             Log.d(TAG, "$protocol - Cleartext blocked at documents endpoint: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: typed exception must precede IOException catch.
+            Log.d(TAG, "$protocol - Certificate pin mismatch at documents endpoint: ${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             Log.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(

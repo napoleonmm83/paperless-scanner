@@ -705,14 +705,13 @@ fun SimplifiedSetupScreen(
                 actualPin = certChanged.actualPin,
                 onReTrust = {
                     viewModel.acceptCertificateChange(certChanged.host)
-                    // Retry login after re-trusting the new certificate.
+                    // Re-run detection with the re-trusted pin so the connection
+                    // indicator refreshes and the login button re-enables. We do NOT
+                    // auto-submit login here: a mismatch can surface during detection
+                    // (user still typing the URL) before credentials are entered.
                     coroutineScope.launch {
                         delay(500)
-                        val urlToUse = (serverStatus as? ServerStatus.Success)?.url ?: serverUrl
-                        when (authMethod) {
-                            AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)
-                            AuthMethod.CREDENTIALS -> viewModel.login(urlToUse, username, password)
-                        }
+                        viewModel.onServerUrlChanged(serverUrl)
                     }
                 },
                 onCancel = {

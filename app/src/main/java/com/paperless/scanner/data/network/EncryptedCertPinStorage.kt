@@ -29,7 +29,10 @@ class EncryptedCertPinStorage @Inject constructor(
     companion object {
         private const val TAG = "EncryptedCertPinStorage"
         private const val PREFS_FILE = "paperless_cert_pins"
-        private const val MASTER_KEY_ALIAS = "_androidx_security_master_key_"
+        // Dedicated alias — NOT the AndroidX default that SecureTokenStorage uses.
+        // recover() deletes this alias on corruption; a shared alias would take the
+        // auth token's key down with it and silently sign the user out.
+        private const val MASTER_KEY_ALIAS = "paperless_cert_pin_master_key"
     }
 
     @Volatile
@@ -49,7 +52,7 @@ class EncryptedCertPinStorage @Inject constructor(
     }
 
     private fun create(): SharedPreferences {
-        val masterKey = MasterKey.Builder(context)
+        val masterKey = MasterKey.Builder(context, MASTER_KEY_ALIAS)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
         return EncryptedSharedPreferences.create(

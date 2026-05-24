@@ -44,7 +44,22 @@ class CertificatePinningInterceptor @Inject constructor(
             val presentedPin = CertificateFingerprint.spkiPin(leaf)
             val storedPin = pinStore.getPin(host)
             when {
-                storedPin == null -> pinStore.setPinIfAbsent(host, presentedPin)
+                storedPin == null -> {
+                    // TOFU capture. If a concurrent first request already captured a
+                    // pin (setPinIfAbsent returns false), enforce that winner against
+                    // this connection's cert instead of blindly proceeding — otherwise
+                    // a request could go out under a cert that differs from the pin
+                    // that just won the race.
+                    if (!pinStore.setPinIfAbsent(host, presentedPin)) {
+                        val winner = pinStore.getPin(host)
+                        if (winner != null && winner != presentedPin) {
+                            observedCertHolder.record(
+                                ObservedCertHolder.Mismatch(host, winner, presentedPin)
+                            )
+                            throw CertificatePinMismatchException(host, winner, presentedPin)
+                        }
+                    }
+                }
                 storedPin == presentedPin -> observedCertHolder.consume(host)
                 else -> {
                     observedCertHolder.record(
