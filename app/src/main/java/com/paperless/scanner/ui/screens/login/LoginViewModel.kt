@@ -20,6 +20,7 @@ import com.paperless.scanner.util.LoginRateLimitState
 import com.paperless.scanner.util.ServerUrlParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -41,7 +42,8 @@ class LoginViewModel @Inject constructor(
     val biometricHelper: BiometricHelper,
     private val authDebugService: AuthDebugService,
     private val certificatePinStore: CertificatePinStore,
-    private val observedCertHolder: ObservedCertHolder
+    private val observedCertHolder: ObservedCertHolder,
+    private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -137,7 +139,7 @@ class LoginViewModel @Inject constructor(
         }
 
         // Do network call on IO
-        val result = withContext(Dispatchers.IO) {
+        val result = withContext(ioDispatcher) {
             authRepository.detectServerProtocol(serverUrl)
         }
 
@@ -262,7 +264,7 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
             }
@@ -361,7 +363,7 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting token login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
             }
@@ -457,18 +459,24 @@ class LoginViewModel @Inject constructor(
      * certificate that triggered the dialog.
      */
     fun acceptCertificateChange(host: String) {
-        val observed = observedCertHolder.consume(host)
-        val newPin = observed?.actualPin
-        if (newPin != null) {
-            certificatePinStore.replacePin(host, newPin)
-            Log.d(TAG, "Certificate change re-trusted for host: $host")
-        } else {
-            // No observed mismatch (e.g. process death): drop the stale pin so the
-            // next connection re-captures via TOFU instead of blocking forever.
-            certificatePinStore.removePin(host)
-            Log.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
+        // Pin-store mutations write through to EncryptedSharedPreferences (disk +
+        // AES), so run them off the main thread to avoid any ANR on slow storage.
+        viewModelScope.launch(ioDispatcher) {
+            val observed = observedCertHolder.consume(host)
+            val newPin = observed?.actualPin
+            if (newPin != null) {
+                certificatePinStore.replacePin(host, newPin)
+                Log.d(TAG, "Certificate change re-trusted for host: $host")
+            } else {
+                // No observed mismatch (e.g. process death): drop the stale pin so
+                // the next connection re-captures via TOFU instead of blocking forever.
+                certificatePinStore.removePin(host)
+                Log.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
+            }
+            withContext(Dispatchers.Main) {
+                _uiState.update { LoginUiState.Idle }
+            }
         }
-        _uiState.update { LoginUiState.Idle }
     }
 
     /**

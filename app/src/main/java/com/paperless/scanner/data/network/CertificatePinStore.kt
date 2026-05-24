@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.network
 
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,14 +29,14 @@ class CertificatePinStore @Inject constructor(
     }
 
     /** Latest pin for [host], or null if none captured yet. */
-    fun getPin(host: String): String? = cache[host.lowercase()]
+    fun getPin(host: String): String? = cache[host.lowercase(Locale.ROOT)]
 
     /**
      * TOFU capture: store [pin] only if no pin exists for [host] yet.
      * @return true if a new pin was captured, false if one already existed.
      */
     fun setPinIfAbsent(host: String, pin: String): Boolean {
-        val key = host.lowercase()
+        val key = host.lowercase(Locale.ROOT)
         if (cache.putIfAbsent(key, pin) == null) {
             storage.put(key, pin)
             return true
@@ -48,14 +49,14 @@ class CertificatePinStore @Inject constructor(
      * certificate change in the blocking dialog.
      */
     fun replacePin(host: String, pin: String) {
-        val key = host.lowercase()
+        val key = host.lowercase(Locale.ROOT)
         cache[key] = pin
         storage.put(key, pin)
     }
 
     /** Forget the pin for [host] (e.g. when the user removes the accepted host). */
     fun removePin(host: String) {
-        val key = host.lowercase()
+        val key = host.lowercase(Locale.ROOT)
         cache.remove(key)
         storage.remove(key)
     }

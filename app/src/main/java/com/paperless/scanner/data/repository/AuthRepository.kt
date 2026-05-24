@@ -215,10 +215,9 @@ class AuthRepository @Inject constructor(
         return when {
             // Issue #36: a changed pinned certificate must win the priority race so
             // the UI routes to the blocking re-trust dialog instead of a generic
-            // "unreachable" error. HTTPS is where a pin can mismatch (cleartext is
-            // never pinned), so check it first.
+            // "unreachable" error. Only HTTPS can mismatch — cleartext HTTP has no
+            // handshake and is never pinned — so we check the HTTPS error only.
             httpsError is PaperlessException.CertificatePinMismatch -> Result.failure(httpsError)
-            httpError is PaperlessException.CertificatePinMismatch -> Result.failure(httpError)
 
             // Issue #233: CleartextBlocked must win the priority race so the
             // UI can route to the accept-dialog instead of a generic error.

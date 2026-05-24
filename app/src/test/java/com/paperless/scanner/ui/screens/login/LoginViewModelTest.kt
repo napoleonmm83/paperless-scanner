@@ -110,7 +110,8 @@ class LoginViewModelTest {
             biometricHelper = biometricHelper,
             authDebugService = authDebugService,
             certificatePinStore = certificatePinStore,
-            observedCertHolder = observedCertHolder
+            observedCertHolder = observedCertHolder,
+            ioDispatcher = testDispatcher
         )
     }
 
@@ -236,7 +237,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://paperless.lan", "user", "pass")
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         val state = viewModel.uiState.value
         assertTrue("expected CertChanged but was $state", state is LoginUiState.CertChanged)
@@ -257,6 +257,7 @@ class LoginViewModelTest {
 
         viewModel.acceptCertificateChange("paperless.lan")
         advanceUntilIdle()
+        // Pin replacement runs on the injected (test) ioDispatcher.
 
         assertEquals("sha256/NEW", certificatePinStore.getPin("paperless.lan"))
         // Observed entry is consumed so a later success does not see a stale mismatch.
@@ -477,7 +478,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("https://paperless.lan")
         advanceTimeBy(900)
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         val state = viewModel.uiState.value
         assertTrue("expected CertChanged but was $state", state is LoginUiState.CertChanged)
