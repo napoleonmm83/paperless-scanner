@@ -67,6 +67,7 @@ import android.widget.Toast
 import androidx.compose.material.icons.filled.BugReport
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.components.CertificateChangedDialog
 import com.paperless.scanner.ui.components.HttpFallbackWarningDialog
 import com.paperless.scanner.ui.components.SslCertificateDialog
 import com.paperless.scanner.ui.screens.login.LoginUiState
@@ -168,6 +169,10 @@ fun SimplifiedSetupScreen(
             is LoginUiState.Error -> setupState = SetupState.Error(state.message)
             is LoginUiState.SslError -> {
                 // SSL error will be handled by the dialog below
+                setupState = SetupState.Idle
+            }
+            is LoginUiState.CertChanged -> {
+                // Issue #36: pin mismatch handled by the blocking dialog below
                 setupState = SetupState.Idle
             }
             is LoginUiState.RateLimited -> {
@@ -683,6 +688,30 @@ fun SimplifiedSetupScreen(
                             AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)
                             AuthMethod.CREDENTIALS -> viewModel.login(urlToUse, username, password)
                         }
+                    }
+                },
+                onCancel = {
+                    viewModel.resetState()
+                }
+            )
+        }
+
+        // Certificate Changed Dialog (Issue #36) — blocking re-trust on pin mismatch.
+        if (uiState is LoginUiState.CertChanged) {
+            val certChanged = uiState as LoginUiState.CertChanged
+            CertificateChangedDialog(
+                host = certChanged.host,
+                expectedPin = certChanged.expectedPin,
+                actualPin = certChanged.actualPin,
+                onReTrust = {
+                    viewModel.acceptCertificateChange(certChanged.host)
+                    // Re-run detection with the re-trusted pin so the connection
+                    // indicator refreshes and the login button re-enables. We do NOT
+                    // auto-submit login here: a mismatch can surface during detection
+                    // (user still typing the URL) before credentials are entered.
+                    coroutineScope.launch {
+                        delay(500)
+                        viewModel.onServerUrlChanged(serverUrl)
                     }
                 },
                 onCancel = {

@@ -11,6 +11,8 @@ import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.HttpAllowlistInterceptor
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.network.CertificatePinStore
+import com.paperless.scanner.data.network.ObservedCertHolder
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import com.paperless.scanner.util.LoginRateLimiter
@@ -18,6 +20,7 @@ import com.paperless.scanner.util.LoginRateLimitState
 import com.paperless.scanner.util.ServerUrlParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,7 +40,10 @@ class LoginViewModel @Inject constructor(
     private val analyticsService: AnalyticsService,
     private val loginRateLimiter: LoginRateLimiter,
     val biometricHelper: BiometricHelper,
-    private val authDebugService: AuthDebugService
+    private val authDebugService: AuthDebugService,
+    private val certificatePinStore: CertificatePinStore,
+    private val observedCertHolder: ObservedCertHolder,
+    private val ioDispatcher: CoroutineDispatcher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -133,7 +139,7 @@ class LoginViewModel @Inject constructor(
         }
 
         // Do network call on IO
-        val result = withContext(Dispatchers.IO) {
+        val result = withContext(ioDispatcher) {
             authRepository.detectServerProtocol(serverUrl)
         }
 
@@ -150,6 +156,23 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
+                    // Issue #36: a pin mismatch during detection means the server's
+                    // certificate changed since first contact. Surface the blocking
+                    // re-trust dialog via uiState (the setup screen renders it) and
+                    // clear the "Checking" indicator. Without this, detection would
+                    // fail as a generic error and the login button would stay disabled.
+                    if (exception is PaperlessException.CertificatePinMismatch) {
+                        _uiState.update {
+                            LoginUiState.CertChanged(
+                                host = exception.host,
+                                expectedPin = exception.expectedPin,
+                                actualPin = exception.actualPin
+                            )
+                        }
+                        _serverStatus.update { ServerStatus.Error(context.getString(R.string.error_certificate_changed_explain)) }
+                        Log.d(TAG, "Status = CertChanged (detection), host = ${exception.host}")
+                        return@onFailure
+                    }
                     // Issue #233: a CleartextBlocked failure means the interceptor
                     // refused a non-loopback HTTP request the user has not yet
                     // accepted. Surface the accept-dialog state with the
@@ -241,7 +264,7 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
             }
@@ -263,20 +286,34 @@ class LoginViewModel @Inject constructor(
                     }
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("auth_error"))
                     withContext(Dispatchers.Main) {
-                        // Check if it's an SSL error
-                        if (isSslError(exception)) {
-                            val host = extractHostFromUrl(urlToUse)
-                            _uiState.update {
-                                LoginUiState.SslError(
-                                    host = host,
-                                    message = exception.message ?: context.getString(R.string.error_ssl_certificate)
-                                )
+                        when {
+                            // Issue #36: pin mismatch must be checked BEFORE isSslError —
+                            // its message contains "certificate" and would otherwise be
+                            // misrouted to the generic SSL-accept dialog.
+                            exception is PaperlessException.CertificatePinMismatch -> {
+                                _uiState.update {
+                                    LoginUiState.CertChanged(
+                                        host = exception.host,
+                                        expectedPin = exception.expectedPin,
+                                        actualPin = exception.actualPin
+                                    )
+                                }
                             }
-                        } else {
-                            _uiState.update {
-                                LoginUiState.Error(
-                                    exception.message ?: context.getString(R.string.error_login_failed)
-                                )
+                            isSslError(exception) -> {
+                                val host = extractHostFromUrl(urlToUse)
+                                _uiState.update {
+                                    LoginUiState.SslError(
+                                        host = host,
+                                        message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                                    )
+                                }
+                            }
+                            else -> {
+                                _uiState.update {
+                                    LoginUiState.Error(
+                                        exception.message ?: context.getString(R.string.error_login_failed)
+                                    )
+                                }
                             }
                         }
                     }
@@ -326,7 +363,7 @@ class LoginViewModel @Inject constructor(
         Log.d(TAG, "Starting token login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(ioDispatcher) {
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Loading }
             }
@@ -347,20 +384,32 @@ class LoginViewModel @Inject constructor(
                     }
                     analyticsService.trackEvent(AnalyticsEvent.LoginFailed("invalid_token"))
                     withContext(Dispatchers.Main) {
-                        // Check if it's an SSL error
-                        if (isSslError(exception)) {
-                            val host = extractHostFromUrl(urlToUse)
-                            _uiState.update {
-                                LoginUiState.SslError(
-                                    host = host,
-                                    message = exception.message ?: context.getString(R.string.error_ssl_certificate)
-                                )
+                        when {
+                            // Issue #36: pin mismatch must be checked BEFORE isSslError.
+                            exception is PaperlessException.CertificatePinMismatch -> {
+                                _uiState.update {
+                                    LoginUiState.CertChanged(
+                                        host = exception.host,
+                                        expectedPin = exception.expectedPin,
+                                        actualPin = exception.actualPin
+                                    )
+                                }
                             }
-                        } else {
-                            _uiState.update {
-                                LoginUiState.Error(
-                                    exception.message ?: context.getString(R.string.error_token_invalid)
-                                )
+                            isSslError(exception) -> {
+                                val host = extractHostFromUrl(urlToUse)
+                                _uiState.update {
+                                    LoginUiState.SslError(
+                                        host = host,
+                                        message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                                    )
+                                }
+                            }
+                            else -> {
+                                _uiState.update {
+                                    LoginUiState.Error(
+                                        exception.message ?: context.getString(R.string.error_token_invalid)
+                                    )
+                                }
                             }
                         }
                     }
@@ -398,6 +447,35 @@ class LoginViewModel @Inject constructor(
             Log.d(TAG, "SSL certificate accepted for host: $host")
             // Reset state to allow retry
             _uiState.update { LoginUiState.Idle }
+        }
+    }
+
+    /**
+     * User explicitly re-trusts a changed server certificate (Issue #36). Replaces
+     * the stored pin with the newly observed one so the next connection succeeds,
+     * then resets to Idle for the caller to retry. The new pin is read from
+     * [ObservedCertHolder] (recorded by the interceptor at mismatch time) rather
+     * than trusting the [actualPin] passed up through state, so we pin exactly the
+     * certificate that triggered the dialog.
+     */
+    fun acceptCertificateChange(host: String) {
+        // Pin-store mutations write through to EncryptedSharedPreferences (disk +
+        // AES), so run them off the main thread to avoid any ANR on slow storage.
+        viewModelScope.launch(ioDispatcher) {
+            val observed = observedCertHolder.consume(host)
+            val newPin = observed?.actualPin
+            if (newPin != null) {
+                certificatePinStore.replacePin(host, newPin)
+                Log.d(TAG, "Certificate change re-trusted for host: $host")
+            } else {
+                // No observed mismatch (e.g. process death): drop the stale pin so
+                // the next connection re-captures via TOFU instead of blocking forever.
+                certificatePinStore.removePin(host)
+                Log.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
+            }
+            withContext(Dispatchers.Main) {
+                _uiState.update { LoginUiState.Idle }
+            }
         }
     }
 
@@ -483,6 +561,17 @@ sealed class LoginUiState {
     data object Success : LoginUiState()
     data class Error(val message: String) : LoginUiState()
     data class SslError(val host: String, val message: String) : LoginUiState()
+
+    /**
+     * The server's certificate changed since it was pinned on first contact
+     * (Issue #36). Surfaces a blocking re-trust dialog showing the previously
+     * trusted [expectedPin] vs the newly presented [actualPin].
+     */
+    data class CertChanged(
+        val host: String,
+        val expectedPin: String,
+        val actualPin: String
+    ) : LoginUiState()
 
     /**
      * Login is blocked due to too many failed attempts.

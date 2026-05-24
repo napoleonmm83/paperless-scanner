@@ -3,6 +3,7 @@ package com.paperless.scanner.data.api
 import android.content.Context
 import androidx.annotation.StringRes
 import com.paperless.scanner.R
+import com.paperless.scanner.data.network.CertificatePinMismatchException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -203,6 +204,21 @@ sealed class PaperlessException(
         override val messageResId: Int = R.string.error_cleartext_blocked_explain
     }
 
+    /**
+     * The certificate presented by [host] no longer matches the pin captured on
+     * first contact (Issue #36). Translated from [CertificatePinMismatchException]
+     * in the network layer. UI surfaces a blocking re-trust dialog showing
+     * [expectedPin] (the trusted pin) vs [actualPin] (the newly presented one).
+     */
+    data class CertificatePinMismatch(
+        val host: String,
+        val expectedPin: String,
+        val actualPin: String,
+    ) : PaperlessException("Certificate pin mismatch for host: $host") {
+        @StringRes
+        override val messageResId: Int = R.string.error_certificate_changed_explain
+    }
+
     companion object {
         /**
          * Creates appropriate PaperlessException from HTTP status code.
@@ -242,6 +258,12 @@ sealed class PaperlessException(
                 // Issue #233.
                 is CleartextNotAllowlistedException ->
                     CleartextBlocked(throwable.host)
+
+                // Certificate pin mismatch — must also come BEFORE the IOException
+                // branch because CertificatePinMismatchException extends IOException.
+                // Issue #36.
+                is CertificatePinMismatchException ->
+                    CertificatePinMismatch(throwable.host, throwable.expectedPin, throwable.actualPin)
 
                 // General network errors (keep existing behavior)
                 is IOException -> NetworkError(throwable)

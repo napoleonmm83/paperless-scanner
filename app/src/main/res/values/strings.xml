@@ -959,6 +959,15 @@
     <string name="ssl_security_warning_message">Accepting this certificate allows unverified connections to this server. Only proceed if you trust this server and understand the security implications.</string>
     <string name="ssl_accept_anyway">Accept Anyway</string>
 
+    <!-- Certificate Pinning / Changed Certificate Dialog (Issue #36) -->
+    <string name="cert_changed_title">Server Certificate Changed</string>
+    <string name="cert_changed_message">The certificate for \"%1$s\" is different from the one trusted on your first connection. This can happen after a legitimate certificate renewal — but it can also indicate that someone is intercepting your connection.</string>
+    <string name="cert_changed_expected">Previously trusted:</string>
+    <string name="cert_changed_actual">Now presented:</string>
+    <string name="cert_changed_warning">Only re-trust if you expected this change. Re-trusting will accept the new certificate for future connections.</string>
+    <string name="cert_changed_retrust">Re-Trust</string>
+    <string name="error_certificate_changed_explain">The server certificate changed since your first connection. Re-trust it only if you expected this change.</string>
+
     <!-- App Lock Screen - Additional -->
     <string name="app_lock_too_many_attempts">Too many failed attempts</string>
     <string name="app_lock_input_locked_for">Password input locked for</string>

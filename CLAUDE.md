@@ -1054,6 +1054,56 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 21)
 
 ---
 
+## Code Review vor Push (ABSOLUT ZWINGEND!)
+
+### KRITISCHE REGEL - KEINE AUSNAHMEN!
+
+**Jede Code-Änderung MUSS vor dem Push ein zweistufiges Code Review durchlaufen. Lokales `codex review` ist ein hartes Gate, CodeRabbit reviewt anschließend auf PR-Ebene.**
+
+Diese Regel ergänzt die lokalen CI-Checks — sie ersetzt sie NICHT. Reihenfolge ist verpflichtend:
+
+```
+Feature/Fix funktional fertig
+  → lokale CI 100% grün (siehe "Lokale CI-Checks vor Commit/Push")
+  → codex review (lokales Gate, MUSS bestanden sein)
+  → Findings fixen → CI erneut grün
+  → commit + push + PR
+  → CodeRabbit Review am PR (zweite, unabhängige Stufe)
+  → CodeRabbit Findings fixen → erneut pushen
+```
+
+### Stufe 1: Lokales Codex Review (Pre-Push Gate)
+
+**Wann:** Erst NACHDEM die lokale CI zu 100% grün ist (sonst reviewt Codex Code, der nicht baut).
+
+```bash
+# Über die codex Skill (gstack):
+#   "codex review"  → unabhängiges Diff-Review mit Pass/Fail-Gate
+```
+
+- **Pass:** Push ist freigegeben.
+- **Fail / Findings:** ZUERST fixen, lokale CI erneut grün ziehen, dann erneut `codex review`. NIEMALS mit offenen Codex-Findings pushen.
+
+### Stufe 2: CodeRabbit Review (am PR)
+
+- Läuft automatisch auf dem geöffneten PR (bestehender Workflow, gilt auch für 1-Zeilen-Fixes).
+- ALLE actionable Findings abarbeiten, bis CodeRabbit "No actionable comments" meldet.
+- Beim Ablehnen einer CodeRabbit-Empfehlung: ZUERST `.coderabbit.yaml` prüfen (siehe Memory `feedback_check_coderabbit_yaml`), dann mit Begründung im PR ablehnen oder Follow-up-Issue eröffnen.
+
+### Warum zweistufig?
+
+- **Codex (lokal)** und **CodeRabbit (PR)** sind zwei unabhängige Reviewer mit unterschiedlichen Blickwinkeln → höhere Fehlerabdeckung.
+- Lokales Gate fängt Probleme VOR dem Push ab (kein verschwendeter CI-Run, kein öffentlicher PR-Lärm).
+- CodeRabbit bleibt die verbindliche Gate-Instanz am PR.
+
+### Bei Fehlern: STOPP!
+
+- **NIEMALS** pushen wenn `codex review` durchfällt.
+- **NIEMALS** mergen wenn CodeRabbit offene actionable Findings hat.
+- **NIEMALS** das Review überspringen "weil die Änderung klein ist" — gilt auch für 1-Zeilen-Fixes.
+
+---
+
 ## Häufige Tasks
 
 ### Neuen Screen hinzufügen

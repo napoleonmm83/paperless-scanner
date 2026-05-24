@@ -213,6 +213,12 @@ class AuthRepository @Inject constructor(
         val httpMsg = httpError.message ?: ""
 
         return when {
+            // Issue #36: a changed pinned certificate must win the priority race so
+            // the UI routes to the blocking re-trust dialog instead of a generic
+            // "unreachable" error. Only HTTPS can mismatch — cleartext HTTP has no
+            // handshake and is never pinned — so we check the HTTPS error only.
+            httpsError is PaperlessException.CertificatePinMismatch -> Result.failure(httpsError)
+
             // Issue #233: CleartextBlocked must win the priority race so the
             // UI can route to the accept-dialog instead of a generic error.
             // HTTP-attempt-blocked is the deadlock fingerprint this PR fixes.
@@ -366,6 +372,12 @@ class AuthRepository @Inject constructor(
             // instead of a generic network-error toast.
             Log.d(TAG, "$protocol - Cleartext blocked for host: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: must precede the IOException catch (it extends IOException).
+            // Surface the typed mismatch so the UI routes to the re-trust dialog
+            // instead of a generic "server unreachable" error during detection.
+            Log.d(TAG, "$protocol - Certificate pin mismatch for host: ${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             Log.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
@@ -459,6 +471,10 @@ class AuthRepository @Inject constructor(
             // Issue #233: typed exception must precede IOException catch.
             Log.d(TAG, "$protocol - Cleartext blocked at documents endpoint: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: typed exception must precede IOException catch.
+            Log.d(TAG, "$protocol - Certificate pin mismatch at documents endpoint: ${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             Log.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(
@@ -552,6 +568,12 @@ class AuthRepository @Inject constructor(
                 )
                 Result.failure(exception)
             }
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: must precede the IOException catch (CertificatePinMismatchException
+            // extends IOException). Surface the typed mismatch so LoginViewModel can route
+            // to the blocking re-trust dialog instead of a generic network-error toast.
+            crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "CertPinMismatch host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
             // Log network errors to auth debug service
@@ -699,6 +721,10 @@ class AuthRepository @Inject constructor(
                 crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "HTTP ${response.code}")
                 Result.failure(PaperlessException.AuthError(response.code, customMessage = errorMessage))
             }
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: precede the IOException catch (it extends IOException).
+            crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "CertPinMismatch host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             Log.e(TAG, "Token validation network error", e)

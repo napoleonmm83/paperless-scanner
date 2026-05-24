@@ -1,5 +1,6 @@
 package com.paperless.scanner.util
 
+import com.paperless.scanner.data.network.CertificatePinMismatchException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import retrofit2.HttpException
@@ -15,8 +16,10 @@ import kotlin.math.pow
  *
  * Retries on [IOException] and on [HttpException] with status code in 500..599.
  * Other [HttpException]s (e.g. 4xx) are not retried. [CancellationException]
- * is rethrown immediately and never counted as a retryable failure — the
- * inheritance-aware catch order matters here (see PR #195).
+ * and [CertificatePinMismatchException] are rethrown immediately and never
+ * counted as retryable failures — a changed pinned certificate (Issue #36)
+ * cannot succeed on retry until the user makes a trust decision, and it extends
+ * [IOException], so its catch MUST precede the generic IOException catch.
  */
 suspend fun <T> withRetry(
     maxRetries: Int = NetworkConfig.MAX_RETRIES,
@@ -29,6 +32,11 @@ suspend fun <T> withRetry(
         try {
             return block()
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: CertificatePinMismatchException) {
+            // Issue #36: a changed pinned cert never recovers via retry. Rethrow
+            // before the IOException catch (it extends IOException) so the typed
+            // mismatch reaches the caller without backoff churn.
             throw e
         } catch (e: HttpException) {
             if (e.code() !in 500..599 || attempt >= maxRetries) throw e
