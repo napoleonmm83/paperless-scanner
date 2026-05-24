@@ -4,7 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.network.CertPinStorage
+import com.paperless.scanner.data.network.CertificatePinStore
+import com.paperless.scanner.data.network.ObservedCertHolder
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import com.paperless.scanner.util.LoginRateLimiter
@@ -43,6 +47,18 @@ class LoginViewModelTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var loginRateLimiter: LoginRateLimiter
     private lateinit var authDebugService: AuthDebugService
+    private lateinit var certificatePinStore: CertificatePinStore
+    private lateinit var observedCertHolder: ObservedCertHolder
+
+    /** In-memory pin persistence so re-trust behavior is assertable without the keystore. */
+    private class FakeCertPinStorage(
+        private val map: MutableMap<String, String> = mutableMapOf()
+    ) : CertPinStorage {
+        override fun loadAll(): Map<String, String> = map.toMap()
+        override fun put(host: String, pin: String) { map[host] = pin }
+        override fun remove(host: String) { map.remove(host) }
+        override fun clear() { map.clear() }
+    }
 
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -65,6 +81,8 @@ class LoginViewModelTest {
         analyticsService = mockk(relaxed = true)
         loginRateLimiter = mockk(relaxed = true)
         authDebugService = mockk(relaxed = true)
+        certificatePinStore = CertificatePinStore(FakeCertPinStorage())
+        observedCertHolder = ObservedCertHolder()
 
         // Default mock responses
         every { tokenManager.hasStoredCredentials() } returns false
@@ -90,7 +108,9 @@ class LoginViewModelTest {
             analyticsService = analyticsService,
             loginRateLimiter = loginRateLimiter,
             biometricHelper = biometricHelper,
-            authDebugService = authDebugService
+            authDebugService = authDebugService,
+            certificatePinStore = certificatePinStore,
+            observedCertHolder = observedCertHolder
         )
     }
 
@@ -198,6 +218,62 @@ class LoginViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state is LoginUiState.Error)
         assertTrue((state as LoginUiState.Error).message.contains("Invalid credentials"))
+    }
+
+    @Test
+    fun `login with certificate pin mismatch surfaces CertChanged state`() = runTest {
+        coEvery { authRepository.login(any(), any(), any()) } returns
+            Result.failure(
+                PaperlessException.CertificatePinMismatch(
+                    host = "paperless.lan",
+                    expectedPin = "sha256/OLD",
+                    actualPin = "sha256/NEW"
+                )
+            )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.login("https://paperless.lan", "user", "pass")
+        advanceUntilIdle()
+        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
+
+        val state = viewModel.uiState.value
+        assertTrue("expected CertChanged but was $state", state is LoginUiState.CertChanged)
+        state as LoginUiState.CertChanged
+        assertEquals("paperless.lan", state.host)
+        assertEquals("sha256/OLD", state.expectedPin)
+        assertEquals("sha256/NEW", state.actualPin)
+    }
+
+    @Test
+    fun `acceptCertificateChange replaces the pin with the observed certificate`() = runTest {
+        certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange("paperless.lan")
+        advanceUntilIdle()
+
+        assertEquals("sha256/NEW", certificatePinStore.getPin("paperless.lan"))
+        // Observed entry is consumed so a later success does not see a stale mismatch.
+        assertTrue(observedCertHolder.peek("paperless.lan") == null)
+    }
+
+    @Test
+    fun `acceptCertificateChange clears stale pin when no observed cert exists`() = runTest {
+        certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange("paperless.lan")
+        advanceUntilIdle()
+
+        // No observed mismatch (e.g. process death) -> drop the pin for TOFU re-capture.
+        assertTrue(certificatePinStore.getPin("paperless.lan") == null)
     }
 
     @Test

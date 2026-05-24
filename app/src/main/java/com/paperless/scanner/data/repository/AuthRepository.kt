@@ -552,6 +552,12 @@ class AuthRepository @Inject constructor(
                 )
                 Result.failure(exception)
             }
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: must precede the IOException catch (CertificatePinMismatchException
+            // extends IOException). Surface the typed mismatch so LoginViewModel can route
+            // to the blocking re-trust dialog instead of a generic network-error toast.
+            crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "CertPinMismatch host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
             // Log network errors to auth debug service
@@ -699,6 +705,10 @@ class AuthRepository @Inject constructor(
                 crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "HTTP ${response.code}")
                 Result.failure(PaperlessException.AuthError(response.code, customMessage = errorMessage))
             }
+        } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
+            // Issue #36: precede the IOException catch (it extends IOException).
+            crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "CertPinMismatch host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             Log.e(TAG, "Token validation network error", e)

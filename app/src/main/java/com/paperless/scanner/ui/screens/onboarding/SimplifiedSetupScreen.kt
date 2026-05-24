@@ -67,6 +67,7 @@ import android.widget.Toast
 import androidx.compose.material.icons.filled.BugReport
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.components.CertificateChangedDialog
 import com.paperless.scanner.ui.components.HttpFallbackWarningDialog
 import com.paperless.scanner.ui.components.SslCertificateDialog
 import com.paperless.scanner.ui.screens.login.LoginUiState
@@ -168,6 +169,10 @@ fun SimplifiedSetupScreen(
             is LoginUiState.Error -> setupState = SetupState.Error(state.message)
             is LoginUiState.SslError -> {
                 // SSL error will be handled by the dialog below
+                setupState = SetupState.Idle
+            }
+            is LoginUiState.CertChanged -> {
+                // Issue #36: pin mismatch handled by the blocking dialog below
                 setupState = SetupState.Idle
             }
             is LoginUiState.RateLimited -> {
@@ -678,6 +683,31 @@ fun SimplifiedSetupScreen(
                     // Retry login after accepting
                     coroutineScope.launch {
                         delay(500) // Small delay to ensure certificate is accepted
+                        val urlToUse = (serverStatus as? ServerStatus.Success)?.url ?: serverUrl
+                        when (authMethod) {
+                            AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)
+                            AuthMethod.CREDENTIALS -> viewModel.login(urlToUse, username, password)
+                        }
+                    }
+                },
+                onCancel = {
+                    viewModel.resetState()
+                }
+            )
+        }
+
+        // Certificate Changed Dialog (Issue #36) — blocking re-trust on pin mismatch.
+        if (uiState is LoginUiState.CertChanged) {
+            val certChanged = uiState as LoginUiState.CertChanged
+            CertificateChangedDialog(
+                host = certChanged.host,
+                expectedPin = certChanged.expectedPin,
+                actualPin = certChanged.actualPin,
+                onReTrust = {
+                    viewModel.acceptCertificateChange(certChanged.host)
+                    // Retry login after re-trusting the new certificate.
+                    coroutineScope.launch {
+                        delay(500)
                         val urlToUse = (serverStatus as? ServerStatus.Success)?.url ?: serverUrl
                         when (authMethod) {
                             AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)

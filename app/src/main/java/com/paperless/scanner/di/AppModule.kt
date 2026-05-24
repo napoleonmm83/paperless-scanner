@@ -37,6 +37,9 @@ import com.paperless.scanner.data.database.migrations.MIGRATION_11_12
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.AcceptedHostTrustManager
 import com.paperless.scanner.data.network.AcceptedHostnameVerifier
+import com.paperless.scanner.data.network.CertPinStorage
+import com.paperless.scanner.data.network.CertificatePinningInterceptor
+import com.paperless.scanner.data.network.EncryptedCertPinStorage
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
@@ -179,6 +182,7 @@ object AppModule {
     fun provideAuthOkHttpClient(
         tokenManager: TokenManager,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
         // Get default TrustManager
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
@@ -196,6 +200,9 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor(createLoggingInterceptor())
+            // TOFU pin enforcement runs as a network interceptor so it sees the
+            // TLS handshake and aborts before the request is written (Issue #36).
+            .addNetworkInterceptor(certificatePinningInterceptor)
             .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
             .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
             .applyTimeouts(includeWriteTimeout = false)
@@ -224,6 +231,15 @@ object AppModule {
     @Provides
     @Singleton
     fun provideCacheControlInterceptor(): CacheControlInterceptor = CacheControlInterceptor()
+
+    /**
+     * Binds the encrypted persistence for TOFU certificate pins (Issue #36).
+     * [CertificatePinStore] and [CertificatePinningInterceptor] are resolved via
+     * their `@Inject` constructors; only the interface needs an explicit binding.
+     */
+    @Provides
+    @Singleton
+    fun provideCertPinStorage(impl: EncryptedCertPinStorage): CertPinStorage = impl
 
     /**
      * Disk-backed HTTP cache for the Paperless-ngx default client. 50 MB at
@@ -263,6 +279,7 @@ object AppModule {
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor,
         cacheControlInterceptor: CacheControlInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
         cache: Cache,
     ): OkHttpClient {
         return OkHttpClient.Builder()
@@ -286,6 +303,10 @@ object AppModule {
             }
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
+            // TOFU pin enforcement first among network interceptors: it aborts on a
+            // changed cert before the request (with the auth token) is written and
+            // before the cache layer runs (Issue #36).
+            .addNetworkInterceptor(certificatePinningInterceptor)
             // Network interceptor so the cache layer sees the injected
             // Cache-Control header when writing the response to disk.
             .addNetworkInterceptor(cacheControlInterceptor)
@@ -332,6 +353,7 @@ object AppModule {
         tokenManager: TokenManager,
         paperlessGptBaseUrlInterceptor: PaperlessGptBaseUrlInterceptor,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
@@ -350,6 +372,8 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            // TOFU pin enforcement — Paperless-GPT carries the same auth token (Issue #36).
+            .addNetworkInterceptor(certificatePinningInterceptor)
             .applyTimeouts()
             .build()
     }
@@ -636,6 +660,7 @@ object AppModule {
     fun provideCoilOkHttpClient(
         tokenManager: TokenManager,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
+        certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
         // Get default TrustManager
         val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
@@ -666,6 +691,8 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            // TOFU pin enforcement for thumbnail/document content (Issue #36).
+            .addNetworkInterceptor(certificatePinningInterceptor)
             // SSL support for self-signed certificates
             .sslSocketFactory(sslContext.socketFactory, acceptedHostTrustManager)
             .hostnameVerifier(AcceptedHostnameVerifier(tokenManager))
