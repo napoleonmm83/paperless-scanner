@@ -1,0 +1,4 @@
+Version 1.5.125:
+
+🔐 Sicherheit:
+- Zertifikat-Pinning für deinen Server. Die App merkt sich beim ersten Verbinden das Zertifikat und warnt dich mit einem blockierenden Dialog, falls es sich ändert – Schutz vor Man-in-the-Middle-Angriffen.

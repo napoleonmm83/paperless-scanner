@@ -1,0 +1,4 @@
+Version 1.5.125:
+
+🔐 Security:
+- Certificate pinning for your server. The app remembers your server's certificate on first connection and warns you with a blocking dialog if it ever changes, protecting against man-in-the-middle attacks.
