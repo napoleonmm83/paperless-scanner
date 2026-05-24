@@ -149,5 +149,21 @@ functions/.runtimeconfig.json
 *conflict copy*
 *conflicted copy*
 
+# AI agent tooling (configs, generated instruction mirrors, skill lockfiles)
+.agents/
+.codex/
+.kiro/
+.cursorrules
+.windsurfrules
+.opencode.json
+/skills-lock.json
+/AGENTS.md
+/GEMINI.md
+
+# Scratch / refactor backup artifacts
+/s/
+/nul
+logs-*.txt
+
 # Auto Claude data directory
 .auto-claude/
