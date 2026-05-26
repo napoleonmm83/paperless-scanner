@@ -76,7 +76,12 @@ platform :android do
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
       skip_upload_apk: true,
-      skip_upload_metadata: false,  # Upload changelogs
+      # Skip the store-listing metadata upload: it makes the Play API validate
+      # every listing language, which rejects Gemini auto-translate languages
+      # it considers unsupported (e.g. "ar"), failing the whole deploy.
+      # Changelogs have their own flag and are still uploaded below.
+      skip_upload_metadata: true,
+      skip_upload_changelogs: false,
       skip_upload_images: true,
       skip_upload_screenshots: true,
       release_status: "completed"
