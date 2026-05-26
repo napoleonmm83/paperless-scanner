@@ -24,6 +24,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// Dark Tech Precision label color palette
+val labelColorOptions = listOf(
+    Color(0xFFE1FF8D), // Neon Yellow/Green (Primary)
+    Color(0xFF8DD7FF), // Electric Blue
+    Color(0xFFFF8D8D), // Coral Red
+    Color(0xFFB88DFF), // Electric Purple
+    Color(0xFF8DFFB8), // Mint Green
+    Color(0xFFFFB88D), // Warm Orange
+    Color(0xFFFF8DFF)  // Hot Pink
+)
+
 enum class LabelSortOption {
     NAME_ASC,
     NAME_DESC,
