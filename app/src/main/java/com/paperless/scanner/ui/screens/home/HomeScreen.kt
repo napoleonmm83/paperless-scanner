@@ -193,6 +193,7 @@ fun HomeScreen(
                 // sibling so a quick app-switch doesn't trigger an extra HTTP
                 // call here that the dashboard refresh just suppressed.
                 if (viewModel.refreshDashboardIfNeeded()) {
+                    processingTasksViewModel.refreshTasks()
                     recentDocumentsViewModel.refreshRecentDocuments()
                     trashOverviewViewModel.refreshTrashOverview(fullTrashSync = true)
                 }
