@@ -96,11 +96,8 @@ gradle.properties.local
 # ByteRover context tree
 .brv/
 
-# Claude local settings
-.claude/settings.local.json
-.claude/*in Konflikt stehende Kopie*
-.claude/*conflict copy*
-.claude/*conflicted copy*
+# Claude local config and settings
+.claude/
 *.hprof
 
 # Secrets and environment files
