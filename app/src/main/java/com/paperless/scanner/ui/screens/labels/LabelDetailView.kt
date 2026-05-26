@@ -232,7 +232,7 @@ private fun LabelDetailViewPreview() {
             label = LabelItem(
                 id = 1,
                 name = "Invoices",
-                color = Color(0xFFE1FF8D),
+                color = labelColorOptions.first(),
                 documentCount = 3
             ),
             documents = listOf(
