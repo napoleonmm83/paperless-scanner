@@ -76,16 +76,11 @@ platform :android do
       track: "internal",
       aab: "app/build/outputs/bundle/release/app-release.aab",
       skip_upload_apk: true,
-      # Skip ALL localized-content uploads (store listing + changelogs). The
-      # Play API validates every configured listing language on upload and
-      # rejects Gemini auto-translate languages it considers unsupported
-      # (e.g. "ar"), failing the whole deploy — this blocked every internal
-      # deploy from 2026-05-24 onward. Uploading only the AAB avoids the
-      # translation validation entirely. Release notes are managed manually in
-      # the Play Console until the unsupported auto-translate language is
-      # removed there, after which skip_upload_changelogs can return to false.
+      # Store listing (title/description) and images are managed in the Play
+      # Console, not from the repo — keep them skipped. Changelogs ARE uploaded
+      # from fastlane/metadata (de-DE, en-US).
       skip_upload_metadata: true,
-      skip_upload_changelogs: true,
+      skip_upload_changelogs: false,
       skip_upload_images: true,
       skip_upload_screenshots: true,
       release_status: "completed"
