@@ -24,6 +24,7 @@ import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
+import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.widget.WidgetUpdateWorker
@@ -37,6 +38,7 @@ class UploadWorker @AssistedInject constructor(
     @Assisted workerParams: WorkerParameters,
     private val uploadQueueRepository: UploadQueueRepository,
     private val documentRepository: DocumentRepository,
+    private val taskRepository: TaskRepository,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
     private val syncHistoryRepository: SyncHistoryRepository,
@@ -305,6 +307,14 @@ class UploadWorker @AssistedInject constructor(
                     Log.w(TAG, "Failed to record sync history: ${historyError.message}")
                 }
             }
+        }
+
+        // Each successful upload created a server-side consumption task. Fetch
+        // tasks now so the "In Verarbeitung" list updates immediately via the
+        // reactive Room flow, instead of waiting for the next ON_RESUME / poll /
+        // pull-to-refresh (which previously left the just-uploaded doc invisible).
+        if (successCount > 0) {
+            taskRepository.getTasks(forceRefresh = true)
         }
 
         showCompletionNotification(successCount, failCount)

@@ -34,6 +34,10 @@ class CacheControlInterceptor : Interceptor {
         if (request.method != "GET") return response
         if (!response.isSuccessful) return response
         if (response.header("Cache-Control") != null) return response
+        // Never cache the tasks endpoint: it is real-time document-processing
+        // status. A 5-minute stale window hid freshly-uploaded tasks from the
+        // "In Verarbeitung" list until expiry (regression from this interceptor).
+        if (request.url.encodedPath.contains(TASKS_PATH)) return response
 
         return response.newBuilder()
             .header("Cache-Control", "public, max-age=$MAX_AGE_SECONDS")
@@ -42,5 +46,6 @@ class CacheControlInterceptor : Interceptor {
 
     companion object {
         const val MAX_AGE_SECONDS = 300
+        private const val TASKS_PATH = "/api/tasks"
     }
 }

@@ -38,6 +38,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.Field
 import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.Headers
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -573,6 +574,9 @@ interface PaperlessApi {
      * @return List of [PaperlessTask] objects
      * @see UploadQueueRepository For upload task management
      */
+    // Real-time processing status — bypass the OkHttp cache so a freshly
+    // uploaded document's task is never hidden behind a stale cached response.
+    @Headers("Cache-Control: no-cache")
     @GET("api/tasks/")
     suspend fun getTasks(): List<PaperlessTask>
 
@@ -588,6 +592,7 @@ interface PaperlessApi {
      * @return List containing the matching task (or empty if not found)
      * @see uploadDocument For initiating uploads
      */
+    @Headers("Cache-Control: no-cache")
     @GET("api/tasks/")
     suspend fun getTask(@Query("task_id") taskId: String): List<PaperlessTask>
 
