@@ -157,6 +157,29 @@ class CacheControlInterceptorTest {
     }
 
     @Test
+    fun `does not inject on tasks endpoint - real-time processing status`() {
+        // /api/tasks/ is real-time document-processing status. Caching it for
+        // 5 minutes hid freshly-uploaded documents' tasks from the
+        // "In Verarbeitung" list until expiry. Must always go to the network.
+        val request = Request.Builder().url("https://paperless.example.com/api/tasks/").build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on tasks endpoint with query param`() {
+        val request = Request.Builder().url("https://paperless.example.com/api/tasks/?task_id=abc-123").build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
     fun `MAX_AGE_SECONDS constant matches injected header`() {
         // Pin the constant so a future tweak doesn't silently drift the
         // header and the documented behavior out of sync.

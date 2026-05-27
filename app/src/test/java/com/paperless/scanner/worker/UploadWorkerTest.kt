@@ -14,6 +14,7 @@ import com.paperless.scanner.data.health.ServerStatus
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.data.repository.SyncHistoryRepository
+import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,7 @@ class UploadWorkerTest {
     private lateinit var context: Context
     private lateinit var uploadQueueRepository: UploadQueueRepository
     private lateinit var documentRepository: DocumentRepository
+    private lateinit var taskRepository: TaskRepository
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var serverHealthMonitor: ServerHealthMonitor
     private lateinit var syncHistoryRepository: SyncHistoryRepository
@@ -71,6 +73,7 @@ class UploadWorkerTest {
         context = RuntimeEnvironment.getApplication()
         uploadQueueRepository = mockk(relaxed = true)
         documentRepository = mockk(relaxed = true)
+        taskRepository = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         serverHealthMonitor = mockk(relaxed = true)
         syncHistoryRepository = mockk(relaxed = true)
@@ -112,6 +115,7 @@ class UploadWorkerTest {
                 workerParams = mockk(relaxed = true),
                 uploadQueueRepository = uploadQueueRepository,
                 documentRepository = documentRepository,
+                taskRepository = taskRepository,
                 networkMonitor = networkMonitor,
                 serverHealthMonitor = serverHealthMonitor,
                 syncHistoryRepository = syncHistoryRepository,
@@ -184,6 +188,9 @@ class UploadWorkerTest {
         assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsUploading(1) }
         coVerify { uploadQueueRepository.markAsCompleted(1) }
+        // Refresh tasks so the new server-side consumption task shows up in the
+        // "In Verarbeitung" list immediately (reactive Room flow).
+        coVerify { taskRepository.getTasks(forceRefresh = true) }
     }
 
         @Test
@@ -528,6 +535,8 @@ class UploadWorkerTest {
         assertEquals(ListenableWorker.Result.failure(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
         coVerify { uploadQueueRepository.markAsFailed(2, "Network error") }
+        // No successful upload -> no task refresh needed.
+        coVerify(exactly = 0) { taskRepository.getTasks(any()) }
     }
 
     // ==================== Retry Behavior Tests ====================
