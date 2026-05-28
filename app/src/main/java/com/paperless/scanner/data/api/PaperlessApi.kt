@@ -299,6 +299,10 @@ interface PaperlessApi {
      * @return [DocumentsResponse] with paginated document list
      * @see DocumentRepository.observeDocuments For reactive document list
      */
+    // Mutable list — must bypass the OkHttp cache so a soft-deleted document
+    // is not re-served from a stale list and silently restored over the local
+    // `isDeleted=1` flag during the next fullSync.
+    @Headers("Cache-Control: no-cache")
     @GET("api/documents/")
     suspend fun getDocuments(
         @Query("page") page: Int = 1,
@@ -322,6 +326,10 @@ interface PaperlessApi {
      * @throws retrofit2.HttpException 404 if document doesn't exist
      * @see DocumentRepository.getDocument For cached document retrieval
      */
+    // Detail also reflects mutable state (title, tags, custom fields). Caching
+    // it for 5 min hid edits made on the web UI from a just-opened detail
+    // screen.
+    @Headers("Cache-Control: no-cache")
     @GET("api/documents/{id}/")
     suspend fun getDocument(
         @Path("id") id: Int,
@@ -681,6 +689,9 @@ interface PaperlessApi {
      * @param pageSize Number of results per page
      * @return DocumentsResponse with deleted documents
      */
+    // Post-soft-delete view. Caching for 5 min hid the second of two rapid
+    // swipe-to-trash actions until the window expired.
+    @Headers("Cache-Control: no-cache")
     @GET("api/trash/")
     suspend fun getTrash(
         @Query("page") page: Int = 1,

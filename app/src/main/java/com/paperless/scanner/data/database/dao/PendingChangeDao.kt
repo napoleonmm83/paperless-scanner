@@ -44,4 +44,18 @@ interface PendingChangeDao {
     // Legacy count method - kept for backward compatibility
     @Query("SELECT COUNT(*) FROM pending_changes")
     suspend fun getCount(): Int
+
+    /**
+     * IDs of documents whose soft-delete has not yet been pushed to the server.
+     *
+     * Used by [com.paperless.scanner.data.sync.SyncManager.upsertDocumentsPreservingLocalDeletes]
+     * to distinguish "the user just swiped this into trash and the server still
+     * thinks it's alive" (must be preserved) from "this row is stale-trashed
+     * locally but the server has it back as live again" (must be overwritten).
+     */
+    @Query(
+        "SELECT DISTINCT entityId FROM pending_changes " +
+            "WHERE entityType = 'document' AND changeType = 'delete' AND entityId IS NOT NULL"
+    )
+    suspend fun getPendingDeletedDocumentIds(): List<Int>
 }

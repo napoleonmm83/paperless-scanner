@@ -49,7 +49,11 @@ class CacheControlInterceptorTest {
 
     @Test
     fun `injects Cache-Control on successful GET without existing header`() {
-        val request = Request.Builder().url("https://paperless.example.com/api/documents/").build()
+        // Use a still-cacheable reference endpoint (tags/correspondents/types
+        // change slowly and don't drive optimistic UI). /api/documents and
+        // /api/trash are now in the never-cache list because they reflect
+        // mutable, user-driven state.
+        val request = Request.Builder().url("https://paperless.example.com/api/tags/").build()
         val response = buildResponse(request)
 
         val result = interceptor.intercept(chainFor(request, response))
@@ -177,6 +181,131 @@ class CacheControlInterceptorTest {
         val result = interceptor.intercept(chainFor(request, response))
 
         assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on documents list endpoint - mutable via soft delete`() {
+        // /api/documents/ reflects mutable state: a successful DELETE on the
+        // server is invisible to the client until the 5-minute stale window
+        // expires, so a subsequent fullSync re-inserts the just-deleted doc
+        // and overwrites the local optimistic soft-delete. Must always go to
+        // the network so list reads see the post-DELETE truth.
+        val request = Request.Builder().url("https://paperless.example.com/api/documents/").build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on documents list endpoint with query params`() {
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/?page=1&page_size=100&ordering=-created")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on single document endpoint`() {
+        // /api/documents/{id}/ also reflects mutable state (title, tags,
+        // metadata can change at any time). Caching it for 5 min hides edits
+        // made on the web UI from the just-opened detail screen.
+        val request = Request.Builder().url("https://paperless.example.com/api/documents/42/").build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on trash endpoint - mutable list`() {
+        // /api/trash/ is the post-soft-delete view. Caching it for 5 min
+        // hid documents the user had JUST moved to trash (the second of
+        // two rapid swipes never appeared until the cache expired).
+        val request = Request.Builder().url("https://paperless.example.com/api/trash/").build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `does not inject on trash endpoint with query params`() {
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/trash/?page=1&page_size=100")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertNull(result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `injects Cache-Control on document download subresource - immutable bytes`() {
+        // Codex P2 regression guard (2026-05-28 review): the previous
+        // `path.contains("/api/documents")` match also caught
+        // /api/documents/{id}/download/, even though the bytes are immutable
+        // per id and the app's docs explicitly call this endpoint cacheable.
+        // Repeated PDF opens would re-download large files when the server
+        // omits cache headers. Only the mutable list/detail routes must
+        // bypass cache.
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/42/download/")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertEquals("public, max-age=300", result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `injects Cache-Control on document thumbnail subresource`() {
+        // /api/documents/{id}/thumb/ — small image, content-addressed by id.
+        // Must remain cacheable so the trash and document list don't refetch
+        // thumbnails on every scroll.
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/42/thumb/")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertEquals("public, max-age=300", result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `injects Cache-Control on document preview subresource`() {
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/42/preview/")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertEquals("public, max-age=300", result.header("Cache-Control"))
+    }
+
+    @Test
+    fun `injects Cache-Control on document suggestions subresource`() {
+        // /api/documents/{id}/suggestions/ — ML-derived metadata, expensive
+        // to compute server-side. Cacheable; not user-mutable state.
+        val request = Request.Builder()
+            .url("https://paperless.example.com/api/documents/42/suggestions/")
+            .build()
+        val response = buildResponse(request)
+
+        val result = interceptor.intercept(chainFor(request, response))
+
+        assertEquals("public, max-age=300", result.header("Cache-Control"))
     }
 
     @Test

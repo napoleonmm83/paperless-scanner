@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.sync
 
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.Document
@@ -300,9 +301,13 @@ class SyncManager @Inject constructor(
             while (hasMore) {
                 val response = withRetry { api.getDocuments(page = page, pageSize = 100) }
                 val cachedDocuments = response.results.map { it.toCachedEntity() }
-                cachedDocumentDao.insertAll(cachedDocuments)
+                upsertDocumentsPreservingLocalDeletes(cachedDocuments)
 
-                // Track which IDs we received from the server
+                // Track which IDs we received from the server.
+                // We add ALL IDs the server returned (even those skipped by the
+                // upsert above) so the orphan computation below correctly sees
+                // them as "still on server" and does NOT delete the local
+                // soft-delete row.
                 syncedIds.addAll(cachedDocuments.map { it.id })
 
                 totalSynced += cachedDocuments.size
@@ -340,6 +345,43 @@ class SyncManager @Inject constructor(
             Log.e(TAG, "Failed to sync documents", e)
             throw e
         }
+    }
+
+    /**
+     * Upsert a page of documents pulled from the server, **preserving the
+     * `isDeleted = 1` flag on rows whose delete is still pending in the
+     * offline queue (i.e. the server has not yet been told about it).**
+     *
+     * The server has no notion of our offline-first soft-delete: a doc the
+     * user has just swiped into the trash still appears in `GET /api/documents/`
+     * with `isDeleted = 0` until [pushPendingChanges] reaches it. Calling
+     * `insertAll` with `OnConflict.REPLACE` on that response would overwrite
+     * the local optimistic `isDeleted = 1` back to `0`, which is exactly how
+     * docs reappeared on the Home screen after a swipe-to-trash and why the
+     * second of two rapid trash actions never showed up in the trash list.
+     *
+     * Strategy: protect only rows whose primary key has an outstanding
+     * `entityType = "document" AND changeType = "delete"` row in
+     * [PendingChangeDao] (queried via [PendingChangeDao.getPendingDeletedDocumentIds]).
+     * Crucially, a row that is `isDeleted = 1` *without* a pending change is
+     * NOT protected — that's the stale-cache case where the doc was deleted
+     * earlier and then restored from the web UI; we want the server payload
+     * (`isDeleted = 0`) to flow through. We still report all server IDs back
+     * via the caller's `syncedIds` set so the orphan-cleanup pass does not
+     * mistake protected rows for "deleted on server".
+     */
+    @VisibleForTesting
+    internal suspend fun upsertDocumentsPreservingLocalDeletes(
+        documents: List<com.paperless.scanner.data.database.entities.CachedDocument>,
+    ) {
+        if (documents.isEmpty()) return
+        val pendingDeletes = pendingChangeDao.getPendingDeletedDocumentIds().toSet()
+        if (pendingDeletes.isEmpty()) {
+            cachedDocumentDao.insertAll(documents)
+            return
+        }
+        val safe = documents.filterNot { it.id in pendingDeletes }
+        if (safe.isNotEmpty()) cachedDocumentDao.insertAll(safe)
     }
 
     private suspend fun pushPendingChanges() {
