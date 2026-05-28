@@ -158,7 +158,8 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
         val deleted = dao.getDeletedIds().toSet()
         assertTrue("doc 10 must remain in trash", 10 in deleted)
         assertTrue("doc 11 must remain in trash", 11 in deleted)
-        assertEquals("doc 12 must not be in trash", 1, dao.getAllIds().count { it == 12 })
+        assertTrue("doc 12 must not be in trash", 12 !in deleted)
+        assertEquals("doc 12 must still exist locally", 1, dao.getAllIds().count { it == 12 })
     }
 
     @Test
