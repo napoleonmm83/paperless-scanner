@@ -82,7 +82,7 @@ fun HistoryTabContent(uiState: DocumentDetailUiState) {
 private fun HistoryEntryCard(entry: com.paperless.scanner.domain.model.AuditLogEntry) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
