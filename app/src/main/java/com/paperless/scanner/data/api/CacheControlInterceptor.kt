@@ -34,10 +34,26 @@ class CacheControlInterceptor : Interceptor {
         if (request.method != "GET") return response
         if (!response.isSuccessful) return response
         if (response.header("Cache-Control") != null) return response
-        // Never cache the tasks endpoint: it is real-time document-processing
-        // status. A 5-minute stale window hid freshly-uploaded tasks from the
-        // "In Verarbeitung" list until expiry (regression from this interceptor).
-        if (request.url.encodedPath.contains(TASKS_PATH)) return response
+        // Endpoints that reflect mutable, user-driven state must always go to
+        // the network so write-through optimistic updates are not silently
+        // reverted by stale cached list responses.
+        //
+        // * /api/tasks/      — real-time document-processing status. A 5-min
+        //                      stale window hid freshly-uploaded tasks from
+        //                      the "In Verarbeitung" list until expiry.
+        // * /api/documents/  — mutable via soft-delete. A cached list still
+        //                      including a just-deleted doc was upserted back
+        //                      over the local `isDeleted=1` flag during the
+        //                      next fullSync, so the doc reappeared on Home.
+        //                      Also affects the per-id detail endpoint
+        //                      (`/api/documents/{id}/`) — title/tags/etc.
+        //                      edits from the web UI would stay invisible
+        //                      for 5 min.
+        // * /api/trash/      — the post-soft-delete view. Caching it hid the
+        //                      second of two rapid swipe-to-trash actions
+        //                      until the window expired.
+        val path = request.url.encodedPath
+        if (NEVER_CACHE_PATHS.any { it.matches(path) }) return response
 
         return response.newBuilder()
             .header("Cache-Control", "public, max-age=$MAX_AGE_SECONDS")
@@ -46,6 +62,18 @@ class CacheControlInterceptor : Interceptor {
 
     companion object {
         const val MAX_AGE_SECONDS = 300
-        private const val TASKS_PATH = "/api/tasks"
+
+        // Anchored against the FULL request path (not `contains`) so that
+        // document subresources like `/api/documents/{id}/download/`,
+        // `/thumb/`, `/preview/`, and `/suggestions/` stay cacheable — their
+        // bytes are immutable per id, and the app relies on the OkHttp cache
+        // to avoid re-downloading PDFs on every open. Only the list and bare
+        // detail routes hold mutable metadata that must bypass cache.
+        private val NEVER_CACHE_PATHS = listOf(
+            Regex("/api/tasks/"),
+            Regex("/api/documents/"),
+            Regex("/api/documents/\\d+/"),
+            Regex("/api/trash/"),
+        )
     }
 }
