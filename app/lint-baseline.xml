@@ -766,8 +766,8 @@
         errorLine1="    var tempSelection by remember { mutableStateOf(selectedIds.toMutableList()) }"
         errorLine2="                                    ~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentTabs.kt"
-            line="1117"
+            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentPermissionsTab.kt"
+            line="533"
             column="37"/>
     </issue>
 
@@ -1400,8 +1400,8 @@
         errorLine1="    var lastNoteCount by remember { mutableStateOf(uiState.notes.size) }"
         errorLine2="                                    ~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentTabs.kt"
-            line="338"
+            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentNotesTab.kt"
+            line="52"
             column="37"/>
     </issue>
 
@@ -3864,8 +3864,8 @@
         errorLine1="            Color(android.graphics.Color.parseColor(colorString))"
         errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentTabs.kt"
-            line="1319"
+            file="src/main/java/com/paperless/scanner/ui/screens/documents/DocumentDetailsTab.kt"
+            line="276"
             column="19"/>
     </issue>
 

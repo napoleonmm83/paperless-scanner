@@ -1,0 +1,4 @@
+Version 1.5.140:
+
+🔧 Verbesserungen:
+- Dokument-Detail-Tabs: interne Aufräumarbeiten für bessere Wartbarkeit. Keine sichtbaren Änderungen am Verhalten – nur unter der Haube.
