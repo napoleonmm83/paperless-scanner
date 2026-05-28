@@ -1,0 +1,4 @@
+Version 1.5.139:
+
+🔧 Verbesserungen:
+- Einstellungen-Bildschirm: interne Aufräumarbeiten für bessere Wartbarkeit. Keine sichtbaren Änderungen am Verhalten – nur unter der Haube.

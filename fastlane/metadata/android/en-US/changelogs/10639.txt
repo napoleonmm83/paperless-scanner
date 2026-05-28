@@ -1,0 +1,4 @@
+Version 1.5.139:
+
+🔧 Improvements:
+- Settings screen: internal cleanup for better maintainability. No visible behavior changes — under the hood only.
