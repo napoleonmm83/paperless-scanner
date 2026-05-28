@@ -51,9 +51,8 @@ fun PremiumSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable(
-                    onClick = {
-                        if (!isPremiumActive) onPremiumUpgradeClick()
-                    }
+                    enabled = !isPremiumActive,
+                    onClick = onPremiumUpgradeClick
                 )
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

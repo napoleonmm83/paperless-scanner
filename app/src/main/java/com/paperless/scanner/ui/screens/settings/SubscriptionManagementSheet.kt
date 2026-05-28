@@ -217,7 +217,7 @@ private fun SubscriptionInfoCard(info: SubscriptionInfo) {
 private fun SubscriptionUpgradeHintCard() {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
