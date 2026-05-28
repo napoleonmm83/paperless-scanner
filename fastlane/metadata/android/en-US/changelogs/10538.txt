@@ -1,0 +1,9 @@
+Version 1.5.138:
+
+🐛 Bug fixes:
+- Trash: rapid swipes now land reliably.
+- Web-restored documents reappear after sync.
+- PDFs no longer re-downloaded on each open.
+
+🔧 Improvements:
+- More robust sync logic for local soft-deletes.

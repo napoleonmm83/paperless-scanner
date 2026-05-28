@@ -1,0 +1,9 @@
+Version 1.5.138:
+
+🐛 Fehlerbehebungen:
+- Papierkorb: schnelle Wisch-Aktionen sind zuverlässig.
+- Per Web wiederhergestellte Dokumente erscheinen wieder.
+- PDFs werden nicht bei jedem Öffnen erneut geladen.
+
+🔧 Verbesserungen:
+- Stabilere Sync-Logik für lokale Soft-Deletes.
