@@ -1169,6 +1169,7 @@
     <string name="error_file_not_saved">File could not be saved</string>
     <string name="error_adding_to_queue">Error adding to queue</string>
     <string name="error_files_not_saved">Some files could not be saved</string>
+    <string name="error_files_copy_failed_count">%1$d of %2$d files could not be prepared for upload</string>
     <string name="error_not_enough_storage">Not enough storage space available</string>
     <string name="error_file_too_large_short">File too large</string>
 

@@ -160,6 +160,9 @@ class PerformUploadUseCase @Inject constructor(
             // Copy files to local storage to ensure WorkManager can access them later
             // Content URIs from SAF lose permissions when passed to WorkManager
             // For large batches, this may take several minutes - process sequentially to avoid OOM
+            // Track the files WE copied this run (not pass-through originals) so an abort
+            // below cleans up only our own copies, never the caller's pre-existing input files.
+            val copiedUris = mutableListOf<Uri>()
             val localUris = uris.mapIndexedNotNull { index, uri ->
                 // Log progress every 10 files for large batches
                 if (pageCount > 50 && (index + 1) % 10 == 0) {
@@ -172,6 +175,8 @@ class PerformUploadUseCase @Inject constructor(
                     val copiedUri = FileUtils.copyToLocalStorage(context, uri)
                     if (copiedUri == null) {
                         Log.e(TAG, "Page ${index + 1}/$pageCount: Failed to copy: $uri")
+                    } else {
+                        copiedUris.add(copiedUri)
                     }
                     copiedUri
                 }
@@ -187,6 +192,30 @@ class PerformUploadUseCase @Inject constructor(
                 return@flow
             }
 
+            // Fail fast on partial copy failure (#268): mapIndexedNotNull silently drops
+            // pages that fail to copy. Queueing only the survivors would produce an
+            // incomplete document (a missing page in the merged PDF when
+            // uploadAsSingleDocument=true) while still reporting success. Abort the whole
+            // batch instead so the user can retry, rather than losing pages silently.
+            if (localUris.size < uris.size) {
+                val failedCount = uris.size - localUris.size
+                Log.e(TAG, "Partial copy failure: $failedCount/${uris.size} files could not be copied; aborting (nothing queued)")
+                // Nothing gets queued, so the upload worker (which normally calls
+                // deleteLocalCopy) never runs — clean up the copies we made this run to
+                // avoid orphaned files filling app storage. Only delete OUR copies, never
+                // pass-through originals: a caller's pre-existing pending_uploads file is
+                // still referenced by the UI for retry, and deleteLocalCopy would happily
+                // delete it (it only guards on the dir, not on who created the file).
+                copiedUris.forEach { FileUtils.deleteLocalCopy(it) }
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "copy_partial_failure"))
+                emit(UploadResult.Failed(
+                    userMessage = context.getString(R.string.error_files_not_saved),
+                    technicalDetails = context.getString(R.string.error_files_copy_failed_count, failedCount, uris.size),
+                    isRetryable = false
+                ))
+                return@flow
+            }
+
             // Verify all files exist before queueing
             val missingFiles = localUris.filterNot { FileUtils.fileExists(it) }
             if (missingFiles.isNotEmpty()) {
@@ -194,6 +223,10 @@ class PerformUploadUseCase @Inject constructor(
                 missingFiles.forEach { uri ->
                     Log.e(TAG, "  Missing: $uri")
                 }
+                // As with the partial-copy abort above: nothing gets queued, so the upload
+                // worker never runs to clean up. Delete only the copies we made this run,
+                // never pass-through originals the UI still needs for retry.
+                copiedUris.forEach { FileUtils.deleteLocalCopy(it) }
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_files_not_saved),
                     technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localUris.size),
@@ -279,6 +312,9 @@ class PerformUploadUseCase @Inject constructor(
         try {
             // Copy files to local storage
             // For large batches, this may take several minutes - process sequentially to avoid OOM
+            // Track the files WE copied this run (not pass-through originals) so an abort
+            // below cleans up only our own copies, never the caller's pre-existing input files.
+            val copiedUris = mutableListOf<Uri>()
             val localPages = pages.mapIndexedNotNull { index, page ->
                 // Log progress every 10 files for large batches
                 if (pageCount > 50 && (index + 1) % 10 == 0) {
@@ -291,6 +327,8 @@ class PerformUploadUseCase @Inject constructor(
                     val copiedUri = FileUtils.copyToLocalStorage(context, page.uri)
                     if (copiedUri == null) {
                         Log.e(TAG, "Page ${page.pageNumber}: Failed to copy: ${page.uri}")
+                    } else {
+                        copiedUris.add(copiedUri)
                     }
                     copiedUri
                 }
@@ -312,10 +350,33 @@ class PerformUploadUseCase @Inject constructor(
                 return@flow
             }
 
+            // Fail fast on partial copy failure (#268): see uploadMultiPage above. Each page
+            // here becomes its own document, so a silent drop = a missing document the user
+            // never asked to skip. Abort the batch so it can be retried as a whole.
+            if (localPages.size < pages.size) {
+                val failedCount = pages.size - localPages.size
+                Log.e(TAG, "Partial copy failure: $failedCount/${pages.size} pages could not be copied; aborting (nothing queued)")
+                // See uploadMultiPage above: clean up only the files we copied this run
+                // since nothing is queued for the worker to clean up later. Pass-through
+                // originals are left intact for the UI to retry.
+                copiedUris.forEach { FileUtils.deleteLocalCopy(it) }
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "copy_partial_failure"))
+                emit(UploadResult.Failed(
+                    userMessage = context.getString(R.string.error_files_not_saved),
+                    technicalDetails = context.getString(R.string.error_files_copy_failed_count, failedCount, pages.size),
+                    isRetryable = false
+                ))
+                return@flow
+            }
+
             // Verify all files exist before queueing
             val missingFiles = localPages.filterNot { FileUtils.fileExists(it.uri) }
             if (missingFiles.isNotEmpty()) {
                 Log.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
+                // As with the partial-copy abort above: nothing gets queued, so the upload
+                // worker never runs to clean up. Delete only the copies we made this run,
+                // never pass-through originals the UI still needs for retry.
+                copiedUris.forEach { FileUtils.deleteLocalCopy(it) }
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_files_not_saved),
                     technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localPages.size),
