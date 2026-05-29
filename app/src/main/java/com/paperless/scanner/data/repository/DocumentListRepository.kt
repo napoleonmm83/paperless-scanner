@@ -8,7 +8,6 @@ import androidx.paging.map
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.DocumentFilterQueryBuilder
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
@@ -30,8 +29,8 @@ import kotlinx.coroutines.flow.map
 /**
  * Phase 2.1 of #51 — extracted from DocumentRepository.
  *
- * Owns list / paging / search operations: observeDocuments, getDocumentsPaged,
- * getDocuments, searchDocuments, getRecentDocuments, getUntaggedDocuments.
+ * Owns list / paging operations: observeDocuments, getDocumentsPaged,
+ * getDocuments, getUntaggedDocuments.
  */
 @Singleton
 class DocumentListRepository @Inject constructor(
@@ -133,37 +132,6 @@ class DocumentListRepository @Inject constructor(
                         IOException(context.getString(R.string.error_offline_no_cache))
                     )
                 )
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    suspend fun searchDocuments(query: String): Result<List<Document>> {
-        return try {
-            val cachedResults = cachedDocumentDao.searchDocuments(query)
-            Result.success(cachedResults.map { it.toCachedDomain() })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Result.failure(PaperlessException.from(e))
-        }
-    }
-
-    suspend fun getRecentDocuments(limit: Int = 5): Result<List<Document>> {
-        return try {
-            val cached = cachedDocumentDao.getDocuments(limit = limit, offset = 0)
-            if (cached.isNotEmpty() || !networkMonitor.checkOnlineStatus()) {
-                return Result.success(cached.map { it.toCachedDomain() })
-            }
-            safeApiCall {
-                api.getDocuments(
-                    page = 1,
-                    pageSize = limit,
-                    ordering = "-added",
-                ).results.toDomain()
             }
         } catch (e: CancellationException) {
             throw e

@@ -261,42 +261,12 @@ class DocumentListRepositoryTest : BaseRoomRepositoryTest() {
         assertEquals("Filtered", result.getOrNull()!!.results.first().title)
     }
 
-    @Test
-    fun `searchDocuments happy path returns mapped domain list`() = runTest {
-        cachedDocumentDao.insertAll(
-            listOf(
-                cachedDoc(id = 1, title = "Found Foo"),
-                cachedDoc(id = 2, title = "Unrelated"),
-            )
-        )
-
-        val result = repo.searchDocuments("Foo")
-
-        assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrNull()!!.size)
-        assertEquals("Found Foo", result.getOrNull()!!.first().title)
-    }
-
     // Note: the previous "DAO throws → Result.failure(PaperlessException)" test
     // forced the throw by mocking the DAO. With a real Room DB the equivalent
     // (closing the database mid-test) leaks across the Robolectric instance and
     // skips the next test. The same `try/catch → PaperlessException.from` wrapper
     // lives in every other Result-returning method here, so error wrapping is
     // still covered transitively without the brittle scenario.
-
-    @Test
-    fun `getRecentDocuments cache non-empty returns cached without API call`() = runTest {
-        cachedDocumentDao.insert(cachedDoc(id = 1, title = "Recent"))
-
-        val result = repo.getRecentDocuments(limit = 5)
-
-        assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrNull()!!.size)
-        assertEquals("Recent", result.getOrNull()!!.first().title)
-        coVerify(exactly = 0) {
-            api.getDocuments(any(), any(), any(), any(), any(), any(), any())
-        }
-    }
 
     @Test
     fun `getUntaggedDocuments returns mapped domain list`() = runTest {
