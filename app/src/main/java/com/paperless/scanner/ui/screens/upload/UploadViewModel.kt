@@ -1,44 +1,31 @@
 package com.paperless.scanner.ui.screens.upload
 
-import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperless.scanner.R
-import com.paperless.scanner.data.ai.SuggestionOrchestrator
-import com.paperless.scanner.data.billing.PremiumFeature
-import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
-import com.paperless.scanner.data.ai.models.TagSuggestion
-import com.paperless.scanner.data.analytics.AnalyticsEvent
-import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.api.models.CustomField
+import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
-import com.paperless.scanner.data.repository.AiUsageRepository
-import com.paperless.scanner.data.repository.CorrespondentRepository
-import com.paperless.scanner.data.repository.CustomFieldRepository
-import com.paperless.scanner.data.repository.DocumentTypeRepository
-import com.paperless.scanner.data.repository.TagRepository
-import com.paperless.scanner.data.repository.UsageLimitStatus
-import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.util.FileUtils
-import com.paperless.scanner.utils.StorageUtil
+import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
+import com.paperless.scanner.ui.screens.scan.ScannedPage
+import com.paperless.scanner.ui.screens.upload.usecase.AnalyzeDocumentUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.CreateTagResult
+import com.paperless.scanner.ui.screens.upload.usecase.PerformUploadUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.UploadResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -46,23 +33,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UploadViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val savedStateHandle: androidx.lifecycle.SavedStateHandle,
-    private val tagRepository: TagRepository,
-    private val documentTypeRepository: DocumentTypeRepository,
-    private val correspondentRepository: CorrespondentRepository,
-    private val customFieldRepository: CustomFieldRepository,
-    private val uploadQueueRepository: com.paperless.scanner.data.repository.UploadQueueRepository,
-    private val uploadWorkManager: com.paperless.scanner.worker.UploadWorkManager,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
-    private val analyticsService: AnalyticsService,
-    private val suggestionOrchestrator: SuggestionOrchestrator,
-    private val aiUsageRepository: AiUsageRepository,
-    private val premiumFeatureManager: PremiumFeatureManager,
-    private val tokenManager: TokenManager,
-    private val routeArgsHolder: com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder,
-    private val ioDispatcher: CoroutineDispatcher
+    private val routeArgsHolder: AppLockRouteArgsHolder,
+    private val performUploadUseCase: PerformUploadUseCase,
+    private val uploadMetadataUseCase: UploadMetadataUseCase,
+    private val analyzeDocumentUseCase: AnalyzeDocumentUseCase,
 ) : ViewModel() {
 
     companion object {
@@ -149,14 +124,14 @@ class UploadViewModel @Inject constructor(
     val wifiOnlyOverride: StateFlow<Boolean> = _wifiOnlyOverride.asStateFlow()
 
     // Observe WiFi status for reactive UI
-    val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
+    val isWifiConnected: StateFlow<Boolean> = performUploadUseCase.isWifiConnected
 
     // Observe network and server status for status-specific queue messages
-    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
-    val isServerReachable: StateFlow<Boolean> = serverHealthMonitor.isServerReachable
+    val isOnline: StateFlow<Boolean> = performUploadUseCase.isOnline
+    val isServerReachable: StateFlow<Boolean> = performUploadUseCase.isServerReachable
 
     // Premium status for AI Tagging PRO badge
-    val isPremiumActive: StateFlow<Boolean> = premiumFeatureManager.isPremiumAccessEnabled
+    val isPremiumActive: StateFlow<Boolean> = analyzeDocumentUseCase.isPremiumAccessEnabled
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -164,7 +139,7 @@ class UploadViewModel @Inject constructor(
         )
 
     // Observe AI new tags setting
-    val aiNewTagsEnabled: Flow<Boolean> = tokenManager.aiNewTagsEnabled
+    val aiNewTagsEnabled: Flow<Boolean> = analyzeDocumentUseCase.aiNewTagsEnabled
 
     /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
@@ -173,7 +148,7 @@ class UploadViewModel @Inject constructor(
      * via the Paperless API in DocumentDetailScreen.
      */
     val isAiAvailable: Boolean
-        get() = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
+        get() = analyzeDocumentUseCase.isAiAvailable()
 
     // AI Usage Limit State
     private val _usageLimitStatus = MutableStateFlow<UsageLimitStatus>(UsageLimitStatus.WITHIN_LIMITS)
@@ -206,7 +181,7 @@ class UploadViewModel @Inject constructor(
      */
     private fun observeTagsReactively() {
         viewModelScope.launch {
-            tagRepository.observeTags().collect { tagList ->
+            uploadMetadataUseCase.observeTags().collect { tagList ->
                 _tags.update { tagList.sortedBy { it.name.lowercase() } }
             }
         }
@@ -218,7 +193,7 @@ class UploadViewModel @Inject constructor(
      */
     private fun observeDocumentTypesReactively() {
         viewModelScope.launch {
-            documentTypeRepository.observeDocumentTypes().collect { types ->
+            uploadMetadataUseCase.observeDocumentTypes().collect { types ->
                 _documentTypes.update { types.sortedBy { it.name.lowercase() } }
             }
         }
@@ -230,7 +205,7 @@ class UploadViewModel @Inject constructor(
      */
     private fun observeCorrespondentsReactively() {
         viewModelScope.launch {
-            correspondentRepository.observeCorrespondents().collect { correspondentList ->
+            uploadMetadataUseCase.observeCorrespondents().collect { correspondentList ->
                 _correspondents.update { correspondentList.sortedBy { it.name.lowercase() } }
             }
         }
@@ -243,13 +218,13 @@ class UploadViewModel @Inject constructor(
      */
     private fun observeCustomFieldsReactively() {
         viewModelScope.launch {
-            customFieldRepository.observeCustomFields().collect { fields ->
+            uploadMetadataUseCase.observeCustomFields().collect { fields ->
                 _customFields.update { fields.sortedBy { it.name.lowercase() } }
             }
         }
         // Initial load
-        viewModelScope.launch(ioDispatcher) {
-            customFieldRepository.getCustomFields()
+        viewModelScope.launch {
+            uploadMetadataUseCase.loadCustomFields()
         }
     }
 
@@ -281,7 +256,7 @@ class UploadViewModel @Inject constructor(
      */
     private fun observeUsageLimits() {
         viewModelScope.launch {
-            aiUsageRepository.observeCurrentMonthCallCount().collect { callCount ->
+            analyzeDocumentUseCase.observeCurrentMonthCallCount().collect { callCount ->
                 // Update remaining calls
                 _remainingCalls.update { (300 - callCount).coerceAtLeast(0) }
 
@@ -297,42 +272,6 @@ class UploadViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Checks storage space before upload and returns error if insufficient.
-     *
-     * @return null if storage check passed, Error state otherwise
-     */
-    private suspend fun checkStorage(uris: List<Uri>): UploadUiState.Error? {
-        val storageCheck = StorageUtil.checkStorageForUpload(context, uris)
-
-        if (!storageCheck.hasEnoughSpace) {
-            Log.w(TAG, "Storage check failed: ${storageCheck.message}")
-            analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "storage_insufficient"))
-
-            return UploadUiState.Error(
-                userMessage = context.getString(R.string.error_not_enough_storage),
-                technicalDetails = storageCheck.message,
-                isRetryable = false
-            )
-        }
-
-        // Check individual file sizes
-        uris.forEach { uri ->
-            StorageUtil.validateFileSize(context, uri).onFailure { e ->
-                Log.w(TAG, "File size validation failed: ${e.message}")
-                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "file_too_large"))
-
-                return UploadUiState.Error(
-                    userMessage = context.getString(R.string.error_file_too_large_short),
-                    technicalDetails = e.message,
-                    isRetryable = false
-                )
-            }
-        }
-
-        return null  // Storage check passed
-    }
-
     fun uploadDocument(
         uri: Uri,
         title: String? = null,
@@ -341,69 +280,15 @@ class UploadViewModel @Inject constructor(
         correspondentId: Int? = null,
         customFields: Map<Int, String> = emptyMap()
     ) {
-        viewModelScope.launch(ioDispatcher) {
-            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = 1, isMultiPage = false))
-
-            // Check storage BEFORE queueing
-            checkStorage(listOf(uri))?.let { error ->
-                _uiState.update { error }
-                return@launch
-            }
-
-            _uiState.update { UploadUiState.Queuing }
-
-            try {
-                // Copy file to local storage to ensure WorkManager can access it later
-                // Content URIs from SAF lose permissions when passed to WorkManager
-                val localUri = if (FileUtils.isLocalFileUri(uri)) {
-                    uri
-                } else {
-                    FileUtils.copyToLocalStorage(context, uri) ?: run {
-                        Log.e(TAG, "Failed to copy file for queue: $uri")
-                        _uiState.update { UploadUiState.Error(
-                            userMessage = context.getString(R.string.error_saving_file),
-                            technicalDetails = context.getString(R.string.error_queue_add),
-                            isRetryable = false
-                        ) }
-                        return@launch
-                    }
-                }
-
-                // Verify file exists before queueing
-                if (!FileUtils.fileExists(localUri)) {
-                    Log.e(TAG, "File validation failed after copy: $localUri")
-                    _uiState.update { UploadUiState.Error(
-                        userMessage = context.getString(R.string.error_file_not_saved),
-                        technicalDetails = context.getString(R.string.error_file_not_accessible, localUri.lastPathSegment ?: ""),
-                        isRetryable = false
-                    ) }
-                    return@launch
-                }
-
-                // Queue the upload - WorkManager will handle retry, network checks, etc.
-                val queueId = uploadQueueRepository.queueUpload(
-                    uri = localUri,
-                    title = title,
-                    tagIds = tagIds,
-                    documentTypeId = documentTypeId,
-                    correspondentId = correspondentId,
-                    customFields = customFields
-                )
-
-                // Trigger immediate upload processing
-                uploadWorkManager.scheduleImmediateUpload()
-
-                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
-                _uiState.update { UploadUiState.Queued }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error queueing upload", e)
-                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
-                _uiState.update { UploadUiState.Error(
-                    userMessage = context.getString(R.string.error_adding_to_queue),
-                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
-                    isRetryable = false
-                ) }
-            }
+        viewModelScope.launch {
+            performUploadUseCase.uploadSingle(
+                uri = uri,
+                title = title,
+                tagIds = tagIds,
+                documentTypeId = documentTypeId,
+                correspondentId = correspondentId,
+                customFields = customFields
+            ).collect { result -> _uiState.update { result.toUiState() } }
         }
     }
 
@@ -416,111 +301,16 @@ class UploadViewModel @Inject constructor(
         correspondentId: Int? = null,
         customFields: Map<Int, String> = emptyMap()
     ) {
-        viewModelScope.launch(ioDispatcher) {
-            val pageCount = uris.size
-
-            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
-
-            // Check storage BEFORE queueing
-            checkStorage(uris)?.let { error ->
-                _uiState.update { error }
-                return@launch
-            }
-
-            _uiState.update { UploadUiState.Queuing }
-
-            try {
-                // Copy files to local storage to ensure WorkManager can access them later
-                // Content URIs from SAF lose permissions when passed to WorkManager
-                // For large batches, this may take several minutes - process sequentially to avoid OOM
-                val localUris = uris.mapIndexedNotNull { index, uri ->
-                    // Log progress every 10 files for large batches
-                    if (pageCount > 50 && (index + 1) % 10 == 0) {
-                        Log.d(TAG, "Copying progress: ${index + 1}/$pageCount files")
-                    }
-
-                    if (FileUtils.isLocalFileUri(uri)) {
-                        uri
-                    } else {
-                        val copiedUri = FileUtils.copyToLocalStorage(context, uri)
-                        if (copiedUri == null) {
-                            Log.e(TAG, "Page ${index + 1}/$pageCount: Failed to copy: $uri")
-                        }
-                        copiedUri
-                    }
-                }
-
-                if (localUris.isEmpty()) {
-                    Log.e(TAG, "Failed to copy any files for queue (0/${uris.size} succeeded)")
-                    _uiState.update { UploadUiState.Error(
-                        userMessage = context.getString(R.string.error_saving_file),
-                        technicalDetails = context.getString(R.string.error_queue_add),
-                        isRetryable = false
-                    ) }
-                    return@launch
-                }
-
-                // Verify all files exist before queueing
-                val missingFiles = localUris.filterNot { FileUtils.fileExists(it) }
-                if (missingFiles.isNotEmpty()) {
-                    Log.e(TAG, "File validation failed: ${missingFiles.size}/${localUris.size} files not accessible")
-                    missingFiles.forEach { uri ->
-                        Log.e(TAG, "  Missing: $uri")
-                    }
-                    _uiState.update { UploadUiState.Error(
-                        userMessage = context.getString(R.string.error_files_not_saved),
-                        technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localUris.size),
-                        isRetryable = false
-                    ) }
-                    return@launch
-                }
-
-                // Queue the upload - WorkManager will handle retry, network checks, etc.
-                if (uploadAsSingleDocument) {
-                    // Combined: Merge all pages into a single PDF document
-                    uploadQueueRepository.queueMultiPageUpload(
-                        uris = localUris,
-                        title = title,
-                        tagIds = tagIds,
-                        documentTypeId = documentTypeId,
-                        correspondentId = correspondentId,
-                        customFields = customFields
-                    )
-                } else {
-                    // Individual: Queue each page as a separate document
-                    localUris.forEachIndexed { index, uri ->
-                        val individualTitle = if (title.isNullOrBlank()) {
-                            null
-                        } else if (localUris.size > 1) {
-                            "$title (${index + 1}/${localUris.size})"
-                        } else {
-                            title
-                        }
-                        uploadQueueRepository.queueUpload(
-                            uri = uri,
-                            title = individualTitle,
-                            tagIds = tagIds,
-                            documentTypeId = documentTypeId,
-                            correspondentId = correspondentId,
-                            customFields = customFields
-                        )
-                    }
-                }
-
-                // Trigger immediate upload processing
-                uploadWorkManager.scheduleImmediateUpload()
-
-                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
-                _uiState.update { UploadUiState.Queued }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error queueing multi-page upload", e)
-                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
-                _uiState.update { UploadUiState.Error(
-                    userMessage = context.getString(R.string.error_adding_to_queue),
-                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
-                    isRetryable = false
-                ) }
-            }
+        viewModelScope.launch {
+            performUploadUseCase.uploadMultiPage(
+                uris = uris,
+                uploadAsSingleDocument = uploadAsSingleDocument,
+                title = title,
+                tagIds = tagIds,
+                documentTypeId = documentTypeId,
+                correspondentId = correspondentId,
+                customFields = customFields
+            ).collect { result -> _uiState.update { result.toUiState() } }
         }
     }
 
@@ -530,128 +320,21 @@ class UploadViewModel @Inject constructor(
      *
      * @param pages List of ScannedPage objects with customMetadata
      */
-    fun uploadPagesWithMetadata(pages: List<com.paperless.scanner.ui.screens.scan.ScannedPage>) {
-        viewModelScope.launch(ioDispatcher) {
-            val pageCount = pages.size
-
-            // CRITICAL: Warn for large batches (50+ files can cause performance issues)
-            if (pageCount > 50) {
-                Log.w(TAG, "Large batch upload detected: $pageCount pages. This may take several minutes.")
-            }
-
-            analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
-
-            val uris = pages.map { it.uri }
-
-            // Check storage BEFORE queueing
-            checkStorage(uris)?.let { error ->
-                _uiState.update { error }
-                return@launch
-            }
-
-            _uiState.update { UploadUiState.Queuing }
-
-            try {
-                // Copy files to local storage
-                // For large batches, this may take several minutes - process sequentially to avoid OOM
-                val localPages = pages.mapIndexedNotNull { index, page ->
-                    // Log progress every 10 files for large batches
-                    if (pageCount > 50 && (index + 1) % 10 == 0) {
-                        Log.d(TAG, "Copying progress: ${index + 1}/$pageCount pages")
-                    }
-
-                    val localUri = if (FileUtils.isLocalFileUri(page.uri)) {
-                        page.uri
-                    } else {
-                        val copiedUri = FileUtils.copyToLocalStorage(context, page.uri)
-                        if (copiedUri == null) {
-                            Log.e(TAG, "Page ${page.pageNumber}: Failed to copy: ${page.uri}")
-                        }
-                        copiedUri
-                    }
-
-                    if (localUri != null) {
-                        page.copy(uri = localUri)
-                    } else {
-                        null
-                    }
-                }
-
-                if (localPages.isEmpty()) {
-                    Log.e(TAG, "Failed to copy any files for queue (0/${pages.size} succeeded)")
-                    _uiState.update { UploadUiState.Error(
-                        userMessage = context.getString(R.string.error_saving_file),
-                        technicalDetails = context.getString(R.string.error_queue_add),
-                        isRetryable = false
-                    ) }
-                    return@launch
-                }
-
-                // Verify all files exist before queueing
-                val missingFiles = localPages.filterNot { FileUtils.fileExists(it.uri) }
-                if (missingFiles.isNotEmpty()) {
-                    Log.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
-                    _uiState.update { UploadUiState.Error(
-                        userMessage = context.getString(R.string.error_files_not_saved),
-                        technicalDetails = context.getString(R.string.error_files_not_accessible, missingFiles.size, localPages.size),
-                        isRetryable = false
-                    ) }
-                    return@launch
-                }
-
-                // Group pages by metadata for organization
-                val groups = localPages.groupBy { it.customMetadata }
-
-                // CRITICAL: "Individuell bearbeiten" workflow ALWAYS uploads individual documents
-                // Each image becomes a separate document in Paperless, even if they share metadata
-                Log.i(TAG, "Queueing ${localPages.size} pages as individual documents (${groups.size} metadata groups)")
-
-                // Create individual uploads for each page
-                groups.forEach { (metadata, groupPages) ->
-                    val title = metadata?.title
-                    val tagIds = metadata?.tags ?: emptyList()
-                    val documentTypeId = metadata?.documentType
-                    val correspondentId = metadata?.correspondent
-
-                    // Upload each page individually with automatic numbering
-                    groupPages.forEachIndexed { index, page ->
-                        val individualTitle = if (groupPages.size == 1) {
-                            // Single page in group - use title as-is
-                            title
-                        } else {
-                            // Multiple pages in group - add numbering
-                            if (title.isNullOrBlank()) {
-                                context.getString(R.string.document_numbered, index + 1, groupPages.size)
-                            } else {
-                                "$title (${index + 1}/${groupPages.size})"
-                            }
-                        }
-
-                        uploadQueueRepository.queueUpload(
-                            uri = page.uri,
-                            title = individualTitle,
-                            tagIds = tagIds,
-                            documentTypeId = documentTypeId,
-                            correspondentId = correspondentId
-                        )
-                    }
-                }
-
-                // Trigger immediate upload processing
-                uploadWorkManager.scheduleImmediateUpload()
-
-                analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
-                _uiState.update { UploadUiState.Queued }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error queueing pages with metadata", e)
-                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
-                _uiState.update { UploadUiState.Error(
-                    userMessage = context.getString(R.string.error_adding_to_queue),
-                    technicalDetails = e.message ?: context.getString(R.string.error_unknown_short),
-                    isRetryable = false
-                ) }
-            }
+    fun uploadPagesWithMetadata(pages: List<ScannedPage>) {
+        viewModelScope.launch {
+            performUploadUseCase.uploadPagesWithMetadata(pages)
+                .collect { result -> _uiState.update { result.toUiState() } }
         }
+    }
+
+    private fun UploadResult.toUiState(): UploadUiState = when (this) {
+        UploadResult.Queuing -> UploadUiState.Queuing
+        UploadResult.Queued -> UploadUiState.Queued
+        is UploadResult.Failed -> UploadUiState.Error(
+            userMessage = userMessage,
+            technicalDetails = technicalDetails,
+            isRetryable = isRetryable
+        )
     }
 
     fun resetState() {
@@ -665,34 +348,19 @@ class UploadViewModel @Inject constructor(
     }
 
     fun createTag(name: String, color: String? = null) {
-        viewModelScope.launch(ioDispatcher) {
+        viewModelScope.launch {
             _createTagState.update { CreateTagState.Creating }
 
-            tagRepository.createTag(name = name, color = color)
-                .onSuccess { newTag ->
-                    analyticsService.trackEvent(AnalyticsEvent.TagCreated)
+            when (val result = uploadMetadataUseCase.createTag(name = name, color = color)) {
+                is CreateTagResult.Success -> {
                     // BEST PRACTICE: No manual list update needed!
                     // observeTagsReactively() automatically updates dropdown.
-                    _createTagState.update { CreateTagState.Success(newTag) }
+                    _createTagState.update { CreateTagState.Success(result.tag) }
                 }
-                .onFailure { e ->
-                    Log.e(TAG, "Failed to create tag", e)
-                    // Handle duplicate tag error - try to find existing tag
-                    if (e.message?.contains("unique constraint") == true ||
-                        e.message?.contains("already exists") == true) {
-                        // Refresh tags from server and try to find the existing tag
-                        tagRepository.getTags(forceRefresh = true)
-                        val existingTag = tagRepository.observeTags().first()
-                            .find { it.name.equals(name, ignoreCase = true) }
-                        if (existingTag != null) {
-                            _createTagState.update { CreateTagState.Success(existingTag) }
-                            return@launch
-                        }
-                    }
-                    _createTagState.update {
-                        CreateTagState.Error(e.message ?: context.getString(R.string.error_create_tag))
-                    }
+                is CreateTagResult.Failure -> {
+                    _createTagState.update { CreateTagState.Error(result.message) }
                 }
+            }
         }
     }
 
@@ -711,12 +379,15 @@ class UploadViewModel @Inject constructor(
      * The orchestrator handles Premium checks, network status, and merging automatically.
      */
     fun analyzeDocument(uri: Uri, usePremiumAi: Boolean = false) {
-        viewModelScope.launch(ioDispatcher) {
+        viewModelScope.launch {
             _analysisState.update { AnalysisState.Analyzing }
 
+            // Single try/catch around the whole flow: any failure (usage-limit check,
+            // analysis, or post-analysis usage logging) must surface as AnalysisState.Error
+            // rather than cancelling the coroutine and leaving the UI stuck in Analyzing.
             try {
                 // Check usage limits for UI feedback
-                val limitStatus = aiUsageRepository.checkUsageLimit()
+                val limitStatus = analyzeDocumentUseCase.checkUsageLimit()
 
                 // Show limit warning/info based on status
                 when (limitStatus) {
@@ -734,27 +405,9 @@ class UploadViewModel @Inject constructor(
                     }
                 }
 
-                // Decode bitmap for AI/local analysis
-                val bitmap = context.contentResolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it)
-                }
-
-                if (bitmap == null) {
-                    Log.w(TAG, "Could not decode image for analysis")
-                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
-                    return@launch
-                }
-
-                // Use SuggestionOrchestrator for centralized suggestion logic
-                // Handles Premium check, fallback chain (AI → Paperless → Local), and merging
-                val result = suggestionOrchestrator.getSuggestions(
-                    bitmap = bitmap,
-                    extractedText = "", // TODO: Add OCR text extraction in future
-                    documentId = null, // Not applicable for pre-upload analysis
-                    overrideWifiOnly = _wifiOnlyOverride.value
-                )
-
-                when (result) {
+                // Use AnalyzeDocumentUseCase for centralized suggestion logic
+                // Handles bitmap decode, Premium check, fallback chain (AI → Paperless → Local), and merging
+                when (val result = analyzeDocumentUseCase.analyze(uri, overrideWifiOnly = _wifiOnlyOverride.value)) {
                     is SuggestionResult.WiFiRequired -> {
                         _wifiRequired.update { true }
                         _analysisState.update { AnalysisState.Idle }
@@ -769,23 +422,7 @@ class UploadViewModel @Inject constructor(
 
                         // Track AI usage if AI was used
                         if (result.source == SuggestionSource.FIREBASE_AI) {
-                            val estimatedInputTokens = 1000  // ~1 image
-                            val estimatedOutputTokens = 200  // ~200 tokens for suggestions
-
-                            aiUsageRepository.logUsage(
-                                featureType = "document_analysis",
-                                inputTokens = estimatedInputTokens,
-                                outputTokens = estimatedOutputTokens,
-                                success = true,
-                                subscriptionType = "free" // TODO: Update when premium implemented
-                            )
-
-                            analyticsService.trackAiFeatureUsage(
-                                featureType = "document_analysis",
-                                inputTokens = estimatedInputTokens,
-                                outputTokens = estimatedOutputTokens,
-                                subscriptionType = "free"
-                            )
+                            analyzeDocumentUseCase.logFirebaseUsage()
                         }
 
                         _aiSuggestions.update { result.analysis }
@@ -807,10 +444,13 @@ class UploadViewModel @Inject constructor(
                         _analysisState.update { AnalysisState.Analyzing }
                     }
                 }
-
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Document analysis failed", e)
-                _analysisState.update { AnalysisState.Error(e.message ?: context.getString(R.string.error_analyze_document)) }
+                _analysisState.update {
+                    AnalysisState.Error(e.message ?: analyzeDocumentUseCase.analysisErrorMessage)
+                }
             }
         }
     }
@@ -847,7 +487,7 @@ class UploadViewModel @Inject constructor(
      */
     fun setAiNewTagsEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            tokenManager.setAiNewTagsEnabled(enabled)
+            analyzeDocumentUseCase.setAiNewTagsEnabled(enabled)
         }
     }
 }

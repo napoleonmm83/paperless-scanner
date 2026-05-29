@@ -16,6 +16,10 @@ import com.paperless.scanner.data.repository.CustomFieldRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.ui.screens.upload.usecase.AnalyzeDocumentUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.PerformUploadUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
+import com.paperless.scanner.util.CoroutineDispatchers
 import app.cash.turbine.test
 import io.mockk.every
 import io.mockk.mockk
@@ -59,6 +63,9 @@ import org.robolectric.annotation.Config
 class UploadViewModelInitTest {
 
     private val testDispatcher = StandardTestDispatcher()
+    private val dispatchers by lazy {
+        CoroutineDispatchers(io = testDispatcher, default = testDispatcher, main = testDispatcher)
+    }
 
     private lateinit var context: Context
     private lateinit var tagRepository: TagRepository
@@ -123,25 +130,40 @@ class UploadViewModelInitTest {
         unmockkStatic(Log::class)
     }
 
-    /** Builds an [UploadViewModel] with the given [SavedStateHandle], reusing all the @Before mocks. */
+    /**
+     * Builds an [UploadViewModel] with the given [SavedStateHandle], reusing all the @Before mocks.
+     * Post-#42: wires the real use cases around the mocked collaborators.
+     */
     private fun buildViewModel(savedStateHandle: SavedStateHandle): UploadViewModel = UploadViewModel(
-        context = context,
         savedStateHandle = savedStateHandle,
-        tagRepository = tagRepository,
-        documentTypeRepository = documentTypeRepository,
-        correspondentRepository = correspondentRepository,
-        customFieldRepository = customFieldRepository,
-        uploadQueueRepository = uploadQueueRepository,
-        uploadWorkManager = uploadWorkManager,
-        networkMonitor = networkMonitor,
-        serverHealthMonitor = serverHealthMonitor,
-        analyticsService = analyticsService,
-        suggestionOrchestrator = suggestionOrchestrator,
-        aiUsageRepository = aiUsageRepository,
-        premiumFeatureManager = premiumFeatureManager,
-        tokenManager = tokenManager,
         routeArgsHolder = routeArgsHolder,
-        ioDispatcher = testDispatcher
+        performUploadUseCase = PerformUploadUseCase(
+            context = context,
+            uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
+            analyticsService = analyticsService,
+            networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
+            dispatchers = dispatchers,
+        ),
+        uploadMetadataUseCase = UploadMetadataUseCase(
+            context = context,
+            tagRepository = tagRepository,
+            documentTypeRepository = documentTypeRepository,
+            correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
+            analyticsService = analyticsService,
+            dispatchers = dispatchers,
+        ),
+        analyzeDocumentUseCase = AnalyzeDocumentUseCase(
+            context = context,
+            suggestionOrchestrator = suggestionOrchestrator,
+            aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
+            analyticsService = analyticsService,
+            tokenManager = tokenManager,
+            dispatchers = dispatchers,
+        ),
     )
 
     @Test
