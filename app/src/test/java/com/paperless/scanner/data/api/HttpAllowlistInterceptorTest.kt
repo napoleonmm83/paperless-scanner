@@ -115,6 +115,54 @@ class HttpAllowlistInterceptorTest {
         assertEquals(200, response.code)
     }
 
+    // Issue #222: edge cases — IPv6 with explicit port, 0.0.0.0, and IDN hosts.
+
+    @Test
+    fun `http to user-accepted IPv6 host with explicit port passes`() {
+        val holder = mockk<HttpAllowlistHolder>()
+        // OkHttp normalizes the bracketed authority to the bare host for url.host.
+        every { holder.snapshot() } returns setOf("2001:db8::1")
+        val interceptor = HttpAllowlistInterceptor(holder)
+        val request = Request.Builder().url("http://[2001:db8::1]:8000/api/").build()
+
+        val response = interceptor.intercept(chainFor(request))
+
+        assertEquals(200, response.code)
+    }
+
+    @Test
+    fun `http to 0_0_0_0 is denied by default`() {
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns emptySet()
+        val interceptor = HttpAllowlistInterceptor(holder)
+        // 0.0.0.0 is not loopback and not user-accepted → must fail closed.
+        val request = Request.Builder().url("http://0.0.0.0:8000/api/").build()
+        val chain = mockk<Interceptor.Chain>()
+        every { chain.request() } returns request
+
+        val thrown = assertThrows(CleartextNotAllowlistedException::class.java) {
+            interceptor.intercept(chain)
+        }
+        assertEquals("0.0.0.0", thrown.host)
+    }
+
+    @Test
+    fun `http to accepted IDN host passes when allowlist holds the ASCII form`() {
+        // TokenManager.acceptHttpForHost normalizes Unicode hosts to Punycode
+        // (issue #222), so the allowlist holds the ASCII form. OkHttp likewise
+        // exposes the Punycode form via url.host for a Unicode request URL, so
+        // the two match and the accepted host is NOT silently denied.
+        val asciiHost = java.net.IDN.toASCII("päperless.lan")
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns setOf(asciiHost)
+        val interceptor = HttpAllowlistInterceptor(holder)
+        val request = Request.Builder().url("http://päperless.lan/api/").build()
+
+        val response = interceptor.intercept(chainFor(request))
+
+        assertEquals(200, response.code)
+    }
+
     @Test
     fun `http to user-accepted host passes`() {
         val holder = mockk<HttpAllowlistHolder>()

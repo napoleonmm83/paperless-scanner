@@ -706,19 +706,35 @@ class TokenManager(
         raw.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
     }
 
+    /**
+     * Normalize a host for storage/comparison against OkHttp's `url.host`, which
+     * is always ASCII (Punycode for IDN). Lowercases and converts a Unicode
+     * hostname (e.g. `päperless.lan`) to its ASCII/Punycode form via
+     * [java.net.IDN] so the persisted allowlist always matches the host the
+     * [com.paperless.scanner.data.api.HttpAllowlistInterceptor] actually sees
+     * (issue #222). Falls back to the trimmed/lowercased input for IP literals
+     * or malformed values that [java.net.IDN.toASCII] rejects.
+     */
+    private fun normalizeHost(host: String): String {
+        val trimmed = host.trim()
+        return runCatching { java.net.IDN.toASCII(trimmed) }.getOrDefault(trimmed).lowercase()
+    }
+
     /** Check if a host has been accepted for insecure HTTP connections */
     fun isHostAcceptedForHttp(host: String): Boolean = runBlocking {
+        val normalized = normalizeHost(host)
         val acceptedHosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-        acceptedHosts.split(",").map { it.trim().lowercase() }.contains(host.lowercase())
+        acceptedHosts.split(",").map { it.trim().lowercase() }.contains(normalized)
     }
 
     /** Accept a host for insecure HTTP connections (user acknowledged warning) */
     suspend fun acceptHttpForHost(host: String) {
+        val normalized = normalizeHost(host)
         context.dataStore.edit { preferences ->
             val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
             val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableList()
-            if (!hostList.contains(host.lowercase())) {
-                hostList.add(host.lowercase())
+            if (!hostList.contains(normalized)) {
+                hostList.add(normalized)
             }
             preferences[ACCEPTED_HTTP_HOSTS_KEY] = hostList.joinToString(",")
         }
@@ -726,9 +742,10 @@ class TokenManager(
 
     /** Remove a host from accepted HTTP hosts */
     suspend fun removeAcceptedHttpHost(host: String) {
+        val normalized = normalizeHost(host)
         context.dataStore.edit { preferences ->
             val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() && it.lowercase() != host.lowercase() }
+            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() && it != normalized }
             preferences[ACCEPTED_HTTP_HOSTS_KEY] = hostList.joinToString(",")
         }
     }
