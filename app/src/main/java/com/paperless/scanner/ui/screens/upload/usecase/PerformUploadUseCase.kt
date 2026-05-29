@@ -15,6 +15,7 @@ import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.utils.StorageUtil
 import com.paperless.scanner.worker.UploadWorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
@@ -121,6 +122,8 @@ class PerformUploadUseCase @Inject constructor(
 
             analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
             emit(UploadResult.Queued)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error queueing upload", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
@@ -236,6 +239,8 @@ class PerformUploadUseCase @Inject constructor(
 
             analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
             emit(UploadResult.Queued)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error queueing multi-page upload", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
@@ -362,6 +367,8 @@ class PerformUploadUseCase @Inject constructor(
 
             analyticsService.trackEvent(AnalyticsEvent.UploadQueued(isOffline = false))
             emit(UploadResult.Queued)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error queueing pages with metadata", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))

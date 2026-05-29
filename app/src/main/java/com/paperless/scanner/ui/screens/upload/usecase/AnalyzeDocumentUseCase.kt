@@ -15,6 +15,7 @@ import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.util.CoroutineDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -82,6 +83,8 @@ class AnalyzeDocumentUseCase @Inject constructor(
                 documentId = null, // Not applicable for pre-upload analysis
                 overrideWifiOnly = overrideWifiOnly
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Document analysis failed", e)
             SuggestionResult.Error(e.message ?: context.getString(R.string.error_analyze_document))
