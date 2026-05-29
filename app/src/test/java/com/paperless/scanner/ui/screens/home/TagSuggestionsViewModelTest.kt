@@ -83,6 +83,11 @@ class TagSuggestionsViewModelTest {
         tokenManager = tokenManager,
         premiumFeatureManager = premiumFeatureManager,
         analyticsService = analyticsService,
+        // Pin thumbnail downloads to the test scheduler so analyzeDocument's
+        // network coroutine cannot leak onto a real IO thread and resume on a
+        // torn-down Main dispatcher (root cause of the UncaughtExceptionsBeforeTest
+        // flake that surfaced in unrelated tests).
+        ioDispatcher = testDispatcher,
     )
 
     private fun doc(id: Int, title: String = "doc-$id") = Document(
