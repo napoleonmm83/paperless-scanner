@@ -51,7 +51,7 @@ fun HomeHeaderSection(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = stringResource(R.string.home_your_archive),
+                    text = stringResource(R.string.home_your_archive).uppercase(),
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.ExtraBold
                 )

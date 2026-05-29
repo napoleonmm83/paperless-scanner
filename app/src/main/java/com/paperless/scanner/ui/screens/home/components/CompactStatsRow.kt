@@ -43,7 +43,7 @@ import com.paperless.scanner.R
  * - Surface background (#141414)
  * - 1dp border with outline (#27272A)
  * - No elevation
- * - 16dp corner radius, 12dp padding
+ * - 20dp corner radius, 12dp padding
  */
 @Composable
 fun CompactStatsRow(
@@ -119,9 +119,9 @@ private fun CompactStatCard(
         modifier = modifier.border(
             width = 1.dp,
             color = MaterialTheme.colorScheme.outline,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(20.dp)
         ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
