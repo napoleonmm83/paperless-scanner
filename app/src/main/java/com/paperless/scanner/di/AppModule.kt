@@ -623,6 +623,11 @@ object AppModule {
     @Provides
     fun provideIODispatcher(): CoroutineDispatcher = Dispatchers.IO
 
+    @Provides
+    @Singleton
+    fun provideCoroutineDispatchers(): com.paperless.scanner.util.CoroutineDispatchers =
+        com.paperless.scanner.util.CoroutineDispatchers()
+
     // Crashlytics Helper for breadcrumb logging
 
     @Provides

@@ -21,6 +21,10 @@ import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.ui.screens.upload.usecase.AnalyzeDocumentUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.PerformUploadUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
+import com.paperless.scanner.util.CoroutineDispatchers
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.utils.StorageUtil
 import io.mockk.coEvery
@@ -59,6 +63,11 @@ import org.junit.Test
  * - Tests now verify queue operations instead of direct DocumentRepository calls
  * - Manual retry logic removed (WorkManager handles automatic retry)
  * - Mocking reactive Flows (observeTags, observeDocumentTypes, observeCorrespondents)
+ *
+ * Post-#42: UploadViewModel orchestration now lives in PerformUploadUseCase /
+ * UploadMetadataUseCase / AnalyzeDocumentUseCase. These tests wire the REAL use cases
+ * around the same mocked collaborators (see [buildViewModel]) so the existing
+ * coVerify / state assertions still exercise the underlying repositories.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class UploadViewModelTest {
@@ -81,6 +90,50 @@ class UploadViewModelTest {
     private lateinit var savedStateHandle: androidx.lifecycle.SavedStateHandle
 
     private val testDispatcher = StandardTestDispatcher()
+    private val dispatchers by lazy {
+        CoroutineDispatchers(io = testDispatcher, default = testDispatcher, main = testDispatcher)
+    }
+
+    /**
+     * Builds an [UploadViewModel] wiring the REAL use cases around the @Before mocks.
+     * [tagRepo] can be overridden for tests that need a strict (non-relaxed) TagRepository.
+     */
+    private fun buildViewModel(tagRepo: TagRepository = tagRepository): UploadViewModel {
+        val performUploadUseCase = PerformUploadUseCase(
+            context = context,
+            uploadQueueRepository = uploadQueueRepository,
+            uploadWorkManager = uploadWorkManager,
+            analyticsService = analyticsService,
+            networkMonitor = networkMonitor,
+            serverHealthMonitor = serverHealthMonitor,
+            dispatchers = dispatchers,
+        )
+        val uploadMetadataUseCase = UploadMetadataUseCase(
+            context = context,
+            tagRepository = tagRepo,
+            documentTypeRepository = documentTypeRepository,
+            correspondentRepository = correspondentRepository,
+            customFieldRepository = customFieldRepository,
+            analyticsService = analyticsService,
+            dispatchers = dispatchers,
+        )
+        val analyzeDocumentUseCase = AnalyzeDocumentUseCase(
+            context = context,
+            suggestionOrchestrator = suggestionOrchestrator,
+            aiUsageRepository = aiUsageRepository,
+            premiumFeatureManager = premiumFeatureManager,
+            analyticsService = analyticsService,
+            tokenManager = tokenManager,
+            dispatchers = dispatchers,
+        )
+        return UploadViewModel(
+            savedStateHandle = savedStateHandle,
+            routeArgsHolder = AppLockRouteArgsHolder(),
+            performUploadUseCase = performUploadUseCase,
+            uploadMetadataUseCase = uploadMetadataUseCase,
+            analyzeDocumentUseCase = analyzeDocumentUseCase,
+        )
+    }
 
     @Before
     fun setup() {
@@ -151,28 +204,11 @@ class UploadViewModelTest {
         // Mock ServerHealthMonitor isServerReachable StateFlow
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
 
-        // Mock NetworkMonitor isOnline StateFlow
+        // Mock NetworkMonitor StateFlows
         every { networkMonitor.isOnline } returns MutableStateFlow(true)
+        every { networkMonitor.isWifiConnected } returns MutableStateFlow(true)
 
-        viewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = tagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        viewModel = buildViewModel()
     }
 
     @After
@@ -193,25 +229,7 @@ class UploadViewModelTest {
         )
         every { tagRepository.observeTags() } returns flowOf(mockTags)
 
-        val newViewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = tagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        val newViewModel = buildViewModel()
         advanceUntilIdle()
 
         newViewModel.tags.test {
@@ -231,25 +249,7 @@ class UploadViewModelTest {
         )
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(mockTypes)
 
-        val newViewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = tagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        val newViewModel = buildViewModel()
         advanceUntilIdle()
 
         newViewModel.documentTypes.test {
@@ -548,25 +548,7 @@ class UploadViewModelTest {
         coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
             Result.failure(Exception("Network error"))
 
-        val testViewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = strictTagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        val testViewModel = buildViewModel(tagRepo = strictTagRepository)
         advanceUntilIdle()
 
         testViewModel.createTag(name = "NewTag")
@@ -589,25 +571,7 @@ class UploadViewModelTest {
         coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
             Result.failure(Exception("Object violates owner / name unique constraint"))
 
-        val testViewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = strictTagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        val testViewModel = buildViewModel(tagRepo = strictTagRepository)
         advanceUntilIdle()
 
         testViewModel.createTag(name = "Existing")
@@ -628,25 +592,7 @@ class UploadViewModelTest {
         coEvery { strictTagRepository.createTag(name = any(), color = any()) } returns
             Result.failure(Exception("Error"))
 
-        val testViewModel = UploadViewModel(
-            context = context,
-            savedStateHandle = savedStateHandle,
-            tagRepository = strictTagRepository,
-            documentTypeRepository = documentTypeRepository,
-            correspondentRepository = correspondentRepository,
-            customFieldRepository = customFieldRepository,
-            uploadQueueRepository = uploadQueueRepository,
-            uploadWorkManager = uploadWorkManager,
-            networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor,
-            analyticsService = analyticsService,
-            suggestionOrchestrator = suggestionOrchestrator,
-            aiUsageRepository = aiUsageRepository,
-            premiumFeatureManager = premiumFeatureManager,
-            tokenManager = tokenManager,
-            routeArgsHolder = AppLockRouteArgsHolder(),
-            ioDispatcher = testDispatcher
-        )
+        val testViewModel = buildViewModel(tagRepo = strictTagRepository)
         advanceUntilIdle()
 
         // Trigger error state
@@ -663,6 +609,24 @@ class UploadViewModelTest {
 
             assertEquals(CreateTagState.Idle, awaitItem())
         }
+    }
+
+    // ==================== Analyze Document Tests ====================
+
+    @Test
+    fun `analyzeDocument surfaces a usage-check failure as Error state`() = runTest {
+        // Regression guard (#42 codex P2): the analyze flow must keep a try/catch so a
+        // failure in checkUsageLimit / logFirebaseUsage becomes AnalysisState.Error
+        // instead of cancelling the coroutine and leaving the UI stuck in Analyzing.
+        val uri = mockk<Uri>()
+        coEvery { aiUsageRepository.checkUsageLimit() } throws Exception("limit boom")
+
+        viewModel.analyzeDocument(uri)
+        advanceUntilIdle()
+
+        val state = viewModel.analysisState.value
+        assertTrue("Expected AnalysisState.Error but got ${state::class.simpleName}", state is AnalysisState.Error)
+        assertEquals("limit boom", (state as AnalysisState.Error).message)
     }
 
     // ==================== Initial State Tests ====================
