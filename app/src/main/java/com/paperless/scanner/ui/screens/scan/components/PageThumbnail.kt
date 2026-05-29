@@ -59,7 +59,6 @@ fun PageThumbnail(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val elevation = if (isDragging) 8.dp else 2.dp
     val scale = if (isDragging) 1.05f else 1f
 
     Card(
@@ -70,8 +69,8 @@ fun PageThumbnail(
                 scaleY = scale
             }
             .zIndex(if (isDragging) 1f else 0f),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Box {
@@ -81,7 +80,7 @@ fun PageThumbnail(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(0.7f)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .rotate(page.rotation.toFloat())
                     .clickable { onClick() },
                 contentScale = ContentScale.Crop
@@ -214,7 +213,7 @@ fun AddPageCard(onClick: () -> Unit) {
         modifier = Modifier
             .width(160.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
