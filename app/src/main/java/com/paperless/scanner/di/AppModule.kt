@@ -198,6 +198,7 @@ object AppModule {
         sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
 
         return OkHttpClient.Builder()
+            // Allowlist runs first; ordering contract pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor(createLoggingInterceptor())
             // TOFU pin enforcement runs as a network interceptor so it sees the
@@ -288,6 +289,7 @@ object AppModule {
             .addInterceptor(dynamicBaseUrlInterceptor)
             // Allowlist must run AFTER URL rewrite (sees real host) and BEFORE
             // the token interceptor (no auth-token leak to non-allowlisted hosts).
+            // This ordering contract is pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - runs on OkHttp thread pool, not main thread
@@ -359,6 +361,7 @@ object AppModule {
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(paperlessGptBaseUrlInterceptor)
             // Allowlist must run AFTER URL rewrite and BEFORE the token interceptor.
+            // Ordering contract pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - uses same token as Paperless-ngx
@@ -683,6 +686,7 @@ object AppModule {
         return OkHttpClient.Builder()
             .addInterceptor(createLoggingInterceptor())
             // Allowlist must run BEFORE the auth-token interceptor.
+            // Ordering contract pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
             // Auth token interceptor for Paperless-ngx API
             .addInterceptor { chain ->

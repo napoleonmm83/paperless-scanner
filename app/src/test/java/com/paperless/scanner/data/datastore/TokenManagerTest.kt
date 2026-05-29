@@ -154,6 +154,68 @@ class TokenManagerTest {
         assertEquals(emptyList<String>(), tokenManager.getAcceptedSslHosts())
     }
 
+    // ==================== HTTP Hosts (cleartext allowlist) ====================
+
+    @Test
+    fun `acceptHttpForHost adds host and isHostAcceptedForHttp returns true`() = runTest {
+        tokenManager.acceptHttpForHost("paperless.lan")
+
+        assertTrue(tokenManager.isHostAcceptedForHttp("paperless.lan"))
+        assertFalse(tokenManager.isHostAcceptedForHttp("other.lan"))
+    }
+
+    @Test
+    fun `acceptHttpForHost is idempotent and case-insensitive`() = runTest {
+        tokenManager.acceptHttpForHost("paperless.lan")
+        tokenManager.acceptHttpForHost("Paperless.LAN")
+
+        assertEquals(listOf("paperless.lan"), tokenManager.getAcceptedHttpHosts())
+    }
+
+    @Test
+    fun `removeAcceptedHttpHost removes only the named host`() = runTest {
+        tokenManager.acceptHttpForHost("a.lan")
+        tokenManager.acceptHttpForHost("b.lan")
+
+        tokenManager.removeAcceptedHttpHost("a.lan")
+
+        assertEquals(listOf("b.lan"), tokenManager.getAcceptedHttpHosts())
+    }
+
+    // Issue #222: a Unicode (IDN) host must be persisted in its ASCII/Punycode
+    // form so it matches OkHttp's `url.host` in the interceptor; otherwise the
+    // accepted host is silently denied.
+    @Test
+    fun `acceptHttpForHost normalizes an IDN host to its ASCII form`() = runTest {
+        val ascii = java.net.IDN.toASCII("päperless.lan")
+
+        tokenManager.acceptHttpForHost("päperless.lan")
+
+        assertEquals(listOf(ascii), tokenManager.getAcceptedHttpHosts())
+        // Lookup by either the Unicode or the ASCII spelling resolves to the same entry.
+        assertTrue(tokenManager.isHostAcceptedForHttp("päperless.lan"))
+        assertTrue(tokenManager.isHostAcceptedForHttp(ascii))
+    }
+
+    // Issue #222 (CodeRabbit follow-up): a bracketed IPv6 literal must be stored
+    // in OkHttp's bare url.host form so the interceptor comparison matches.
+    @Test
+    fun `acceptHttpForHost strips brackets from an IPv6 literal`() = runTest {
+        tokenManager.acceptHttpForHost("[2001:db8::1]")
+
+        assertEquals(listOf("2001:db8::1"), tokenManager.getAcceptedHttpHosts())
+        assertTrue(tokenManager.isHostAcceptedForHttp("2001:db8::1"))
+    }
+
+    @Test
+    fun `removeAcceptedHttpHost matches an IDN host by either spelling`() = runTest {
+        tokenManager.acceptHttpForHost("päperless.lan")
+
+        tokenManager.removeAcceptedHttpHost("päperless.lan")
+
+        assertEquals(emptyList<String>(), tokenManager.getAcceptedHttpHosts())
+    }
+
     // ==================== App-Lock ====================
 
     @Test
