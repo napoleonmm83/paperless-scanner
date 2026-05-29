@@ -703,7 +703,10 @@ class TokenManager(
      */
     val acceptedHttpHostsFlow: Flow<List<String>> = context.dataStore.data.map { preferences ->
         val raw = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-        raw.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }
+        // Normalize on read too, so legacy entries persisted before host
+        // normalization (raw Unicode or bracketed IPv6) still match OkHttp's
+        // url.host without needing a one-shot migration (issue #222).
+        raw.split(",").filter { it.isNotBlank() }.map { normalizeHost(it) }
     }
 
     /**
@@ -716,7 +719,11 @@ class TokenManager(
      * or malformed values that [java.net.IDN.toASCII] rejects.
      */
     private fun normalizeHost(host: String): String {
-        val trimmed = host.trim()
+        // OkHttp exposes IPv6 literals WITHOUT brackets in url.host (e.g.
+        // "2001:db8::1"), so strip any surrounding brackets first; otherwise the
+        // bracketed form would never match. java.net.IDN.toASCII also rejects the
+        // colon-bearing IPv6 form, so the unbracketed value is the fallback too.
+        val trimmed = host.trim().removeSurrounding("[", "]")
         return runCatching { java.net.IDN.toASCII(trimmed) }.getOrDefault(trimmed).lowercase()
     }
 
@@ -724,7 +731,8 @@ class TokenManager(
     fun isHostAcceptedForHttp(host: String): Boolean = runBlocking {
         val normalized = normalizeHost(host)
         val acceptedHosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-        acceptedHosts.split(",").map { it.trim().lowercase() }.contains(normalized)
+        // Normalize stored values too so legacy raw entries still match (issue #222).
+        acceptedHosts.split(",").filter { it.isNotBlank() }.map { normalizeHost(it) }.contains(normalized)
     }
 
     /** Accept a host for insecure HTTP connections (user acknowledged warning) */
@@ -732,7 +740,11 @@ class TokenManager(
         val normalized = normalizeHost(host)
         context.dataStore.edit { preferences ->
             val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() }.toMutableList()
+            // Normalize existing entries too: makes the dedup check correct and
+            // opportunistically migrates any legacy raw entries to the canonical
+            // (ASCII/Punycode, unbracketed) form on the next write (issue #222).
+            val hostList = currentHosts.split(",").filter { it.isNotBlank() }
+                .map { normalizeHost(it) }.toMutableList()
             if (!hostList.contains(normalized)) {
                 hostList.add(normalized)
             }
@@ -745,7 +757,10 @@ class TokenManager(
         val normalized = normalizeHost(host)
         context.dataStore.edit { preferences ->
             val currentHosts = preferences[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-            val hostList = currentHosts.split(",").map { it.trim().lowercase() }.filter { it.isNotBlank() && it != normalized }
+            // Normalize stored values before comparing so a legacy raw entry
+            // (Unicode or bracketed IPv6) can still be removed (issue #222).
+            val hostList = currentHosts.split(",").filter { it.isNotBlank() }
+                .map { normalizeHost(it) }.filter { it != normalized }
             preferences[ACCEPTED_HTTP_HOSTS_KEY] = hostList.joinToString(",")
         }
     }
@@ -753,6 +768,8 @@ class TokenManager(
     /** Get all accepted HTTP hosts */
     fun getAcceptedHttpHosts(): List<String> = runBlocking {
         val hosts = context.dataStore.data.first()[ACCEPTED_HTTP_HOSTS_KEY] ?: ""
-        hosts.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        // Normalize on read so the list reflects the effective allowlist, incl.
+        // legacy entries persisted before host normalization (issue #222).
+        hosts.split(",").filter { it.isNotBlank() }.map { normalizeHost(it) }
     }
 }

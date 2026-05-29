@@ -197,6 +197,16 @@ class TokenManagerTest {
         assertTrue(tokenManager.isHostAcceptedForHttp(ascii))
     }
 
+    // Issue #222 (CodeRabbit follow-up): a bracketed IPv6 literal must be stored
+    // in OkHttp's bare url.host form so the interceptor comparison matches.
+    @Test
+    fun `acceptHttpForHost strips brackets from an IPv6 literal`() = runTest {
+        tokenManager.acceptHttpForHost("[2001:db8::1]")
+
+        assertEquals(listOf("2001:db8::1"), tokenManager.getAcceptedHttpHosts())
+        assertTrue(tokenManager.isHostAcceptedForHttp("2001:db8::1"))
+    }
+
     @Test
     fun `removeAcceptedHttpHost matches an IDN host by either spelling`() = runTest {
         tokenManager.acceptHttpForHost("päperless.lan")
