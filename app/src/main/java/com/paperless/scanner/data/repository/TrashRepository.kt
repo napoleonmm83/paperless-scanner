@@ -15,6 +15,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentsResponse
 import com.paperless.scanner.domain.model.TrashedDocument
+import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.withResponseRetry
 import com.paperless.scanner.util.withRetry
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -51,23 +52,20 @@ class TrashRepository @Inject constructor(
 
     companion object {
         private const val TAG = "TrashRepository"
-        private const val ERROR_BODY_LOG_LIMIT = 200
     }
 
     /**
-     * Produce a log-friendly snippet from an already-read error body:
-     * truncated to [ERROR_BODY_LOG_LIMIT] chars and with newlines escaped so a
-     * single log line stays grep-able. Server error responses can echo
-     * user-submitted data, so we never dump them in full.
+     * Produce a log-friendly snippet from an already-read error body. Delegates
+     * to the shared [LogSanitizer] so redaction/truncation rules stay in one
+     * place (issue #242): sensitive JSON fields are redacted, newlines escaped
+     * and the length capped.
      *
      * IMPORTANT: takes a pre-read [String], not a [retrofit2.Response]. Calling
      * `response.errorBody()?.string()` consumes the stream — call sites must
      * read the body exactly once and pass the result into both the log and
      * the [retrofit2.HttpException] construction.
      */
-    private fun sanitizeErrorBody(raw: String?): String? {
-        return raw?.replace("\n", "\\n")?.take(ERROR_BODY_LOG_LIMIT)
-    }
+    private fun sanitizeErrorBody(raw: String?): String? = LogSanitizer.sanitizeErrorBody(raw)
 
     suspend fun deleteDocument(documentId: Int): Result<Unit> = sync.executeOrQueue(
         online = {

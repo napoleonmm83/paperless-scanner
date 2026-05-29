@@ -8,6 +8,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.withRetry
 import com.paperless.scanner.R
 import java.io.IOException
@@ -95,7 +96,7 @@ class DocumentRepository @Inject constructor(
                 null
             }
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
-            android.util.Log.e("DocumentRepository", "Upload failed: HTTP ${e.code()}, body: $errorBody")
+            android.util.Log.e("DocumentRepository", "Upload failed: HTTP ${e.code()}, body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ContentError: ${e.message}")
@@ -178,7 +179,7 @@ class DocumentRepository @Inject constructor(
                 null
             }
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
-            android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: $errorBody")
+            android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             // Safe error message extraction (prevent secondary exceptions)

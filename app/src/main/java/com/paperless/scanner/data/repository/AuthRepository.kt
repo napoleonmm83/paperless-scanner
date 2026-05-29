@@ -7,6 +7,7 @@ import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import dagger.hilt.android.qualifiers.ApplicationContext
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.ServerUrlParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -534,7 +535,7 @@ class AuthRepository @Inject constructor(
                 }
             } else {
                 val errorBody = response.body?.string() ?: ""
-                Log.d(TAG, "Login error - Code: ${response.code}, Body: $errorBody")
+                Log.d(TAG, "Login error - Code: ${response.code}, Body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
 
                 // Log to auth debug service with full context
                 authDebugService.logAuthFailure(

@@ -10,6 +10,7 @@ import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as cachedTaskToDomain
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.domain.mapper.toDomain as apiTaskToDomain
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.util.withResponseRetry
@@ -222,7 +223,7 @@ class TaskRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "Failed: ${response.code()} - $errorBody")
+                Log.e(TAG, "Failed: ${response.code()} - ${LogSanitizer.sanitizeErrorBody(errorBody)}")
                 Result.failure(PaperlessException.fromHttpCode(response.code(), errorBody))
             }
         } catch (e: IOException) {
