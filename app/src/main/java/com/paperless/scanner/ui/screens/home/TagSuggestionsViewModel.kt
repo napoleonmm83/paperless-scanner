@@ -18,6 +18,7 @@ import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.util.NetworkConfig
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,6 +72,12 @@ class TagSuggestionsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val analyticsService: AnalyticsService,
+    // Injected so unit tests can pin thumbnail downloads to the test scheduler.
+    // With the hardcoded Dispatchers.IO, downloadThumbnail's network coroutine
+    // leaked onto a real IO thread, outlived the test, then resumed on a
+    // reset Main dispatcher — a fatal CoroutinesInternalError that surfaced as
+    // UncaughtExceptionsBeforeTest in whichever test ran next (cross-test flake).
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     companion object {
@@ -186,7 +193,7 @@ class TagSuggestionsViewModel @Inject constructor(
         serverUrl: String,
         authToken: String,
         timeoutMs: Int = NetworkConfig.THUMBNAIL_TIMEOUT_MS,
-    ): android.graphics.Bitmap? = withContext(Dispatchers.IO) {
+    ): android.graphics.Bitmap? = withContext(ioDispatcher) {
         try {
             val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
             val connection = URL(thumbnailUrl).openConnection()

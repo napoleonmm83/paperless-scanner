@@ -24,7 +24,6 @@ import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -60,7 +59,15 @@ class LoginViewModelTest {
         override fun clear() { map.clear() }
     }
 
-    private val testDispatcher = UnconfinedTestDispatcher()
+    // Issue: this test was the only ViewModel test using UnconfinedTestDispatcher.
+    // Its eager execution (run-until-suspension) combined with the real-time
+    // `runBlocking { delay(100) }` waits below let viewModelScope coroutines leak
+    // their exceptions past the test boundary, surfacing as
+    // `UncaughtExceptionsBeforeTest` in whichever test ran next (cross-test flake).
+    // StandardTestDispatcher queues coroutines and only runs them on explicit
+    // advanceUntilIdle()/advanceTimeBy(), matching every other ViewModel test and
+    // keeping all coroutine work deterministically inside the test scope.
+    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
@@ -197,8 +204,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://example.com", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         assertTrue(viewModel.uiState.value is LoginUiState.Success)
     }
@@ -213,8 +218,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://example.com", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         val state = viewModel.uiState.value
         assertTrue(state is LoginUiState.Error)
@@ -291,8 +294,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://example.com", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         // Final state should be Success
         assertTrue(viewModel.uiState.value is LoginUiState.Success)
@@ -331,8 +332,6 @@ class LoginViewModelTest {
 
         viewModel.loginWithToken("https://example.com", "valid-token")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         assertTrue(viewModel.uiState.value is LoginUiState.Success)
         coVerify { tokenManager.saveCredentials("https://example.com", "valid-token") }
@@ -348,8 +347,6 @@ class LoginViewModelTest {
 
         viewModel.loginWithToken("https://example.com", "invalid-token")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         assertTrue(viewModel.uiState.value is LoginUiState.Error)
     }
@@ -415,8 +412,6 @@ class LoginViewModelTest {
         // Advance past debounce time (800ms)
         advanceTimeBy(900)
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         // Should only call once due to debouncing
         coVerify(exactly = 1) { authRepository.detectServerProtocol(any()) }
@@ -433,8 +428,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("example.com")
         advanceTimeBy(900) // Past debounce
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         val status = viewModel.serverStatus.value
         assertTrue(status is ServerStatus.Success)
@@ -453,8 +446,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("invalid.server")
         advanceTimeBy(900)
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         assertTrue(viewModel.serverStatus.value is ServerStatus.Error)
     }
@@ -495,8 +486,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("example.com")
         advanceTimeBy(900)
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         assertTrue(viewModel.serverStatus.value is ServerStatus.Success)
 
@@ -562,8 +551,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://example.com", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
         assertTrue(viewModel.uiState.value is LoginUiState.Error)
 
         viewModel.resetState()
@@ -586,14 +573,10 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("example.com")
         advanceTimeBy(900)
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         // Then login
         viewModel.login("example.com", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         // Should use detected URL
         coVerify { authRepository.login("https://detected.example.com", "user", "pass") }
@@ -608,8 +591,6 @@ class LoginViewModelTest {
 
         viewModel.login("https://example.com/", "user", "pass")
         advanceUntilIdle()
-        // Wait for IO dispatcher operations to complete
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         coVerify { authRepository.login("https://example.com", "user", "pass") }
     }
@@ -648,7 +629,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("http://192.168.178.19")
         advanceTimeBy(900)
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         coVerify { authRepository.detectServerProtocol(any()) }
     }
@@ -666,7 +646,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("http://localhost:8000")
         advanceTimeBy(900)
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         coVerify { authRepository.detectServerProtocol(any()) }
         // No dialog state — must transition to Success (or Checking briefly).
@@ -691,7 +670,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("192.168.1.1")
         advanceTimeBy(900)
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         val status = viewModel.serverStatus.value
         assertTrue("Expected RequiresHttpAccept on CleartextBlocked, got $status", status is ServerStatus.RequiresHttpAccept)
@@ -719,7 +697,6 @@ class LoginViewModelTest {
         viewModel.onServerUrlChanged("192.168.1.1")
         advanceTimeBy(900)
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         // Confirm we landed on the dialog state first.
         assertTrue(viewModel.serverStatus.value is ServerStatus.RequiresHttpAccept)
@@ -728,7 +705,6 @@ class LoginViewModelTest {
         viewModel.onHttpAcceptedForRequiresHttpAccept("192.168.1.1", "192.168.1.1")
         advanceTimeBy(100) // Cover the 50ms delay inside the VM + slack
         advanceUntilIdle()
-        kotlinx.coroutines.runBlocking { kotlinx.coroutines.delay(100) }
 
         coVerify { tokenManager.acceptHttpForHost("192.168.1.1") }
         coVerify(exactly = 2) { authRepository.detectServerProtocol(any()) }
