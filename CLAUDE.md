@@ -337,6 +337,21 @@ app/src/main/java/com/paperless/scanner/
 - `remember` und `rememberSaveable` korrekt nutzen
 - Material 3 Components verwenden
 
+### God-Composable Decomposition (Refactoring-Standard, ZWINGEND!)
+
+Beim Zerlegen eines "god-composable" (große Screen-Datei mit vielen privaten Composables) gilt **immer** dieses Muster — NICHT mehr nachfragen, einfach so umsetzen:
+
+1. **Zielort:** Extrahierte Kind-Composables kommen in ein Unterpaket `ui/screens/{feature}/components/`.
+   - Beispiele die diesem Standard folgen: `settings/sections/` + `settings/components/` (#95), `scan/components/` (#92).
+   - **NICHT** flach neben den Screen legen (das alte #94-Muster ist überholt).
+2. **Sichtbarkeit:** Composables, die vom Screen oder von Geschwister-Dateien aufgerufen werden → `fun` (public). Reine Hilfs-Composables, die NUR innerhalb derselben Datei genutzt werden → `private fun`.
+3. **Previews:** Jede extrahierte Datei bekommt `@Preview`-Funktionen (`private fun XxxPreview()`), die den Inhalt in `MaterialTheme { ... }` wrappen. Ausnahme: Vollbild-`Dialog`-Composables (rendern in der Preview nicht sinnvoll) — Preview entfällt.
+4. **Verbatim kopieren:** Composable-Körper 1:1 aus `git HEAD` übernehmen (siehe Memory `feedback_refactor_copy_verbatim`). Keine "Verbesserungen" beim Verschieben.
+5. **Vor dem Extrahieren:** Aufrufstellen jeder privaten Composable grep'en — oft ist Code tot (superseded) und wird gelöscht statt verschoben.
+6. **Geteilte Symbole:** `private const`/Top-Level-Symbole, die ein verschobenes Composable braucht, auf `internal` heben (z.B. `internal const val MAX_PAGES`), damit das `components`-Unterpaket sie importieren kann.
+7. **Orchestrator bleibt:** Die `ScanScreen`-artige Haupt-Composable (Launcher, Dialog-State, sicherheitskritisches AppLock-Timing) bleibt in der Original-Datei — NICHT in `components/` zerlegen.
+8. **Verbleibende Imports:** Nach dem Extrahieren ungenutzte Imports im Original entfernen (auch tote wie `SwipeToDismissBox`); redundante `@OptIn`-Annotationen entfernen, wenn die experimentelle API mit ausgewandert ist.
+
 ### UI Style Guide (ZWINGEND!)
 **Dark Tech Precision Pro** - Dieser Style Guide MUSS bei allen UI-Anpassungen eingehalten werden:
 - **Farben:**
