@@ -8,6 +8,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.ui.screens.scan.ScannedPage
 import com.paperless.scanner.util.CoroutineDispatchers
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.utils.StorageUtil
@@ -173,6 +174,73 @@ class PerformUploadUseCaseTest {
         coVerify(exactly = 0) { uploadWorkManager.scheduleImmediateUpload() }
         // #268 codex P2: already-copied files must be cleaned up since nothing is queued.
         verify { FileUtils.deleteLocalCopy(uriOk) }
+    }
+
+    @Test
+    fun `uploadMultiPage abort does not delete pass-through local input files`() = runTest {
+        // #268 codex P2: cleanup must only remove files WE copied this run, never a
+        // pre-existing local input the UI still references for retry/back-navigation.
+        val uriLocal = mockk<Uri>(relaxed = true)  // already-local pending_uploads file, passed through
+        val uriBad = mockk<Uri>(relaxed = true)    // content URI that fails to copy
+        every { FileUtils.isLocalFileUri(uriLocal) } returns true
+        every { FileUtils.isLocalFileUri(uriBad) } returns false
+        every { FileUtils.copyToLocalStorage(any(), uriBad) } returns null
+        every { FileUtils.deleteLocalCopy(any()) } returns true
+
+        val results = useCase.uploadMultiPage(uris = listOf(uriLocal, uriBad)).toList()
+
+        assertTrue(results.last() is UploadResult.Failed)
+        assertTrue(results.none { it == UploadResult.Queued })
+        // The pass-through original must survive the abort so a retry can still find it.
+        verify(exactly = 0) { FileUtils.deleteLocalCopy(uriLocal) }
+    }
+
+    @Test
+    fun `uploadPagesWithMetadata aborts and queues nothing when some files fail to copy`() = runTest {
+        // #268: a partial copy failure must fail the whole batch, not silently drop pages.
+        val uriOk = mockk<Uri>(relaxed = true)
+        val uriBad = mockk<Uri>(relaxed = true)
+        every { FileUtils.isLocalFileUri(any()) } returns false
+        every { FileUtils.copyToLocalStorage(any(), uriOk) } returns uriOk
+        every { FileUtils.copyToLocalStorage(any(), uriBad) } returns null
+        every { FileUtils.deleteLocalCopy(any()) } returns true
+        val pages = listOf(
+            ScannedPage(uri = uriOk, pageNumber = 1),
+            ScannedPage(uri = uriBad, pageNumber = 2),
+        )
+
+        val results = useCase.uploadPagesWithMetadata(pages = pages).toList()
+
+        assertEquals(UploadResult.Queuing, results.first())
+        assertTrue(results.last() is UploadResult.Failed)
+        assertTrue(results.none { it == UploadResult.Queued })
+        coVerify(exactly = 0) { uploadQueueRepository.queueUpload(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { uploadQueueRepository.queueMultiPageUpload(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { uploadWorkManager.scheduleImmediateUpload() }
+        // #268 codex P2: already-copied files must be cleaned up since nothing is queued.
+        verify { FileUtils.deleteLocalCopy(uriOk) }
+    }
+
+    @Test
+    fun `uploadPagesWithMetadata abort does not delete pass-through local input files`() = runTest {
+        // #268 codex P2: mirror of the uploadMultiPage case for the per-page metadata path.
+        val uriLocal = mockk<Uri>(relaxed = true)  // already-local pending_uploads file, passed through
+        val uriBad = mockk<Uri>(relaxed = true)    // content URI that fails to copy
+        every { FileUtils.isLocalFileUri(uriLocal) } returns true
+        every { FileUtils.isLocalFileUri(uriBad) } returns false
+        every { FileUtils.copyToLocalStorage(any(), uriBad) } returns null
+        every { FileUtils.deleteLocalCopy(any()) } returns true
+        val pages = listOf(
+            ScannedPage(uri = uriLocal, pageNumber = 1),
+            ScannedPage(uri = uriBad, pageNumber = 2),
+        )
+
+        val results = useCase.uploadPagesWithMetadata(pages = pages).toList()
+
+        assertTrue(results.last() is UploadResult.Failed)
+        assertTrue(results.none { it == UploadResult.Queued })
+        // The pass-through original must survive the abort so a retry can still find it.
+        verify(exactly = 0) { FileUtils.deleteLocalCopy(uriLocal) }
     }
 
     @Test
