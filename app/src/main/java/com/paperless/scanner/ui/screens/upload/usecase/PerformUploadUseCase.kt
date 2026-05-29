@@ -187,6 +187,28 @@ class PerformUploadUseCase @Inject constructor(
                 return@flow
             }
 
+            // Fail fast on partial copy failure (#268): mapIndexedNotNull silently drops
+            // pages that fail to copy. Queueing only the survivors would produce an
+            // incomplete document (a missing page in the merged PDF when
+            // uploadAsSingleDocument=true) while still reporting success. Abort the whole
+            // batch instead so the user can retry, rather than losing pages silently.
+            if (localUris.size < uris.size) {
+                val failedCount = uris.size - localUris.size
+                Log.e(TAG, "Partial copy failure: $failedCount/${uris.size} files could not be copied; aborting (nothing queued)")
+                // Nothing gets queued, so the upload worker (which normally calls
+                // deleteLocalCopy) never runs — clean up the copies we already made to
+                // avoid orphaned files filling app storage. No-op for pass-through
+                // originals (deleteLocalCopy only deletes files in our cache dir).
+                localUris.forEach { FileUtils.deleteLocalCopy(it) }
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "copy_partial_failure"))
+                emit(UploadResult.Failed(
+                    userMessage = context.getString(R.string.error_files_not_saved),
+                    technicalDetails = context.getString(R.string.error_files_copy_failed_count, failedCount, uris.size),
+                    isRetryable = false
+                ))
+                return@flow
+            }
+
             // Verify all files exist before queueing
             val missingFiles = localUris.filterNot { FileUtils.fileExists(it) }
             if (missingFiles.isNotEmpty()) {
@@ -307,6 +329,24 @@ class PerformUploadUseCase @Inject constructor(
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_saving_file),
                     technicalDetails = context.getString(R.string.error_queue_add),
+                    isRetryable = false
+                ))
+                return@flow
+            }
+
+            // Fail fast on partial copy failure (#268): see uploadMultiPage above. Each page
+            // here becomes its own document, so a silent drop = a missing document the user
+            // never asked to skip. Abort the batch so it can be retried as a whole.
+            if (localPages.size < pages.size) {
+                val failedCount = pages.size - localPages.size
+                Log.e(TAG, "Partial copy failure: $failedCount/${pages.size} pages could not be copied; aborting (nothing queued)")
+                // See uploadMultiPage above: clean up already-copied files since nothing
+                // is queued for the worker to clean up later.
+                localPages.forEach { FileUtils.deleteLocalCopy(it.uri) }
+                analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "copy_partial_failure"))
+                emit(UploadResult.Failed(
+                    userMessage = context.getString(R.string.error_files_not_saved),
+                    technicalDetails = context.getString(R.string.error_files_copy_failed_count, failedCount, pages.size),
                     isRetryable = false
                 ))
                 return@flow

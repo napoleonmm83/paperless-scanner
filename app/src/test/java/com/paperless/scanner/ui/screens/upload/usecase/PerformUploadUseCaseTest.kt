@@ -20,6 +20,7 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
+import io.mockk.verify
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
@@ -150,6 +151,28 @@ class PerformUploadUseCaseTest {
         assertEquals("Not enough storage", (failed as UploadResult.Failed).userMessage)
         assertEquals("disk full", failed.technicalDetails)
         coVerify(exactly = 0) { uploadQueueRepository.queueUpload(any(), any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `uploadMultiPage aborts and queues nothing when some files fail to copy`() = runTest {
+        // #268: a partial copy failure must fail the whole batch, not silently drop pages.
+        val uriOk = mockk<Uri>(relaxed = true)
+        val uriBad = mockk<Uri>(relaxed = true)
+        every { FileUtils.isLocalFileUri(any()) } returns false
+        every { FileUtils.copyToLocalStorage(any(), uriOk) } returns uriOk
+        every { FileUtils.copyToLocalStorage(any(), uriBad) } returns null
+        every { FileUtils.deleteLocalCopy(any()) } returns true
+
+        val results = useCase.uploadMultiPage(uris = listOf(uriOk, uriBad)).toList()
+
+        assertEquals(UploadResult.Queuing, results.first())
+        assertTrue(results.last() is UploadResult.Failed)
+        assertTrue(results.none { it == UploadResult.Queued })
+        coVerify(exactly = 0) { uploadQueueRepository.queueMultiPageUpload(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { uploadQueueRepository.queueUpload(any(), any(), any(), any(), any(), any()) }
+        coVerify(exactly = 0) { uploadWorkManager.scheduleImmediateUpload() }
+        // #268 codex P2: already-copied files must be cleaned up since nothing is queued.
+        verify { FileUtils.deleteLocalCopy(uriOk) }
     }
 
     @Test
