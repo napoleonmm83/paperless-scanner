@@ -220,8 +220,9 @@ object AppModule {
     @Singleton
     fun provideCloudflareDetectionInterceptor(
         tokenManager: TokenManager,
+        serverUrlHolder: com.paperless.scanner.data.datastore.ServerUrlHolder,
         @ApplicationScope applicationScope: CoroutineScope
-    ): CloudflareDetectionInterceptor = CloudflareDetectionInterceptor(tokenManager, applicationScope)
+    ): CloudflareDetectionInterceptor = CloudflareDetectionInterceptor(tokenManager, serverUrlHolder, applicationScope)
 
     @Provides
     @Singleton

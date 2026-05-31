@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.api
 
+import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class CloudflareDetectionInterceptor(
     private val tokenManager: TokenManager,
+    private val serverUrlHolder: ServerUrlHolder,
     private val applicationScope: CoroutineScope
 ) : Interceptor {
 
@@ -39,8 +41,11 @@ class CloudflareDetectionInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
 
-        // Reset detection if server URL changed (e.g., logout/login to different server)
-        val currentServerUrl = tokenManager.getServerUrlSync()
+        // Reset detection if server URL changed (e.g., logout/login to different server).
+        // Read from the non-blocking ServerUrlHolder (single atomic load) instead of the
+        // runBlocking getServerUrlSync(): this runs on every response on the OkHttp
+        // dispatcher, and runBlocking there risks starving the dispatcher pool (#33).
+        val currentServerUrl = serverUrlHolder.current()
         if (currentServerUrl != lastServerUrl) {
             android.util.Log.d("CloudflareDetection", "Server URL changed - resetting detection")
             hasDetected.set(false)
