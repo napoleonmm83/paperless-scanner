@@ -49,6 +49,9 @@ class BillingManagerLoggingTest {
             // Caught by codex review on this PR: billing response codes and the raw
             // product id must not reach release logcat via always-on logs (#39).
             "responseCode", "\$productId",
+            // Caught by CodeRabbit on this PR: BillingState can be Failed(reason),
+            // so an always-on dump of the state object leaks the failure reason (#39).
+            "_billingState.value",
         )
         loggingLines()
             .filter { (_, _, method) -> method in ALWAYS_ON_METHODS }

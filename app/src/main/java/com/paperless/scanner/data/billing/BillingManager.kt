@@ -598,7 +598,10 @@ class BillingManager @Inject constructor(
     suspend fun restorePurchases(): RestoreResult {
         val client = billingClient
         if (_billingState.value !is BillingState.Ready || client == null || !client.isReady) {
-            AppLogger.e(TAG, "restorePurchases: client not Ready (state = ${_billingState.value})")
+            // Always-on error stays generic; state may be Failed(reason), which is
+            // release-sensitive (#39), so the detail goes to the debug-gated log.
+            AppLogger.e(TAG, "restorePurchases: client not Ready")
+            AppLogger.d(TAG, "restorePurchases blocked, state=${_billingState.value}")
             return RestoreResult.Error(context.getString(R.string.billing_error_not_ready))
         }
 
