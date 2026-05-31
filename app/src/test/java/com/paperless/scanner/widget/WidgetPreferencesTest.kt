@@ -202,6 +202,17 @@ class WidgetPreferencesTest {
         assertEquals(WidgetType.STATUS, retrieved.type)
     }
 
+    @Test
+    fun `removeWidgetConfig returns true on successful commit (issue #113)`() {
+        // Mirrors setWidgetConfig: the synchronous commit() delete reports success so a
+        // caller can confirm the config was cleared before the widget re-renders.
+        widgetPreferences.setWidgetConfig(72, WidgetConfig(type = WidgetType.STATUS))
+
+        val committed = widgetPreferences.removeWidgetConfig(72)
+
+        assertTrue(committed)
+    }
+
     // ==================== Multiple widget independence tests ====================
 
     @Test

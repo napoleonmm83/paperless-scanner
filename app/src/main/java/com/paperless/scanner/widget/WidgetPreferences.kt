@@ -67,11 +67,17 @@ class WidgetPreferences @Inject constructor(
         return success
     }
 
-    fun removeWidgetConfig(widgetId: Int) {
-        prefs.edit()
+    /**
+     * Removes a widget's stored config synchronously using commit() (not apply()) so the
+     * deletion is persisted before any subsequent widget read, mirroring [setWidgetConfig]
+     * (#113). Returns whether the write succeeded.
+     */
+    fun removeWidgetConfig(widgetId: Int): Boolean {
+        val success = prefs.edit()
             .remove(widgetTypeKey(widgetId))
-            .apply()
+            .commit() // commit() not apply() - ensures synchronous delete before widget renders
 
-        Log.d(TAG, "removeWidgetConfig: id=$widgetId")
+        Log.d(TAG, "removeWidgetConfig: id=$widgetId, success=$success")
+        return success
     }
 }

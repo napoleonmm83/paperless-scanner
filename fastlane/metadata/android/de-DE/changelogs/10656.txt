@@ -1,0 +1,4 @@
+Version 1.5.156:
+
+🔧 Verbesserungen:
+- Widget-Einstellungen werden zuverlässiger gespeichert.
