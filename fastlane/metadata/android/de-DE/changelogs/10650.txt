@@ -1,0 +1,4 @@
+Version 1.5.150:
+
+🔧 Verbesserungen:
+- Interne Thread-Sicherheit der Einstellungs-Zugriffe gehärtet.

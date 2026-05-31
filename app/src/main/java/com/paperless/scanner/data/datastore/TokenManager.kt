@@ -2,6 +2,7 @@ package com.paperless.scanner.data.datastore
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.WorkerThread
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -294,6 +295,7 @@ class TokenManager(
     }
 
     /** Check if analytics consent was granted (sync version for initialization) */
+    @WorkerThread
     fun isAnalyticsConsentGrantedSync(): Boolean = runBlocking {
         val asked = context.dataStore.data.first()[ANALYTICS_CONSENT_ASKED_KEY] ?: false
         if (asked) {
@@ -318,14 +320,17 @@ class TokenManager(
      * Get token synchronously from encrypted storage.
      * Safe to call from any thread (blocking).
      */
+    @WorkerThread
     fun getTokenSync(): String? {
         return secureStorage.getToken()
     }
 
+    @WorkerThread
     fun getServerUrlSync(): String? = runBlocking {
         context.dataStore.data.first()[SERVER_URL_KEY]
     }
 
+    @WorkerThread
     fun isBiometricEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[BIOMETRIC_ENABLED_KEY] ?: false
     }
@@ -366,6 +371,7 @@ class TokenManager(
     /**
      * Check if AI debug mode is enabled (sync version).
      */
+    @WorkerThread
     fun isAiDebugModeEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[AI_DEBUG_MODE_KEY] ?: false
     }
@@ -373,6 +379,7 @@ class TokenManager(
     /**
      * Check if AI suggestions are enabled (sync version).
      */
+    @WorkerThread
     fun getAiSuggestionsEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[AI_SUGGESTIONS_ENABLED_KEY] ?: true
     }
@@ -380,6 +387,7 @@ class TokenManager(
     /**
      * Check if AI new tags are enabled (sync version).
      */
+    @WorkerThread
     fun getAiNewTagsEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[AI_NEW_TAGS_ENABLED_KEY] ?: true
     }
@@ -393,6 +401,7 @@ class TokenManager(
     }
 
     /** Get theme mode synchronously (for app initialization) */
+    @WorkerThread
     fun getThemeModeSync(): String = runBlocking {
         context.dataStore.data.first()[THEME_MODE_KEY] ?: "system"
     }
@@ -430,16 +439,19 @@ class TokenManager(
     }
 
     /** Get Paperless-GPT URL synchronously (null = use Paperless-ngx URL) */
+    @WorkerThread
     fun getPaperlessGptUrlSync(): String? = runBlocking {
         context.dataStore.data.first()[PAPERLESS_GPT_URL_KEY]
     }
 
     /** Get Paperless-GPT enabled state synchronously */
+    @WorkerThread
     fun isPaperlessGptEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[PAPERLESS_GPT_ENABLED_KEY] ?: false
     }
 
     /** Get Paperless-GPT OCR auto enabled state synchronously */
+    @WorkerThread
     fun isPaperlessGptOcrAutoEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[PAPERLESS_GPT_OCR_AUTO_KEY] ?: true
     }
@@ -485,6 +497,7 @@ class TokenManager(
     fun isAppLockEnabled(): Flow<Boolean> = appLockEnabled
 
     /** Check if app-lock is enabled (sync version) */
+    @WorkerThread
     fun isAppLockEnabledSync(): Boolean = runBlocking {
         context.dataStore.data.first()[APP_LOCK_ENABLED_KEY] ?: false
     }
@@ -563,11 +576,13 @@ class TokenManager(
     // App-Lock Lockout Persistence (survives app restart)
 
     /** Get persisted app-lock failed attempts count */
+    @WorkerThread
     fun getAppLockFailedAttemptsSync(): Int = runBlocking {
         context.dataStore.data.first()[APP_LOCK_FAILED_ATTEMPTS_KEY] ?: 0
     }
 
     /** Get persisted app-lock lockout until timestamp */
+    @WorkerThread
     fun getAppLockLockoutUntilSync(): Long = runBlocking {
         context.dataStore.data.first()[APP_LOCK_LOCKOUT_UNTIL_KEY] ?: 0L
     }
@@ -626,6 +641,7 @@ class TokenManager(
      * Get document filter synchronously (for ViewModel initialization).
      * Returns DocumentFilter.empty() if no filter is stored.
      */
+    @WorkerThread
     fun getDocumentFilterSync(): DocumentFilter = runBlocking {
         val filterJson = context.dataStore.data.first()[DOCUMENT_FILTER_KEY]
         DocumentFilter.fromJson(filterJson)
@@ -652,6 +668,7 @@ class TokenManager(
      * Get pending trash deletes synchronously (for ViewModel initialization).
      * Returns null if no pending deletes are stored.
      */
+    @WorkerThread
     fun getPendingTrashDeletesSync(): String? = runBlocking {
         context.dataStore.data.first()[TRASH_PENDING_DELETES_KEY]
     }
@@ -687,6 +704,7 @@ class TokenManager(
     /**
      * Get Cloudflare detection state synchronously.
      */
+    @WorkerThread
     fun isServerUsingCloudflareSync(): Boolean = runBlocking {
         context.dataStore.data.first()[SERVER_USES_CLOUDFLARE_KEY] ?: false
     }
