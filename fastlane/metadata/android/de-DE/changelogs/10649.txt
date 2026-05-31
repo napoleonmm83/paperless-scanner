@@ -1,0 +1,4 @@
+Version 1.5.149:
+
+🔧 Verbesserungen:
+- Abo-Modul: Release-Logs bereinigt – keine Diagnosedaten mehr.
