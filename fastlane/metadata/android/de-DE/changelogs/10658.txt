@@ -1,0 +1,4 @@
+Version 1.5.158:
+
+🔧 Verbesserungen:
+- Interne Teststabilität verbessert (sporadischer Testfehler behoben).
