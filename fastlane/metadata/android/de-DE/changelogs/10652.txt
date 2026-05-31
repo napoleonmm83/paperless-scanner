@@ -1,4 +1,4 @@
-Version 1.5.151:
+Version 1.5.152:
 
 🔧 Verbesserungen:
 - Netzwerk-Layer: blockierenden Aufruf entfernt (stabilere Verbindungen).

@@ -10,7 +10,8 @@ import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
 import okhttp3.Protocol
 import okhttp3.Request
@@ -66,12 +67,12 @@ class CloudflareDetectionInterceptorTest {
     }
 
     @Test
-    fun `intercept reads ServerUrlHolder and never the blocking getServerUrlSync`() {
+    fun `intercept reads ServerUrlHolder and never the blocking getServerUrlSync`() = runTest {
         val tokenManager = mockk<TokenManager>(relaxed = true)
         val holder = mockk<ServerUrlHolder>()
         every { holder.current() } returns "https://docs.example.com"
         val interceptor = CloudflareDetectionInterceptor(
-            tokenManager, holder, CoroutineScope(Dispatchers.Unconfined)
+            tokenManager, holder, CoroutineScope(UnconfinedTestDispatcher(testScheduler))
         )
 
         interceptor.intercept(chainReturning(response(200, cfRay = "ray-1")))
@@ -83,12 +84,12 @@ class CloudflareDetectionInterceptorTest {
     }
 
     @Test
-    fun `detects cloudflare via cf-ray header and persists once per session`() {
+    fun `detects cloudflare via cf-ray header and persists once per session`() = runTest {
         val tokenManager = mockk<TokenManager>(relaxed = true)
         val holder = mockk<ServerUrlHolder>()
         every { holder.current() } returns "https://docs.example.com"
         val interceptor = CloudflareDetectionInterceptor(
-            tokenManager, holder, CoroutineScope(Dispatchers.Unconfined)
+            tokenManager, holder, CoroutineScope(UnconfinedTestDispatcher(testScheduler))
         )
 
         // Same server across two responses: the hasDetected latch fires detection once.
@@ -99,12 +100,12 @@ class CloudflareDetectionInterceptorTest {
     }
 
     @Test
-    fun `resets detection when the server url changes`() {
+    fun `resets detection when the server url changes`() = runTest {
         val tokenManager = mockk<TokenManager>(relaxed = true)
         val holder = mockk<ServerUrlHolder>()
         every { holder.current() } returnsMany listOf("https://a.example.com", "https://b.example.com")
         val interceptor = CloudflareDetectionInterceptor(
-            tokenManager, holder, CoroutineScope(Dispatchers.Unconfined)
+            tokenManager, holder, CoroutineScope(UnconfinedTestDispatcher(testScheduler))
         )
 
         // First server is behind Cloudflare; after the URL changes the latch resets
