@@ -168,6 +168,10 @@ class AppLockManagerTest {
     fun `changePassword fails and counts attempt when current password wrong`() = runTest {
         val storedHash = BCrypt.hashpw("rightpass", BCrypt.gensalt(4))
         coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+        // App-lock enabled so the init isAppLockEnabled() collector does NOT take its
+        // disabled-branch reset of failedAttempts, which otherwise races the wrong-attempt
+        // accumulation on a real dispatcher and flakes as an off-by-one (#283).
+        enableAppLock()
 
         val manager = newManager()
         val result = manager.changePassword("wrongpass", "newpass")
@@ -205,6 +209,8 @@ class AppLockManagerTest {
     fun `unlockWithPassword returns false on wrong password and increments failed attempts`() = runTest {
         val storedHash = BCrypt.hashpw("correct", BCrypt.gensalt(4))
         coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+        // Enabled so the init collector can't reset failedAttempts mid-test (#283).
+        enableAppLock()
 
         val manager = newManager()
         val result = manager.unlockWithPassword("wrong")
@@ -270,6 +276,8 @@ class AppLockManagerTest {
     fun `5 wrong attempts trigger temporary lockout`() = runTest {
         val storedHash = BCrypt.hashpw("correct", BCrypt.gensalt(4))
         coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+        // Enabled so the init collector can't reset failedAttempts mid-accumulation (#283).
+        enableAppLock()
 
         val manager = newManager()
         repeat(5) { manager.unlockWithPassword("wrong") }
@@ -285,6 +293,8 @@ class AppLockManagerTest {
         ShadowLog.clear()
         val storedHash = BCrypt.hashpw("correct", BCrypt.gensalt(4))
         coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+        // Enabled so the init collector can't reset failedAttempts before the threshold (#283).
+        enableAppLock()
 
         val manager = newManager()
         repeat(5) { manager.unlockWithPassword("wrong") }
@@ -334,6 +344,8 @@ class AppLockManagerTest {
     fun `getRemainingAttempts decreases with failed attempts`() = runTest {
         val storedHash = BCrypt.hashpw("correct", BCrypt.gensalt(4))
         coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+        // Enabled so the init collector can't reset failedAttempts mid-test (#283).
+        enableAppLock()
 
         val manager = newManager()
         assertEquals(5, manager.getRemainingAttempts())
