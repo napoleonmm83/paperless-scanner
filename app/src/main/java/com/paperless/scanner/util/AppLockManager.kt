@@ -109,6 +109,22 @@ class AppLockManager @Inject constructor(
     companion object {
         private const val TAG = "AppLockManager"
         private const val BCRYPT_ROUNDS = 10
+
+        /**
+         * Brute-force protection thresholds for the AppLock screen (issue #29).
+         *
+         * These are intentionally hardcoded compile-time constants rather than
+         * user/DataStore-configurable values: they are security-critical and must
+         * not be silently weakened, so the rationale is documented here.
+         *
+         * - [MAX_FAILED_ATTEMPTS]: consecutive wrong-password attempts before a
+         *   temporary lockout of [LOCKOUT_DURATION_MILLIS].
+         * - [MAX_TOTAL_ATTEMPTS]: cumulative wrong attempts before a permanent
+         *   lockout (credentials cleared, app-lock disabled).
+         *
+         * Crossing either threshold emits an `[AUDIT]` WARN log (counts only, no
+         * PII or hashes) so security audits have a trail — see [handleFailedAttempt].
+         */
         private const val MAX_FAILED_ATTEMPTS = 5
         private const val LOCKOUT_DURATION_MILLIS = 30 * 60 * 1000L // 30 minutes
         private const val MAX_TOTAL_ATTEMPTS = 15 // After this, permanent logout
@@ -557,7 +573,7 @@ class AppLockManager @Inject constructor(
         when {
             // After 15 total failed attempts: Permanent lockout (logout)
             failedAttempts >= MAX_TOTAL_ATTEMPTS -> {
-                Log.w(TAG, "MAX_TOTAL_ATTEMPTS reached ($MAX_TOTAL_ATTEMPTS) - Permanent lockout")
+                Log.w(TAG, "[AUDIT] MAX_TOTAL_ATTEMPTS reached ($MAX_TOTAL_ATTEMPTS) - Permanent lockout")
                 tokenManager.clearAppLockLockoutState() // Clear lockout before logout
                 tokenManager.clearCredentials()
                 disableAppLock()
@@ -566,7 +582,7 @@ class AppLockManager @Inject constructor(
             // Every 5 failed attempts: Temporary lockout (30 minutes)
             failedAttempts % MAX_FAILED_ATTEMPTS == 0 -> {
                 lockoutUntil = System.currentTimeMillis() + LOCKOUT_DURATION_MILLIS
-                Log.w(TAG, "MAX_FAILED_ATTEMPTS reached (${failedAttempts / MAX_FAILED_ATTEMPTS}x) - Temporary lockout until $lockoutUntil")
+                Log.w(TAG, "[AUDIT] MAX_FAILED_ATTEMPTS reached (${failedAttempts / MAX_FAILED_ATTEMPTS}x) - Temporary lockout until $lockoutUntil")
                 // SECURITY: Persist lockout state so it survives app restart
                 tokenManager.setAppLockLockoutState(failedAttempts, lockoutUntil)
                 _lockState.update { AppLockState.LockedOut(isPermanent = false, lockoutUntil = lockoutUntil) }

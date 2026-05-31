@@ -1,0 +1,4 @@
+Version 1.5.151:
+
+🔧 Verbesserungen:
+- App-Sperre: Sicherheits-Audit-Protokoll bei Sperrung ergänzt.
