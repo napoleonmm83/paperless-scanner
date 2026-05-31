@@ -200,6 +200,34 @@ class AppLockManagerTest {
     }
 
     @Test
+    fun `unlockWithPassword rejects a corrupt stored hash without consuming an attempt (issue #35)`() = runTest {
+        // A malformed (non-BCrypt) stored hash is storage corruption, not a wrong
+        // password: it must NOT burn the lockout budget (contrast: a wrong password
+        // against a valid hash DOES count, asserted in the test above).
+        coEvery { tokenManager.getAppLockPasswordHash() } returns "not-a-valid-bcrypt-hash"
+
+        val manager = newManager()
+        val result = manager.unlockWithPassword("anything")
+
+        assertFalse(result)
+        assertEquals(0, manager.getFailedAttempts())
+    }
+
+    @Test
+    fun `unlockWithPassword does not consume an attempt when BCrypt cannot parse the stored hash (issue #35)`() = runTest {
+        // 60 chars with a valid $2a$ prefix but an unparseable salt: passes the
+        // fast-path format check, then BCrypt.checkpw throws. A throw is corruption,
+        // not a wrong password, so it must not burn an attempt either.
+        coEvery { tokenManager.getAppLockPasswordHash() } returns "\$2a\$10\$" + "!".repeat(53)
+
+        val manager = newManager()
+        val result = manager.unlockWithPassword("anything")
+
+        assertFalse(result)
+        assertEquals(0, manager.getFailedAttempts())
+    }
+
+    @Test
     fun `unlockWithPassword returns false when no password configured`() = runTest {
         coEvery { tokenManager.getAppLockPasswordHash() } returns null
 
