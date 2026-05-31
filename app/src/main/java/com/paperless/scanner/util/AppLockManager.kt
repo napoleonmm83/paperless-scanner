@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.StringRes
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -12,7 +13,6 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -80,10 +80,28 @@ import javax.inject.Singleton
 @Singleton
 class AppLockManager @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    // Injectable so tests can pin the manager's internal scope to a TestDispatcher and
+    // settle launched coroutines deterministically (issue #212 — removes Thread.sleep
+    // flakiness). Hilt always supplies the real bundle via provideCoroutineDispatchers()
+    // (default = Dispatchers.Default), so production behavior is unchanged; the default
+    // value here is only a manual-construction convenience.
+    dispatchers: CoroutineDispatchers = CoroutineDispatchers()
 ) : DefaultLifecycleObserver {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + dispatchers.default)
+
+    /**
+     * Wall-clock source for lockout-expiry math (issue #212).
+     *
+     * Production always uses the real clock; tests override it so a temporary-lockout
+     * window can be advanced deterministically instead of waiting with `Thread.sleep`.
+     * Only the lockout-timing reads go through this — the inactivity-timeout
+     * (`backgroundTimestamp`) and `elapsedRealtime()`-based scanner suspend logic are
+     * unaffected.
+     */
+    @VisibleForTesting
+    internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val _lockState = MutableStateFlow<AppLockState>(AppLockState.Unlocked)
     val lockState: StateFlow<AppLockState> = _lockState.asStateFlow()
@@ -541,7 +559,7 @@ class AppLockManager @Inject constructor(
     fun isInTemporaryLockout(): Boolean {
         if (lockoutUntil == 0L) return false
 
-        val now = System.currentTimeMillis()
+        val now = clock()
         if (now >= lockoutUntil) {
             // Lockout expired, reset
             lockoutUntil = 0L
@@ -575,7 +593,7 @@ class AppLockManager @Inject constructor(
      */
     fun getRemainingLockoutSeconds(): Int {
         if (lockoutUntil == 0L) return 0
-        val now = System.currentTimeMillis()
+        val now = clock()
         val remaining = (lockoutUntil - now) / 1000
         return maxOf(0, remaining.toInt())
     }
@@ -607,7 +625,7 @@ class AppLockManager @Inject constructor(
             }
             // Every 5 failed attempts: Temporary lockout (30 minutes)
             failedAttempts % MAX_FAILED_ATTEMPTS == 0 -> {
-                lockoutUntil = System.currentTimeMillis() + LOCKOUT_DURATION_MILLIS
+                lockoutUntil = clock() + LOCKOUT_DURATION_MILLIS
                 Log.w(TAG, "[AUDIT] MAX_FAILED_ATTEMPTS reached (${failedAttempts / MAX_FAILED_ATTEMPTS}x) - Temporary lockout until $lockoutUntil")
                 // SECURITY: Persist lockout state so it survives app restart
                 tokenManager.setAppLockLockoutState(failedAttempts, lockoutUntil)
@@ -689,7 +707,7 @@ class AppLockManager @Inject constructor(
                 if (currentState is AppLockState.LockedOut) {
                     // Check if lockout has expired
                     if (!currentState.isPermanent && currentState.lockoutUntil > 0) {
-                        val now = System.currentTimeMillis()
+                        val now = clock()
                         if (now >= currentState.lockoutUntil) {
                             Log.d(TAG, "onStart: LockedOut state expired, transitioning to Locked")
                             lockoutUntil = 0L

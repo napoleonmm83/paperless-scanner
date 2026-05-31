@@ -9,8 +9,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -65,7 +68,18 @@ class AppLockManagerTest {
         coEvery { tokenManager.getAppLockPasswordHash() } returns null
     }
 
-    private fun newManager(): AppLockManager = AppLockManager(context, tokenManager)
+    private fun newManager(
+        dispatchers: CoroutineDispatchers = CoroutineDispatchers()
+    ): AppLockManager = AppLockManager(context, tokenManager, dispatchers)
+
+    /**
+     * A [CoroutineDispatchers] bundle with every slot pinned to [dispatcher], so the
+     * manager's internal scope is driven by the test scheduler and its launched
+     * coroutines can be settled deterministically with [advanceUntilIdle] instead of
+     * `Thread.sleep` (issue #212 — removes CI flakiness).
+     */
+    private fun testDispatchers(dispatcher: CoroutineDispatcher): CoroutineDispatchers =
+        CoroutineDispatchers(io = dispatcher, default = dispatcher, main = dispatcher)
 
     /**
      * For tests where the app should be locked from the start, both
@@ -375,11 +389,12 @@ class AppLockManagerTest {
         every { tokenManager.isAppLockBiometricEnabled() } returns true
         enableAppLock()
 
-        val manager = newManager()
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
         manager.unlockWithBiometric()
 
-        // unlockWithBiometric launches into the internal scope; give it a tick.
-        Thread.sleep(50)
+        // unlockWithBiometric launches into the internal scope; settle it deterministically.
+        advanceUntilIdle()
 
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
         coVerify { tokenManager.clearAppLockLockoutState() }
@@ -390,10 +405,11 @@ class AppLockManagerTest {
         every { tokenManager.isAppLockBiometricEnabled() } returns false
         enableAppLock()
 
-        val manager = newManager()
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
         // Initial state is Locked — biometric should NOT change it because disabled.
         manager.unlockWithBiometric()
-        Thread.sleep(50)
+        advanceUntilIdle()
 
         assertTrue(manager.lockState.value is AppLockState.Locked)
     }
@@ -408,12 +424,13 @@ class AppLockManagerTest {
         every { tokenManager.getAppLockFailedAttemptsSync() } returns 5
         every { tokenManager.getAppLockLockoutUntilSync() } returns System.currentTimeMillis() + 60_000L
 
-        val manager = newManager()
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
         assertTrue(manager.isInTemporaryLockout())
         assertTrue(manager.lockState.value is AppLockState.LockedOut)
 
         manager.unlockWithBiometric()
-        Thread.sleep(50)
+        advanceUntilIdle()
 
         // Biometric must NOT have unlocked the app — state stays LockedOut.
         // The state assertion is enough; no need to peek at collaborator calls.
@@ -429,12 +446,13 @@ class AppLockManagerTest {
         every { tokenManager.isAppLockBiometricEnabled() } returns true
         enableAppLock()
 
-        val manager = newManager()
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
         assertTrue(manager.lockState.value is AppLockState.Locked)
 
         // Call 1: unlocks.
         manager.unlockWithBiometric()
-        Thread.sleep(50)
+        advanceUntilIdle()
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
 
         // Re-lock; advance only 500 ms (still within the 1s throttle window).
@@ -443,7 +461,7 @@ class AppLockManagerTest {
 
         // Call 2: must be throttled — state stays Locked.
         manager.unlockWithBiometric()
-        Thread.sleep(50)
+        advanceUntilIdle()
         assertTrue(manager.lockState.value is AppLockState.Locked)
 
         // Advance past the 1 s threshold.
@@ -451,7 +469,7 @@ class AppLockManagerTest {
 
         // Call 3: throttle window has elapsed — unlocks.
         manager.unlockWithBiometric()
-        Thread.sleep(50)
+        advanceUntilIdle()
         assertTrue(manager.lockState.value is AppLockState.Unlocked)
     }
 
@@ -468,15 +486,20 @@ class AppLockManagerTest {
     fun `refreshLockoutState transitions LockedOut to Locked when expired`() = runTest {
         enableAppLock()
         every { tokenManager.getAppLockFailedAttemptsSync() } returns 5
-        // Initial lockoutUntil is in the future so init enters LockedOut state.
-        every { tokenManager.getAppLockLockoutUntilSync() } returns System.currentTimeMillis() + 100L
+        // Initial lockoutUntil is in the future (relative to the real clock used during
+        // init) so the manager enters LockedOut state.
+        val lockoutUntil = System.currentTimeMillis() + 100L
+        every { tokenManager.getAppLockLockoutUntilSync() } returns lockoutUntil
 
-        val manager = newManager()
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
         assertTrue(manager.lockState.value is AppLockState.LockedOut)
 
-        Thread.sleep(150) // wait past the 100ms lockout window
+        // Expire the lockout deterministically via the injectable clock (no Thread.sleep),
+        // then settle refreshLockoutState's launched coroutine.
+        manager.clock = { lockoutUntil + 1_000L }
         manager.refreshLockoutState()
-        Thread.sleep(50) // give scope.launch a tick
+        advanceUntilIdle()
 
         assertTrue(manager.lockState.value is AppLockState.Locked)
     }
