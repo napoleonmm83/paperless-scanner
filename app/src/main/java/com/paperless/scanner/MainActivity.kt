@@ -93,12 +93,19 @@ class MainActivity : FragmentActivity() {
         // Parse deep link from launch intent (widget taps)
         _pendingDeepLink.value = DeepLinkHandler.parseIntent(intent)
 
-        // Initialize analytics based on stored consent
+        // Initialize analytics based on stored consent.
+        // Intentional one-time synchronous read on the main thread during startup,
+        // before analytics/Crashlytics init. @WorkerThread (#40) now flags it; the
+        // blocking read here is deliberate and not moved off-main (init ordering).
+        @Suppress("WrongThread")
         val hasConsent = tokenManager.isAnalyticsConsentGrantedSync()
         analyticsService.setEnabled(hasConsent)
 
         // Initialize Crashlytics custom keys if consent is granted
         if (hasConsent) {
+            // Intentional one-time synchronous startup read for Crashlytics keys
+            // (see the @Suppress note above); deliberately on main, not moved off (#40).
+            @Suppress("WrongThread")
             val serverUrl = tokenManager.getServerUrlSync()
             val subscriptionStatus = "free" // TODO: Get from BillingManager when available
             analyticsService.initializeCrashlyticsKeys(

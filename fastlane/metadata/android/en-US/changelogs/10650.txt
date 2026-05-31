@@ -1,0 +1,4 @@
+Version 1.5.150:
+
+🔧 Improvements:
+- Hardened internal thread-safety of settings access.
