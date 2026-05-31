@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import android.content.Context
+import android.util.Log
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -248,7 +249,7 @@ class AppLockManagerTest {
 
         // Reaching the threshold must leave a security-audit trail (no PII / hashes).
         val auditLogs = ShadowLog.getLogsForTag("AppLockManager")
-            .filter { it.msg.contains("[AUDIT]") }
+            .filter { it.type == Log.WARN && it.msg.contains("[AUDIT]") }
         assertTrue(
             "Temporary-lockout threshold must emit an [AUDIT] WARN log",
             auditLogs.any { it.msg.contains("Temporary lockout") }
