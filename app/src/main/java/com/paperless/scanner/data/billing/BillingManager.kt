@@ -2,7 +2,6 @@ package com.paperless.scanner.data.billing
 
 import android.app.Activity
 import android.content.Context
-import android.util.Log
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -17,6 +16,7 @@ import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.paperless.scanner.R
+import com.paperless.scanner.util.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -76,7 +76,8 @@ class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
-        private const val TAG = "BillingManager"
+        // <=11 chars so AppLogger's "Paperless.{tag}" stays within Android's 23-char tag cap (no truncation).
+        private const val TAG = "Billing"
         const val PRODUCT_ID_MONTHLY = "paperless_ai_monthly"
         const val PRODUCT_ID_YEARLY = "paperless_ai_yearly"
 
@@ -113,49 +114,49 @@ class BillingManager @Inject constructor(
     private var pendingPurchaseContinuation: kotlin.coroutines.Continuation<PurchaseResult>? = null
 
     private val purchasesUpdatedListener = PurchasesUpdatedListener { billingResult, purchases ->
-        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-        Log.d(TAG, "purchasesUpdatedListener triggered")
-        Log.d(TAG, "Response Code: ${billingResult.responseCode}")
-        Log.d(TAG, "Debug Message: ${billingResult.debugMessage}")
-        Log.d(TAG, "Purchases count: ${purchases?.size ?: 0}")
-        Log.d(TAG, "Has pending continuation: ${pendingPurchaseContinuation != null}")
+        AppLogger.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        AppLogger.d(TAG, "purchasesUpdatedListener triggered")
+        AppLogger.d(TAG, "Response Code: ${billingResult.responseCode}")
+        AppLogger.d(TAG, "Debug Message: ${billingResult.debugMessage}")
+        AppLogger.d(TAG, "Purchases count: ${purchases?.size ?: 0}")
+        AppLogger.d(TAG, "Has pending continuation: ${pendingPurchaseContinuation != null}")
 
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
-                Log.d(TAG, "✓ Purchase SUCCESS")
+                AppLogger.d(TAG, "✓ Purchase SUCCESS")
                 purchases?.forEach { purchase ->
-                    Log.d(TAG, "  - Product: ${purchase.products}")
-                    Log.d(TAG, "  - State: ${purchase.purchaseState}")
-                    Log.d(TAG, "  - Acknowledged: ${purchase.isAcknowledged}")
+                    AppLogger.d(TAG, "  - Product: ${purchase.products}")
+                    AppLogger.d(TAG, "  - State: ${purchase.purchaseState}")
+                    AppLogger.d(TAG, "  - Acknowledged: ${purchase.isAcknowledged}")
                     handlePurchase(purchase)
                 }
                 // Resume pending purchase flow with success
                 pendingPurchaseContinuation?.let {
-                    Log.d(TAG, "Resuming continuation with SUCCESS")
+                    AppLogger.d(TAG, "Resuming continuation with SUCCESS")
                     it.resume(PurchaseResult.Success)
                     pendingPurchaseContinuation = null
-                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
+                } ?: AppLogger.w(TAG, "⚠ No pending continuation to resume!")
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
-                Log.d(TAG, "✗ Purchase CANCELLED by user")
+                AppLogger.d(TAG, "✗ Purchase CANCELLED by user")
                 // Resume pending purchase flow with cancelled
                 pendingPurchaseContinuation?.let {
-                    Log.d(TAG, "Resuming continuation with CANCELLED")
+                    AppLogger.d(TAG, "Resuming continuation with CANCELLED")
                     it.resume(PurchaseResult.Cancelled)
                     pendingPurchaseContinuation = null
-                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
+                } ?: AppLogger.w(TAG, "⚠ No pending continuation to resume!")
             }
             else -> {
-                Log.e(TAG, "✗ Purchase ERROR: ${billingResult.debugMessage}")
+                AppLogger.e(TAG, "✗ Purchase ERROR: ${billingResult.debugMessage}")
                 // Resume pending purchase flow with error
                 pendingPurchaseContinuation?.let {
-                    Log.d(TAG, "Resuming continuation with ERROR")
+                    AppLogger.d(TAG, "Resuming continuation with ERROR")
                     it.resume(PurchaseResult.Error(billingResult.debugMessage))
                     pendingPurchaseContinuation = null
-                } ?: Log.w(TAG, "⚠ No pending continuation to resume!")
+                } ?: AppLogger.w(TAG, "⚠ No pending continuation to resume!")
             }
         }
-        Log.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        AppLogger.d(TAG, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     }
 
     /**
@@ -175,12 +176,12 @@ class BillingManager @Inject constructor(
             is BillingState.Ready,
             is BillingState.Initializing,
             is BillingState.Disconnected -> {
-                Log.w(TAG, "initialize() ignored — state is $current")
+                AppLogger.w(TAG, "initialize() ignored — state is $current")
                 return
             }
             is BillingState.Uninitialized,
             is BillingState.Failed -> {
-                Log.d(TAG, "initialize() — transitioning $current → Initializing")
+                AppLogger.d(TAG, "initialize() — transitioning $current → Initializing")
             }
         }
 
@@ -189,7 +190,7 @@ class BillingManager @Inject constructor(
             try {
                 it.endConnection()
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to end stale connection before re-init", e)
+                AppLogger.w(TAG, "Failed to end stale connection before re-init", e)
             }
         }
 
@@ -215,14 +216,14 @@ class BillingManager @Inject constructor(
      */
     private fun connectToPlayBilling() {
         val client = billingClient ?: run {
-            Log.e(TAG, "connectToPlayBilling() called with null client — transitioning to Failed")
+            AppLogger.e(TAG, "connectToPlayBilling() called with null client — transitioning to Failed")
             _billingState.value = BillingState.Failed("client was null at connect time")
             return
         }
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d(TAG, "Billing setup successful — state = Ready")
+                    AppLogger.d(TAG, "Billing setup successful — state = Ready")
                     _billingState.value = BillingState.Ready
                     // Reaching Ready cancels any pending reconnect schedule from a
                     // previous Disconnected episode (success after retry).
@@ -235,7 +236,10 @@ class BillingManager @Inject constructor(
                     }
                 } else {
                     val reason = billingResult.debugMessage.ifBlank { "code=${billingResult.responseCode}" }
-                    Log.e(TAG, "Billing setup failed: $reason — state = Failed (no auto-retry)")
+                    // Always-on error stays generic; the raw reason/response code is
+                    // release-sensitive (#39), so detail goes to the debug-gated log only.
+                    AppLogger.e(TAG, "Billing setup failed — state = Failed (no auto-retry)")
+                    AppLogger.d(TAG, "Billing setup failure reason: $reason")
                     _billingState.value = BillingState.Failed(reason)
                     // No auto-retry on setup failure — wait for next explicit
                     // initialize() call (e.g., user opens Premium screen).
@@ -243,7 +247,7 @@ class BillingManager @Inject constructor(
             }
 
             override fun onBillingServiceDisconnected() {
-                Log.w(TAG, "Billing service disconnected — scheduling backoff reconnect")
+                AppLogger.w(TAG, "Billing service disconnected — scheduling backoff reconnect")
                 scheduleReconnectWithBackoff()
             }
         })
@@ -265,13 +269,13 @@ class BillingManager @Inject constructor(
         val delayMs = (RECONNECT_BACKOFF_INITIAL_MS shl (nextAttempt - 1).coerceAtMost(4))
             .coerceAtMost(RECONNECT_BACKOFF_CAP_MS)
 
-        Log.d(TAG, "Reconnect attempt #$nextAttempt scheduled in ${delayMs}ms")
+        AppLogger.d(TAG, "Reconnect attempt #$nextAttempt scheduled in ${delayMs}ms")
         reconnectJob = scope.launch {
             delay(delayMs)
             if (billingClient != null) {
                 connectToPlayBilling()
             } else {
-                Log.w(TAG, "Reconnect aborted — billingClient was destroyed")
+                AppLogger.w(TAG, "Reconnect aborted — billingClient was destroyed")
             }
         }
     }
@@ -289,12 +293,12 @@ class BillingManager @Inject constructor(
         // Edge Case: BillingClient might be null
         val client = billingClient
         if (client == null) {
-            Log.e(TAG, "Cannot query product details: BillingClient is null")
+            AppLogger.e(TAG, "Cannot query product details: BillingClient is null")
             return
         }
 
         if (!client.isReady) {
-            Log.e(TAG, "Cannot query product details: BillingClient not ready")
+            AppLogger.e(TAG, "Cannot query product details: BillingClient not ready")
             return
         }
 
@@ -318,15 +322,15 @@ class BillingManager @Inject constructor(
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     val productDetailsList = queryProductDetailsResult.productDetailsList
                     productDetailsCache = productDetailsList.associateBy { it.productId }
-                    Log.d(TAG, "Product details loaded: ${productDetailsList.size} products")
+                    AppLogger.d(TAG, "Product details loaded: ${productDetailsList.size} products")
 
                     // Log unfetched products for debugging (Billing Library 8.x feature)
                     val unfetchedProducts = queryProductDetailsResult.unfetchedProductList
                     if (unfetchedProducts.isNotEmpty()) {
-                        Log.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
+                        AppLogger.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
                     }
                 } else {
-                    Log.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
+                    AppLogger.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
 
                     // Log to Crashlytics
                     try {
@@ -335,7 +339,7 @@ class BillingManager @Inject constructor(
                         crashlytics.log("Failed to query product details: ${billingResult.debugMessage}")
                         crashlytics.setCustomKey("billing_error_code", billingResult.responseCode)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to log product query error to Crashlytics", e)
+                        AppLogger.w(TAG, "Failed to log product query error to Crashlytics", e)
                     }
                 }
                 continuation.resume(Unit)
@@ -352,12 +356,12 @@ class BillingManager @Inject constructor(
         // Edge Case: BillingClient might be null
         val client = billingClient
         if (client == null) {
-            Log.e(TAG, "Cannot query purchases: BillingClient is null")
+            AppLogger.e(TAG, "Cannot query purchases: BillingClient is null")
             return
         }
 
         if (!client.isReady) {
-            Log.e(TAG, "Cannot query purchases: BillingClient not ready")
+            AppLogger.e(TAG, "Cannot query purchases: BillingClient not ready")
             return
         }
 
@@ -373,14 +377,14 @@ class BillingManager @Inject constructor(
                     if (activePurchase != null) {
                         updateSubscriptionStatus(SubscriptionStatus.ACTIVE(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000)) // Mock: +30 days
                         _isSubscriptionActive.value = true
-                        Log.d(TAG, "Active subscription found: ${activePurchase.products}")
+                        AppLogger.d(TAG, "Active subscription found: ${activePurchase.products}")
                     } else {
                         updateSubscriptionStatus(SubscriptionStatus.FREE)
                         _isSubscriptionActive.value = false
-                        Log.d(TAG, "No active subscription")
+                        AppLogger.d(TAG, "No active subscription")
                     }
                 } else {
-                    Log.e(TAG, "Failed to query purchases: ${billingResult.debugMessage}")
+                    AppLogger.e(TAG, "Failed to query purchases: ${billingResult.debugMessage}")
                 }
                 continuation.resume(Unit)
             }
@@ -416,17 +420,17 @@ class BillingManager @Inject constructor(
      * @return PurchaseResult indicating success, cancellation, or error
      */
     suspend fun launchPurchaseFlow(activity: Activity, productId: String): PurchaseResult {
-        Log.d(TAG, "════════════════════════════════════════════════")
-        Log.d(TAG, "launchPurchaseFlow called")
-        Log.d(TAG, "Product ID: $productId")
+        AppLogger.d(TAG, "════════════════════════════════════════════════")
+        AppLogger.d(TAG, "launchPurchaseFlow called")
+        AppLogger.d(TAG, "Product ID: $productId")
 
         // CRITICAL: Check if BillingClient is ready before launching flow
         // Prevents NullPointerException in ProxyBillingActivity.onCreate
         // when PendingIntent.getIntentSender() is called on null object
         if (billingClient?.isReady != true) {
-            Log.e(TAG, "✗ BillingClient not ready!")
-            Log.e(TAG, "  BillingClient: ${if (billingClient == null) "null" else "initialized"}")
-            Log.e(TAG, "  isReady: ${billingClient?.isReady}")
+            AppLogger.e(TAG, "✗ BillingClient not ready!")
+            AppLogger.e(TAG, "  BillingClient: ${if (billingClient == null) "null" else "initialized"}")
+            AppLogger.e(TAG, "  isReady: ${billingClient?.isReady}")
 
             // Log to Crashlytics for monitoring
             try {
@@ -437,7 +441,7 @@ class BillingManager @Inject constructor(
                 crashlytics.setCustomKey("billing_client_ready", billingClient?.isReady ?: false)
                 crashlytics.setCustomKey("product_id", productId)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to log to Crashlytics", e)
+                AppLogger.w(TAG, "Failed to log to Crashlytics", e)
             }
 
             return PurchaseResult.Error(context.getString(R.string.billing_error_not_ready))
@@ -446,15 +450,15 @@ class BillingManager @Inject constructor(
         // CRITICAL: specific fix for "Unable to start activity ... ProxyBillingActivity: java.lang.NullPointerException"
         // This crash happens if the activity is finishing or destroyed when the billing flow tries to launch.
         if (activity.isFinishing || activity.isDestroyed) {
-             Log.e(TAG, "✗ Activity is finishing or destroyed, cannot launch billing flow!")
+             AppLogger.e(TAG, "✗ Activity is finishing or destroyed, cannot launch billing flow!")
              return PurchaseResult.Error(context.getString(R.string.billing_error_activity_finishing))
         }
 
-        Log.d(TAG, "✓ BillingClient is ready")
+        AppLogger.d(TAG, "✓ BillingClient is ready")
 
         // Check if there's already a pending purchase
         if (pendingPurchaseContinuation != null) {
-            Log.e(TAG, "✗ Purchase already in progress!")
+            AppLogger.e(TAG, "✗ Purchase already in progress!")
             return PurchaseResult.Error(context.getString(R.string.billing_error_purchase_in_progress))
         }
 
@@ -462,21 +466,21 @@ class BillingManager @Inject constructor(
         // Retry loading product details before failing
         var productDetails = productDetailsCache[productId]
         if (productDetails == null) {
-            Log.w(TAG, "⚠ Product not found in cache, attempting to reload...")
-            Log.d(TAG, "Available products before reload: ${productDetailsCache.keys}")
+            AppLogger.w(TAG, "⚠ Product not found in cache, attempting to reload...")
+            AppLogger.d(TAG, "Available products before reload: ${productDetailsCache.keys}")
 
             // Try to reload product details
             try {
                 queryProductDetails()
                 productDetails = productDetailsCache[productId]
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to reload product details", e)
+                AppLogger.e(TAG, "Failed to reload product details", e)
             }
 
             // Still not found after retry?
             if (productDetails == null) {
-                Log.e(TAG, "✗ Product not found even after retry!")
-                Log.d(TAG, "Available products after retry: ${productDetailsCache.keys}")
+                AppLogger.e(TAG, "✗ Product not found even after retry!")
+                AppLogger.d(TAG, "Available products after retry: ${productDetailsCache.keys}")
 
                 // Log to Crashlytics
                 try {
@@ -487,26 +491,26 @@ class BillingManager @Inject constructor(
                     crashlytics.setCustomKey("available_products", productDetailsCache.keys.joinToString(","))
                     crashlytics.recordException(Exception("ProductDetails not found for $productId"))
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to log missing product to Crashlytics", e)
+                    AppLogger.w(TAG, "Failed to log missing product to Crashlytics", e)
                 }
 
                 return PurchaseResult.Error(context.getString(R.string.billing_error_product_not_found))
             } else {
-                Log.d(TAG, "✓ Product loaded successfully after retry")
+                AppLogger.d(TAG, "✓ Product loaded successfully after retry")
             }
         }
 
-        Log.d(TAG, "✓ Product found: ${productDetails.name}")
+        AppLogger.d(TAG, "✓ Product found: ${productDetails.name}")
 
         // Get first offer token (trial offer if configured as default in Play Console)
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
         if (offerToken == null) {
-            Log.e(TAG, "✗ No subscription offers available!")
+            AppLogger.e(TAG, "✗ No subscription offers available!")
             return PurchaseResult.Error(context.getString(R.string.billing_error_no_offers))
         }
 
-        Log.d(TAG, "✓ Offer token found")
-        Log.d(TAG, "Offers available: ${productDetails.subscriptionOfferDetails?.size}")
+        AppLogger.d(TAG, "✓ Offer token found")
+        AppLogger.d(TAG, "Offers available: ${productDetails.subscriptionOfferDetails?.size}")
 
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -522,22 +526,22 @@ class BillingManager @Inject constructor(
         return suspendCancellableCoroutine { continuation ->
             // Store continuation to be resumed by purchasesUpdatedListener
             pendingPurchaseContinuation = continuation
-            Log.d(TAG, "✓ Pending continuation stored")
+            AppLogger.d(TAG, "✓ Pending continuation stored")
 
             // Launch billing flow
-            Log.d(TAG, "Launching billing flow...")
+            AppLogger.d(TAG, "Launching billing flow...")
             // Ensure on Main Thread for Safety
             val billingResult = if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
                 billingClient?.launchBillingFlow(activity, billingFlowParams)
             } else {
                  // Should not happen with current coroutine scope, but valid safeguard
-                 Log.w(TAG, "launchPurchaseFlow called off-main thread, this might be risky.")
+                 AppLogger.w(TAG, "launchPurchaseFlow called off-main thread, this might be risky.")
                  billingClient?.launchBillingFlow(activity, billingFlowParams)
             }
 
-            Log.d(TAG, "launchBillingFlow returned:")
-            Log.d(TAG, "  Response Code: ${billingResult?.responseCode}")
-            Log.d(TAG, "  Debug Message: ${billingResult?.debugMessage}")
+            AppLogger.d(TAG, "launchBillingFlow returned:")
+            AppLogger.d(TAG, "  Response Code: ${billingResult?.responseCode}")
+            AppLogger.d(TAG, "  Debug Message: ${billingResult?.debugMessage}")
 
             // Log to Crashlytics for monitoring
             try {
@@ -547,13 +551,13 @@ class BillingManager @Inject constructor(
                 crashlytics.setCustomKey("billing_flow_response_code", billingResult?.responseCode ?: -1)
                 crashlytics.setCustomKey("billing_flow_product_id", productId)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to log billing flow to Crashlytics", e)
+                AppLogger.w(TAG, "Failed to log billing flow to Crashlytics", e)
             }
 
             // Only handle flow launch errors here
             // Success/Cancel/Error from actual purchase handled in purchasesUpdatedListener
             if (billingResult?.responseCode != BillingClient.BillingResponseCode.OK) {
-                Log.e(TAG, "✗ Failed to launch billing flow!")
+                AppLogger.e(TAG, "✗ Failed to launch billing flow!")
 
                 // Log error to Crashlytics
                 try {
@@ -563,20 +567,20 @@ class BillingManager @Inject constructor(
                         Exception("BillingFlow launch failed: ${billingResult?.debugMessage}")
                     )
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to record exception to Crashlytics", e)
+                    AppLogger.w(TAG, "Failed to record exception to Crashlytics", e)
                 }
 
                 pendingPurchaseContinuation = null
                 continuation.resume(PurchaseResult.Error(billingResult?.debugMessage ?: context.getString(R.string.billing_error_launch_failed)))
             } else {
-                Log.d(TAG, "✓ Billing flow launched successfully")
-                Log.d(TAG, "Waiting for purchasesUpdatedListener callback...")
+                AppLogger.d(TAG, "✓ Billing flow launched successfully")
+                AppLogger.d(TAG, "Waiting for purchasesUpdatedListener callback...")
             }
             // If OK, wait for purchasesUpdatedListener to resume the continuation
 
             // Handle cancellation
             continuation.invokeOnCancellation {
-                Log.d(TAG, "⚠ Purchase flow cancelled (continuation)")
+                AppLogger.d(TAG, "⚠ Purchase flow cancelled (continuation)")
                 pendingPurchaseContinuation = null
             }
         }
@@ -594,7 +598,7 @@ class BillingManager @Inject constructor(
     suspend fun restorePurchases(): RestoreResult {
         val client = billingClient
         if (_billingState.value !is BillingState.Ready || client == null || !client.isReady) {
-            Log.e(TAG, "restorePurchases: client not Ready (state = ${_billingState.value})")
+            AppLogger.e(TAG, "restorePurchases: client not Ready (state = ${_billingState.value})")
             return RestoreResult.Error(context.getString(R.string.billing_error_not_ready))
         }
 
@@ -642,7 +646,7 @@ class BillingManager @Inject constructor(
     private fun handlePurchase(purchase: Purchase) {
         when (purchase.purchaseState) {
             Purchase.PurchaseState.PURCHASED -> {
-                Log.d(TAG, "Purchase state: PURCHASED")
+                AppLogger.d(TAG, "Purchase state: PURCHASED")
                 if (!purchase.isAcknowledged) {
                     scope.launch {
                         acknowledgePurchase(purchase)
@@ -650,7 +654,7 @@ class BillingManager @Inject constructor(
                 }
                 updateSubscriptionStatus(SubscriptionStatus.ACTIVE(System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000))
                 _isSubscriptionActive.value = true
-                Log.d(TAG, "Purchase successful: ${purchase.products}")
+                AppLogger.d(TAG, "Purchase successful: ${purchase.products}")
 
                 // Log to Crashlytics
                 try {
@@ -659,11 +663,11 @@ class BillingManager @Inject constructor(
                     crashlytics.log("Purchase completed: ${purchase.products}")
                     crashlytics.setCustomKey("purchase_state", "PURCHASED")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to log purchase to Crashlytics", e)
+                    AppLogger.w(TAG, "Failed to log purchase to Crashlytics", e)
                 }
             }
             Purchase.PurchaseState.PENDING -> {
-                Log.d(TAG, "Purchase state: PENDING (payment being processed)")
+                AppLogger.d(TAG, "Purchase state: PENDING (payment being processed)")
                 // Don't grant access yet, but inform user
                 updateSubscriptionStatus(SubscriptionStatus.FREE)
                 _isSubscriptionActive.value = false
@@ -678,11 +682,11 @@ class BillingManager @Inject constructor(
                     // Track presence/length only — never the value. CLAUDE.md: no secrets in logs.
                     crashlytics.setCustomKey("purchase_token_present", purchase.purchaseToken.isNotEmpty())
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to log pending purchase to Crashlytics", e)
+                    AppLogger.w(TAG, "Failed to log pending purchase to Crashlytics", e)
                 }
             }
             Purchase.PurchaseState.UNSPECIFIED_STATE -> {
-                Log.w(TAG, "Purchase state: UNSPECIFIED_STATE")
+                AppLogger.w(TAG, "Purchase state: UNSPECIFIED_STATE")
                 // Log to Crashlytics
                 try {
                     val crashlytics = FirebaseCrashlytics.getInstance()
@@ -690,11 +694,11 @@ class BillingManager @Inject constructor(
                     crashlytics.log("Purchase UNSPECIFIED_STATE: ${purchase.products}")
                     crashlytics.setCustomKey("purchase_state", "UNSPECIFIED_STATE")
                 } catch (e: Exception) {
-                    Log.w(TAG, "Failed to log unspecified purchase to Crashlytics", e)
+                    AppLogger.w(TAG, "Failed to log unspecified purchase to Crashlytics", e)
                 }
             }
             else -> {
-                Log.w(TAG, "Unknown purchase state: ${purchase.purchaseState}")
+                AppLogger.w(TAG, "Unknown purchase state: ${purchase.purchaseState}")
             }
         }
     }
@@ -711,9 +715,9 @@ class BillingManager @Inject constructor(
         suspendCancellableCoroutine { continuation ->
             billingClient?.acknowledgePurchase(params) { billingResult ->
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.d(TAG, "Purchase acknowledged: ${purchase.products}")
+                    AppLogger.d(TAG, "Purchase acknowledged: ${purchase.products}")
                 } else {
-                    Log.e(TAG, "Failed to acknowledge purchase: ${billingResult.debugMessage}")
+                    AppLogger.e(TAG, "Failed to acknowledge purchase: ${billingResult.debugMessage}")
                 }
                 continuation.resume(Unit)
             }
@@ -738,7 +742,7 @@ class BillingManager @Inject constructor(
         // Check if billing is ready
         val client = billingClient
         if (client == null || !client.isReady) {
-            Log.w(TAG, "Cannot get subscription info: BillingClient not ready")
+            AppLogger.w(TAG, "Cannot get subscription info: BillingClient not ready")
             return null
         }
 
@@ -750,7 +754,7 @@ class BillingManager @Inject constructor(
         return suspendCancellableCoroutine { continuation ->
             client.queryPurchasesAsync(params) { billingResult, purchases ->
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    Log.e(TAG, "Failed to query purchases for subscription info")
+                    AppLogger.e(TAG, "Failed to query purchases for subscription info")
                     continuation.resume(null)
                     return@queryPurchasesAsync
                 }
@@ -774,7 +778,9 @@ class BillingManager @Inject constructor(
                 // Get product details from cache
                 val productDetails = productDetailsCache[productId]
                 if (productDetails == null) {
-                    Log.w(TAG, "Product details not found in cache for $productId")
+                    // Always-on warning stays identifier-free; productId is release-sensitive (#39).
+                    AppLogger.w(TAG, "Product details not found in cache")
+                    AppLogger.d(TAG, "Missing product details for productId=$productId")
                     continuation.resume(null)
                     return@queryPurchasesAsync
                 }
@@ -828,7 +834,7 @@ class BillingManager @Inject constructor(
      * We cancel it gracefully to prevent memory leaks.
      */
     fun destroy() {
-        Log.d(TAG, "destroy() called")
+        AppLogger.d(TAG, "destroy() called")
 
         // Cancel pending reconnect schedule (if any) — prevents the backoff
         // coroutine from trying to reconnect after the client is gone.
@@ -837,11 +843,11 @@ class BillingManager @Inject constructor(
 
         // Cancel any pending purchase flow to prevent continuation leak
         pendingPurchaseContinuation?.let {
-            Log.w(TAG, "Cancelling pending purchase continuation on destroy")
+            AppLogger.w(TAG, "Cancelling pending purchase continuation on destroy")
             try {
                 it.resume(PurchaseResult.Error(context.getString(R.string.billing_error_disconnected)))
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume continuation on destroy", e)
+                AppLogger.e(TAG, "Failed to resume continuation on destroy", e)
             }
             pendingPurchaseContinuation = null
         }
@@ -850,12 +856,12 @@ class BillingManager @Inject constructor(
         try {
             billingClient?.endConnection()
         } catch (e: Exception) {
-            Log.e(TAG, "Error disconnecting billing client", e)
+            AppLogger.e(TAG, "Error disconnecting billing client", e)
         }
 
         billingClient = null
         _billingState.value = BillingState.Uninitialized
-        Log.d(TAG, "BillingClient destroyed")
+        AppLogger.d(TAG, "BillingClient destroyed")
     }
 }
 

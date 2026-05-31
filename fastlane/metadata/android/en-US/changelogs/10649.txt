@@ -1,0 +1,4 @@
+Version 1.5.149:
+
+🔧 Improvements:
+- Subscription module: cleaned up release logs (no diagnostic data).
