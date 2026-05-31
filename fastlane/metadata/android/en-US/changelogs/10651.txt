@@ -1,0 +1,4 @@
+Version 1.5.151:
+
+🔧 Improvements:
+- App lock: added a security audit log on lockout.

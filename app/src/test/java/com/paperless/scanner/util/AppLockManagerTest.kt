@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import android.content.Context
+import android.util.Log
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -21,6 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mindrot.jbcrypt.BCrypt
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLog
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 
@@ -234,6 +236,24 @@ class AppLockManagerTest {
         assertTrue(manager.isInTemporaryLockout())
         assertTrue(manager.lockState.value is AppLockState.LockedOut)
         coVerify { tokenManager.setAppLockLockoutState(5, any()) }
+    }
+
+    @Test
+    fun `temporary lockout emits an AUDIT log line (issue #29)`() = runTest {
+        ShadowLog.clear()
+        val storedHash = BCrypt.hashpw("correct", BCrypt.gensalt(4))
+        coEvery { tokenManager.getAppLockPasswordHash() } returns storedHash
+
+        val manager = newManager()
+        repeat(5) { manager.unlockWithPassword("wrong") }
+
+        // Reaching the threshold must leave a security-audit trail (no PII / hashes).
+        val auditLogs = ShadowLog.getLogsForTag("AppLockManager")
+            .filter { it.type == Log.WARN && it.msg.contains("[AUDIT]") }
+        assertTrue(
+            "Temporary-lockout threshold must emit an [AUDIT] WARN log",
+            auditLogs.any { it.msg.contains("Temporary lockout") }
+        )
     }
 
     @Test
