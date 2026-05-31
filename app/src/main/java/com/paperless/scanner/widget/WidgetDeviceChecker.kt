@@ -29,13 +29,20 @@ object WidgetDeviceChecker {
     }
 
     /**
-     * OnePlus devices with Android 11 (API 30) have issues with
+     * OnePlus devices on Android 11–13 (API 30–33) have issues with
      * InvisibleActionTrampolineActivity due to OxygenOS modifications.
+     *
+     * The original check only matched Android 11, but the OxygenOS trampoline
+     * quirk persists through Android 12 and 13, so the range is broadened to
+     * R..TIRAMISU (mirroring the Samsung range check). This is the conservative
+     * direction: it flips affected OnePlus devices to the already-shipping legacy
+     * RemoteViews fallback rather than the crash-prone Glance path (#112).
      */
     private fun isProblematicOnePlus(): Boolean {
         val isOnePlus = Build.MANUFACTURER.equals("OnePlus", ignoreCase = true)
-        val isAndroid11 = Build.VERSION.SDK_INT == Build.VERSION_CODES.R
-        return isOnePlus && isAndroid11
+        val isProblematicVersion =
+            Build.VERSION.SDK_INT in Build.VERSION_CODES.R..Build.VERSION_CODES.TIRAMISU
+        return isOnePlus && isProblematicVersion
     }
 
     /**
