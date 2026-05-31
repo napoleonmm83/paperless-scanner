@@ -1,0 +1,4 @@
+Version 1.5.157:
+
+🔧 Verbesserungen:
+- Widget: stabilere Darstellung auf OnePlus-Geräten (Android 12/13).
