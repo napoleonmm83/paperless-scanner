@@ -31,7 +31,7 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -135,7 +135,7 @@ class UploadWorkerTest {
     // ==================== Pre-Check Tests ====================
 
     @Test
-    fun `doWork retries when server is not reachable`() = runBlocking {
+    fun `doWork retries when server is not reachable`() = runTest {
         // Given: Server is not reachable
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
         every { serverHealthMonitor.serverStatus } returns MutableStateFlow(ServerStatus.Offline(com.paperless.scanner.data.api.ServerOfflineReason.UNKNOWN))
@@ -153,7 +153,7 @@ class UploadWorkerTest {
     // ==================== No Pending Uploads Tests ====================
 
         @Test
-    fun `doWork returns success when no pending uploads`() = runBlocking {
+    fun `doWork returns success when no pending uploads`() = runTest {
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
         coEvery { uploadQueueRepository.getNextPendingUpload() } returns null
 
@@ -166,7 +166,7 @@ class UploadWorkerTest {
     // ==================== Single Upload Tests ====================
 
         @Test
-    fun `doWork processes single upload successfully`() = runBlocking {
+    fun `doWork processes single upload successfully`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
@@ -194,7 +194,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork marks upload as failed on error`() = runBlocking {
+    fun `doWork marks upload as failed on error`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
@@ -220,7 +220,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork uses document title when available`() = runBlocking {
+    fun `doWork uses document title when available`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/doc1.pdf",
@@ -256,7 +256,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork passes tag ids to repository`() = runBlocking {
+    fun `doWork passes tag ids to repository`() = runTest {
         val tagIds = listOf(1, 2, 3)
         val pendingUpload = createPendingUpload(
             id = 1,
@@ -293,7 +293,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork passes document type id to repository`() = runBlocking {
+    fun `doWork passes document type id to repository`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/doc1.pdf",
@@ -329,7 +329,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork passes correspondent id to repository`() = runBlocking {
+    fun `doWork passes correspondent id to repository`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/doc1.pdf",
@@ -367,7 +367,7 @@ class UploadWorkerTest {
     // ==================== Multi-Page Upload Tests ====================
 
         @Test
-    fun `doWork processes multi-page upload successfully`() = runBlocking {
+    fun `doWork processes multi-page upload successfully`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/page1.jpg",
@@ -413,7 +413,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork marks multi-page upload as failed on error`() = runBlocking {
+    fun `doWork marks multi-page upload as failed on error`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/page1.jpg",
@@ -444,7 +444,7 @@ class UploadWorkerTest {
     // ==================== Multiple Uploads Tests ====================
 
         @Test
-    fun `doWork processes multiple uploads successfully`() = runBlocking {
+    fun `doWork processes multiple uploads successfully`() = runTest {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
         val upload3 = createPendingUpload(id = 3, uri = "content://test/doc3.pdf")
@@ -472,7 +472,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork returns success with partial failures`() = runBlocking {
+    fun `doWork returns success with partial failures`() = runTest {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
 
@@ -512,7 +512,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork returns failure when all uploads fail`() = runBlocking {
+    fun `doWork returns failure when all uploads fail`() = runTest {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
 
@@ -542,7 +542,7 @@ class UploadWorkerTest {
     // ==================== Retry Behavior Tests ====================
 
         @Test
-    fun `doWork logs max retries warning when retry count exceeded`() = runBlocking {
+    fun `doWork logs max retries warning when retry count exceeded`() = runTest {
         val pendingUpload = createPendingUpload(
             id = 1,
             uri = "content://test/doc1.pdf",
@@ -572,7 +572,7 @@ class UploadWorkerTest {
     // ==================== Safety Limit Tests ====================
 
         @Test
-    fun `doWork breaks loop when same upload returned twice`() = runBlocking {
+    fun `doWork breaks loop when same upload returned twice`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
@@ -600,7 +600,7 @@ class UploadWorkerTest {
     // ==================== Exception Handling Tests ====================
 
         @Test
-    fun `doWork handles unexpected exception during upload`() = runBlocking {
+    fun `doWork handles unexpected exception during upload`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
@@ -626,7 +626,7 @@ class UploadWorkerTest {
     // ==================== Progress Callback Tests ====================
 
         @Test
-    fun `doWork invokes progress callback during upload`() = runBlocking {
+    fun `doWork invokes progress callback during upload`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val progressSlot = slot<(Float) -> Unit>()
 
