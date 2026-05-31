@@ -234,6 +234,15 @@ class AppLockManager @Inject constructor(
 
         val storedHash = tokenManager.getAppLockPasswordHash() ?: return false
 
+        // SECURITY (#35): a malformed/corrupted stored hash is NOT a wrong password.
+        // Reject it WITHOUT consuming a failed attempt — otherwise storage corruption
+        // (or a restored backup) silently burns the lockout budget and permanently
+        // locks the user out instead of surfacing the corruption.
+        if (!isValidBCryptHash(storedHash)) {
+            Log.w(TAG, "[AUDIT] AppLock password hash is malformed (not BCrypt) — rejecting unlock without consuming an attempt")
+            return false
+        }
+
         return try {
             val isValid = BCrypt.checkpw(password, storedHash)
             if (isValid) {
@@ -251,8 +260,13 @@ class AppLockManager @Inject constructor(
                 false
             }
         } catch (e: Exception) {
-            // Invalid hash format or BCrypt error
-            handleFailedAttempt()
+            // SECURITY (#35): BCrypt.checkpw throws only when the stored hash is
+            // unparseable (corruption, malformed salt, or an unsupported version) —
+            // a wrong password returns false, it never throws. So a throw here is a
+            // corruption signal, NOT a failed attempt: audit it and reject WITHOUT
+            // consuming the lockout budget (the prefix/length check above is a fast
+            // path; this catch is the exhaustive guard the parser provides).
+            Log.w(TAG, "[AUDIT] AppLock password hash could not be parsed by BCrypt — rejecting unlock without consuming an attempt")
             false
         }
     }
@@ -564,6 +578,18 @@ class AppLockManager @Inject constructor(
         val now = System.currentTimeMillis()
         val remaining = (lockoutUntil - now) / 1000
         return maxOf(0, remaining.toInt())
+    }
+
+    /**
+     * Whether [hash] is a well-formed BCrypt hash (`$2a$`/`$2b$`/`$2y$` prefix, 60 chars).
+     *
+     * A malformed value means storage corruption (or a restored backup), NOT a wrong
+     * password — callers reject it without consuming a failed attempt so corruption
+     * can't silently exhaust the lockout budget and lock the user out (#35).
+     */
+    private fun isValidBCryptHash(hash: String): Boolean {
+        return hash.length == 60 &&
+            (hash.startsWith("\$2a\$") || hash.startsWith("\$2b\$") || hash.startsWith("\$2y\$"))
     }
 
     private suspend fun handleFailedAttempt() {

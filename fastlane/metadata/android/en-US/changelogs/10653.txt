@@ -1,0 +1,4 @@
+Version 1.5.153:
+
+🔧 Improvements:
+- App lock: a corrupted password hash no longer locks you out by mistake.
