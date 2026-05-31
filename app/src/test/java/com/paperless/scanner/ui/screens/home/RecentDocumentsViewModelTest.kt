@@ -155,6 +155,15 @@ class RecentDocumentsViewModelTest {
         advanceUntilIdle()
 
         assertEquals("Renamed", vm.uiState.value.recentDocuments.first().tagName)
+
+        // Tag deletion must propagate too — the document keeps its tag id but the
+        // tagName must clear, otherwise a deleted tag keeps showing as a stale label
+        // on the home screen. This is the regression guard that fails if _tagMap ever
+        // becomes additive (merging) instead of replace-on-emit (issue #219).
+        tagFlow.value = emptyList()
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.recentDocuments.first().tagName)
     }
 
     @Test
