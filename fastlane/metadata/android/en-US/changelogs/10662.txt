@@ -1,0 +1,5 @@
+Version 1.5.162:
+
+🔧 Improvements:
+- Rapid back-to-back uploads are no longer dropped
+- An in-progress upload is no longer cancelled

@@ -1,0 +1,5 @@
+Version 1.5.162:
+
+🔧 Verbesserungen:
+- Schnelle Mehrfach-Uploads gehen nicht mehr verloren
+- Laufende Uploads werden nicht mehr abgebrochen

@@ -2,6 +2,7 @@ package com.paperless.scanner.worker
 
 import android.content.Context
 import androidx.work.NetworkType
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.WorkManagerTestInitHelper
 import org.junit.Assert.assertEquals
@@ -48,5 +49,24 @@ class UploadWorkManagerTest {
         assertEquals(NetworkType.CONNECTED, constraints.requiredNetworkType)
         assertTrue(constraints.requiresBatteryNotLow())
         assertTrue(constraints.requiresStorageNotLow())
+    }
+
+    @Test
+    fun `two rapid scheduleImmediateUpload calls keep both enqueued (no lost queue items, #130)`() {
+        // REPLACE would cancel the first request when the second arrives, dropping
+        // any pending-queue rows the first worker had already begun draining.
+        // APPEND_OR_REPLACE appends the second behind the first instead, so neither
+        // is lost (#130). Work never runs here (CONNECTED constraint unmet in the
+        // test harness), so both stay live unless one is cancelled.
+        uploadWorkManager.scheduleImmediateUpload()
+        uploadWorkManager.scheduleImmediateUpload()
+
+        val workInfos = workManager.getWorkInfosForUniqueWork(UploadWorker.WORK_NAME).get()
+        val live = workInfos.filter { it.state != WorkInfo.State.CANCELLED }
+        assertEquals(
+            "Both rapidly-scheduled uploads must survive; states=${workInfos.map { it.state }}",
+            2,
+            live.size
+        )
     }
 }

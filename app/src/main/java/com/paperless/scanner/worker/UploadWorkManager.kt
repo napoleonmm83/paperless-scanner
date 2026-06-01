@@ -20,24 +20,6 @@ class UploadWorkManager @Inject constructor(
 ) {
     private val workManager = WorkManager.getInstance(context)
 
-    fun scheduleUpload() {
-        Log.d(TAG, "scheduleUpload() called")
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .build()
-
-        val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
-            .setConstraints(constraints)
-            .build()
-
-        workManager.enqueueUniqueWork(
-            UploadWorker.WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
-            uploadRequest
-        )
-    }
-
     /**
      * Schedule an immediate drain of the pending-upload queue.
      *
@@ -46,11 +28,15 @@ class UploadWorkManager @Inject constructor(
      * battery or a full disk; the work stays enqueued and runs as soon as the
      * constraint clears (mirrors SyncWorker). See issue #134.
      *
-     * NOTE: still uses [ExistingWorkPolicy.REPLACE]. Switching to KEEP (#130) is
-     * deferred: the worker's drain loop is bounded by a maxIterations safety cap
-     * computed from the pending count at start, so a burst exceeding that cap
-     * under KEEP could strand newly-enqueued rows with no follow-up work. A safe
-     * KEEP requires hardening that loop first (tracked under #130).
+     * Uses [ExistingWorkPolicy.APPEND_OR_REPLACE] (#130): a second call while a
+     * drain is already in flight appends a follow-up worker behind the running
+     * one instead of REPLACE-cancelling it. That avoids both failure modes —
+     * REPLACE drops queue rows the running worker had begun draining, while KEEP
+     * would strand rows enqueued after the worker's start-time maxIterations cap
+     * with no follow-up work. The appended worker returns Result.success()
+     * immediately if the predecessor already drained the queue. _OR_REPLACE
+     * guards against a failed/cancelled predecessor leaving the appended work
+     * permanently blocked.
      */
     fun scheduleImmediateUpload() {
         Log.d(TAG, "scheduleImmediateUpload() called")
@@ -64,10 +50,10 @@ class UploadWorkManager @Inject constructor(
             .setConstraints(constraints)
             .build()
 
-        Log.d(TAG, "Enqueuing work with REPLACE policy, workId: ${uploadRequest.id}")
+        Log.d(TAG, "Enqueuing work with APPEND_OR_REPLACE policy, workId: ${uploadRequest.id}")
         workManager.enqueueUniqueWork(
             UploadWorker.WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
             uploadRequest
         )
         Log.d(TAG, "Work enqueued successfully")
