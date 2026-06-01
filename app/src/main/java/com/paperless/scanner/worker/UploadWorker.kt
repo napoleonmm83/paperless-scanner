@@ -158,6 +158,10 @@ class UploadWorker @AssistedInject constructor(
             // must never be requeued (that would upload a duplicate) — it can only be
             // finished. Declared outside the try so the cancellation handler reads it.
             var uploadCommitted = false
+            // Guards against double-counting: if a throw lands AFTER onSuccess already
+            // counted this upload (e.g. local cleanup fails), the recovery path below
+            // must not increment successCount a second time (#128, CodeRabbit).
+            var successAlreadyCounted = false
             try {
                 // Claim the row and show progress INSIDE the protected region: a
                 // cancellation during setForeground() would otherwise leave the row
@@ -223,6 +227,7 @@ class UploadWorker @AssistedInject constructor(
                     Log.d(TAG, "Upload ${pendingUpload.id}: Upload successful, task ID received")
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
+                    successAlreadyCounted = true
 
                     // Record success in SyncHistory
                     try {
@@ -343,7 +348,7 @@ class UploadWorker @AssistedInject constructor(
                             Log.w(TAG, "Post-commit completion failed for ${pendingUpload.id}: ${completionError.message}")
                         }
                     }
-                    successCount++
+                    if (!successAlreadyCounted) successCount++
                     continue
                 }
 

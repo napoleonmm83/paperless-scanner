@@ -737,7 +737,7 @@ class UploadWorkerTest {
         // The server already has the document → the row must NOT be reset to PENDING
         // (that would re-upload and create a DUPLICATE); it must be completed instead.
         coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
-        coVerify(atLeast = 1) { uploadQueueRepository.markAsCompleted(1) }
+        coVerify(exactly = 2) { uploadQueueRepository.markAsCompleted(1) }
     }
 
     @Test
@@ -772,7 +772,7 @@ class UploadWorkerTest {
         assertEquals(ListenableWorker.Result.success(), result)
         coVerify(exactly = 0) { uploadQueueRepository.markAsFailed(1, any()) }
         coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
-        coVerify(atLeast = 1) { uploadQueueRepository.markAsCompleted(1) }
+        coVerify(exactly = 2) { uploadQueueRepository.markAsCompleted(1) }
     }
 
     @Test
