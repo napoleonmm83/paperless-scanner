@@ -216,4 +216,18 @@ class TrashDeleteWorkerTest {
         coVerify(exactly = 0) { trashRepository.permanentlyDeleteDocument(any()) }
         coVerify { tokenManager.removePendingTrashDelete(42) }
     }
+
+    @Test
+    fun `doWork retries and keeps the entry when the restored-state lookup fails`() = runTest {
+        coEvery { tokenManager.getPendingTrashDeletesSync() } returns "42:1700000000"
+        coEvery { cachedDocumentDao.getDocument(42) } throws RuntimeException("DB locked")
+
+        val result = createWorker(documentId = 42).doWork()
+
+        // Fail closed: a DB read failure must NOT be treated as "not restored" and proceed
+        // to delete. Retry, keep the entry, and never attempt the permanent delete. (#129)
+        assertEquals(ListenableWorker.Result.retry(), result)
+        coVerify(exactly = 0) { trashRepository.permanentlyDeleteDocument(any()) }
+        coVerify(exactly = 0) { tokenManager.removePendingTrashDelete(42) }
+    }
 }

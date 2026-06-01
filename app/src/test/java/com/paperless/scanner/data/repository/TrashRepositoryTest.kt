@@ -395,8 +395,16 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         // TrashViewModel, RecentDocumentsViewModel and DocumentsViewModel — clears the
         // pending-delete DataStore entry and cancels the worker for every restored id. (#129)
         listOf(1, 2, 3).forEach { id ->
-            coVerify { tokenManager.removePendingTrashDelete(id) }
-            coVerify { trashDeleteWorkManager.cancelPendingDelete(id) }
+            coVerifyOrder {
+                tokenManager.removePendingTrashDelete(id)
+                trashDeleteWorkManager.cancelPendingDelete(id)
+            }
+        }
+        // The whole point of #129: cleanup must run BEFORE the restore API fires, so an
+        // in-flight/backoff worker can't race the restore. Lock that ordering.
+        coVerifyOrder {
+            tokenManager.removePendingTrashDelete(3)
+            api.trashBulkAction(any())
         }
     }
 

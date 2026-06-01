@@ -16,6 +16,7 @@ import com.paperless.scanner.data.repository.SyncHistoryRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import kotlinx.coroutines.CancellationException
 
 /**
  * Background Worker for permanent trash document deletion.
@@ -70,8 +71,14 @@ class TrashDeleteWorker @AssistedInject constructor(
         // normally clears the entry; this is the backstop. (#129)
         val restoredDoc = try {
             cachedDocumentDao.getDocument(documentId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            null
+            // Fail closed: if we can't verify the doc wasn't restored, do NOT proceed with
+            // a permanent delete. Retry and keep the entry so a transient DB read error
+            // can't cause the exact wrong delete this guard prevents. (#129, CodeRabbit)
+            Log.w(TAG, "Failed to verify restored state for $documentId, retrying", e)
+            return Result.retry()
         }
         if (restoredDoc != null) {
             Log.d(TAG, "Document $documentId was restored, skipping permanent delete")
