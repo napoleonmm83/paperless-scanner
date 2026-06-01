@@ -2,6 +2,7 @@ package com.paperless.scanner.worker
 
 import android.content.Context
 import android.util.Log
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
@@ -47,6 +48,9 @@ class TrashDeleteWorkManager @Inject constructor(
             .setInputData(inputData)
             // Permanent deletion hits the server API, so require a network. (#134)
             .setConstraints(deleteConstraints())
+            // Transient (5xx) delete failures are retried by the worker with this
+            // exponential backoff; the worker caps attempts at MAX_DELETE_RETRIES. (#129)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_MINUTES, TimeUnit.MINUTES)
             .build()
 
         // Use REPLACE policy - if user taps delete again, restart the countdown
@@ -75,11 +79,19 @@ class TrashDeleteWorkManager @Inject constructor(
             .setInputData(inputData)
             // Permanent deletion hits the server API, so require a network. (#134)
             .setConstraints(deleteConstraints())
+            // See schedulePendingDelete: exponential backoff for transient retries. (#129)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, BACKOFF_MINUTES, TimeUnit.MINUTES)
             .build()
 
+        // KEEP (not REPLACE): this is only called from restorePendingDeletes() on VM
+        // recreation. A delete already in flight or in WorkManager backoff-retry carries
+        // its runAttemptCount and backoff; REPLACE would cancel it and reset the count,
+        // running the delete immediately (before the user can restore) and bypassing
+        // MAX_DELETE_RETRIES on repeated recreations. KEEP preserves the existing work and
+        // only enqueues fresh when none exists (e.g. after process death). (#129)
         workManager.enqueueUniqueWork(
             TrashDeleteWorker.workName(documentId),
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             deleteRequest
         )
     }
@@ -102,5 +114,8 @@ class TrashDeleteWorkManager @Inject constructor(
 
     companion object {
         private const val TAG = "TrashDeleteWorkManager"
+
+        /** Exponential-backoff base for transient (5xx) delete retries. (#129) */
+        private const val BACKOFF_MINUTES = 15L
     }
 }

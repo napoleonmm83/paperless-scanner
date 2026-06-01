@@ -6,6 +6,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.paperless.scanner.R
+import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.isRetryable
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.datastore.TokenManager
@@ -14,6 +16,7 @@ import com.paperless.scanner.data.repository.SyncHistoryRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import kotlinx.coroutines.CancellationException
 
 /**
  * Background Worker for permanent trash document deletion.
@@ -62,16 +65,34 @@ class TrashDeleteWorker @AssistedInject constructor(
             return Result.success()
         }
 
-        // Get document title BEFORE deletion for history entry
-        val fallbackTitle = applicationContext.getString(R.string.document_number, documentId)
-        val documentTitle = try {
-            cachedDocumentDao.getDocument(documentId)?.title ?: fallbackTitle
+        // Defense-in-depth: if the document was restored (isDeleted=0) since the delete
+        // was scheduled, never permanently delete it. getDocument returns only
+        // non-deleted rows, so a non-null result means it was restored. The restore flow
+        // normally clears the entry; this is the backstop. (#129)
+        val restoredDoc = try {
+            cachedDocumentDao.getDocument(documentId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            fallbackTitle
+            // Fail closed: if we can't verify the doc wasn't restored, do NOT proceed with
+            // a permanent delete. Retry and keep the entry so a transient DB read error
+            // can't cause the exact wrong delete this guard prevents. (#129, CodeRabbit)
+            Log.w(TAG, "Failed to verify restored state for $documentId, retrying", e)
+            return Result.retry()
+        }
+        if (restoredDoc != null) {
+            Log.d(TAG, "Document $documentId was restored, skipping permanent delete")
+            tokenManager.removePendingTrashDelete(documentId)
+            return Result.success()
         }
 
-        // Remove from pending deletes BEFORE actual deletion
-        removePendingDelete(documentId)
+        // Title for the history entry. getDocument filters isDeleted=0, so a doc still in
+        // trash returns null → the document-number fallback is used.
+        val documentTitle = applicationContext.getString(R.string.document_number, documentId)
+
+        // The pending-delete entry is intentionally NOT removed before the attempt: it
+        // must survive a failed attempt so a 5xx can be retried (and so a restore can
+        // clear it before the retry fires). Cleared on success or terminal failure. (#129)
 
         // Perform the actual deletion
         return trashRepository.permanentlyDeleteDocument(documentId)
@@ -79,6 +100,9 @@ class TrashDeleteWorker @AssistedInject constructor(
                 onSuccess = {
                     Log.d(TAG, "Successfully deleted document $documentId")
                     crashlyticsHelper.logActionBreadcrumb("WORKER_TRASH", "success, document $documentId")
+
+                    // The delete is committed on the server → drop the pending entry. (#129)
+                    tokenManager.removePendingTrashDelete(documentId)
 
                     // Record success in SyncHistory
                     try {
@@ -102,9 +126,9 @@ class TrashDeleteWorker @AssistedInject constructor(
                     try {
                         // Extract HTTP code from PaperlessException subtypes
                         val httpCode = when (error) {
-                            is com.paperless.scanner.data.api.PaperlessException.ClientError -> error.code
-                            is com.paperless.scanner.data.api.PaperlessException.ServerError -> error.code
-                            is com.paperless.scanner.data.api.PaperlessException.AuthError -> error.code
+                            is PaperlessException.ClientError -> error.code
+                            is PaperlessException.ServerError -> error.code
+                            is PaperlessException.AuthError -> error.code
                             else -> null
                         }
                         syncHistoryRepository.recordFailure(
@@ -119,33 +143,33 @@ class TrashDeleteWorker @AssistedInject constructor(
                         Log.w(TAG, "Failed to record sync history: ${e.message}")
                     }
 
-                    // Don't retry - the document might not exist anymore or other permanent error
-                    Result.failure()
+                    val retryable = (error as? PaperlessException)?.isRetryable == true
+                    if (retryable && runAttemptCount < MAX_DELETE_RETRIES) {
+                        // Transient (5xx) → retry with exponential backoff. Keep the pending
+                        // entry so the retry re-checks it (and a restore can clear it
+                        // meanwhile). (#129)
+                        Log.w(TAG, "Transient delete failure for $documentId (attempt $runAttemptCount), retrying")
+                        Result.retry()
+                    } else {
+                        // Permanent (4xx) or retries exhausted → terminal. Clear the entry so
+                        // restorePendingDeletes() doesn't reschedule it forever. (#129)
+                        tokenManager.removePendingTrashDelete(documentId)
+                        Result.failure()
+                    }
                 }
             )
-    }
-
-    /**
-     * Remove a document from the pending deletes in DataStore.
-     */
-    private suspend fun removePendingDelete(documentId: Int) {
-        val pendingDeletes = tokenManager.getPendingTrashDeletesSync() ?: return
-        val updatedDeletes = pendingDeletes.split(",")
-            .filter { entry ->
-                entry.split(":").firstOrNull()?.toIntOrNull() != documentId
-            }
-            .joinToString(",")
-
-        if (updatedDeletes.isEmpty()) {
-            tokenManager.clearPendingTrashDeletes()
-        } else {
-            tokenManager.savePendingTrashDeletes(updatedDeletes)
-        }
     }
 
     companion object {
         const val TAG = "TrashDeleteWorker"
         const val KEY_DOCUMENT_ID = "document_id"
+
+        /**
+         * Max WorkManager run attempts for a transient (5xx) delete failure before
+         * giving up terminally. Bounds the exponential backoff so a permanently-5xx
+         * server can't reschedule the delete forever. (#129)
+         */
+        const val MAX_DELETE_RETRIES = 3
 
         /**
          * Generate unique work name for a specific document.
