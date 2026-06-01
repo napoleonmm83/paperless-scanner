@@ -2,7 +2,9 @@ package com.paperless.scanner.worker
 
 import android.content.Context
 import android.util.Log
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
@@ -43,6 +45,8 @@ class TrashDeleteWorkManager @Inject constructor(
         val deleteRequest = OneTimeWorkRequestBuilder<TrashDeleteWorker>()
             .setInitialDelay(delaySeconds, TimeUnit.SECONDS)
             .setInputData(inputData)
+            // Permanent deletion hits the server API, so require a network. (#134)
+            .setConstraints(deleteConstraints())
             .build()
 
         // Use REPLACE policy - if user taps delete again, restart the countdown
@@ -69,6 +73,8 @@ class TrashDeleteWorkManager @Inject constructor(
 
         val deleteRequest = OneTimeWorkRequestBuilder<TrashDeleteWorker>()
             .setInputData(inputData)
+            // Permanent deletion hits the server API, so require a network. (#134)
+            .setConstraints(deleteConstraints())
             .build()
 
         workManager.enqueueUniqueWork(
@@ -87,6 +93,12 @@ class TrashDeleteWorkManager @Inject constructor(
         Log.d(TAG, "Cancelling pending delete for document $documentId")
         workManager.cancelUniqueWork(TrashDeleteWorker.workName(documentId))
     }
+
+    /** Trash deletion is a server API call, so it requires a network connection. */
+    private fun deleteConstraints(): Constraints =
+        Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
 
     companion object {
         private const val TAG = "TrashDeleteWorkManager"

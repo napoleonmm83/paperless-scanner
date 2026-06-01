@@ -38,10 +38,26 @@ class UploadWorkManager @Inject constructor(
         )
     }
 
+    /**
+     * Schedule an immediate drain of the pending-upload queue.
+     *
+     * The battery/storage constraints defer the transfer below the OS
+     * low-battery / low-storage thresholds rather than draining a nearly-empty
+     * battery or a full disk; the work stays enqueued and runs as soon as the
+     * constraint clears (mirrors SyncWorker). See issue #134.
+     *
+     * NOTE: still uses [ExistingWorkPolicy.REPLACE]. Switching to KEEP (#130) is
+     * deferred: the worker's drain loop is bounded by a maxIterations safety cap
+     * computed from the pending count at start, so a burst exceeding that cap
+     * under KEEP could strand newly-enqueued rows with no follow-up work. A safe
+     * KEEP requires hardening that loop first (tracked under #130).
+     */
     fun scheduleImmediateUpload() {
         Log.d(TAG, "scheduleImmediateUpload() called")
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresBatteryNotLow(true)
+            .setRequiresStorageNotLow(true)
             .build()
 
         val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()

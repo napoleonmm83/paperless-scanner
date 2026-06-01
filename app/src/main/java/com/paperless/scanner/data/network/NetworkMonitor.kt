@@ -165,6 +165,11 @@ class NetworkMonitor @Inject constructor(
 
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
+                // Match UploadWorkManager.scheduleImmediateUpload: defer below the
+                // OS low-battery / low-storage thresholds so a reconnect-triggered
+                // drain doesn't drain a nearly-empty battery / full disk (#134).
+                .setRequiresBatteryNotLow(true)
+                .setRequiresStorageNotLow(true)
                 .build()
 
             val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()

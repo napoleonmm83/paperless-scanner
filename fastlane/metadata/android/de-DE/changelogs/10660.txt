@@ -1,0 +1,5 @@
+Version 1.5.160:
+
+🔧 Verbesserungen:
+- Zuverlässigere Uploads bei wenig Akku oder Speicher.
+- Stabilere Hintergrund-Uploads und besseres Fehler-Reporting.
