@@ -325,6 +325,28 @@ class UploadWorker @AssistedInject constructor(
                 // cancellation is handled by the catch above and never reaches here.)
                 crashlyticsHelper.recordException(e)
 
+                // The server already accepted this upload — a failure here is in the
+                // post-commit finalization (e.g. markAsCompleted or cleanup threw).
+                // Never requeue a server-accepted upload (markAsFailed would let the
+                // next run re-post it → duplicate): complete the row best-effort and
+                // move on. (#128, CodeRabbit)
+                if (uploadCommitted) {
+                    // NonCancellable so a worker stop arriving here cannot interrupt
+                    // finalising an upload the server already accepted (which would
+                    // strand the row in UPLOADING). A persistent delete failure (broken
+                    // DB) is logged and the row stays UPLOADING — the safer failure mode
+                    // than re-posting a duplicate; see #287.
+                    withContext(NonCancellable) {
+                        try {
+                            uploadQueueRepository.markAsCompleted(pendingUpload.id)
+                        } catch (completionError: Exception) {
+                            Log.w(TAG, "Post-commit completion failed for ${pendingUpload.id}: ${completionError.message}")
+                        }
+                    }
+                    successCount++
+                    continue
+                }
+
                 // Safe error message extraction (prevent secondary exceptions)
                 val unexpectedErrorMsg = applicationContext.getString(R.string.sync_history_unexpected_error)
                 val safeErrorMessage = try {

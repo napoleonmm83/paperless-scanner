@@ -741,6 +741,41 @@ class UploadWorkerTest {
     }
 
     @Test
+    fun `doWork completes the row instead of requeuing on a non-cancellation error after a successful upload`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        // The server ACCEPTS the document...
+        coEvery {
+            documentRepository.uploadDocument(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any(),
+                onProgress = any()
+            )
+        } returns Result.success("task-123")
+        // ...but finishing the row throws a regular (non-cancellation) error the first
+        // time (e.g. the markAsCompleted delete hiccups). The generic catch must NOT
+        // mark a server-accepted upload as failed (that would re-upload → duplicate).
+        var completeCalls = 0
+        coEvery { uploadQueueRepository.markAsCompleted(1) } answers {
+            completeCalls++
+            if (completeCalls == 1) throw RuntimeException("db error during completion")
+        }
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        assertEquals(ListenableWorker.Result.success(), result)
+        coVerify(exactly = 0) { uploadQueueRepository.markAsFailed(1, any()) }
+        coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
+        coVerify(atLeast = 1) { uploadQueueRepository.markAsCompleted(1) }
+    }
+
+    @Test
     fun `doWork resets the row when cancelled after claiming it but before uploading`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
