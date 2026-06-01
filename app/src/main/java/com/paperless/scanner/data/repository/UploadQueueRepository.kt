@@ -194,6 +194,21 @@ class UploadQueueRepository @Inject constructor(
     }
 
     /**
+     * Reset an in-flight upload back to PENDING.
+     *
+     * Used when the worker is cancelled mid-upload (constraint lost, system kill,
+     * forced re-schedule): the row was moved to UPLOADING by [markAsUploading],
+     * but [getNextPendingUpload] only returns PENDING/FAILED rows — so a row left
+     * in UPLOADING is never retried and strands forever. Resetting it to PENDING
+     * lets the next worker run pick it up again (#128).
+     *
+     * @param id Upload database ID
+     */
+    suspend fun resetToPending(id: Long) {
+        pendingUploadDao.updateStatus(id, UploadStatus.PENDING)
+    }
+
+    /**
      * Mark an upload as successfully completed (deletes from queue).
      *
      * @param id Upload database ID

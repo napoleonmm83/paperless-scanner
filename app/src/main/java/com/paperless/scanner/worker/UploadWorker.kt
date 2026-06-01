@@ -31,7 +31,9 @@ import com.paperless.scanner.widget.WidgetUpdateWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @HiltWorker
 class UploadWorker @AssistedInject constructor(
@@ -152,20 +154,31 @@ class UploadWorker @AssistedInject constructor(
                 }
             }
 
-            uploadQueueRepository.markAsUploading(pendingUpload.id)
-
-            // Reset throttle state für neues Dokument
-            lastNotificationProgress = -1
-
-            // Notification mit aktuellem Dokument aktualisieren
-            setForeground(createProgressForegroundInfo(
-                currentUpload = currentUpload,
-                totalUploads = totalUploads,
-                currentDocumentName = documentName,
-                uploadProgress = 0
-            ))
-
+            // Tracks whether the server has ACCEPTED this document. Once true the row
+            // must never be requeued (that would upload a duplicate) — it can only be
+            // finished. Declared outside the try so the cancellation handler reads it.
+            var uploadCommitted = false
+            // Guards against double-counting: if a throw lands AFTER onSuccess already
+            // counted this upload (e.g. local cleanup fails), the recovery path below
+            // must not increment successCount a second time (#128, CodeRabbit).
+            var successAlreadyCounted = false
             try {
+                // Claim the row and show progress INSIDE the protected region: a
+                // cancellation during setForeground() would otherwise leave the row
+                // stranded in UPLOADING (getNextPendingUpload skips UPLOADING). (#128)
+                uploadQueueRepository.markAsUploading(pendingUpload.id)
+
+                // Reset throttle state für neues Dokument
+                lastNotificationProgress = -1
+
+                // Notification mit aktuellem Dokument aktualisieren
+                setForeground(createProgressForegroundInfo(
+                    currentUpload = currentUpload,
+                    totalUploads = totalUploads,
+                    currentDocumentName = documentName,
+                    uploadProgress = 0
+                ))
+
                 val result = if (pendingUpload.isMultiPage) {
                     val uris = uploadQueueRepository.getAllUris(pendingUpload)
                     val pageCount = uris.size
@@ -206,10 +219,15 @@ class UploadWorker @AssistedInject constructor(
                     )
                 }
 
+                // The server has accepted the document the moment the Result is
+                // successful — from here the row must be finished, never requeued.
+                if (result.isSuccess) uploadCommitted = true
+
                 result.onSuccess {
                     Log.d(TAG, "Upload ${pendingUpload.id}: Upload successful, task ID received")
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
+                    successAlreadyCounted = true
 
                     // Record success in SyncHistory
                     try {
@@ -283,16 +301,55 @@ class UploadWorker @AssistedInject constructor(
                     }
                 }
 
+            } catch (e: CancellationException) {
+                // The worker was STOPPED (constraint lost / system kill / forced
+                // reschedule) mid-item. Finish the row correctly under NonCancellable
+                // (the surrounding coroutine is already cancelled), then propagate so
+                // WorkManager sees the stop, not a per-item failure (#128):
+                //  - already committed on the server → complete it (delete the row) so
+                //    the next run does NOT re-upload the same file and duplicate it;
+                //  - not yet committed → reset UPLOADING→PENDING so the next run
+                //    retries it (getNextPendingUpload skips UPLOADING, so a row left
+                //    in UPLOADING would strand forever). If cancellation lands while
+                //    the request is in flight (body sent, response pending) the commit
+                //    state is unknown; we deliberately favour at-least-once — re-upload
+                //    beats losing a scan, and Paperless de-dups identical content by
+                //    checksum. True at-most-once needs a server idempotency key (#287).
+                withContext(NonCancellable) {
+                    if (uploadCommitted) {
+                        uploadQueueRepository.markAsCompleted(pendingUpload.id)
+                    } else {
+                        uploadQueueRepository.resetToPending(pendingUpload.id)
+                    }
+                }
+                throw e
             } catch (e: Exception) {
-                // Report a genuinely-unexpected throwable (NPE/IllegalState/etc.) to
-                // Crashlytics as a non-fatal so real bugs are not silently downgraded
-                // to a per-item failure with no telemetry. CancellationException is
-                // excluded — it is coroutine cancellation (the worker was stopped),
-                // not a crash — and falls through to the existing per-item failure
-                // handling unchanged. (A cancellation-aware reset of the in-flight
-                // UPLOADING row is left as a follow-up so this change stays additive.)
-                if (e !is CancellationException) {
-                    crashlyticsHelper.recordException(e)
+                // A genuinely-unexpected throwable (NPE/IllegalState/etc.) is a real
+                // bug: record it to Crashlytics as a non-fatal so it is not silently
+                // downgraded to a per-item failure with no telemetry. (Coroutine
+                // cancellation is handled by the catch above and never reaches here.)
+                crashlyticsHelper.recordException(e)
+
+                // The server already accepted this upload — a failure here is in the
+                // post-commit finalization (e.g. markAsCompleted or cleanup threw).
+                // Never requeue a server-accepted upload (markAsFailed would let the
+                // next run re-post it → duplicate): complete the row best-effort and
+                // move on. (#128, CodeRabbit)
+                if (uploadCommitted) {
+                    // NonCancellable so a worker stop arriving here cannot interrupt
+                    // finalising an upload the server already accepted (which would
+                    // strand the row in UPLOADING). A persistent delete failure (broken
+                    // DB) is logged and the row stays UPLOADING — the safer failure mode
+                    // than re-posting a duplicate; see #287.
+                    withContext(NonCancellable) {
+                        try {
+                            uploadQueueRepository.markAsCompleted(pendingUpload.id)
+                        } catch (completionError: Exception) {
+                            Log.w(TAG, "Post-commit completion failed for ${pendingUpload.id}: ${completionError.message}")
+                        }
+                    }
+                    if (!successAlreadyCounted) successCount++
+                    continue
                 }
 
                 // Safe error message extraction (prevent secondary exceptions)
@@ -335,7 +392,13 @@ class UploadWorker @AssistedInject constructor(
         WidgetUpdateWorker.enqueue(applicationContext)
 
         crashlyticsHelper.logActionBreadcrumb("WORKER_UPLOAD", "done, success=$successCount, fail=$failCount")
-        return if (failCount > 0 && successCount == 0) Result.failure() else Result.success()
+        // The worker SUCCEEDED at its job once the queue is drained: every per-item
+        // outcome is already persisted (markAsCompleted / markAsFailed + retryCount)
+        // and surfaced via SyncHistory + the completion notification. Returning
+        // failure() here has no consumer (getWorkStatus is unused) and would poison an
+        // APPEND_OR_REPLACE-chained follow-up worker (#130). Pre-flight problems (no
+        // internet / server unreachable) still short-circuit with Result.retry() above.
+        return Result.success()
     }
 
     private fun createNotificationChannel() {
