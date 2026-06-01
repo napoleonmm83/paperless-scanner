@@ -30,6 +30,7 @@ import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.widget.WidgetUpdateWorker
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
 @HiltWorker
@@ -283,6 +284,17 @@ class UploadWorker @AssistedInject constructor(
                 }
 
             } catch (e: Exception) {
+                // Report a genuinely-unexpected throwable (NPE/IllegalState/etc.) to
+                // Crashlytics as a non-fatal so real bugs are not silently downgraded
+                // to a per-item failure with no telemetry. CancellationException is
+                // excluded — it is coroutine cancellation (the worker was stopped),
+                // not a crash — and falls through to the existing per-item failure
+                // handling unchanged. (A cancellation-aware reset of the in-flight
+                // UPLOADING row is left as a follow-up so this change stays additive.)
+                if (e !is CancellationException) {
+                    crashlyticsHelper.recordException(e)
+                }
+
                 // Safe error message extraction (prevent secondary exceptions)
                 val unexpectedErrorMsg = applicationContext.getString(R.string.sync_history_unexpected_error)
                 val safeErrorMessage = try {

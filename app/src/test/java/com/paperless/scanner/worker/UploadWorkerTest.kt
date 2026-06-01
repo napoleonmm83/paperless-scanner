@@ -31,6 +31,8 @@ import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -621,6 +623,87 @@ class UploadWorkerTest {
 
         assertEquals(ListenableWorker.Result.failure(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
+    }
+
+    @Test
+    fun `doWork reports unexpected throwable to Crashlytics as non-fatal`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        coEvery {
+            documentRepository.uploadDocument(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any(),
+                onProgress = any()
+            )
+        } throws RuntimeException("Unexpected crash")
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        // A genuine bug (thrown, not Result-wrapped) surfaces in Crashlytics as a
+        // non-fatal with its full stack trace...
+        verify(exactly = 1) {
+            crashlyticsHelper.recordException(match { it is RuntimeException && it.message == "Unexpected crash" })
+        }
+        // ...while the per-item failure semantics stay byte-for-byte unchanged.
+        assertEquals(ListenableWorker.Result.failure(), result)
+        coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
+    }
+
+    @Test
+    fun `doWork does not report CancellationException to Crashlytics`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        coEvery {
+            documentRepository.uploadDocument(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any(),
+                onProgress = any()
+            )
+        } throws CancellationException("cancelled")
+
+        val worker = createWorker()
+        worker.doWork()
+
+        // Coroutine cancellation (the worker was stopped) is NOT a crash → it must
+        // not be reported to Crashlytics as a non-fatal (only genuine throwables are).
+        verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
+    }
+
+    @Test
+    fun `doWork does not report Crashlytics non-fatal for repo Result failure`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        coEvery {
+            documentRepository.uploadDocument(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any(),
+                onProgress = any()
+            )
+        } returns Result.failure(Exception("Network error"))
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        // A typed Result.failure from the repo (.onFailure path) is an EXPECTED
+        // failure and must NOT generate Crashlytics non-fatal noise.
+        assertEquals(ListenableWorker.Result.failure(), result)
+        verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
     }
 
     // ==================== Progress Callback Tests ====================

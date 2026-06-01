@@ -89,6 +89,23 @@ class CrashlyticsHelper @Inject constructor(
     }
 
     /**
+     * Report a non-fatal throwable to Crashlytics with its full stack trace.
+     *
+     * Use for genuinely unexpected exceptions (e.g. caught by a worker's
+     * last-resort broad catch) so real bugs surface in Crashlytics instead of
+     * being silently downgraded to a per-item failure. Respects GDPR consent
+     * exactly like the breadcrumb loggers.
+     *
+     * @param throwable The unexpected throwable to record as a non-fatal event.
+     */
+    fun recordException(throwable: Throwable) {
+        if (!analyticsService.isAnalyticsEnabled()) return
+
+        Firebase.crashlytics.recordException(throwable)
+        Log.d(TAG, "Recorded non-fatal: ${throwable.javaClass.simpleName}: ${throwable.message}")
+    }
+
+    /**
      * Set the server URL hash as a custom key.
      * Privacy: URL is hashed with SHA-256 (first 16 chars only).
      *
