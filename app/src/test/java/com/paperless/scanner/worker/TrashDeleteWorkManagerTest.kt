@@ -57,5 +57,7 @@ class TrashDeleteWorkManagerTest {
             .getWorkInfosForUniqueWork(TrashDeleteWorker.workName(42)).get()
             .first().constraints
         assertEquals(NetworkType.CONNECTED, constraints.requiredNetworkType)
+        // Shares deleteConstraints() with schedulePendingDelete → battery not required.
+        assertFalse(constraints.requiresBatteryNotLow())
     }
 }
