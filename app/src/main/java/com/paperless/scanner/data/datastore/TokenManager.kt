@@ -682,6 +682,29 @@ class TokenManager(
         }
     }
 
+    /**
+     * Remove a single document's pending-delete entry, leaving the others intact.
+     *
+     * Centralizes the read-filter-save the worker used to do inline so the restore
+     * flow ([com.paperless.scanner.data.repository.TrashRepository.restoreDocuments])
+     * can clear a doc's entry too — once an entry can outlive a failed delete attempt
+     * (retry), a restore MUST clear it so the retry doesn't delete the restored doc
+     * (#129). Format: "docId:startTime,docId:startTime,...".
+     */
+    suspend fun removePendingTrashDelete(documentId: Int) {
+        context.dataStore.edit { preferences ->
+            val current = preferences[TRASH_PENDING_DELETES_KEY] ?: return@edit
+            val updated = current.split(",")
+                .filter { entry -> entry.split(":").firstOrNull()?.toIntOrNull() != documentId }
+                .joinToString(",")
+            if (updated.isBlank()) {
+                preferences.remove(TRASH_PENDING_DELETES_KEY)
+            } else {
+                preferences[TRASH_PENDING_DELETES_KEY] = updated
+            }
+        }
+    }
+
     // Server Configuration Detection
 
     /**

@@ -1,0 +1,5 @@
+Version 1.5.163:
+
+🐛 Bug Fixes:
+- Trash deletions now retry on brief server errors
+- A restored document is no longer accidentally deleted

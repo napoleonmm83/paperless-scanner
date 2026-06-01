@@ -1,0 +1,5 @@
+Version 1.5.163:
+
+🐛 Fehlerbehebungen:
+- Papierkorb-Löschungen werden bei kurzen Serverfehlern erneut versucht
+- Wiederhergestellte Dokumente werden nicht mehr versehentlich gelöscht

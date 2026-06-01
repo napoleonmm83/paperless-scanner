@@ -11,6 +11,7 @@ import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toTrashedDocument
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.DocumentsResponse
@@ -18,6 +19,7 @@ import com.paperless.scanner.domain.model.TrashedDocument
 import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.withResponseRetry
 import com.paperless.scanner.util.withRetry
+import com.paperless.scanner.worker.TrashDeleteWorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
@@ -48,6 +50,8 @@ class TrashRepository @Inject constructor(
     private val cachedTaskDao: CachedTaskDao,                  // for deleteDocument cascade only
     private val networkMonitor: NetworkMonitor,
     private val sync: DocumentSyncRepository,
+    private val tokenManager: TokenManager,
+    private val trashDeleteWorkManager: TrashDeleteWorkManager,
 ) {
 
     companion object {
@@ -208,30 +212,43 @@ class TrashRepository @Inject constructor(
     suspend fun restoreDocument(documentId: Int): Result<Unit> =
         restoreDocuments(listOf(documentId))
 
-    suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
-        online = {
-            val request = TrashBulkActionRequest(documents = documentIds, action = "restore")
-            val response = withResponseRetry { api.trashBulkAction(request) }
-            if (response.isSuccessful) {
-                cachedDocumentDao.restoreDocuments(documentIds)
-                Unit
-            } else {
-                // Single-read of errorBody (the stream is consumed by .string()).
-                val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
-                throw retrofit2.HttpException(
-                    retrofit2.Response.error<Unit>(
-                        response.code(),
-                        (errorBody ?: "{}").toResponseBody("application/json".toMediaTypeOrNull()),
+    suspend fun restoreDocuments(documentIds: List<Int>): Result<Unit> {
+        // Clear the pending-delete coupling BEFORE the restore so an in-flight
+        // TrashDeleteWorker — or a backoff retry that becomes due mid-restore — cannot
+        // race the restore and permanently delete the document: removing the entry makes
+        // the worker's isStillPending guard short-circuit, and cancelling stops a pending
+        // backoff. Doing it after the API call would leave a race window during the call.
+        // The single chokepoint every restore call site (TrashViewModel,
+        // RecentDocumentsViewModel, DocumentsViewModel) shares. (#129)
+        documentIds.forEach { id ->
+            tokenManager.removePendingTrashDelete(id)
+            trashDeleteWorkManager.cancelPendingDelete(id)
+        }
+        return sync.executeOrQueue(
+            online = {
+                val request = TrashBulkActionRequest(documents = documentIds, action = "restore")
+                val response = withResponseRetry { api.trashBulkAction(request) }
+                if (response.isSuccessful) {
+                    cachedDocumentDao.restoreDocuments(documentIds)
+                    Unit
+                } else {
+                    // Single-read of errorBody (the stream is consumed by .string()).
+                    val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
+                    Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
+                    throw retrofit2.HttpException(
+                        retrofit2.Response.error<Unit>(
+                            response.code(),
+                            (errorBody ?: "{}").toResponseBody("application/json".toMediaTypeOrNull()),
+                        )
                     )
-                )
-            }
-        },
-        offlineQueueAndOptimistic = {
-            sync.queueTrashAction(documentIds, DocumentSyncRepository.TrashAction.RESTORE)
-            cachedDocumentDao.restoreDocuments(documentIds)
-        },
-    )
+                }
+            },
+            offlineQueueAndOptimistic = {
+                sync.queueTrashAction(documentIds, DocumentSyncRepository.TrashAction.RESTORE)
+                cachedDocumentDao.restoreDocuments(documentIds)
+            },
+        )
+    }
 
     suspend fun permanentlyDeleteDocument(documentId: Int): Result<Unit> =
         permanentlyDeleteDocuments(listOf(documentId))

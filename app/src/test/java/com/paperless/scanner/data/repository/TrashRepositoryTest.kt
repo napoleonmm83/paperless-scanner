@@ -13,8 +13,10 @@ import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.database.entities.CachedTask
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.testing.BaseRoomRepositoryTest
+import com.paperless.scanner.worker.TrashDeleteWorkManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -51,6 +53,8 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
     private lateinit var cachedTaskDao: CachedTaskDao
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var sync: DocumentSyncRepository
+    private lateinit var tokenManager: TokenManager
+    private lateinit var trashDeleteWorkManager: TrashDeleteWorkManager
     private lateinit var repo: TrashRepository
 
     @Before
@@ -59,6 +63,8 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         api = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         sync = mockk(relaxed = true)
+        tokenManager = mockk(relaxed = true)
+        trashDeleteWorkManager = mockk(relaxed = true)
         // Spyk wraps the real Room DAOs: methods execute against the real schema
         // but calls are still recorded so coVerify(Order) keeps working.
         cachedDocumentDao = spyk(database.cachedDocumentDao())
@@ -84,6 +90,8 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
             cachedTaskDao = cachedTaskDao,
             networkMonitor = networkMonitor,
             sync = sync,
+            tokenManager = tokenManager,
+            trashDeleteWorkManager = trashDeleteWorkManager,
         )
     }
 
@@ -371,6 +379,25 @@ class TrashRepositoryTest : BaseRoomRepositoryTest() {
         assertEquals(listOf(1, 2, 3), requestSlot.captured.documents)
         assertEquals("restore", requestSlot.captured.action)
         assertTrue(cachedDocumentDao.getDeletedIds().toSet().intersect(setOf(1, 2, 3)).isEmpty())
+    }
+
+    @Test
+    fun `restoreDocuments clears the pending-delete entry and cancels the worker for each id`() = runTest {
+        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        cachedDocumentDao.insertAll(listOf(cachedDoc(id = 1), cachedDoc(id = 2), cachedDoc(id = 3)))
+        coEvery { api.trashBulkAction(any()) } returns successUnit()
+
+        val result = repo.restoreDocuments(listOf(1, 2, 3))
+
+        assertTrue(result.isSuccess)
+        // A restored document must never be permanently deleted by a still-scheduled (or
+        // retry-pending) TrashDeleteWorker. This single repository chokepoint — shared by
+        // TrashViewModel, RecentDocumentsViewModel and DocumentsViewModel — clears the
+        // pending-delete DataStore entry and cancels the worker for every restored id. (#129)
+        listOf(1, 2, 3).forEach { id ->
+            coVerify { tokenManager.removePendingTrashDelete(id) }
+            coVerify { trashDeleteWorkManager.cancelPendingDelete(id) }
+        }
     }
 
     @Test
