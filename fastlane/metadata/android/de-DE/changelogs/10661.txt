@@ -1,0 +1,6 @@
+Version 1.5.161:
+
+🔧 Verbesserungen:
+- Uploads robuster bei Unterbrechung
+- Keine hängenden Uploads mehr nach App-Stopp
+- Zuverlässigere Verarbeitung der Upload-Warteschlange

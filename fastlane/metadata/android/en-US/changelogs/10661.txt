@@ -1,0 +1,6 @@
+Version 1.5.161:
+
+🔧 Improvements:
+- More reliable uploads when interrupted
+- No more stuck uploads after the app stops
+- More dependable upload queue processing
