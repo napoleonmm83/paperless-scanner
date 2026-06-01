@@ -215,8 +215,9 @@ class UploadWorkerTest {
         val worker = createWorker()
         val result = worker.doWork()
 
-        // All uploads failed -> Result.failure
-        assertEquals(ListenableWorker.Result.failure(), result)
+        // The worker drained the queue; the per-item failure is persisted via
+        // markAsFailed, so the work unit itself succeeds (#128 success-after-drain).
+        assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsUploading(1) }
         coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
     }
@@ -439,7 +440,7 @@ class UploadWorkerTest {
         val worker = createWorker()
         val result = worker.doWork()
 
-        assertEquals(ListenableWorker.Result.failure(), result)
+        assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "PDF conversion failed") }
     }
 
@@ -514,7 +515,7 @@ class UploadWorkerTest {
     }
 
         @Test
-    fun `doWork returns failure when all uploads fail`() = runTest {
+    fun `doWork returns success after draining even when all uploads fail`() = runTest {
         val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
         val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
 
@@ -534,7 +535,9 @@ class UploadWorkerTest {
         val worker = createWorker()
         val result = worker.doWork()
 
-        assertEquals(ListenableWorker.Result.failure(), result)
+        // Draining completed (both per-item failures persisted via markAsFailed);
+        // the work unit succeeds so it can't poison an APPEND-chained follow-up (#128).
+        assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
         coVerify { uploadQueueRepository.markAsFailed(2, "Network error") }
         // No successful upload -> no task refresh needed.
@@ -621,7 +624,9 @@ class UploadWorkerTest {
         val worker = createWorker()
         val result = worker.doWork()
 
-        assertEquals(ListenableWorker.Result.failure(), result)
+        // A genuine bug is recorded per-item (markAsFailed) and the drain completes,
+        // so the work unit succeeds (the bug surfaces via Crashlytics, not the Result).
+        assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
     }
 
@@ -650,13 +655,14 @@ class UploadWorkerTest {
         verify(exactly = 1) {
             crashlyticsHelper.recordException(match { it is RuntimeException && it.message == "Unexpected crash" })
         }
-        // ...while the per-item failure semantics stay byte-for-byte unchanged.
-        assertEquals(ListenableWorker.Result.failure(), result)
+        // ...while the per-item outcome is still persisted via markAsFailed and the
+        // drain itself succeeds (per-item failure does not fail the work unit, #128).
+        assertEquals(ListenableWorker.Result.success(), result)
         coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
     }
 
     @Test
-    fun `doWork does not report CancellationException to Crashlytics`() = runTest {
+    fun `doWork rethrows CancellationException and resets the in-flight row to PENDING`() = runTest {
         val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
 
         coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
@@ -673,11 +679,101 @@ class UploadWorkerTest {
         } throws CancellationException("cancelled")
 
         val worker = createWorker()
-        worker.doWork()
 
-        // Coroutine cancellation (the worker was stopped) is NOT a crash → it must
-        // not be reported to Crashlytics as a non-fatal (only genuine throwables are).
+        var thrown: Throwable? = null
+        try {
+            worker.doWork()
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        // Coroutine cancellation means the worker was STOPPED: it must propagate
+        // (not be swallowed into a per-item failure) so WorkManager sees the stop.
+        assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
+        // The row was moved to UPLOADING before the attempt; on cancellation it must
+        // be reset to PENDING so the next run retries it instead of stranding it (#128).
+        coVerify { uploadQueueRepository.resetToPending(1) }
+        // A cancelled in-flight upload must NOT be marked permanently failed...
+        coVerify(exactly = 0) { uploadQueueRepository.markAsFailed(1, any()) }
+        // ...and cancellation is not a crash → no Crashlytics non-fatal.
         verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
+    }
+
+    @Test
+    fun `doWork completes the row instead of requeuing when cancelled after a successful upload`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        // The server ACCEPTS the document...
+        coEvery {
+            documentRepository.uploadDocument(
+                uri = any(),
+                title = any(),
+                tagIds = any(),
+                documentTypeId = any(),
+                correspondentId = any(),
+                onProgress = any()
+            )
+        } returns Result.success("task-123")
+        // ...but the worker is cancelled while finishing the row: the first
+        // markAsCompleted is interrupted, the NonCancellable finalization retries it.
+        var completeCalls = 0
+        coEvery { uploadQueueRepository.markAsCompleted(1) } answers {
+            completeCalls++
+            if (completeCalls == 1) throw CancellationException("cancelled during completion")
+        }
+
+        val worker = createWorker()
+
+        var thrown: Throwable? = null
+        try {
+            worker.doWork()
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
+        // The server already has the document → the row must NOT be reset to PENDING
+        // (that would re-upload and create a DUPLICATE); it must be completed instead.
+        coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
+        coVerify(atLeast = 1) { uploadQueueRepository.markAsCompleted(1) }
+    }
+
+    @Test
+    fun `doWork resets the row when cancelled after claiming it but before uploading`() = runTest {
+        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
+
+        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
+        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+
+        val worker = createWorker()
+        // Cancel during the per-item setForeground() — AFTER markAsUploading has moved
+        // the row to UPLOADING but BEFORE the upload starts. The first setForeground
+        // (initial progress, before the loop) succeeds; the second (per-item) is
+        // cancelled. The claim + foreground setup must sit inside the protected region
+        // so this window still resets the row (#128).
+        var fgCalls = 0
+        coEvery { worker.setForeground(any()) } answers {
+            fgCalls++
+            if (fgCalls >= 2) throw CancellationException("cancelled during setForeground")
+        }
+
+        var thrown: Throwable? = null
+        try {
+            worker.doWork()
+        } catch (e: CancellationException) {
+            thrown = e
+        }
+
+        assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
+        // The row was claimed (UPLOADING) then cancelled before the upload → it must be
+        // reset to PENDING, and the upload must never have been attempted.
+        coVerify { uploadQueueRepository.markAsUploading(1) }
+        coVerify { uploadQueueRepository.resetToPending(1) }
+        coVerify(exactly = 0) {
+            documentRepository.uploadDocument(any(), any(), any(), any(), any(), onProgress = any())
+        }
     }
 
     @Test
@@ -702,7 +798,7 @@ class UploadWorkerTest {
 
         // A typed Result.failure from the repo (.onFailure path) is an EXPECTED
         // failure and must NOT generate Crashlytics non-fatal noise.
-        assertEquals(ListenableWorker.Result.failure(), result)
+        assertEquals(ListenableWorker.Result.success(), result)
         verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
     }
 
