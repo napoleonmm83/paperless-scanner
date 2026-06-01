@@ -62,11 +62,18 @@ class UploadWorkManagerTest {
         uploadWorkManager.scheduleImmediateUpload()
 
         val workInfos = workManager.getWorkInfosForUniqueWork(UploadWorker.WORK_NAME).get()
-        val live = workInfos.filter { it.state != WorkInfo.State.CANCELLED }
+        // Both must survive: REPLACE would CANCEL the first, and neither should end up
+        // FAILED. APPEND_OR_REPLACE chains the second request behind the first, so it is
+        // BLOCKED (dependent on the constraint-held predecessor) rather than ENQUEUED —
+        // hence we count "not dropped / not errored" rather than asserting a specific
+        // live state (CodeRabbit).
+        val survived = workInfos.filter {
+            it.state != WorkInfo.State.CANCELLED && it.state != WorkInfo.State.FAILED
+        }
         assertEquals(
             "Both rapidly-scheduled uploads must survive; states=${workInfos.map { it.state }}",
             2,
-            live.size
+            survived.size
         )
     }
 }
