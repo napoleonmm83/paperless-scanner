@@ -1,0 +1,4 @@
+Version 1.5.166:
+
+🔧 Improvements:
+- More reliable widget updates (pending count, status)

@@ -114,7 +114,7 @@ class WidgetUpdateWorker @AssistedInject constructor(
         prefs.edit()
             .putInt("pending_upload_count", pendingCount)
             .putBoolean("server_online", isOnline)
-            .apply()
+            .commit() // synchronous write for consistency with WidgetPreferences before refresh (#115)
     }
 
     private fun triggerWidgetUpdate() {

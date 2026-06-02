@@ -35,6 +35,13 @@ object DeepLinkHandler {
     private const val TAG = "DeepLinkHandler"
     private const val SCHEME = "paperless"
 
+    // Canonical deep-link URIs built by widgets / shortcuts (issue #116).
+    // Single source of truth so these strings can't drift from the scheme above.
+    const val URI_SCAN_CAMERA = SCHEME + "://scan/camera"
+    const val URI_SCAN_GALLERY = SCHEME + "://scan/gallery"
+    const val URI_SCAN_FILE = SCHEME + "://scan/file"
+    const val URI_STATUS = SCHEME + "://status"
+
     /**
      * Parses an Intent to extract a DeepLinkAction, if present.
      * Returns null if the intent does not contain a valid deep link.

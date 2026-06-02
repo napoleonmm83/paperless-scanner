@@ -14,6 +14,7 @@ import android.widget.RemoteViews
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
+import com.paperless.scanner.util.DeepLinkHandler
 
 /**
  * Legacy RemoteViews-based widget implementation.
@@ -42,7 +43,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putInt(KEY_PENDING_COUNT, count)
-                .apply()
+                .commit() // synchronous write so the broadcast below reads fresh data (#114)
 
             // Trigger widget update
             val intent = Intent(context, LegacyScannerWidget::class.java).apply {
@@ -188,7 +189,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
         // Tap opens SyncCenter via deep link
         views.setOnClickPendingIntent(
             R.id.widget_status_container,
-            createDeepLinkPendingIntent(context, "paperless://status", appWidgetId * 10)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_STATUS, appWidgetId * 10)
         )
 
         // Pending count
@@ -237,19 +238,19 @@ class LegacyScannerWidget : AppWidgetProvider() {
         // Camera button → paperless://scan/camera
         views.setOnClickPendingIntent(
             R.id.widget_combined_camera,
-            createDeepLinkPendingIntent(context, "paperless://scan/camera", appWidgetId * 10 + 1)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_SCAN_CAMERA, appWidgetId * 10 + 1)
         )
 
         // Gallery button → paperless://scan/gallery
         views.setOnClickPendingIntent(
             R.id.widget_combined_gallery,
-            createDeepLinkPendingIntent(context, "paperless://scan/gallery", appWidgetId * 10 + 2)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_SCAN_GALLERY, appWidgetId * 10 + 2)
         )
 
         // Status row → SyncCenter
         views.setOnClickPendingIntent(
             R.id.widget_combined_status,
-            createDeepLinkPendingIntent(context, "paperless://status", appWidgetId * 10 + 3)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_STATUS, appWidgetId * 10 + 3)
         )
 
         // Pending count
@@ -313,19 +314,19 @@ class LegacyScannerWidget : AppWidgetProvider() {
         // Camera button → paperless://scan/camera
         views.setOnClickPendingIntent(
             R.id.widget_btn_camera,
-            createDeepLinkPendingIntent(context, "paperless://scan/camera", appWidgetId * 10 + 1)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_SCAN_CAMERA, appWidgetId * 10 + 1)
         )
 
         // Gallery button → paperless://scan/gallery
         views.setOnClickPendingIntent(
             R.id.widget_btn_gallery,
-            createDeepLinkPendingIntent(context, "paperless://scan/gallery", appWidgetId * 10 + 2)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_SCAN_GALLERY, appWidgetId * 10 + 2)
         )
 
         // File button → paperless://scan/file
         views.setOnClickPendingIntent(
             R.id.widget_btn_file,
-            createDeepLinkPendingIntent(context, "paperless://scan/file", appWidgetId * 10 + 3)
+            createDeepLinkPendingIntent(context, DeepLinkHandler.URI_SCAN_FILE, appWidgetId * 10 + 3)
         )
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
