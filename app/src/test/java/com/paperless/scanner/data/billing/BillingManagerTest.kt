@@ -6,9 +6,14 @@ import app.cash.turbine.test
 import com.android.billingclient.api.*
 import com.paperless.scanner.R
 import io.mockk.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.*
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,8 +50,17 @@ class BillingManagerTest {
     private val purchasesListenerSlot = slot<PurchasesUpdatedListener>()
     private val stateListenerSlot = slot<BillingClientStateListener>()
 
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Before
     fun setup() {
+        // launchPurchaseFlow now runs the purchase handshake on Dispatchers.Main
+        // (Play Billing requirement, #274); provide an eager test Main dispatcher so the
+        // existing synchronous purchase-flow assertions still hold.
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         context = mockk(relaxed = true)
         // Mock string resources for billing error messages
         every { context.getString(R.string.billing_error_product_not_found) } returns "Product not found. Please try again later."

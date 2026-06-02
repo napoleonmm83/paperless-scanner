@@ -1,0 +1,4 @@
+Version 1.5.167:
+
+🔧 Improvements:
+- More stable refresh when the network connection flaps

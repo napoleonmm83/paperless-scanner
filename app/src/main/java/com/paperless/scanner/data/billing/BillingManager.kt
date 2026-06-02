@@ -20,6 +20,7 @@ import com.paperless.scanner.util.AppLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -523,21 +524,19 @@ class BillingManager @Inject constructor(
             .setProductDetailsParamsList(productDetailsParamsList)
             .build()
 
-        return suspendCancellableCoroutine { continuation ->
+        // Run the whole purchase handshake on Main: Google Play Billing requires
+        // launchBillingFlow on the main thread, and withContext(Main) is a no-op when the
+        // caller is already on Main (the normal viewModelScope/Dispatchers.Main path). (#274)
+        return withContext(Dispatchers.Main) { suspendCancellableCoroutine { continuation ->
             // Store continuation to be resumed by purchasesUpdatedListener
             pendingPurchaseContinuation = continuation
             AppLogger.d(TAG, "✓ Pending continuation stored")
 
             // Launch billing flow
             AppLogger.d(TAG, "Launching billing flow...")
-            // Ensure on Main Thread for Safety
-            val billingResult = if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
-                billingClient?.launchBillingFlow(activity, billingFlowParams)
-            } else {
-                 // Should not happen with current coroutine scope, but valid safeguard
-                 AppLogger.w(TAG, "launchPurchaseFlow called off-main thread, this might be risky.")
-                 billingClient?.launchBillingFlow(activity, billingFlowParams)
-            }
+            // Guaranteed on the main thread by the enclosing withContext(Dispatchers.Main),
+            // so this is a real synchronous BillingResult (Play Billing requires Main). (#274)
+            val billingResult = billingClient?.launchBillingFlow(activity, billingFlowParams)
 
             AppLogger.d(TAG, "launchBillingFlow returned:")
             AppLogger.d(TAG, "  Response Code: ${billingResult?.responseCode}")
@@ -583,7 +582,7 @@ class BillingManager @Inject constructor(
                 AppLogger.d(TAG, "⚠ Purchase flow cancelled (continuation)")
                 pendingPurchaseContinuation = null
             }
-        }
+        } }
     }
 
     /**
