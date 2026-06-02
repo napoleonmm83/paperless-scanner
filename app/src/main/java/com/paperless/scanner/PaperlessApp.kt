@@ -17,6 +17,7 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
+import com.paperless.scanner.util.SharedFileCache
 import com.paperless.scanner.worker.UploadWorker
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -25,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -174,21 +176,30 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val cacheDir = cacheDir
-                val oneHourAgo = System.currentTimeMillis() - CACHE_MAX_AGE_MS
+                val cutoff = System.currentTimeMillis() - CACHE_MAX_AGE_MS
                 var deletedCount = 0
                 var freedBytes = 0L
 
-                cacheDir.listFiles()?.forEach { file ->
-                    if (file.isFile &&
-                        file.name.startsWith("document_") &&
-                        file.lastModified() < oneHourAgo
-                    ) {
-                        freedBytes += file.length()
-                        if (file.delete()) {
-                            deletedCount++
+                fun sweep(files: Array<File>?, accept: (File) -> Boolean) {
+                    files?.forEach { file ->
+                        if (file.isFile && accept(file) && file.lastModified() < cutoff) {
+                            val length = file.length()
+                            if (file.delete()) {
+                                deletedCount++
+                                freedBytes += length
+                            }
                         }
                     }
                 }
+
+                // #241: purpose-scoped shared subdirs — sweep ALL aged files. This also
+                // fixes the prior leak of cropped_/rotated_ scan images that the old
+                // root-only "document_" sweep never cleaned up.
+                SharedFileCache.sharedDirNames.forEach { dirName ->
+                    sweep(File(cacheDir, dirName).listFiles()) { true }
+                }
+                // Legacy: PDFs written to the cache root before #241 — migration cleanup.
+                sweep(cacheDir.listFiles()) { it.name.startsWith("document_") }
 
                 if (deletedCount > 0) {
                     val freedMB = freedBytes / (1024.0 * 1024.0)

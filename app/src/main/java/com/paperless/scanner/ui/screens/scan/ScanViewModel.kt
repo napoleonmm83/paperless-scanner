@@ -31,6 +31,7 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -704,8 +705,8 @@ class ScanViewModel @Inject constructor(
                 height
             )
 
-            // Save to cache
-            val croppedFile = File(context.cacheDir, "cropped_${System.currentTimeMillis()}.jpg")
+            // Save to cache — #241: scoped subdir exposed by the FileProvider.
+            val croppedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "cropped_${System.currentTimeMillis()}.jpg")
             FileOutputStream(croppedFile).use { out ->
                 croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
             }
@@ -770,8 +771,8 @@ class ScanViewModel @Inject constructor(
             matrix, true
         )
 
-        // Save to cache
-        val rotatedFile = File(context.cacheDir, "rotated_${System.currentTimeMillis()}.jpg")
+        // Save to cache — #241: scoped subdir exposed by the FileProvider.
+        val rotatedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "rotated_${System.currentTimeMillis()}.jpg")
         FileOutputStream(rotatedFile).use { out ->
             rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
         }

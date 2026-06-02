@@ -1,0 +1,7 @@
+Version 1.5.175:
+
+🔐 Sicherheit:
+- Geteilte Dokumente und Scans nutzen jetzt einen eng begrenzten Cache-Bereich. Beim Teilen erhalten andere Apps keinen Zugriff mehr auf unbeteiligte zwischengespeicherte Dateien.
+
+🔧 Verbesserungen:
+- Zuverlässigere Bereinigung temporärer Scan-Dateien
