@@ -51,6 +51,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -229,12 +233,21 @@ fun SimplifiedSetupScreen(
                 Tab(
                     selected = authMethod == AuthMethod.TOKEN,
                     onClick = { authMethod = AuthMethod.TOKEN },
-                    text = { Text(stringResource(R.string.setup_tab_token)) }
+                    text = { Text(stringResource(R.string.setup_tab_token)) },
+                    // a11y (#103): expose explicit Tab role + selected state to TalkBack
+                    modifier = Modifier.semantics {
+                        this.selected = authMethod == AuthMethod.TOKEN
+                        role = Role.Tab
+                    }
                 )
                 Tab(
                     selected = authMethod == AuthMethod.CREDENTIALS,
                     onClick = { authMethod = AuthMethod.CREDENTIALS },
-                    text = { Text(stringResource(R.string.setup_tab_password)) }
+                    text = { Text(stringResource(R.string.setup_tab_password)) },
+                    modifier = Modifier.semantics {
+                        this.selected = authMethod == AuthMethod.CREDENTIALS
+                        role = Role.Tab
+                    }
                 )
             }
 

@@ -50,6 +50,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -356,7 +358,21 @@ private fun DocumentCard(
     onOpenTagPicker: () -> Unit,
     onUpgradeToPremium: () -> Unit
 ) {
-    var selectedTagIds by remember(document.id, document.suggestions) {
+    // #106: rememberSaveable so the user's tag selection survives process death.
+    // Keep BOTH original invalidation keys (document.id, document.suggestions) so the
+    // selection still RE-INITS to document.selectedTagIds when AI analysis completes and
+    // pre-selects the suggested tags. (codex P2: keying on document.id alone left the
+    // freshly-suggested tags unselected and the Apply button disabled after analysis.)
+    // stateSaver (not saver): we hold a MutableState<Set<Int>> via `by mutableStateOf`,
+    // so the saver targets the inner Set<Int>; listSaver bridges it through the Bundle.
+    var selectedTagIds by rememberSaveable(
+        document.id,
+        document.suggestions,
+        stateSaver = listSaver(
+            save = { it.toList() },
+            restore = { it.toSet() }
+        )
+    ) {
         mutableStateOf(document.selectedTagIds)
     }
 

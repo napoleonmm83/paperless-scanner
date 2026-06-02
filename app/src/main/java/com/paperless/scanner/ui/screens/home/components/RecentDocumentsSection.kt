@@ -73,8 +73,9 @@ fun RecentDocumentsHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Icon(
+                    // decorative-only: the adjacent "See all" text already labels this clickable row
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = stringResource(R.string.home_see_all),
+                    contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -107,8 +108,9 @@ fun EmptyDocumentsCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
+                // decorative-only: the no-documents message Text below carries the meaning
                 imageVector = Icons.Filled.Description,
-                contentDescription = stringResource(R.string.home_no_documents),
+                contentDescription = null,
                 modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
@@ -171,8 +173,9 @@ fun RecentDocumentItem(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
+                        // decorative-only: the timeAgo Text immediately after carries the meaning
                         imageVector = Icons.Outlined.AccessTime,
-                        contentDescription = document.timeAgo,
+                        contentDescription = null,
                         modifier = Modifier.size(12.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )

@@ -1,0 +1,5 @@
+Version 1.5.170:
+
+🔧 Verbesserungen:
+- Verbesserte Screenreader-Beschriftung (TalkBack)
+- Tag-Auswahl bleibt bei Unterbrechungen erhalten

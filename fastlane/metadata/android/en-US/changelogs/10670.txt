@@ -1,0 +1,5 @@
+Version 1.5.170:
+
+🔧 Improvements:
+- Improved screen-reader (TalkBack) labelling
+- Your tag selection now survives interruptions

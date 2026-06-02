@@ -170,7 +170,8 @@ fun DocumentsScreen(
                 .padding(top = 24.dp, bottom = 8.dp)
         ) {
             Text(
-                text = stringResource(R.string.documents_title),
+                // Style guide: page-title headlines are ExtraBold + UPPERCASE (matches HomeScreen).
+                text = stringResource(R.string.documents_title).uppercase(),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.ExtraBold
             )
