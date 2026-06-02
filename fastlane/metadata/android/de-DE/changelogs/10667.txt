@@ -1,0 +1,4 @@
+Version 1.5.167:
+
+🔧 Verbesserungen:
+- Stabileres Aktualisieren bei wechselnder Netzwerkverbindung

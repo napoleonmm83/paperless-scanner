@@ -146,9 +146,18 @@ class HomeViewModel @Inject constructor(
      * Trigger an auto-refresh of the stats when [ServerHealthViewModel] observes
      * an offline -> online transition. Wired in HomeScreen.
      */
+    private var reconnectRefreshJob: Job? = null
+
     fun onNetworkReconnected() {
+        // Guard against stacked refreshes under rapid offline<->online flapping:
+        // skip if a reconnect-triggered refresh is still in flight, mirroring
+        // onPollingTick's job guard so an older response can't clobber a newer one (#238).
+        if (reconnectRefreshJob?.isActive == true) {
+            logger.log(Level.FINE, "Reconnect refresh already in flight - skipping stacked trigger")
+            return
+        }
         logger.log(Level.INFO, "Network reconnected - auto-refreshing stats")
-        loadDashboardData()
+        reconnectRefreshJob = loadDashboardData()
     }
 
     private var pollingRefreshJob: Job? = null
@@ -172,8 +181,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadDashboardData() {
-        viewModelScope.launch {
+    fun loadDashboardData(): Job {
+        return viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
             val stats = loadStats()
