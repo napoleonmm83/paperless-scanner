@@ -1,0 +1,96 @@
+#!/bin/bash
+# =============================================================================
+# Pre-Commit Hook: Schnelle Syntax-Prüfung vor dem Commit
+# =============================================================================
+#
+# Dieser Hook führt schnelle Checks durch um offensichtliche Fehler zu fangen.
+# Die vollständige CI-Validierung erfolgt im pre-push Hook.
+#
+# Deaktivieren: git commit --no-verify
+#
+# =============================================================================
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+echo ""
+echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
+echo -e "${CYAN}║       Pre-Commit Quick Check           ║${NC}"
+echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
+echo ""
+
+START_TIME=$(date +%s)
+
+# Detect OS and set gradle wrapper
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
+    GRADLEW="./gradlew.bat"
+    # Set JDK 21 for Windows (required for Android builds). Only export this default
+    # path if it actually exists, so the versioned hook forces JDK 21 on the machine
+    # that has it but never clobbers Gradle with an invalid path on another contributor's
+    # machine (where JDK 21 may live elsewhere). (codex #2)
+    if [ -d "C:/Program Files/Eclipse Adoptium/jdk-21.0.9.10-hotspot" ]; then
+        export JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-21.0.9.10-hotspot"
+    fi
+else
+    GRADLEW="./gradlew"
+    chmod +x ./gradlew 2>/dev/null || true
+fi
+
+# =============================================================================
+# Quick Checks (should complete in < 30 seconds)
+# =============================================================================
+
+# 1. Check for duplicate string IDs (instant)
+echo -e "${YELLOW}[1/3] Checking for duplicate string IDs...${NC}"
+DUPLICATES=$(grep '<string name="' app/src/main/res/values/strings.xml 2>/dev/null | sed 's/.*name="\([^"]*\)".*/\1/' | sort | uniq -d)
+if [ -n "$DUPLICATES" ]; then
+    echo -e "${RED}  ✗ Duplicate string IDs found:${NC}"
+    echo "$DUPLICATES" | sed 's/^/      /'
+    exit 1
+fi
+echo -e "${GREEN}  ✓ No duplicates${NC}"
+
+# 2. Quick Kotlin syntax check (compileDebugKotlin is faster than Release)
+echo -e "${YELLOW}[2/3] Compiling Kotlin (syntax check)...${NC}"
+if "$GRADLEW" compileDebugKotlin --no-daemon -q 2>/dev/null; then
+    echo -e "${GREEN}  ✓ Kotlin compilation passed${NC}"
+else
+    echo -e "${RED}  ✗ Kotlin compilation FAILED!${NC}"
+    echo -e "${RED}    Fix syntax errors before committing.${NC}"
+    exit 1
+fi
+
+# 3. Quick test compilation check
+echo -e "${YELLOW}[3/3] Compiling Tests (syntax check)...${NC}"
+if "$GRADLEW" compileDebugUnitTestKotlin --no-daemon -q 2>/dev/null; then
+    echo -e "${GREEN}  ✓ Test compilation passed${NC}"
+else
+    echo -e "${RED}  ✗ Test compilation FAILED!${NC}"
+    echo -e "${RED}    Fix test syntax errors before committing.${NC}"
+    exit 1
+fi
+
+# =============================================================================
+# Success
+# =============================================================================
+
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+
+echo ""
+echo -e "${GREEN}╔════════════════════════════════════════╗${NC}"
+echo -e "${GREEN}║  ✓ Quick checks passed (${DURATION}s)           ║${NC}"
+echo -e "${GREEN}║                                        ║${NC}"
+echo -e "${GREEN}║  Run validate-ci.sh before pushing.    ║${NC}"
+echo -e "${GREEN}╚════════════════════════════════════════╝${NC}"
+echo ""
+# Optional per-machine code-review-graph integration (no-op where the binary is absent).
+if command -v code-review-graph >/dev/null 2>&1; then
+    code-review-graph detect-changes --brief || true
+fi

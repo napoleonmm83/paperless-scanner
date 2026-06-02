@@ -1,0 +1,4 @@
+Version 1.5.171:
+
+🔧 Verbesserungen:
+- Verbesserte Stabilität und Zuverlässigkeit der Releases
