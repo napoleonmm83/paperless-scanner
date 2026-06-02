@@ -1,0 +1,54 @@
+#!/bin/bash
+# Pre-Push Hook: Auto-Rebase with Remote Changes
+# Prevents "failed to push some refs" errors from GitHub Actions version bumps
+
+echo ""
+echo "🔍 Checking for remote changes before push..."
+
+# Fetch remote silently
+git fetch origin main --quiet 2>&1 | grep -v "warning: Pulling without" || true
+
+# Get commit hashes
+LOCAL=$(git rev-parse @)
+REMOTE=$(git rev-parse origin/main)
+BASE=$(git merge-base @ origin/main)
+
+if [ "$LOCAL" = "$REMOTE" ]; then
+    # Up to date
+    echo "✅ Local branch is up to date with remote."
+elif [ "$LOCAL" = "$BASE" ]; then
+    # Need to pull
+    echo "⚠️  Remote has new commits (likely auto-bump from GitHub Actions)."
+    echo "🔄 Auto-rebasing with remote changes..."
+
+    if git pull --rebase origin main --autostash --quiet; then
+        echo "✅ Rebase successful! Continuing with push..."
+    else
+        echo ""
+        echo "❌ Rebase failed! Please resolve conflicts manually:"
+        echo "   git rebase --abort"
+        echo "   git pull --rebase origin main"
+        echo "   git push"
+        exit 1
+    fi
+elif [ "$REMOTE" = "$BASE" ]; then
+    # Ahead of remote (normal case)
+    echo "✅ Local branch is ahead of remote. Proceeding with push..."
+else
+    # Diverged
+    echo "⚠️  Local and remote branches have diverged."
+    echo "🔄 Auto-rebasing with remote changes..."
+
+    if git pull --rebase origin main --autostash --quiet; then
+        echo "✅ Rebase successful! Continuing with push..."
+    else
+        echo ""
+        echo "❌ Rebase failed! Please resolve conflicts manually:"
+        echo "   git rebase --abort"
+        echo "   git pull --rebase origin main"
+        echo "   git push"
+        exit 1
+    fi
+fi
+
+echo ""

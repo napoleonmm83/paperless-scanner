@@ -448,19 +448,25 @@ We welcome contributions! Here's how you can help:
    - Follow Material 3 design guidelines
    - Write unit tests for new features
    - Document public APIs
-4. **Run local CI checks:**
+4. **Install Git hooks (one-time, after cloning):**
+   ```bash
+   ./scripts/setup-hooks.sh
+   ```
+   Points Git at the versioned hooks in `.githooks/` (via `core.hooksPath`):
+   `pre-commit` runs quick syntax checks, `pre-push` auto-rebases with remote.
+5. **Run local CI checks:**
    ```bash
    ./scripts/validate-ci.sh
    ```
-5. **Commit your changes:**
+6. **Commit your changes:**
    ```bash
    git commit -m "feat: add amazing feature"
    ```
-6. **Push to your fork:**
+7. **Push to your fork:**
    ```bash
    git push origin feature/amazing-feature
    ```
-7. **Open a Pull Request**
+8. **Open a Pull Request**
 
 **Coding Standards:**
 

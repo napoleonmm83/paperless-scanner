@@ -475,7 +475,7 @@ fastlane/metadata/android/
 
 #### Phase 1: Pre-Push Hook (Automatisch)
 
-**Installiert:** `.git/hooks/pre-push`
+**Versioniert:** `.githooks/pre-push` (einmalig aktivieren mit `./scripts/setup-hooks.sh`, das `core.hooksPath` auf `.githooks` setzt — siehe "Automatische Git Hooks").
 
 Der Hook läuft **automatisch bei jedem `git push`** und:
 1. ✅ Fetched remote changes (Version Bumps von GitHub Actions)
@@ -985,16 +985,20 @@ Dies ist eine ABSOLUTE Anforderung ohne Ausnahmen. Fehlgeschlagene GitHub Action
 
 ### Automatische Git Hooks (EMPFOHLEN)
 
-Git Hooks sind bereits konfiguriert und werden automatisch ausgeführt:
+Die Hooks sind unter `.githooks/` **versioniert** (Issue #147). Einmalig nach dem Klonen aktivieren:
+
+```bash
+./scripts/setup-hooks.sh   # setzt core.hooksPath auf .githooks
+```
+
+Danach laufen sie automatisch:
 
 | Hook | Wann | Was wird geprüft |
 |------|------|------------------|
-| **pre-commit** | Bei `git commit` | Schnelle Syntax-Checks (Kotlin Compile, Duplicates) |
-| **pre-push** | Bei `git push` | **1. Auto-Rebase** mit remote changes (verhindert Push-Konflikte)<br>**2. VOLLSTÄNDIGE CI** (Release Tests, Lint, Build) |
+| **pre-commit** | Bei `git commit` | Schnelle Syntax-Checks (Kotlin + Test Compile, Duplicate String IDs) |
+| **pre-push** | Bei `git push` | **Auto-Rebase** mit remote changes (verhindert Push-Konflikte durch GitHub Actions Version Bumps) |
 
-Die Hooks verwenden **RELEASE-Varianten** - exakt wie GitHub Actions!
-
-**ℹ️ Hinweis:** Der pre-push Hook führt automatisch `git pull --rebase --autostash` aus wenn Remote voraus ist (z.B. durch GitHub Actions Version Bump). Siehe [Git Push Workflow](#git-push-workflow-mit-auto-rebase) für Details.
+**ℹ️ Hinweis:** Der pre-push Hook führt automatisch `git pull --rebase --autostash` aus wenn Remote voraus ist (z.B. durch GitHub Actions Version Bump). Die **vollständige RELEASE-CI** (`testReleaseUnitTest` + `assembleRelease` + `lintRelease`) läuft NICHT im Hook, sondern manuell via `./scripts/validate-ci.sh` und in GitHub Actions. Siehe [Git Push Workflow](#git-push-workflow-mit-auto-rebase) für Details.
 
 ### WICHTIG: RELEASE statt DEBUG!
 
