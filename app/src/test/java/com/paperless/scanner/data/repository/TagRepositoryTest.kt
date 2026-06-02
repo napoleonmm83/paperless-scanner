@@ -11,6 +11,7 @@ import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -59,7 +60,8 @@ class TagRepositoryTest : BaseRoomRepositoryTest() {
             cachedDocumentDao,
             pendingChangeDao,
             networkMonitor,
-            gson
+            gson,
+            DocumentSerializer(gson)
         )
     }
 

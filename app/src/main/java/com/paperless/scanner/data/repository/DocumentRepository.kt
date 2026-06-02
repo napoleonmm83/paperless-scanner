@@ -8,6 +8,8 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.data.service.UploadResponseParseException
+import com.paperless.scanner.data.service.UploadResponseParser
 import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.withRetry
 import com.paperless.scanner.R
@@ -83,7 +85,7 @@ class DocumentRepository @Inject constructor(
 
             file.delete()
 
-            val taskId = response.string().trim().removeSurrounding("\"")
+            val taskId = UploadResponseParser.parseTaskId(response.string())
             crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "taskId=$taskId")
             Result.success(taskId)
         } catch (e: IOException) {
@@ -103,6 +105,10 @@ class DocumentRepository @Inject constructor(
             Result.failure(PaperlessException.ContentError(R.string.error_file_read_failed))
         } catch (e: CancellationException) {
             throw e
+        } catch (e: UploadResponseParseException) {
+            // Malformed/empty server upload response — surface as a parse error (codex review on PR-B).
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ParseError: ${e.message}")
+            Result.failure(PaperlessException.ParseError(e.message))
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
@@ -165,7 +171,7 @@ class DocumentRepository @Inject constructor(
 
             pdfFile.delete()
 
-            val taskId = response.string().trim().removeSurrounding("\"")
+            val taskId = UploadResponseParser.parseTaskId(response.string())
             android.util.Log.d("DocumentRepository", "Task ID received: $taskId")
             crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "multi-page, taskId=$taskId")
             Result.success(taskId)
@@ -195,6 +201,11 @@ class DocumentRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_image_process_failed))
+        } catch (e: UploadResponseParseException) {
+            // Malformed/empty server upload response — surface as an upload error,
+            // not a PDF-creation/image-processing failure (codex review on PR-B).
+            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ParseError: ${e.message}")
+            Result.failure(PaperlessException.ParseError(e.message))
         } catch (e: Exception) {
             // Catch-all for any unexpected exceptions (including iText7 internal errors)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"

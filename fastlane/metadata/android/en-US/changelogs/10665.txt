@@ -1,0 +1,4 @@
+Version 1.5.165:
+
+🔧 Improvements:
+- More robust handling of the server response during upload

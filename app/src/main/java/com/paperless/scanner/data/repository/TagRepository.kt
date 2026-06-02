@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.repository
 
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
@@ -13,6 +12,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.Tag
@@ -58,6 +58,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * @property cachedDocumentDao Room DAO for document cache (for cascading updates)
  * @property networkMonitor Network connectivity checker
  * @property gson JSON serializer for tag ID lists
+ * @property serializer Centralized (de)serialization of cached tag-id JSON (issue #61)
  *
  * @see PaperlessApi.getTags For API endpoint
  * @see CachedTagDao For cache operations
@@ -69,7 +70,8 @@ class TagRepository @Inject constructor(
     private val cachedDocumentDao: CachedDocumentDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
-    private val gson: Gson
+    private val gson: Gson,
+    private val serializer: DocumentSerializer
 ) {
     /**
      * Observe all tags reactively.
@@ -220,17 +222,11 @@ class TagRepository @Inject constructor(
      */
     private suspend fun removeTagFromCachedDocuments(tagId: Int) {
         try {
-            val listType = object : TypeToken<List<Int>>() {}.type
-
             // Get all cached documents
             val documents = cachedDocumentDao.getDocuments(limit = 1000, offset = 0)
 
             documents.forEach { doc ->
-                val tagIds: List<Int> = try {
-                    gson.fromJson(doc.tags, listType) ?: emptyList()
-                } catch (e: Exception) {
-                    emptyList()
-                }
+                val tagIds: List<Int> = serializer.deserializeCachedTagIds(doc.tags)
 
                 if (tagIds.contains(tagId)) {
                     // Remove the deleted tag ID
