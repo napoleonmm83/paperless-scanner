@@ -228,7 +228,7 @@ fun StepByStepMetadataScreen(
                                 selectedTagIds + tagId
                             }
                         },
-                        onCreateNew = { /* TODO: Implement tag creation dialog */ }
+                        onCreateNew = { /* TODO(#296): Implement tag creation dialog */ }
                     )
                 }
 

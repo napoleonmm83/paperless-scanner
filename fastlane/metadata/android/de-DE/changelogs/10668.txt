@@ -1,0 +1,4 @@
+Version 1.5.168:
+
+🔧 Verbesserungen:
+- Interne Code-Qualität und Testabdeckung verbessert

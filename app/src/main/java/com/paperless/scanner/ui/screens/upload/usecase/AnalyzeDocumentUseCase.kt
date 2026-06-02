@@ -79,7 +79,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
             // Handles Premium check, fallback chain (AI → Paperless → Local), and merging
             suggestionOrchestrator.getSuggestions(
                 bitmap = bitmap,
-                extractedText = "", // TODO: Add OCR text extraction in future
+                extractedText = "", // TODO(#296): Add OCR text extraction in future
                 documentId = null, // Not applicable for pre-upload analysis
                 overrideWifiOnly = overrideWifiOnly
             )
@@ -102,7 +102,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
                 inputTokens = estimatedInputTokens,
                 outputTokens = estimatedOutputTokens,
                 success = true,
-                subscriptionType = "free" // TODO: Update when premium implemented
+                subscriptionType = "free" // TODO(#296): Update when premium implemented
             )
 
             analyticsService.trackAiFeatureUsage(

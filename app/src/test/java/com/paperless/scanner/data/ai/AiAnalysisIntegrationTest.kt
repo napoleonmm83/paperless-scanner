@@ -27,9 +27,10 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Integration tests for AI Analysis flow.
  *
- * These tests verify the complete integration between:
- * - SuggestionOrchestrator (fallback chain logic)
- * - AiAnalysisService (Firebase AI integration)
+ * These exercise the REAL [SuggestionOrchestrator] fallback-chain logic against
+ * strict-mocked collaborators (no relaxed mocks — every exercised call is stubbed,
+ * so a missing stub surfaces instead of being silently defaulted). Collaborators:
+ * - AiAnalysisService (spyk'd per AI test; Firebase never actually invoked)
  * - PremiumFeatureManager (premium checks)
  * - TagMatchingEngine (local fallback)
  * - NetworkMonitor (online status)
@@ -77,15 +78,19 @@ class AiAnalysisIntegrationTest {
 
     @Before
     fun setup() {
+        // context stays relaxed: it backs the real AiAnalysisService(context) constructed below
+        // (Firebase/Android calls), which is spyk'd with analyzeImage stubbed in the AI tests.
         context = mockk(relaxed = true)
-        premiumFeatureManager = mockk(relaxed = true)
-        networkMonitor = mockk(relaxed = true)
-        tokenManager = mockk(relaxed = true)
-        tagRepository = mockk(relaxed = true)
-        correspondentRepository = mockk(relaxed = true)
-        documentTypeRepository = mockk(relaxed = true)
-        paperlessSuggestionsService = mockk(relaxed = true)
-        tagMatchingEngine = mockk(relaxed = true)
+        // Collaborators are STRICT mocks (#143): every exercised call must be stubbed, so a
+        // missing behaviour surfaces as a MockKException instead of a silent relaxed default.
+        premiumFeatureManager = mockk()
+        networkMonitor = mockk()
+        tokenManager = mockk()
+        tagRepository = mockk()
+        correspondentRepository = mockk()
+        documentTypeRepository = mockk()
+        paperlessSuggestionsService = mockk()
+        tagMatchingEngine = mockk()
 
         // Setup repository flows
         every { tagRepository.observeTags() } returns flowOf(testTags)
@@ -95,6 +100,10 @@ class AiAnalysisIntegrationTest {
         // Setup tokenManager flows (required by SuggestionOrchestrator)
         every { tokenManager.aiWifiOnly } returns flowOf(false)
         every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
+
+        // Default local-matching result; tests that assert specific local tags override this.
+        // Required now that tagMatchingEngine is a strict mock (no relaxed default).
+        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns emptyList()
 
         // Create real AiAnalysisService (we'll mock Firebase via constructor)
         aiAnalysisService = AiAnalysisService(context)
