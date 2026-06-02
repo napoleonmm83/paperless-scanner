@@ -107,7 +107,7 @@ class MainActivity : FragmentActivity() {
             // (see the @Suppress note above); deliberately on main, not moved off (#40).
             @Suppress("WrongThread")
             val serverUrl = tokenManager.getServerUrlSync()
-            val subscriptionStatus = "free" // TODO: Get from BillingManager when available
+            val subscriptionStatus = "free" // TODO(#296): Get from BillingManager when available
             analyticsService.initializeCrashlyticsKeys(
                 serverUrl = serverUrl,
                 appVersion = BuildConfig.VERSION_NAME,

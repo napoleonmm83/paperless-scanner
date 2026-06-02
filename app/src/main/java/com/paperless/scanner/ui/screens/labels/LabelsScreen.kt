@@ -288,7 +288,7 @@ fun LabelsScreen(
         CreateEntityDialog(
             entityType = uiState.currentEntityType,
             existingEntity = editingEntity,
-            isCreating = false, // TODO: Add isCreating state to ViewModel
+            isCreating = false, // TODO(#296): Add isCreating state to ViewModel
             onDismiss = { viewModel.closeCreateSheet() },
             onCreate = { name, color, dataType ->
                 if (editingEntity != null) {

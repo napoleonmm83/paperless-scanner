@@ -231,3 +231,15 @@ HttpLoggingInterceptor().apply {
 ### Android Studio Cache leeren
 
 `File → Invalidate Caches → Invalidate and Restart`
+
+
+## Known Debt: deferred feature TODOs
+
+These production `TODO`s are deferred feature enhancements (not bugs), tracked under **#296** and annotated `// TODO(#296):` in source (closes #144):
+
+- `MainActivity.kt:110` — subscription status hardcoded `"free"`; wire to BillingManager.
+- `LabelsScreen.kt:291` — add `isCreating` state to the labels ViewModel.
+- `AnalyzeDocumentUseCase.kt:82` — add OCR text extraction.
+- `AnalyzeDocumentUseCase.kt:105` — wire `subscriptionType` once premium is implemented.
+- `UploadComponents.kt:500` — add DatePicker dialog.
+- `StepByStepMetadataScreen.kt:231` — implement tag-creation dialog.

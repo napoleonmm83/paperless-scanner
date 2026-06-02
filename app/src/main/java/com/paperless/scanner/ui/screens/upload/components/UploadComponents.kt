@@ -497,7 +497,7 @@ private fun CustomFieldInput(
         }
         "date" -> {
             // Date: Simple text input for now (YYYY-MM-DD format)
-            // TODO: Add DatePicker dialog in future enhancement
+            // TODO(#296): Add DatePicker dialog in future enhancement
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
