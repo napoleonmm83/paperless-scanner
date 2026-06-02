@@ -1,7 +1,7 @@
 package com.paperless.scanner.data.repository
 
+import android.util.Log
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
@@ -13,6 +13,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as toCachedDomain
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.Tag
@@ -58,6 +59,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * @property cachedDocumentDao Room DAO for document cache (for cascading updates)
  * @property networkMonitor Network connectivity checker
  * @property gson JSON serializer for tag ID lists
+ * @property serializer Centralized (de)serialization of cached tag-id JSON (issue #61)
  *
  * @see PaperlessApi.getTags For API endpoint
  * @see CachedTagDao For cache operations
@@ -69,7 +71,8 @@ class TagRepository @Inject constructor(
     private val cachedDocumentDao: CachedDocumentDao,
     private val pendingChangeDao: PendingChangeDao,
     private val networkMonitor: NetworkMonitor,
-    private val gson: Gson
+    private val gson: Gson,
+    private val serializer: DocumentSerializer
 ) {
     /**
      * Observe all tags reactively.
@@ -220,27 +223,30 @@ class TagRepository @Inject constructor(
      */
     private suspend fun removeTagFromCachedDocuments(tagId: Int) {
         try {
-            val listType = object : TypeToken<List<Int>>() {}.type
-
             // Get all cached documents
             val documents = cachedDocumentDao.getDocuments(limit = 1000, offset = 0)
 
             documents.forEach { doc ->
-                val tagIds: List<Int> = try {
-                    gson.fromJson(doc.tags, listType) ?: emptyList()
+                // Per-document isolation: one bad row must not abort the whole cascade
+                // and leave later documents with stale tag state (CodeRabbit, PR #292).
+                // Explicit try/catch (not runCatching) so CancellationException and Error
+                // propagate instead of being swallowed; only a regular Exception is absorbed.
+                try {
+                    val tagIds: List<Int> = serializer.deserializeCachedTagIds(doc.tags)
+                    if (tagIds.contains(tagId)) {
+                        val updatedTagsJson = gson.toJson(tagIds.filter { it != tagId })
+                        cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Error) {
+                    throw e
                 } catch (e: Exception) {
-                    emptyList()
-                }
-
-                if (tagIds.contains(tagId)) {
-                    // Remove the deleted tag ID
-                    val updatedTagIds = tagIds.filter { it != tagId }
-                    val updatedTagsJson = gson.toJson(updatedTagIds)
-
-                    // Update the document in cache
-                    cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
+                    Log.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Log but don't fail - cache update is best effort
             // Server is already in sync, cache will update on next full sync

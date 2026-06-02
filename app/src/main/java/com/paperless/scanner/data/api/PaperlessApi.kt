@@ -254,7 +254,7 @@ interface PaperlessApi {
      * **USAGE:**
      * ```kotlin
      * val response = api.uploadDocument(filePart, title, tagParts)
-     * val taskId = response.string().trim().removeSurrounding("\"")
+     * val taskId = UploadResponseParser.parseTaskId(response.string())
      * // Poll getTask(taskId) until status = "SUCCESS"
      * ```
      *

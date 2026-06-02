@@ -417,8 +417,9 @@ object AppModule {
         cachedDocumentDao: CachedDocumentDao,
         pendingChangeDao: PendingChangeDao,
         networkMonitor: NetworkMonitor,
-        gson: Gson
-    ): TagRepository = TagRepository(api, cachedTagDao, cachedDocumentDao, pendingChangeDao, networkMonitor, gson)
+        gson: Gson,
+        serializer: DocumentSerializer
+    ): TagRepository = TagRepository(api, cachedTagDao, cachedDocumentDao, pendingChangeDao, networkMonitor, gson, serializer)
 
     @Provides
     @Singleton

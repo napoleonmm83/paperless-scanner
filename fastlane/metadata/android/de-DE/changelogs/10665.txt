@@ -1,0 +1,4 @@
+Version 1.5.165:
+
+🔧 Verbesserungen:
+- Robusteres Verarbeiten der Server-Antwort beim Hochladen
