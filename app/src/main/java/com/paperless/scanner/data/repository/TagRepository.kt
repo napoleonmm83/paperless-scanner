@@ -1,5 +1,6 @@
 package com.paperless.scanner.data.repository
 
+import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
@@ -226,15 +227,16 @@ class TagRepository @Inject constructor(
             val documents = cachedDocumentDao.getDocuments(limit = 1000, offset = 0)
 
             documents.forEach { doc ->
-                val tagIds: List<Int> = serializer.deserializeCachedTagIds(doc.tags)
-
-                if (tagIds.contains(tagId)) {
-                    // Remove the deleted tag ID
-                    val updatedTagIds = tagIds.filter { it != tagId }
-                    val updatedTagsJson = gson.toJson(updatedTagIds)
-
-                    // Update the document in cache
-                    cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
+                // Per-document isolation: one bad row must not abort the whole cascade
+                // and leave later documents with stale tag state (CodeRabbit, PR #292).
+                runCatching {
+                    val tagIds: List<Int> = serializer.deserializeCachedTagIds(doc.tags)
+                    if (tagIds.contains(tagId)) {
+                        val updatedTagsJson = gson.toJson(tagIds.filter { it != tagId })
+                        cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
+                    }
+                }.onFailure { e ->
+                    Log.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
                 }
             }
         } catch (e: Exception) {

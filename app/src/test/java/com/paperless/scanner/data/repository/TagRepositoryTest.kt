@@ -9,6 +9,7 @@ import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
+import com.paperless.scanner.data.database.entities.CachedDocument
 import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
@@ -20,6 +21,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import retrofit2.Response
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
@@ -186,4 +188,37 @@ class TagRepositoryTest : BaseRoomRepositoryTest() {
         assertTrue(result.isFailure)
         assertEquals("Tag already exists", result.exceptionOrNull()?.message)
     }
+
+    @Test
+    fun `deleteTag cascade strips tag id from cached docs and a malformed row does not block others`() = runTest {
+        // #61: cascade tag removal deserializes doc.tags via DocumentSerializer; a malformed
+        // row must be skipped gracefully without aborting the rest of the cascade (PR #292).
+        cachedDocumentDao.insert(cachedDoc(id = 1, tags = "[5,7]"))          // contains target tag
+        cachedDocumentDao.insert(cachedDoc(id = 2, tags = "not-valid-json")) // malformed tags JSON
+        cachedDocumentDao.insert(cachedDoc(id = 3, tags = "[8,9]"))          // unrelated tags
+        coEvery { api.deleteTag(5) } returns Response.success(Unit)
+
+        val result = tagRepository.deleteTag(5)
+
+        assertTrue(result.isSuccess)
+        assertEquals("[7]", cachedDocumentDao.getDocument(1)?.tags)            // target stripped
+        assertEquals("not-valid-json", cachedDocumentDao.getDocument(2)?.tags) // malformed untouched, did not block
+        assertEquals("[8,9]", cachedDocumentDao.getDocument(3)?.tags)          // unrelated unchanged
+    }
+
+    private fun cachedDoc(id: Int, tags: String) = CachedDocument(
+        id = id,
+        title = "Doc $id",
+        content = null,
+        created = "2026-01-01T00:00:00Z",
+        modified = "2026-01-01T00:00:00Z",
+        added = "2026-01-01T00:00:00Z",
+        archiveSerialNumber = null,
+        originalFileName = null,
+        correspondent = null,
+        documentType = null,
+        storagePath = null,
+        tags = tags,
+        customFields = null
+    )
 }
