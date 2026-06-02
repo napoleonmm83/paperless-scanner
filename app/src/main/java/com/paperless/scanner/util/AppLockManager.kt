@@ -167,6 +167,30 @@ class AppLockManager @Inject constructor(
         lockoutUntil = tokenManager.getAppLockLockoutUntilSync()
         Log.d(TAG, "Init: Loaded persisted lockout state - failedAttempts=$failedAttempts, lockoutUntil=$lockoutUntil")
 
+        // SECURITY (#38): Init-time invariant. A logout (permanent lockout, or a normal
+        // sign-out) clears credentials, app-lock settings, and lockout state across
+        // several non-atomic writes; a crash mid-logout can leave persisted lockout/
+        // attempt counters WITHOUT credentials. Credentials are the source of truth: if
+        // none exist there is nothing to lock, so any surviving lockout state is stale
+        // residue. Repair it here (in-memory + persisted) before the state machine reads
+        // it, so a stale LockedOut can never be reconstructed for a logged-out user.
+        // Idempotent and safe: when credentials DO exist this is a no-op (the typical
+        // path skips the persisted write).
+        if (!tokenManager.hasStoredCredentials() && (failedAttempts != 0 || lockoutUntil != 0L)) {
+            Log.w(
+                TAG,
+                "[AUDIT] Init: stale lockout residue with no credentials " +
+                    "(attempts=$failedAttempts, lockoutUntil=$lockoutUntil) - repairing to clean logged-out state"
+            )
+            failedAttempts = 0
+            lockoutUntil = 0L
+            // Best-effort persist on the manager scope, mirroring how the rest of the
+            // class mutates persisted lockout state. If this write also crashes, the next
+            // launch re-detects the same residue and repairs again; the in-memory reset
+            // above already guarantees a clean state for THIS session.
+            scope.launch { tokenManager.clearAppLockLockoutState() }
+        }
+
         // CRITICAL: Set initial state SYNCHRONOUSLY BEFORE registering lifecycle observer!
         // This prevents race condition where onStart() sees default Unlocked state
         // instead of the persisted LockedOut state (especially on crash restart)

@@ -1,0 +1,4 @@
+Version 1.5.172:
+
+🐛 Bug Fixes:
+- App Lock no longer stays locked after an interrupted logout

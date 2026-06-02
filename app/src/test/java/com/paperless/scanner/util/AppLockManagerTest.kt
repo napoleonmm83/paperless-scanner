@@ -120,6 +120,47 @@ class AppLockManagerTest {
         assertFalse((state as AppLockState.LockedOut).isPermanent)
     }
 
+    @Test
+    fun `init repairs stale lockout residue when no credentials exist (issue #38)`() = runTest {
+        // Simulates a crash mid-logout: persisted lockout/attempt counters survived but
+        // credentials were already cleared. The manager must NOT reconstruct a Locked/
+        // LockedOut state for a logged-out user, and must scrub the residue.
+        every { tokenManager.hasStoredCredentials() } returns false
+        every { tokenManager.getAppLockFailedAttemptsSync() } returns 15
+        every { tokenManager.getAppLockLockoutUntilSync() } returns System.currentTimeMillis() + 60_000L
+
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
+        advanceUntilIdle() // settle the best-effort persisted-clear launch
+
+        // No credentials => nothing to lock; state must be Unlocked despite stale flags.
+        assertTrue(manager.lockState.value is AppLockState.Unlocked)
+        // In-memory counters scrubbed so a same-process re-login can't inherit them.
+        assertEquals(0, manager.getFailedAttempts())
+        assertEquals(0L, manager.getLockoutUntil())
+        // Persisted residue cleared so a later launch can't reconstruct LockedOut.
+        coVerify { tokenManager.clearAppLockLockoutState() }
+    }
+
+    @Test
+    fun `init does NOT clear lockout state when credentials exist (issue #38 no-op path)`() = runTest {
+        // The repair must be surgical: with valid credentials a legitimate persisted
+        // lockout MUST survive (this is the brute-force-protection guarantee).
+        enableAppLock()
+        every { tokenManager.getAppLockFailedAttemptsSync() } returns 5
+        every { tokenManager.getAppLockLockoutUntilSync() } returns System.currentTimeMillis() + 60_000L
+
+        val testDispatcher = StandardTestDispatcher(testScheduler)
+        val manager = newManager(testDispatchers(testDispatcher))
+        advanceUntilIdle()
+
+        // Legitimate lockout preserved.
+        assertTrue(manager.lockState.value is AppLockState.LockedOut)
+        assertEquals(5, manager.getFailedAttempts())
+        // The init invariant must NOT have fired its persisted clear on this path.
+        coVerify(exactly = 0) { tokenManager.clearAppLockLockoutState() }
+    }
+
     // ==================== Setup / Disable / Change ====================
 
     @Test
