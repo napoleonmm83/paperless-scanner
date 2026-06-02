@@ -236,9 +236,12 @@ class TagRepository @Inject constructor(
                         cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
                     }
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e // preserve cooperative cancellation
                     Log.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Log but don't fail - cache update is best effort
             // Server is already in sync, cache will update on next full sync
