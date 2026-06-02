@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  ScannerWidget provider metadata.
+
+  Sizing contract (rendered by ScannerWidget.kt via SizeMode.Exact):
+    * targetCellWidth/Height = 3x1 is the DEFAULT placement AND the smallest
+      placement the widget can land at: the resize floor below
+      (minResizeWidth=180dp ~= 3 launcher columns, minResizeHeight=40dp ~= 1 row)
+      clamps any smaller target back up. A 2x1 target would be ignored/clamped by
+      the launcher unless the resize floor is lowered too (see issue #117).
+    * The widget supports three layouts selected from the REAL size against the
+      HORIZONTAL (160x40dp) / SQUARE (100x100dp) / LARGE (160x100dp) breakpoints
+      in ScannerWidget.kt, so the user can resize the 3x1 default up to 2x2 / 3x2.
+    * resizeMode="horizontal|vertical" must stay - it is what lets the user grow
+      the 3x1 default into the 2x2 / 3x2 layouts above.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="com.paperless.scanner.widget.WidgetConfigActivity"
     android:description="@string/widget_description"
