@@ -51,6 +51,39 @@ import androidx.glance.unit.ColorProvider
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
 
+/**
+ * Glance-based implementation of the home-screen Scanner widget.
+ *
+ * ## Hybrid Glance + legacy RemoteViews system
+ * This class is the MODERN half of a two-implementation system dispatched by
+ * [ScannerWidgetReceiver]:
+ *  * **Glance (this class)** - used on the vast majority of devices for proper
+ *    Jetpack Compose integration (reactive state, [SizeMode.Exact] layouts).
+ *  * **Legacy RemoteViews fallback** - used on OEMs known to crash on Glance's
+ *    `InvisibleActionTrampolineActivity` (OnePlus / Samsung / Xiaomi / OPPO - see
+ *    [WidgetDeviceChecker]). [ScannerWidgetReceiver] also falls back to it if any
+ *    Glance `onUpdate`/`onReceive` throws. Behavioural changes here must be
+ *    mirrored in the legacy widget to keep parity.
+ *
+ * ## State model (source of truth vs. reactivity)
+ *  * **Persistence / source of truth:** [WidgetPreferences] (SharedPreferences,
+ *    synchronous and reliable in every widget context). Holds the per-widget
+ *    [WidgetType].
+ *  * **Reactivity:** Glance state ([WIDGET_TYPE_KEY], [PENDING_COUNT_KEY],
+ *    [SERVER_ONLINE_KEY]). [provideGlance] self-heals by syncing SharedPreferences
+ *    -> Glance state on every call, then [provideContent] reads it via
+ *    [currentState] so a config change recomposes the widget.
+ *
+ * **CRITICAL:** the widget type is read with [currentState] INSIDE
+ * [provideContent] - never captured from [provideGlance]'s outer scope. Capturing
+ * it outside would render the previous type after a config change, because
+ * `provideGlance` is not guaranteed to re-run after [update]. The same rule
+ * applies to the pending-count and server-online status keys.
+ *
+ * Layouts are selected from the REAL widget size ([SizeMode.Exact] -> [LocalSize])
+ * against the [HORIZONTAL]/[SQUARE]/[LARGE] breakpoints; see
+ * `res/xml/scanner_widget_info.xml` for the placement/resize contract.
+ */
 class ScannerWidget : GlanceAppWidget() {
 
     companion object {
