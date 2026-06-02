@@ -1,0 +1,4 @@
+Version 1.5.172:
+
+🐛 Fehlerbehebungen:
+- App-Sperre bleibt nach unterbrochenem Logout nicht mehr aktiv
