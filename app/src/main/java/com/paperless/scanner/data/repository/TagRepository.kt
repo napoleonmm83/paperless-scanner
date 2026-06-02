@@ -229,14 +229,19 @@ class TagRepository @Inject constructor(
             documents.forEach { doc ->
                 // Per-document isolation: one bad row must not abort the whole cascade
                 // and leave later documents with stale tag state (CodeRabbit, PR #292).
-                runCatching {
+                // Explicit try/catch (not runCatching) so CancellationException and Error
+                // propagate instead of being swallowed; only a regular Exception is absorbed.
+                try {
                     val tagIds: List<Int> = serializer.deserializeCachedTagIds(doc.tags)
                     if (tagIds.contains(tagId)) {
                         val updatedTagsJson = gson.toJson(tagIds.filter { it != tagId })
                         cachedDocumentDao.update(doc.copy(tags = updatedTagsJson))
                     }
-                }.onFailure { e ->
-                    if (e is CancellationException) throw e // preserve cooperative cancellation
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Error) {
+                    throw e
+                } catch (e: Exception) {
                     Log.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
                 }
             }
