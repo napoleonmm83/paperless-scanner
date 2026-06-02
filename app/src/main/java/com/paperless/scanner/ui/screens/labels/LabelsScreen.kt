@@ -39,12 +39,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.theme.DefaultLabelColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -84,7 +84,7 @@ fun LabelsScreen(
         val labelItem = LabelItem(
             id = selectedEntity.id,
             name = selectedEntity.name,
-            color = selectedEntity.color ?: Color(0xFFE1FF8D), // Default neon yellow
+            color = selectedEntity.color ?: DefaultLabelColor, // Brand neon fallback (theme token, issue #105)
             documentCount = selectedEntity.documentCount
         )
         LabelDetailView(

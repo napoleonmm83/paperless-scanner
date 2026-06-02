@@ -21,6 +21,15 @@ enum class ThemeMode(val key: String, @StringRes val displayNameRes: Int) {
 val DarkTechPrimary = Color(0xFFE1FF8D)
 val DarkTechOnPrimary = Color(0xFF000000)
 
+/**
+ * Fallback display color for labels/tags with no server-assigned color (issue #105).
+ *
+ * Brand neon accent, theme-independent: it stays identical in light and dark mode,
+ * unlike `colorScheme.primary` (which resolves to deep black in light mode). Keeping
+ * it as a single named token means the label fallback can never drift from the brand value.
+ */
+val DefaultLabelColor = DarkTechPrimary
+
 // Background Colors - Deep Blacks
 val DarkTechBackground = Color(0xFF0A0A0A)
 val DarkTechSurface = Color(0xFF141414)

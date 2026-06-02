@@ -1,0 +1,4 @@
+Version 1.5.164:
+
+🔧 Verbesserungen:
+- Einheitlichere Darstellung von Karten und Label-Farben
