@@ -8,6 +8,7 @@ import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.sync.SyncManager
 import com.paperless.scanner.data.analytics.AnalyticsService
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -147,5 +148,31 @@ class HomeViewModelTest {
         // Initial loadDashboardData() set lastRefreshTimestamp = wall-clock
         // now. A second call within 30s of that must be debounced.
         assertFalse(vm.refreshDashboardIfNeeded())
+    }
+
+    @Test
+    fun `onNetworkReconnected coalesces rapid flapping into a single refresh`() = runTest {
+        // #238/#295: rapid offline<->online flapping must not stack refreshes. The guard
+        // only inspects reconnectRefreshJob (init's loadDashboardData does NOT set it), so
+        // the first onNetworkReconnected() launches one job; every trigger fired while that
+        // job is still active is dropped. The gate keeps each launched job in flight across
+        // the whole burst, so getDocumentCount runs once for init + once for the burst = 2.
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { documentCountRepository.getDocumentCount(any()) } coAnswers {
+            gate.await()
+            Result.success(0)
+        }
+
+        val vm = createViewModel()
+        runCurrent() // init's loadDashboardData() job starts and parks on the gate
+
+        repeat(10) { vm.onNetworkReconnected() }
+        runCurrent() // first reconnect launches + parks; triggers 2..10 dropped by the guard
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        // 1 fetch from init + 1 from the entire 10-trigger reconnect burst.
+        coVerify(exactly = 2) { documentCountRepository.getDocumentCount(any()) }
     }
 }
