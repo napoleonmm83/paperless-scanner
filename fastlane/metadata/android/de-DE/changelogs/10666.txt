@@ -1,0 +1,4 @@
+Version 1.5.166:
+
+🔧 Verbesserungen:
+- Zuverlässigere Widget-Aktualisierung (Zähler, Status)

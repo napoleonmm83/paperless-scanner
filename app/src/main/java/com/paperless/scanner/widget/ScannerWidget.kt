@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import com.paperless.scanner.util.DeepLinkHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -80,6 +81,9 @@ class ScannerWidget : GlanceAppWidget() {
             updateAppWidgetState(context, id) { glancePrefs ->
                 glancePrefs[WIDGET_TYPE_KEY] = config.type.name
             }
+        } else {
+            // Surface unexpected GlanceId types instead of silently rendering the default (#118)
+            Log.w("ScannerWidget", "AppWidgetId cast failed for glanceId=$id (${id::class.simpleName}); config sync skipped, defaulting to QUICK_SCAN")
         }
 
         provideContent {
@@ -137,21 +141,21 @@ class ScannerWidget : GlanceAppWidget() {
             CompactActionButton(
                 icon = R.drawable.ic_widget_camera,
                 label = context.getString(R.string.widget_action_camera),
-                deepLinkUri = "paperless://scan/camera",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_CAMERA,
                 modifier = GlanceModifier.defaultWeight()
             )
             Spacer(modifier = GlanceModifier.width(2.dp))
             CompactActionButton(
                 icon = R.drawable.ic_widget_gallery,
                 label = context.getString(R.string.widget_action_gallery),
-                deepLinkUri = "paperless://scan/gallery",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_GALLERY,
                 modifier = GlanceModifier.defaultWeight()
             )
             Spacer(modifier = GlanceModifier.width(2.dp))
             CompactActionButton(
                 icon = R.drawable.ic_widget_file,
                 label = context.getString(R.string.widget_action_file),
-                deepLinkUri = "paperless://scan/file",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_FILE,
                 modifier = GlanceModifier.defaultWeight()
             )
         }
@@ -191,14 +195,14 @@ class ScannerWidget : GlanceAppWidget() {
                 QuickActionButton(
                     icon = R.drawable.ic_widget_camera,
                     label = context.getString(R.string.widget_action_camera),
-                    deepLinkUri = "paperless://scan/camera",
+                    deepLinkUri = DeepLinkHandler.URI_SCAN_CAMERA,
                     modifier = GlanceModifier.defaultWeight().height(cellHeight)
                 )
                 Spacer(modifier = GlanceModifier.width(4.dp))
                 QuickActionButton(
                     icon = R.drawable.ic_widget_gallery,
                     label = context.getString(R.string.widget_action_gallery),
-                    deepLinkUri = "paperless://scan/gallery",
+                    deepLinkUri = DeepLinkHandler.URI_SCAN_GALLERY,
                     modifier = GlanceModifier.defaultWeight().height(cellHeight)
                 )
             }
@@ -216,7 +220,7 @@ class ScannerWidget : GlanceAppWidget() {
                 QuickActionButton(
                     icon = R.drawable.ic_widget_file,
                     label = context.getString(R.string.widget_action_file),
-                    deepLinkUri = "paperless://scan/file",
+                    deepLinkUri = DeepLinkHandler.URI_SCAN_FILE,
                     modifier = GlanceModifier.defaultWeight().height(cellHeight)
                 )
             }
@@ -249,21 +253,21 @@ class ScannerWidget : GlanceAppWidget() {
             QuickActionButton(
                 icon = R.drawable.ic_widget_camera,
                 label = context.getString(R.string.widget_action_camera),
-                deepLinkUri = "paperless://scan/camera",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_CAMERA,
                 modifier = GlanceModifier.defaultWeight().height(cellHeight)
             )
             Spacer(modifier = GlanceModifier.width(4.dp))
             QuickActionButton(
                 icon = R.drawable.ic_widget_gallery,
                 label = context.getString(R.string.widget_action_gallery),
-                deepLinkUri = "paperless://scan/gallery",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_GALLERY,
                 modifier = GlanceModifier.defaultWeight().height(cellHeight)
             )
             Spacer(modifier = GlanceModifier.width(4.dp))
             QuickActionButton(
                 icon = R.drawable.ic_widget_file,
                 label = context.getString(R.string.widget_action_file),
-                deepLinkUri = "paperless://scan/file",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_FILE,
                 modifier = GlanceModifier.defaultWeight().height(cellHeight)
             )
         }
@@ -288,7 +292,7 @@ class ScannerWidget : GlanceAppWidget() {
                 .background(ColorProvider(R.color.widget_background))
                 .clickable(
                     actionStartActivity(
-                        createDeepLinkIntent(context, "paperless://status")
+                        createDeepLinkIntent(context, DeepLinkHandler.URI_STATUS)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -395,7 +399,7 @@ class ScannerWidget : GlanceAppWidget() {
                 .background(ColorProvider(R.color.widget_background))
                 .clickable(
                     actionStartActivity(
-                        createDeepLinkIntent(context, "paperless://status")
+                        createDeepLinkIntent(context, DeepLinkHandler.URI_STATUS)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -492,13 +496,13 @@ class ScannerWidget : GlanceAppWidget() {
                     QuickActionButton(
                         icon = R.drawable.ic_widget_camera,
                         label = context.getString(R.string.widget_action_camera),
-                        deepLinkUri = "paperless://scan/camera"
+                        deepLinkUri = DeepLinkHandler.URI_SCAN_CAMERA
                     )
                     Spacer(modifier = GlanceModifier.width(6.dp))
                     QuickActionButton(
                         icon = R.drawable.ic_widget_gallery,
                         label = context.getString(R.string.widget_action_gallery),
-                        deepLinkUri = "paperless://scan/gallery"
+                        deepLinkUri = DeepLinkHandler.URI_SCAN_GALLERY
                     )
                 }
 
@@ -523,7 +527,7 @@ class ScannerWidget : GlanceAppWidget() {
                         .padding(vertical = 4.dp, horizontal = 8.dp)
                         .clickable(
                             actionStartActivity(
-                                createDeepLinkIntent(context, "paperless://status")
+                                createDeepLinkIntent(context, DeepLinkHandler.URI_STATUS)
                             )
                         ),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -581,14 +585,14 @@ class ScannerWidget : GlanceAppWidget() {
             CompactActionButton(
                 icon = R.drawable.ic_widget_camera,
                 label = context.getString(R.string.widget_action_camera),
-                deepLinkUri = "paperless://scan/camera",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_CAMERA,
                 modifier = GlanceModifier.defaultWeight()
             )
             Spacer(modifier = GlanceModifier.width(2.dp))
             CompactActionButton(
                 icon = R.drawable.ic_widget_gallery,
                 label = context.getString(R.string.widget_action_gallery),
-                deepLinkUri = "paperless://scan/gallery",
+                deepLinkUri = DeepLinkHandler.URI_SCAN_GALLERY,
                 modifier = GlanceModifier.defaultWeight()
             )
 
@@ -612,7 +616,7 @@ class ScannerWidget : GlanceAppWidget() {
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .clickable(
                         actionStartActivity(
-                            createDeepLinkIntent(context, "paperless://status")
+                            createDeepLinkIntent(context, DeepLinkHandler.URI_STATUS)
                         )
                     ),
                 verticalAlignment = Alignment.CenterVertically

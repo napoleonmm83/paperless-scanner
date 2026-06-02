@@ -42,7 +42,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putInt(KEY_PENDING_COUNT, count)
-                .apply()
+                .commit() // synchronous write so the broadcast below reads fresh data (#114)
 
             // Trigger widget update
             val intent = Intent(context, LegacyScannerWidget::class.java).apply {
