@@ -6,11 +6,13 @@ import com.paperless.scanner.data.repository.DocumentCountRepository
 import com.paperless.scanner.data.repository.DocumentListRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.sync.SyncManager
+import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -174,5 +176,139 @@ class HomeViewModelTest {
 
         // 1 fetch from init + 1 from the entire 10-trigger reconnect burst.
         coVerify(exactly = 2) { documentCountRepository.getDocumentCount(any()) }
+    }
+
+    @Test
+    fun `onPollingTick coalesces re-entrant ticks into a single refresh`() = runTest {
+        // pollingRefreshJob guard: while a tick's refresh is in flight, further
+        // ticks are dropped. getDocumentCount runs once for init + once for the
+        // first tick; the second tick is coalesced away.
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        coEvery { documentCountRepository.getDocumentCount(any()) } coAnswers {
+            gate.await()
+            Result.success(0)
+        }
+
+        val vm = createViewModel()
+        runCurrent() // init's loadDashboardData() parks on the gate
+
+        vm.onPollingTick() // launches pollingRefreshJob, parks on the gate
+        runCurrent()
+        vm.onPollingTick() // dropped: pollingRefreshJob still active
+        runCurrent()
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { documentCountRepository.getDocumentCount(any()) }
+    }
+
+    @Test
+    fun `onPollingTick refreshes hero stats and applies live pendingUploads`() = runTest {
+        every { uploadQueueRepository.pendingCount } returns MutableStateFlow(5)
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(7)
+
+        val vm = createViewModel()
+        advanceUntilIdle() // init: totalDocuments=7, pendingUploads=5
+
+        // A later tick must re-run loadStats and pick up the new server count;
+        // totalDocuments is only ever written by loadStats, so a change here is
+        // attributable to onPollingTick (not the observePendingUploads collector).
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(9)
+        vm.onPollingTick()
+        advanceUntilIdle()
+
+        val stats = vm.uiState.value.stats
+        assertEquals(9, stats.totalDocuments)
+        assertEquals(5, stats.pendingUploads)
+    }
+
+    @Test
+    fun `refreshDashboard forces a server refresh and updates totals and lastSyncedAt`() = runTest {
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(42)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(50)
+        vm.refreshDashboard()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(50, state.stats.totalDocuments)
+        assertNotNull(state.lastSyncedAt)
+        // loadStats always forces a server read (forceRefresh = true).
+        coVerify(atLeast = 2) { documentCountRepository.getDocumentCount(true) }
+    }
+
+    @Test
+    fun `resetState restores HomeUiState defaults`() = runTest {
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(10)
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+        assertEquals(10, vm.uiState.value.stats.totalDocuments)
+        assertNotNull(vm.uiState.value.lastSyncedAt)
+
+        vm.resetState()
+
+        val state = vm.uiState.value
+        assertTrue(state.isLoading)
+        assertNull(state.lastSyncedAt)
+        assertEquals(0, state.stats.totalDocuments)
+        assertEquals(0, state.stats.thisMonth)
+        assertEquals(0, state.stats.pendingUploads)
+    }
+
+    @Test
+    fun `loadStats defaults totalDocuments to zero without surfacing an error`() = runTest {
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns
+                Result.failure(RuntimeException("count endpoint down"))
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        // Hero-stat failures are intentionally swallowed at WARNING (no snackbar).
+        assertEquals(0, vm.uiState.value.stats.totalDocuments)
+        assertNull(vm.errorState.value)
+    }
+
+    @Test
+    fun `loadStats defaults thisMonth to zero without surfacing an error`() = runTest {
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(5)
+        coEvery {
+            documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns Result.failure(RuntimeException("documents endpoint down"))
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        val state = vm.uiState.value
+        assertEquals(5, state.stats.totalDocuments)
+        assertEquals(0, state.stats.thisMonth)
+        assertNull(vm.errorState.value)
+    }
+
+    @Test
+    fun `loadStats populates totals and caps thisMonth at 30`() = runTest {
+        coEvery { documentCountRepository.getDocumentCount(any()) } returns Result.success(123)
+        coEvery {
+            documentListRepository.getDocuments(any(), any(), any(), any(), any(), any(), any(), any())
+        } returns Result.success(DocumentsResponse(count = 99, results = emptyList()))
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        val stats = vm.uiState.value.stats
+        assertEquals(123, stats.totalDocuments)
+        assertEquals(30, stats.thisMonth) // minOf(count, 30)
+    }
+
+    @Test
+    fun `init tracks AppOpened analytics event`() = runTest {
+        createViewModel()
+        runCurrent()
+
+        verify { analyticsService.trackEvent(AnalyticsEvent.AppOpened) }
     }
 }
