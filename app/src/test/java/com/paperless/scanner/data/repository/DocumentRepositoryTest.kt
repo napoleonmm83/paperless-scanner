@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.service.DocumentSerializer
@@ -16,6 +17,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -53,6 +55,7 @@ class DocumentRepositoryTest {
     private lateinit var contentResolver: ContentResolver
     private lateinit var api: PaperlessApi
     private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private lateinit var uploadMetricsTracker: UploadMetricsTracker
     private lateinit var imageProcessor: ImageProcessorService
     private lateinit var pdfGenerator: PdfGeneratorService
     private lateinit var serializer: DocumentSerializer
@@ -65,6 +68,7 @@ class DocumentRepositoryTest {
         contentResolver = mockk(relaxed = true)
         api = mockk()
         crashlyticsHelper = mockk(relaxed = true)
+        uploadMetricsTracker = mockk(relaxed = true)
         cacheDir = tempFolder.newFolder("cache")
 
         every { context.contentResolver } returns contentResolver
@@ -77,7 +81,7 @@ class DocumentRepositoryTest {
         documentRepository = DocumentRepository(
             cacheDir = cacheDir,
             api = api,
-            crashlyticsHelper = crashlyticsHelper,
+            uploadMetricsTracker = uploadMetricsTracker,
             imageProcessor = imageProcessor,
             pdfGenerator = pdfGenerator,
             serializer = serializer,
@@ -298,7 +302,7 @@ class DocumentRepositoryTest {
         val repoWithMockedPdf = DocumentRepository(
             cacheDir = cacheDir,
             api = api,
-            crashlyticsHelper = crashlyticsHelper,
+            uploadMetricsTracker = uploadMetricsTracker,
             imageProcessor = imageProcessor,
             pdfGenerator = mockPdfGenerator,
             serializer = serializer,
@@ -313,5 +317,34 @@ class DocumentRepositoryTest {
 
         assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
         assertEquals("scope cancelled", thrown!!.message)
+    }
+
+    @Test
+    fun `uploadDocument logs start and success metrics via tracker`() = runTest {
+        val uri = mockk<Uri>()
+        every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream("img".toByteArray())
+        coEvery {
+            api.uploadDocument(any(), any(), any(), any(), any())
+        } returns "task-xyz".toResponseBody()
+
+        documentRepository.uploadDocument(uri)
+
+        verify { uploadMetricsTracker.logSinglePageUploadStart() }
+        verify { uploadMetricsTracker.logSinglePageUploadSuccess("task-xyz") }
+    }
+
+    @Test
+    fun `uploadDocument logs upload error via tracker on network failure`() = runTest {
+        val uri = mockk<Uri>()
+        every { contentResolver.openInputStream(uri) } returns ByteArrayInputStream("img".toByteArray())
+        coEvery {
+            api.uploadDocument(any(), any(), any(), any(), any())
+        } throws IOException("Network unavailable")
+
+        val result = documentRepository.uploadDocument(uri)
+
+        assertTrue(result.isFailure)
+        verify { uploadMetricsTracker.logSinglePageUploadStart() }
+        verify { uploadMetricsTracker.logUploadError(any()) }
     }
 }

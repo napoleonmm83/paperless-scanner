@@ -4,7 +4,7 @@ import android.net.Uri
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
@@ -26,7 +26,7 @@ import javax.inject.Inject
 class DocumentRepository @Inject constructor(
     @Named("cacheDir") private val cacheDir: File,
     private val api: PaperlessApi,
-    private val crashlyticsHelper: CrashlyticsHelper,
+    private val uploadMetricsTracker: UploadMetricsTracker,
     private val imageProcessor: ImageProcessorService,
     private val pdfGenerator: PdfGeneratorService,
     private val serializer: DocumentSerializer,
@@ -44,7 +44,7 @@ class DocumentRepository @Inject constructor(
         customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
-        crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "single-page")
+        uploadMetricsTracker.logSinglePageUploadStart()
         return try {
             val file = imageProcessor.getFileFromUri(uri)
             val requestFile = ProgressRequestBody(
@@ -87,10 +87,10 @@ class DocumentRepository @Inject constructor(
             file.delete()
 
             val taskId = UploadResponseParser.parseTaskId(response.string())
-            crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "taskId=$taskId")
+            uploadMetricsTracker.logSinglePageUploadSuccess(taskId)
             Result.success(taskId)
         } catch (e: IOException) {
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "NetworkError: ${e.message}")
+            uploadMetricsTracker.logUploadError("NetworkError: ${e.message}")
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
             val errorBody = try {
@@ -98,20 +98,20 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 null
             }
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
+            uploadMetricsTracker.logUploadError("HTTP ${e.code()}")
             android.util.Log.e("DocumentRepository", "Upload failed: HTTP ${e.code()}, body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ContentError: ${e.message}")
+            uploadMetricsTracker.logUploadError("ContentError: ${e.message}")
             Result.failure(PaperlessException.ContentError(R.string.error_file_read_failed))
         } catch (e: CancellationException) {
             throw e
         } catch (e: UploadResponseParseException) {
             // Malformed/empty server upload response — surface as a parse error (codex review on PR-B).
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ParseError: ${e.message}")
+            uploadMetricsTracker.logUploadError("ParseError: ${e.message}")
             Result.failure(PaperlessException.ParseError(e.message))
         } catch (e: Exception) {
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: ${e.message}")
+            uploadMetricsTracker.logUploadError("${e.javaClass.simpleName}: ${e.message}")
             Result.failure(PaperlessException.from(e))
         }
     }
@@ -125,7 +125,7 @@ class DocumentRepository @Inject constructor(
         customFields: Map<Int, String> = emptyMap(),
         onProgress: (Float) -> Unit = {}
     ): Result<String> {
-        crashlyticsHelper.logActionBreadcrumb("UPLOAD_START", "multi-page, ${uris.size} pages")
+        uploadMetricsTracker.logMultiPageUploadStart(uris.size)
         return try {
             android.util.Log.d("DocumentRepository", "Creating PDF from ${uris.size} images...")
             val pdfFile = pdfGenerator.createPdfFromImages(uris)
@@ -174,10 +174,10 @@ class DocumentRepository @Inject constructor(
 
             val taskId = UploadResponseParser.parseTaskId(response.string())
             android.util.Log.d("DocumentRepository", "Task ID received: $taskId")
-            crashlyticsHelper.logActionBreadcrumb("UPLOAD_SUCCESS", "multi-page, taskId=$taskId")
+            uploadMetricsTracker.logMultiPageUploadSuccess(taskId)
             Result.success(taskId)
         } catch (e: IOException) {
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "NetworkError: ${e.message}")
+            uploadMetricsTracker.logUploadError("NetworkError: ${e.message}")
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: retrofit2.HttpException) {
             val errorBody = try {
@@ -185,13 +185,13 @@ class DocumentRepository @Inject constructor(
             } catch (_: Exception) {
                 null
             }
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "HTTP ${e.code()}")
+            uploadMetricsTracker.logUploadError("HTTP ${e.code()}")
             android.util.Log.e("DocumentRepository", "Multi-page upload failed: HTTP ${e.code()}, body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
             Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody ?: e.message()))
         } catch (e: IllegalArgumentException) {
             // Safe error message extraction (prevent secondary exceptions)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "PDF creation: $safeMessage")
+            uploadMetricsTracker.logUploadError("PDF creation: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalArgumentException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
         } catch (e: CancellationException) {
@@ -199,18 +199,18 @@ class DocumentRepository @Inject constructor(
         } catch (e: IllegalStateException) {
             // Safe error message extraction (prevent secondary exceptions)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Image could not be processed"
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "Image processing: $safeMessage")
+            uploadMetricsTracker.logUploadError("Image processing: $safeMessage")
             android.util.Log.e("DocumentRepository", "IllegalStateException during PDF creation: $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_image_process_failed))
         } catch (e: UploadResponseParseException) {
             // Malformed/empty server upload response — surface as an upload error,
             // not a PDF-creation/image-processing failure (codex review on PR-B).
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "ParseError: ${e.message}")
+            uploadMetricsTracker.logUploadError("ParseError: ${e.message}")
             Result.failure(PaperlessException.ParseError(e.message))
         } catch (e: Exception) {
             // Catch-all for any unexpected exceptions (including iText7 internal errors)
             val safeMessage = e.message?.takeIf { it.isNotBlank() } ?: "Unknown error during PDF creation"
-            crashlyticsHelper.logStateBreadcrumb("UPLOAD_ERROR", "${e.javaClass.simpleName}: $safeMessage")
+            uploadMetricsTracker.logUploadError("${e.javaClass.simpleName}: $safeMessage")
             android.util.Log.e("DocumentRepository", "Unexpected exception during multi-page upload: ${e.javaClass.simpleName} - $safeMessage", e)
             Result.failure(PaperlessException.ContentError(R.string.error_pdf_creation))
         }
