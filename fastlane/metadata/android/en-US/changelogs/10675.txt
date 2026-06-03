@@ -1,0 +1,7 @@
+Version 1.5.175:
+
+🔐 Security:
+- Shared documents and scans now use a tightly scoped cache area. Other apps can no longer access unrelated cached files when you share.
+
+🔧 Improvements:
+- More reliable cleanup of temporary scan files

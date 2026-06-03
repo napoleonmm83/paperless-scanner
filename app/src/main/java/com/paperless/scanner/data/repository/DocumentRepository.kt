@@ -11,6 +11,7 @@ import com.paperless.scanner.data.service.PdfGeneratorService
 import com.paperless.scanner.data.service.UploadResponseParseException
 import com.paperless.scanner.data.service.UploadResponseParser
 import com.paperless.scanner.util.LogSanitizer
+import com.paperless.scanner.util.SharedFileCache
 import com.paperless.scanner.util.withRetry
 import com.paperless.scanner.R
 import java.io.IOException
@@ -223,7 +224,9 @@ class DocumentRepository @Inject constructor(
             val response = withRetry { api.downloadDocument(documentId) }
 
             val fileName = "document_${documentId}_${System.currentTimeMillis()}.pdf"
-            val pdfFile = File(cacheDir, fileName)
+            // #241: write into the FileProvider-scoped subdir so the downloaded PDF
+            // can be shared/opened without exposing the entire cache root.
+            val pdfFile = File(SharedFileCache.sharedPdfsDir(cacheDir), fileName)
 
             val contentLength = response.contentLength()
 

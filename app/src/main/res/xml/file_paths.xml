@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <cache-path name="pdf_cache" path="/" />
+    <!--
+      SECURITY (#241): expose only purpose-scoped cache subdirectories, NOT the
+      cache root ("/"). Names mirror com.paperless.scanner.util.SharedFileCache.
+    -->
+    <cache-path name="shared_pdfs" path="shared_pdfs/" />
+    <cache-path name="shared_images" path="shared_images/" />
 </paths>
