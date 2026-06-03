@@ -1,0 +1,4 @@
+Version 1.5.177:
+
+🔧 Improvements:
+- Improved internal stability with expanded automated tests for the home dashboard logic.

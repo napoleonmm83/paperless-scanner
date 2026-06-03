@@ -1,0 +1,4 @@
+Version 1.5.177:
+
+🔧 Verbesserungen:
+- Interne Stabilität durch erweiterte automatische Tests der Startbildschirm-Logik verbessert.
