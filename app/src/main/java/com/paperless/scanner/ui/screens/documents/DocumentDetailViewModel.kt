@@ -33,6 +33,8 @@ import com.paperless.scanner.util.DateFormatter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -536,20 +538,21 @@ class DocumentDetailViewModel @Inject constructor(
     // Permissions management
 
     fun loadPermissionsData() {
+        // The permissions tab's LaunchedEffect can re-trigger this while a load is
+        // in flight or after data is already present, firing redundant getUsers/
+        // getGroups calls (last-writer-wins). Guard against that: skip if a load is
+        // running, or if both lists are already populated. The in-flight flag is set
+        // synchronously here — before the coroutine starts — so a second call on the
+        // same dispatcher is rejected immediately. It clears on completion (including
+        // when a fetch fails, which degrades to empty lists), so a failed/partial
+        // load can be retried.
+        val current = _uiState.value
+        if (current.isLoadingPermissionsData) return
+        if (current.availableUsers.isNotEmpty() && current.availableGroups.isNotEmpty()) return
+        _uiState.update { it.copy(isLoadingPermissionsData = true) }
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingPermissionsData = true) }
-
-            val users = mutableListOf<UserInfo>()
-            val groups = mutableListOf<GroupInfo>()
-
-            permissionRepository.getUsers().onSuccess { userList ->
-                users.addAll(userList.map { UserInfo(it.id, it.username) })
-            }
-
-            permissionRepository.getGroups().onSuccess { groupList ->
-                groups.addAll(groupList.map { GroupInfo(it.id, it.name) })
-            }
-
+            val (users, groups) = fetchPermissionsData()
             _uiState.update {
                 it.copy(
                     isLoadingPermissionsData = false,
@@ -559,6 +562,25 @@ class DocumentDetailViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * Fetch users and groups in parallel and map them to immutable UI lists. A
+     * failed side degrades to an empty list (the permissions UI simply shows no
+     * options for it) instead of throwing. Uses structured concurrency, so a
+     * viewModelScope cancellation cancels both fetches and propagates normally.
+     */
+    private suspend fun fetchPermissionsData(): Pair<List<UserInfo>, List<GroupInfo>> =
+        coroutineScope {
+            val usersDeferred = async {
+                permissionRepository.getUsers().getOrDefault(emptyList())
+                    .map { UserInfo(it.id, it.username) }
+            }
+            val groupsDeferred = async {
+                permissionRepository.getGroups().getOrDefault(emptyList())
+                    .map { GroupInfo(it.id, it.name) }
+            }
+            usersDeferred.await() to groupsDeferred.await()
+        }
 
     fun updatePermissions(
         owner: Int?,
