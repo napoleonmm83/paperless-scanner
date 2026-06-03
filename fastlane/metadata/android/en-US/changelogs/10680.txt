@@ -1,0 +1,4 @@
+Version 1.5.180:
+
+🔧 Improvements:
+- Document permissions data now loads more efficiently (no duplicate fetches).

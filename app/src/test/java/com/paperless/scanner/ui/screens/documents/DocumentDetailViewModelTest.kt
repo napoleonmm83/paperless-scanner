@@ -20,6 +20,8 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Note
 import com.paperless.scanner.domain.model.NoteUser
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.domain.model.User
+import com.paperless.scanner.domain.model.Group
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -585,6 +587,91 @@ class DocumentDetailViewModelTest {
         // Should show error state
         assertFalse(viewModel.uiState.value.isLoading)
         assertNotNull(viewModel.uiState.value.error)
+    }
+
+    // ==================== Permissions Data Tests ====================
+
+    @Test
+    fun `loadPermissionsData populates users and groups`() = runTest {
+        coEvery { permissionRepository.getUsers() } returns
+            Result.success(listOf(User(1, "alice"), User(2, "bob")))
+        coEvery { permissionRepository.getGroups() } returns
+            Result.success(listOf(Group(1, "admins")))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadPermissionsData()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoadingPermissionsData)
+        assertEquals(2, state.availableUsers.size)
+        assertEquals(1, state.availableGroups.size)
+    }
+
+    @Test
+    fun `loadPermissionsData yields both lists even when getUsers is slow`() = runTest {
+        // Parallel fetch + await-both: a slow getUsers must not drop groups; the final
+        // state must contain BOTH complete lists regardless of completion order.
+        coEvery { permissionRepository.getUsers() } coAnswers {
+            kotlinx.coroutines.delay(1000)
+            Result.success(listOf(User(1, "alice"), User(2, "bob")))
+        }
+        coEvery { permissionRepository.getGroups() } returns
+            Result.success(listOf(Group(1, "admins")))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadPermissionsData()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(2, state.availableUsers.size)
+        assertEquals(1, state.availableGroups.size)
+    }
+
+    @Test
+    fun `overlapping loadPermissionsData calls fetch only once`() = runTest {
+        // The in-flight guard must coalesce a re-trigger that arrives while the first
+        // load is still running into a single fetch (no redundant getUsers/getGroups).
+        coEvery { permissionRepository.getUsers() } coAnswers {
+            kotlinx.coroutines.delay(1000)
+            Result.success(listOf(User(1, "alice")))
+        }
+        coEvery { permissionRepository.getGroups() } returns
+            Result.success(listOf(Group(1, "admins")))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadPermissionsData()
+        viewModel.loadPermissionsData() // dropped: first load still in flight
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { permissionRepository.getUsers() }
+        coVerify(exactly = 1) { permissionRepository.getGroups() }
+        assertEquals(1, viewModel.uiState.value.availableUsers.size)
+    }
+
+    @Test
+    fun `loadPermissionsData with getUsers failure still loads groups`() = runTest {
+        coEvery { permissionRepository.getUsers() } returns
+            Result.failure(Exception("users endpoint down"))
+        coEvery { permissionRepository.getGroups() } returns
+            Result.success(listOf(Group(1, "admins")))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loadPermissionsData()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoadingPermissionsData)
+        assertTrue(state.availableUsers.isEmpty())
+        assertEquals(1, state.availableGroups.size)
     }
 
     // ==================== Helper Functions ====================

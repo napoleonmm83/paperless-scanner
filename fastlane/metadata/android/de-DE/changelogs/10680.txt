@@ -1,0 +1,4 @@
+Version 1.5.180:
+
+🔧 Verbesserungen:
+- Berechtigungsdaten im Dokument-Detail werden effizienter geladen (keine doppelten Abrufe).
