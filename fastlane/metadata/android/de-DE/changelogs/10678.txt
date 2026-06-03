@@ -1,0 +1,4 @@
+Version 1.5.178:
+
+🔧 Verbesserungen:
+- Interne Test-Infrastruktur stabilisiert für zuverlässigere Releases.

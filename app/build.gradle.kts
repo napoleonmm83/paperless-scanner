@@ -148,11 +148,22 @@ android {
                 // Fail fast - stop after first failure to prevent hanging
                 it.failFast = true
 
-                // Fork every test to isolate failures
-                it.forkEvery = 10
+                // Fork a fresh JVM per test class. Robolectric loads its native
+                // graphics runtime per test class through a sandbox classloader, but the
+                // JDK zip filesystem for fonts is cached at the JVM level — so a second
+                // Robolectric class sharing a fork hits FileSystemAlreadyExistsException in
+                // DefaultNativeRuntimeLoader.maybeCopyFonts. With forkEvery=10 this race was
+                // latent and surfaced whenever a new test class shifted the fork grouping.
+                // forkEvery=1 isolates each class in its own JVM, eliminating the race (and
+                // any inter-test JVM-state leaks). Slightly slower CI, deterministically green.
+                it.forkEvery = 1
 
-                // Kill the whole test task after 5 minutes (300 seconds)
-                it.timeout.set(Duration.ofMinutes(5))
+                // Kill the whole test task after 20 minutes. forkEvery=1 (above) starts a
+                // fresh JVM per test class, so the full Robolectric suite runs noticeably
+                // longer than the old shared-JVM forkEvery=10 timing — 5 minutes was
+                // calibrated for that and now trips on the slower CI runner. failFast=true
+                // still aborts promptly on a real failure; this only bounds a hung suite.
+                it.timeout.set(Duration.ofMinutes(20))
             }
         }
     }
