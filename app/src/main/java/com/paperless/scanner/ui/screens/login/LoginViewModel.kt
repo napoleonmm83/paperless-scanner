@@ -480,6 +480,17 @@ class LoginViewModel @Inject constructor(
     }
 
     /**
+     * Decline a certificate change: return to Idle WITHOUT trusting the new cert.
+     * Consuming the recorded mismatch from [ObservedCertHolder] also stops the
+     * app-wide in-session re-trust dialog (#249) from re-surfacing this same
+     * mismatch after the user backs out of the setup flow.
+     */
+    fun declineCertificateChange(host: String) {
+        observedCertHolder.consume(host)
+        resetState()
+    }
+
+    /**
      * Accepts insecure HTTP connection for a specific host.
      * This stores the preference so the user won't be asked again for this domain.
      */

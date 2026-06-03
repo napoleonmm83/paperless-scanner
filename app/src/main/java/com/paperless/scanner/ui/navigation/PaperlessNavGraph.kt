@@ -83,6 +83,21 @@ fun PaperlessNavGraph(
     // Handle deep link navigation (from widgets)
     // CRITICAL: Must wait until AppLock is unlocked before navigating
     val lockState by appLockManager.lockState.collectAsState()
+
+    // App-wide certificate re-trust dialog (#249): if a pinned server certificate
+    // changes mid-session, surface the blocking re-trust dialog over any screen.
+    // Suppressed on the setup routes (SimplifiedSetupScreen renders its own from
+    // LoginUiState.CertChanged) and while locked (a worker-recorded mismatch must
+    // wait for the user to unlock before it can be re-trusted). Also suppressed
+    // while still on the AppLock route: lockState can flip to Unlocked before the
+    // navigation handoff completes, so the route check closes that transient where
+    // the dialog could otherwise render over the unlock screen.
+    val onCertSetupRoute = currentRoute == Screen.Welcome.route ||
+        currentRoute == Screen.EditServerSettings.route
+    val appLocked = lockState is AppLockState.Locked || lockState is AppLockState.LockedOut
+    val onAppLockScreen = currentRoute == Screen.AppLock.route
+    CertificateReTrustInterceptor(enabled = !onCertSetupRoute && !appLocked && !onAppLockScreen)
+
     LaunchedEffect(pendingDeepLink, lockState, currentRoute) {
         if (pendingDeepLink == null) return@LaunchedEffect
 

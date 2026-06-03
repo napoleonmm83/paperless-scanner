@@ -1,0 +1,4 @@
+Version 1.5.176:
+
+🔐 Security:
+- If the server certificate changes during use (e.g. after a renewal), the re-trust dialog now appears on any screen – no need to re-run setup.

@@ -281,6 +281,27 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `declineCertificateChange consumes the mismatch and leaves the pin unchanged`() = runTest {
+        certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.declineCertificateChange("paperless.lan")
+        advanceUntilIdle()
+
+        // Pin is NOT trusted (declined)...
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+        // ...and the mismatch is consumed so the app-wide re-trust dialog (#249) does
+        // not re-surface after the user backs out of setup.
+        assertTrue(observedCertHolder.peek("paperless.lan") == null)
+        assertTrue(observedCertHolder.latest.value == null)
+        assertTrue(viewModel.uiState.value is LoginUiState.Idle)
+    }
+
+    @Test
     fun `login transitions from Loading to Success`() = runTest {
         // This test verifies the login flow completes successfully
         // Note: Testing intermediate Loading state is unreliable with real IO dispatchers

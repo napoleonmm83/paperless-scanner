@@ -1,0 +1,4 @@
+Version 1.5.176:
+
+🔐 Sicherheit:
+- Ändert sich das Server-Zertifikat während der Nutzung (z. B. nach einer Erneuerung), erscheint der Dialog zum erneuten Vertrauen jetzt auf jedem Bildschirm – kein erneutes Einrichten mehr nötig.
