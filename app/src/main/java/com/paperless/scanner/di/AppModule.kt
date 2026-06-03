@@ -53,6 +53,7 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
@@ -431,11 +432,11 @@ object AppModule {
     fun provideDocumentRepository(
         @Named("cacheDir") cacheDir: File,
         api: PaperlessApi,
-        crashlyticsHelper: CrashlyticsHelper,
+        uploadMetricsTracker: UploadMetricsTracker,
         imageProcessor: ImageProcessorService,
         pdfGenerator: PdfGeneratorService,
         serializer: DocumentSerializer,
-    ): DocumentRepository = DocumentRepository(cacheDir, api, crashlyticsHelper, imageProcessor, pdfGenerator, serializer)
+    ): DocumentRepository = DocumentRepository(cacheDir, api, uploadMetricsTracker, imageProcessor, pdfGenerator, serializer)
 
     @Provides
     @Singleton

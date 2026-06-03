@@ -1,0 +1,4 @@
+Version 1.5.179:
+
+🔧 Improvements:
+- Unified internal upload diagnostics logging for more reliable error analysis.
