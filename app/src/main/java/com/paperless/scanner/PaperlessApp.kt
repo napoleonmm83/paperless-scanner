@@ -192,12 +192,15 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                     }
                 }
 
-                // #241: purpose-scoped shared subdirs — sweep ALL aged files. This also
-                // fixes the prior leak of cropped_/rotated_ scan images that the old
-                // root-only "document_" sweep never cleaned up.
-                SharedFileCache.sharedDirNames.forEach { dirName ->
-                    sweep(File(cacheDir, dirName).listFiles()) { true }
-                }
+                // #241: sweep aged transient PDFs the viewer downloads into shared_pdfs
+                // (the pre-#241 root-only "document_" sweep already handled these).
+                //
+                // shared_images is intentionally NOT swept: cropped_* images there are
+                // referenced by persisted in-progress scan drafts (ScanViewModel
+                // KEY_PAGE_URIS, survives process death), so an age-based sweep could
+                // delete a still-referenced page on a delayed restore. Draft-aware
+                // cleanup of those images is tracked in #307.
+                sweep(File(cacheDir, SharedFileCache.SHARED_PDFS_DIR).listFiles()) { true }
                 // Legacy: PDFs written to the cache root before #241 — migration cleanup.
                 sweep(cacheDir.listFiles()) { it.name.startsWith("document_") }
 

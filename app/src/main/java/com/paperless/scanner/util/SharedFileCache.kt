@@ -23,7 +23,10 @@ object SharedFileCache {
     /** Subdirectory for cropped/rotated scan images handed to the upload flow. */
     const val SHARED_IMAGES_DIR = "shared_images"
 
-    /** All FileProvider-exposed subdirectory names — used by the cache cleanup sweep. */
+    /**
+     * All FileProvider-exposed subdirectory names. Must match the `<cache-path>`
+     * entries in `res/xml/file_paths.xml` (asserted by FileProviderScopingTest).
+     */
     val sharedDirNames: List<String> = listOf(SHARED_PDFS_DIR, SHARED_IMAGES_DIR)
 
     /**
