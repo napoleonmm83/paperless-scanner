@@ -728,7 +728,9 @@ fun SimplifiedSetupScreen(
                     }
                 },
                 onCancel = {
-                    viewModel.resetState()
+                    // #249: consume the mismatch (not just reset UI) so the app-wide
+                    // re-trust dialog does not re-appear after leaving setup.
+                    viewModel.declineCertificateChange(certChanged.host)
                 }
             )
         }
