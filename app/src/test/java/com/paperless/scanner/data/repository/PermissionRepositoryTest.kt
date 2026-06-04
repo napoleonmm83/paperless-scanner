@@ -73,6 +73,49 @@ class PermissionRepositoryTest {
     }
 
     @Test
+    fun `getUsers walks all pages and returns every user when results span multiple pages`() = runTest {
+        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        val page1 = (1..100).map { ApiUser(id = it, username = "user$it") }
+        val page2 = (101..150).map { ApiUser(id = it, username = "user$it") }
+        coEvery { api.getUsers(page = 1, pageSize = 100) } returns
+            UsersResponse(count = 150, next = "https://example.test/api/users/?page=2", previous = null, results = page1)
+        coEvery { api.getUsers(page = 2, pageSize = 100) } returns
+            UsersResponse(count = 150, next = null, previous = null, results = page2)
+
+        val result = repo.getUsers()
+
+        assertTrue(result.isSuccess)
+        // Issue #126: all 150 returned, not just the first page of 100.
+        assertEquals(150, result.getOrNull()?.size)
+        coVerify(exactly = 1) { api.getUsers(page = 1, pageSize = 100) }
+        coVerify(exactly = 1) { api.getUsers(page = 2, pageSize = 100) }
+        // Mapping verification: first + last DTOs mapped to domain across the page boundary.
+        assertEquals(DomainUser(id = 1, username = "user1"), result.getOrNull()?.first())
+        assertEquals(DomainUser(id = 150, username = "user150"), result.getOrNull()?.last())
+    }
+
+    @Test
+    fun `getGroups walks all pages and returns every group when results span multiple pages`() = runTest {
+        coEvery { networkMonitor.checkOnlineStatus() } returns true
+        val page1 = (1..100).map { ApiGroup(id = it, name = "group$it") }
+        val page2 = (101..150).map { ApiGroup(id = it, name = "group$it") }
+        coEvery { api.getGroups(page = 1, pageSize = 100) } returns
+            GroupsResponse(count = 150, next = "https://example.test/api/groups/?page=2", previous = null, results = page1)
+        coEvery { api.getGroups(page = 2, pageSize = 100) } returns
+            GroupsResponse(count = 150, next = null, previous = null, results = page2)
+
+        val result = repo.getGroups()
+
+        assertTrue(result.isSuccess)
+        // Issue #126: all 150 returned, not just the first page of 100.
+        assertEquals(150, result.getOrNull()?.size)
+        coVerify(exactly = 1) { api.getGroups(page = 1, pageSize = 100) }
+        coVerify(exactly = 1) { api.getGroups(page = 2, pageSize = 100) }
+        assertEquals(DomainGroup(id = 1, name = "group1"), result.getOrNull()?.first())
+        assertEquals(DomainGroup(id = 150, name = "group150"), result.getOrNull()?.last())
+    }
+
+    @Test
     fun `getUsers offline returns NetworkError`() = runTest {
         coEvery { networkMonitor.checkOnlineStatus() } returns false
 
