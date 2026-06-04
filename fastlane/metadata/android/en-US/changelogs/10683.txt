@@ -1,0 +1,5 @@
+Version 1.5.183:
+
+🐛 Fixes:
+- Login behind Cloudflare/proxy: WAF blocks (403) now show a clear message instead of "wrong credentials"
+- Such blocks no longer count toward the lockout, so valid logins aren't locked out

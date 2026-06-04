@@ -10,6 +10,7 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.HttpAllowlistInterceptor
 import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.getLocalizedMessage
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
@@ -308,6 +309,14 @@ class LoginViewModel @Inject constructor(
                                     )
                                 }
                             }
+                            exception is PaperlessException.ProxyBlocked -> {
+                                // #27: an edge/WAF proxy block — resolve the
+                                // user-facing message from the typed error here in
+                                // the UI layer (project localization rule).
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
+                                }
+                            }
                             else -> {
                                 _uiState.update {
                                     LoginUiState.Error(
@@ -402,6 +411,14 @@ class LoginViewModel @Inject constructor(
                                         host = host,
                                         message = exception.message ?: context.getString(R.string.error_ssl_certificate)
                                     )
+                                }
+                            }
+                            exception is PaperlessException.ProxyBlocked -> {
+                                // #27: an edge/WAF proxy block — resolve the
+                                // user-facing message from the typed error here in
+                                // the UI layer (project localization rule).
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
                                 }
                             }
                             else -> {
@@ -522,6 +539,15 @@ class LoginViewModel @Inject constructor(
      * Network errors and SSL errors should NOT count towards rate limiting.
      */
     private fun isAuthError(exception: Throwable): Boolean {
+        // Issue #27: an edge proxy / WAF block (e.g. Cloudflare) is NOT a
+        // credential error. It must never count toward the login rate limiter,
+        // or a user with the correct password/token gets locked out behind their
+        // own proxy. Excluded by TYPE here, BEFORE the message fallback below —
+        // its (possibly localized) text could otherwise contain a substring like
+        // "forbidden"/"invalid" and be mis-classified as an auth error.
+        if (exception is com.paperless.scanner.data.api.PaperlessException.ProxyBlocked) {
+            return false
+        }
         // Check for PaperlessException.AuthError
         if (exception is com.paperless.scanner.data.api.PaperlessException.AuthError) {
             return true

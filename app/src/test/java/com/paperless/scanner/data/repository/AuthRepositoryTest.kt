@@ -6,6 +6,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
+import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,6 +20,8 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -122,6 +125,186 @@ class AuthRepositoryTest {
         assertTrue(result.isFailure)
         // AuthRepository now uses string resources for i18n - verify error is returned
         assertTrue(result.exceptionOrNull()?.message?.isNotEmpty() == true)
+    }
+
+    @Test
+    fun `login with cloudflare 403 maps to proxy-blocked not bad credentials`() = runTest {
+        // Issue #27: an edge proxy / WAF (Cloudflare) returns an HTML challenge
+        // with a 403, which previously got mis-mapped to "bad credentials".
+        // The login is fine — the request never reached Paperless — so we must
+        // surface a distinct, typed ProxyBlocked error instead.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setHeader("cf-ray", "8a1b2c3d4e5f6789-FRA")
+                .setHeader("Server", "cloudflare")
+                .setHeader("Content-Type", "text/html; charset=UTF-8")
+                .setBody(
+                    "<!DOCTYPE html><html><head><title>Attention Required! | Cloudflare</title></head>" +
+                        "<body>Sorry, you have been blocked.</body></html>"
+                )
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.login(serverUrl, "validuser", "validpass")
+
+        assertTrue(result.isFailure)
+        // #27: must be a distinct ProxyBlocked type (not AuthError), so the login
+        // rate limiter never counts a WAF block as a failed credential attempt.
+        // The user-facing message is resolved later in the UI via messageResId,
+        // so the repository carries only the typed error + HTTP code (no string).
+        val exception = result.exceptionOrNull()
+        assertTrue(
+            "Cloudflare 403 must surface as ProxyBlocked, not AuthError",
+            exception is PaperlessException.ProxyBlocked
+        )
+        assertEquals(403, (exception as PaperlessException.ProxyBlocked).code)
+    }
+
+    @Test
+    fun `login 403 from Cloudflare-proxied backend with JSON body stays a credential error`() = runTest {
+        // Issue #27 regression guard (codex P2): a Paperless instance that simply sits behind
+        // Cloudflare returns a legitimate 401/403 as JSON, yet Cloudflare still adds cf-ray /
+        // Server: cloudflare headers. Those headers alone must NOT trigger the proxy-blocked
+        // message — only a real HTML challenge page (or cf-mitigated) does.
+        val proxyBlockedMessage =
+            "Request blocked by a proxy or firewall (not your login). Check the server's WAF/Cloudflare settings."
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setHeader("cf-ray", "8a1b2c3d4e5f6789-FRA")
+                .setHeader("Server", "cloudflare")
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"detail": "Invalid credentials"}""")
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.login(serverUrl, "wronguser", "wrongpass")
+
+        assertTrue(result.isFailure)
+        assertFalse(
+            "A normal Cloudflare-proxied JSON 403 must NOT be a ProxyBlocked",
+            result.exceptionOrNull() is PaperlessException.ProxyBlocked
+        )
+        assertNotEquals(
+            "A normal Cloudflare-proxied JSON 403 must NOT be mapped to the proxy-blocked message",
+            proxyBlockedMessage,
+            result.exceptionOrNull()?.message
+        )
+    }
+
+    @Test
+    fun `login 502 HTML error page without Cloudflare markers is NOT a proxy block`() = runTest {
+        // Issue #27 (codex P2): a generic reverse-proxy / origin HTML error page
+        // (e.g. nginx 502, a maintenance or 404 page) has a <title> but no
+        // Cloudflare challenge markers. It must fall through to normal HTTP
+        // handling, NOT be mislabeled as a WAF ProxyBlocked with "check your
+        // Cloudflare/WAF settings" guidance.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(502)
+                .setHeader("Server", "nginx")
+                .setHeader("Content-Type", "text/html; charset=UTF-8")
+                .setBody(
+                    "<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head>" +
+                        "<body><center><h1>502 Bad Gateway</h1></center></body></html>"
+                )
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.login(serverUrl, "user", "pass")
+
+        assertTrue(result.isFailure)
+        assertFalse(
+            "A generic nginx 502 HTML page must NOT be classified as ProxyBlocked",
+            result.exceptionOrNull() is PaperlessException.ProxyBlocked
+        )
+    }
+
+    @Test
+    fun `login Cloudflare-branded 502 outage page is NOT a proxy block`() = runTest {
+        // Issue #27 (codex P2 ×2): when a Cloudflare-proxied ORIGIN is down,
+        // Cloudflare serves a branded 5xx outage page (502/521/522/525) that
+        // contains the word "cloudflare" but is NOT a WAF challenge/block. It
+        // must surface as the real server error, not a ProxyBlocked with
+        // "check your Cloudflare/WAF settings" guidance. Only the block-page
+        // phrases ("Attention Required"/"Sorry, you have been blocked") or the
+        // cf-mitigated header may trigger a proxy block.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(502)
+                .setHeader("Server", "cloudflare")
+                .setHeader("cf-ray", "8a1b2c3d4e5f6789-FRA")
+                .setHeader("Content-Type", "text/html; charset=UTF-8")
+                .setBody(
+                    "<!DOCTYPE html><html><head><title>502 Bad Gateway</title></head>" +
+                        "<body>Error 502 — Bad gateway. Cloudflare Ray ID: 8a1b2c3d. " +
+                        "The web server reported a bad gateway error.</body></html>"
+                )
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.login(serverUrl, "user", "pass")
+
+        assertTrue(result.isFailure)
+        assertFalse(
+            "A Cloudflare-branded 502 outage page must NOT be classified as ProxyBlocked",
+            result.exceptionOrNull() is PaperlessException.ProxyBlocked
+        )
+    }
+
+    @Test
+    fun `login with cf-mitigated header is a proxy block even without an HTML body`() = runTest {
+        // Issue #27 (CodeRabbit): the cf-mitigated header is set ONLY on an active
+        // Cloudflare challenge/block and is a definitive signal on its own — it must
+        // trigger ProxyBlocked even when the body is JSON rather than an HTML page.
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setHeader("cf-mitigated", "challenge")
+                .setHeader("Content-Type", "application/json")
+                .setBody("""{"detail":"blocked"}""")
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.login(serverUrl, "user", "pass")
+
+        assertTrue(result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue(
+            "A cf-mitigated response must surface as ProxyBlocked",
+            exception is PaperlessException.ProxyBlocked
+        )
+        assertEquals(403, (exception as PaperlessException.ProxyBlocked).code)
+    }
+
+    @Test
+    fun `validateToken blocked by Cloudflare maps to ProxyBlocked`() = runTest {
+        // Issue #27 (CodeRabbit): isEdgeProxyBlock() is reused by the token path,
+        // so a WAF block during token validation must also surface as ProxyBlocked
+        // (not an invalid-token / no-permission error).
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(403)
+                .setHeader("cf-ray", "8a1b2c3d4e5f6789-FRA")
+                .setHeader("Server", "cloudflare")
+                .setHeader("Content-Type", "text/html; charset=UTF-8")
+                .setBody(
+                    "<!DOCTYPE html><html><head><title>Attention Required! | Cloudflare</title></head>" +
+                        "<body>Sorry, you have been blocked.</body></html>"
+                )
+        )
+
+        val serverUrl = mockWebServer.url("/").toString()
+        val result = authRepository.validateToken(serverUrl, "some-token")
+
+        assertTrue(result.isFailure)
+        val exception = result.exceptionOrNull()
+        assertTrue(
+            "A WAF block during token validation must surface as ProxyBlocked",
+            exception is PaperlessException.ProxyBlocked
+        )
+        assertEquals(403, (exception as PaperlessException.ProxyBlocked).code)
     }
 
     @Test
