@@ -1,0 +1,5 @@
+Version 1.5.182:
+
+🐛 Fixes:
+- Custom fields, users & groups now load completely (lists over 100 entries were cut off)
+- Tag counts stay consistent when a document's tags are edited
