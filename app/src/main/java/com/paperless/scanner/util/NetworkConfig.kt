@@ -80,4 +80,21 @@ object NetworkConfig {
 
     /** Upper cap for exponential backoff between retry attempts (milliseconds) */
     const val RETRY_MAX_DELAY_MS = 10_000L
+
+    // ============================================================
+    // Pagination
+    // ============================================================
+
+    /**
+     * Page size used when fetching full paginated lists (tags, correspondents,
+     * document types) via [com.paperless.scanner.data.api.fetchAllPages].
+     */
+    const val DEFAULT_PAGE_SIZE = 100
+
+    /**
+     * Safety cap on the number of pages [com.paperless.scanner.data.api.fetchAllPages]
+     * walks before stopping, guarding against an unbounded loop if a server never
+     * clears its `next` link. 100 pages x [DEFAULT_PAGE_SIZE] = 10,000 items.
+     */
+    const val MAX_PAGINATED_PAGES = 100
 }

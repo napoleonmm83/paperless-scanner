@@ -1,0 +1,4 @@
+Version 1.5.181:
+
+🐛 Fehlerbehebungen:
+- Tags, Korrespondenten & Dokumenttypen werden jetzt vollständig geladen (Listen über 100 Einträge wurden vorher abgeschnitten)

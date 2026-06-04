@@ -4,6 +4,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateCorrespondentRequest
 import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
+import com.paperless.scanner.data.api.fetchAllPages
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
@@ -13,6 +14,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Document
+import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -100,13 +102,17 @@ class CorrespondentRepository @Inject constructor(
                 }
             }
 
-            // Network fetch (if online and forceRefresh or cache empty)
+            // Network fetch (if online and forceRefresh or cache empty).
+            // Walk ALL pages — fetching only page 1 silently truncates correspondent
+            // lists longer than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getCorrespondents(page = 1, pageSize = 100) }
+                val correspondents = fetchAllPages { page ->
+                    api.getCorrespondents(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                }
                 // Update cache
-                val cachedEntities = response.results.map { it.toCachedEntity() }
+                val cachedEntities = correspondents.map { it.toCachedEntity() }
                 cachedCorrespondentDao.insertAll(cachedEntities)
-                Result.success(response.results.toDomain())
+                Result.success(correspondents.toDomain())
             } else {
                 // Offline, no cache
                 Result.success(emptyList())
