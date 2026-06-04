@@ -561,6 +561,16 @@ class AuthRepository @Inject constructor(
                     return Result.failure(exception)
                 }
 
+                // Issue #27: a Cloudflare/edge-proxy WAF block (HTML challenge) is
+                // NOT a credential error. Surface a distinct message so the user
+                // isn't told their (correct) login is wrong.
+                if (isEdgeProxyBlock(response, errorBody)) {
+                    crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "EdgeProxyBlock HTTP ${response.code}")
+                    // Return the typed error only; the UI layer resolves the
+                    // user-facing message from messageResId (project localization rule).
+                    return Result.failure(PaperlessException.ProxyBlocked(code = response.code))
+                }
+
                 val errorMessage = parseLoginError(errorBody, response.code)
                 crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "HTTP ${response.code}")
                 val exception = PaperlessException.AuthError(
@@ -661,6 +671,62 @@ class AuthRepository @Inject constructor(
     }
 
     /**
+     * Issue #27: detects whether a 4xx response was produced by an edge proxy /
+     * WAF (e.g. Cloudflare) rather than by the Paperless-ngx backend.
+     *
+     * A Cloudflare/edge WAF challenge is returned as an HTML page with a 403 (or
+     * similar) status, which we previously mis-mapped to "bad credentials" /
+     * "no permission". The user's login is fine — the request never reached
+     * Paperless — so we surface a distinct, actionable message instead.
+     *
+     * Detection requires Cloudflare challenge/block-SPECIFIC evidence (codex P2):
+     * - the `cf-mitigated` response header — set ONLY on an active Cloudflare
+     *   challenge/block, so it is definitive on its own; OR
+     * - a `text/html` body carrying a Cloudflare block-page phrase
+     *   ("Attention Required" or "Sorry, you have been blocked").
+     *
+     * Generic signals are excluded on purpose: a bare HTML `<title>` matches any
+     * error page (nginx 502 / 404 / maintenance), and the word "cloudflare"
+     * appears on Cloudflare's branded *outage* pages too (502/521/522/525 when
+     * the ORIGIN is down) which are server errors, not WAF blocks. Such responses
+     * fall through to the normal HTTP-specific handling instead of the misleading
+     * WAF/Cloudflare guidance.
+     *
+     * **IMPORTANT:** [errorBody] is the string already read from
+     * `response.body?.string()` at the call site. We MUST NOT call
+     * `response.body?.string()` again here — an OkHttp response body is a
+     * one-shot stream and a second read throws. We only inspect headers on
+     * [response] and re-use the passed-in [errorBody] for the body match.
+     */
+    private fun isEdgeProxyBlock(response: okhttp3.Response, errorBody: String): Boolean {
+        // `cf-mitigated` is set ONLY when Cloudflare actively challenged/blocked the
+        // request, so it is a definitive block signal on its own.
+        if (response.header("cf-mitigated") != null) return true
+
+        // Otherwise require an actual HTML challenge/block PAGE. A Paperless instance that
+        // simply sits behind Cloudflare returns its legitimate 401/403 as JSON yet still
+        // carries `cf-ray` / `Server: cloudflare` headers — so those headers (and `text/html`
+        // alone) must NOT be treated as a block, or real bad-credential/permission errors get
+        // mis-mapped to the proxy message (codex P2). Gate the body markers on text/html.
+        val isHtml = response.header("Content-Type")?.contains("text/html", ignoreCase = true) == true
+        if (!isHtml) return false
+
+        // Require a Cloudflare block-page-SPECIFIC body phrase. Generic markers
+        // are deliberately excluded because they also appear on non-block pages:
+        //   - a bare `<title>` matches ANY HTML error page (nginx 502 / 404 / …);
+        //   - the word "cloudflare" appears on Cloudflare's branded *outage*
+        //     pages too (502/521/522/525 when the ORIGIN is down), which are
+        //     server errors, not WAF blocks.
+        // "Attention Required" / "Sorry, you have been blocked" are specific to
+        // Cloudflare's block/challenge page; the cf-mitigated header (above) is
+        // the language-independent backstop. Everything else falls through to
+        // normal HTTP handling (codex P2 ×2).
+        val lowerBody = errorBody.lowercase()
+        return lowerBody.contains("attention required") ||
+            lowerBody.contains("sorry, you have been blocked")
+    }
+
+    /**
      * Validate an API token against the server.
      *
      * **USE CASES:**
@@ -712,6 +778,16 @@ class AuthRepository @Inject constructor(
                     response = response,
                     responseBody = errorBody
                 )
+
+                // Issue #27: a Cloudflare/edge-proxy WAF block (HTML challenge) is
+                // NOT a token/permission error. Surface a distinct message so the
+                // user isn't told their (valid) token is invalid or lacks access.
+                if (isEdgeProxyBlock(response, errorBody)) {
+                    crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "EdgeProxyBlock HTTP ${response.code}")
+                    // Return the typed error only; the UI layer resolves the
+                    // user-facing message from messageResId (project localization rule).
+                    return Result.failure(PaperlessException.ProxyBlocked(code = response.code))
+                }
 
                 // Provide better error message for token validation failures
                 val errorMessage = when (response.code) {

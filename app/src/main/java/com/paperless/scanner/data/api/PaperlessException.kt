@@ -88,6 +88,30 @@ sealed class PaperlessException(
     }
 
     /**
+     * Issue #27: the request was blocked by an edge proxy / WAF (e.g. Cloudflare)
+     * BEFORE it reached Paperless-ngx. Crucially this is NOT a credential or
+     * permission error — the user's login or token is valid — so it must never
+     * be counted as a failed auth attempt by the login rate limiter, or a user
+     * sitting behind their own proxy gets locked out despite typing the correct
+     * password. It is intentionally a distinct type (not an [AuthError]) so the
+     * rate-limiter gate can exclude it by type rather than by fragile message
+     * matching.
+     *
+     * Per the project's localization rule the repository returns this typed
+     * error with only [code]; the user-facing text is resolved in the UI layer
+     * via [messageResId] / [getLocalizedMessage]. The fixed [message] string is
+     * for logs only and deliberately carries no auth keywords.
+     *
+     * @param code the HTTP status the proxy returned (typically 403)
+     */
+    data class ProxyBlocked(
+        val code: Int
+    ) : PaperlessException("Edge proxy/WAF blocked the request") {
+        @StringRes
+        override val messageResId: Int = R.string.error_blocked_by_proxy
+    }
+
+    /**
      * Server errors (5xx status codes)
      */
     data class ServerError(

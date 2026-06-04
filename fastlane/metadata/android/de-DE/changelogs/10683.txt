@@ -1,0 +1,5 @@
+Version 1.5.183:
+
+🐛 Fehlerbehebungen:
+- Login hinter Cloudflare/Proxy: WAF-Blockaden (403) zeigen jetzt eine klare Meldung statt "Anmeldedaten falsch"
+- Solche Blockaden zählen nicht mehr zur Konto-Sperre, korrekte Logins werden nicht mehr ausgesperrt

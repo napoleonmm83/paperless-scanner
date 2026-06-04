@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.login
 
 import android.content.Context
 import android.util.Log
+import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.PaperlessException
@@ -69,6 +70,10 @@ class LoginViewModelTest {
     // keeping all coroutine work deterministically inside the test scope.
     private val testDispatcher = StandardTestDispatcher()
 
+    /** Stubbed localized text for R.string.error_blocked_by_proxy (#27). */
+    private val proxyBlockedMessage =
+        "Request blocked by a proxy or firewall (not your login)."
+
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
@@ -99,6 +104,10 @@ class LoginViewModelTest {
         // Mock rate limiter to allow logins by default
         every { loginRateLimiter.isLoginAllowed() } returns true
         every { loginRateLimiter.rateLimitState } returns MutableStateFlow(LoginRateLimitState.Ready())
+
+        // #27: ProxyBlocked is resolved to user-facing text in the UI layer via
+        // getLocalizedMessage(messageResId), so stub the resource lookup.
+        every { context.getString(R.string.error_blocked_by_proxy) } returns proxyBlockedMessage
     }
 
     @After
@@ -318,6 +327,62 @@ class LoginViewModelTest {
 
         // Final state should be Success
         assertTrue(viewModel.uiState.value is LoginUiState.Success)
+    }
+
+    // ============ Issue #27: Edge Proxy / WAF Block Tests ============
+
+    @Test
+    fun `login blocked by edge proxy is not rate-limited and shows the proxy message`() = runTest {
+        // Issue #27: a Cloudflare/WAF block (ProxyBlocked) is NOT a credential
+        // error — counting it would lock out a user whose password is correct but
+        // who sits behind their own proxy. The repository returns the typed error
+        // (code only); the message is resolved here in the UI via messageResId.
+        coEvery { authRepository.login(any(), any(), any()) } returns
+            Result.failure(PaperlessException.ProxyBlocked(code = 403))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.login("https://example.com", "user", "pass")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { loginRateLimiter.recordFailedAttempt() }
+        val state = viewModel.uiState.value
+        assertTrue(state is LoginUiState.Error)
+        assertEquals(proxyBlockedMessage, (state as LoginUiState.Error).message)
+    }
+
+    @Test
+    fun `loginWithToken blocked by edge proxy is not rate-limited and shows the proxy message`() = runTest {
+        coEvery { authRepository.validateToken(any(), any()) } returns
+            Result.failure(PaperlessException.ProxyBlocked(code = 403))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.loginWithToken("https://example.com", "valid-token")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { loginRateLimiter.recordFailedAttempt() }
+        val state = viewModel.uiState.value
+        assertTrue(state is LoginUiState.Error)
+        assertEquals(proxyBlockedMessage, (state as LoginUiState.Error).message)
+    }
+
+    @Test
+    fun `login with real auth error still counts toward rate limiter`() = runTest {
+        // Guard the inverse: genuine credential errors must STILL be rate-limited
+        // so the brute-force protection is unaffected by the #27 exclusion.
+        coEvery { authRepository.login(any(), any(), any()) } returns
+            Result.failure(PaperlessException.AuthError(code = 401))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.login("https://example.com", "user", "wrongpass")
+        advanceUntilIdle()
+
+        verify(exactly = 1) { loginRateLimiter.recordFailedAttempt() }
     }
 
     // ==================== Token Login Tests ====================

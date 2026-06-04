@@ -1055,6 +1055,7 @@
     <string name="error_2fa_enabled">You have enabled additional login protection. Please switch to \'Token\' above and log in with your token.</string>
     <string name="error_token_invalid_check">Invalid token. Please check if you are using the correct token.</string>
     <string name="error_token_no_permission">Access denied. This token does not have permission.</string>
+    <string name="error_blocked_by_proxy">Request blocked by a proxy or firewall (not your login). Check the server\'s WAF/Cloudflare settings.</string>
     <string name="error_connection_failed_code">Connection failed (%1$d)</string>
 
     <!-- Server Error Messages -->
