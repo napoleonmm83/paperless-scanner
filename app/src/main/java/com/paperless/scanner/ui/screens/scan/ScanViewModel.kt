@@ -31,6 +31,7 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -255,6 +256,13 @@ class ScanViewModel @Inject constructor(
     private val _correspondents = MutableStateFlow<List<Correspondent>>(emptyList())
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
 
+    /**
+     * App-readable mirror of the persisted draft's `shared_images` file names so
+     * `PaperlessApp`'s cache sweep never deletes a cropped page a draft still
+     * references (#307). Built from [context] — no Hilt module wiring needed.
+     */
+    private val scanDraftCache = ScanDraftCache(context)
+
     init {
         // CRITICAL: Restore pages FIRST (synchronously) before ANY other operations
         // This prevents race conditions where scanner callbacks trigger before restoration
@@ -353,6 +361,10 @@ class ScanViewModel @Inject constructor(
                     // and starts empty), so a lock right after restore still reconstructs
                     // the scan route with the restored pages (#30).
                     routeArgsHolder.put(KEY_PAGE_URIS, urisString)
+                    // Re-assert the App-readable protected set for the restored draft
+                    // (#307); SharedPreferences survives process death but this keeps
+                    // the mirror authoritative even if the prior write was lost.
+                    scanDraftCache.setProtectedFileNames(restoredPages.map { it.uri.toString() })
                     Log.d(TAG, "✅ Restored ${restoredPages.size} pages from SavedStateHandle (one-time init)")
                 } else {
                     Log.w(TAG, "⚠️ Data mismatch: ${uris.size} URIs vs ${ids.size} IDs - skipping restoration")
@@ -367,6 +379,12 @@ class ScanViewModel @Inject constructor(
      * Sync current pages to SavedStateHandle (for process death survival).
      */
     private fun syncPagesToSavedState(pages: List<ScannedPage>) {
+        // #307: mirror the draft's shared_images backing file names into an
+        // App-readable store in the SAME method as the SavedStateHandle write, so
+        // PaperlessApp's cache sweep never deletes a cropped page this draft still
+        // references. Done here (not at the call sites) so it can never desync.
+        scanDraftCache.setProtectedFileNames(pages.map { it.uri.toString() })
+
         if (pages.isEmpty()) {
             savedStateHandle[KEY_PAGE_URIS] = null
             savedStateHandle[KEY_PAGE_IDS] = null

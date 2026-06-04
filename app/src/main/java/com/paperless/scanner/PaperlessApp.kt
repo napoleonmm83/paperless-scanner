@@ -17,6 +17,7 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
+import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
 import com.paperless.scanner.worker.UploadWorker
 import coil3.ImageLoader
@@ -176,33 +177,38 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val cacheDir = cacheDir
-                val cutoff = System.currentTimeMillis() - CACHE_MAX_AGE_MS
+                val now = System.currentTimeMillis()
                 var deletedCount = 0
                 var freedBytes = 0L
 
-                fun sweep(files: Array<File>?, accept: (File) -> Boolean) {
-                    files?.forEach { file ->
-                        if (file.isFile && accept(file) && file.lastModified() < cutoff) {
-                            val length = file.length()
-                            if (file.delete()) {
-                                deletedCount++
-                                freedBytes += length
-                            }
-                        }
-                    }
+                fun sweep(dir: File, protectedFileNames: Set<String> = emptySet(), accept: (File) -> Boolean = { true }) {
+                    val result = SharedFileCache.cleanupAgedUnprotected(
+                        dir = dir,
+                        now = now,
+                        maxAgeMillis = CACHE_MAX_AGE_MS,
+                        protectedFileNames = protectedFileNames,
+                        accept = accept
+                    )
+                    deletedCount += result.deletedCount
+                    freedBytes += result.freedBytes
                 }
 
                 // #241: sweep aged transient PDFs the viewer downloads into shared_pdfs
                 // (the pre-#241 root-only "document_" sweep already handled these).
-                //
-                // shared_images is intentionally NOT swept: cropped_* images there are
-                // referenced by persisted in-progress scan drafts (ScanViewModel
-                // KEY_PAGE_URIS, survives process death), so an age-based sweep could
-                // delete a still-referenced page on a delayed restore. Draft-aware
-                // cleanup of those images is tracked in #307.
-                sweep(File(cacheDir, SharedFileCache.SHARED_PDFS_DIR).listFiles()) { true }
+                sweep(File(cacheDir, SharedFileCache.SHARED_PDFS_DIR))
+
+                // #307: sweep aged scan images too, but EXCLUDE files referenced by a
+                // persisted in-progress scan draft. ScanViewModel mirrors its draft's
+                // shared_images backing file names into ScanDraftCache (App-readable
+                // SharedPreferences, survives process death) precisely so this boot-time
+                // sweep — which runs before any ScanViewModel exists — can protect a
+                // draft's cropped_* page that a delayed restore would still need.
+                // Upload-only rotated_* images are never persisted, so they age out.
+                val protectedNames = ScanDraftCache(this@PaperlessApp).getProtectedFileNames()
+                sweep(File(cacheDir, SharedFileCache.SHARED_IMAGES_DIR), protectedFileNames = protectedNames)
+
                 // Legacy: PDFs written to the cache root before #241 — migration cleanup.
-                sweep(cacheDir.listFiles()) { it.name.startsWith("document_") }
+                sweep(cacheDir) { it.name.startsWith("document_") }
 
                 if (deletedCount > 0) {
                     val freedMB = freedBytes / (1024.0 * 1024.0)
