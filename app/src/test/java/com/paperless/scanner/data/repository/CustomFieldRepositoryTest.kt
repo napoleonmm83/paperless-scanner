@@ -106,6 +106,33 @@ class CustomFieldRepositoryTest {
     }
 
     @Test
+    fun `getCustomFields walks all pages and caches every field when results span multiple pages`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        val page1 = (1..100).map { CustomField(id = it, name = "Field$it", dataType = "string") }
+        val page2 = (101..150).map { CustomField(id = it, name = "Field$it", dataType = "string") }
+        coEvery { api.getCustomFields(page = 1, pageSize = 100) } returns CustomFieldsResponse(
+            count = 150,
+            next = "https://example.test/api/custom_fields/?page=2",
+            results = page1
+        )
+        coEvery { api.getCustomFields(page = 2, pageSize = 100) } returns CustomFieldsResponse(
+            count = 150,
+            next = null,
+            results = page2
+        )
+
+        val result = customFieldRepository.getCustomFields(forceRefresh = true)
+
+        assertTrue(result.isSuccess)
+        // Issue #126: all 150 returned, not just the first page of 100.
+        assertEquals(150, result.getOrNull()?.size)
+        coVerify(exactly = 1) { api.getCustomFields(page = 1, pageSize = 100) }
+        coVerify(exactly = 1) { api.getCustomFields(page = 2, pageSize = 100) }
+        // In-memory cache verification: every page persisted to the observable Flow.
+        assertEquals(150, customFieldRepository.observeCustomFields().first().size)
+    }
+
+    @Test
     fun `getCustomFields returns empty list when offline and cache empty`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns false
 

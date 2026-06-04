@@ -260,12 +260,12 @@ data class CustomFieldsResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<CustomField>
-)
+    override val results: List<CustomField>
+) : PaginatedResponse<CustomField>
 
 data class CreateCustomFieldRequest(
     @SerializedName("name")
@@ -366,12 +366,12 @@ data class UsersResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<User>
-)
+    override val results: List<User>
+) : PaginatedResponse<User>
 
 // Group Models
 data class Group(
@@ -385,12 +385,12 @@ data class GroupsResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<Group>
-)
+    override val results: List<Group>
+) : PaginatedResponse<Group>
 
 // Request body for setting permissions
 data class SetPermissionsRequest(

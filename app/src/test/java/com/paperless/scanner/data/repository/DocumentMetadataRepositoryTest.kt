@@ -70,6 +70,7 @@ class DocumentMetadataRepositoryTest : BaseRoomRepositoryTest() {
         repo = DocumentMetadataRepository(
             context,
             api,
+            database,
             cachedDocumentDao,
             cachedTagDao,
             networkMonitor,
@@ -240,6 +241,65 @@ class DocumentMetadataRepositoryTest : BaseRoomRepositoryTest() {
         assertEquals(0, cachedTagDao.getTag(1)?.documentCount) // 1 - 1
         assertEquals(1, cachedTagDao.getTag(2)?.documentCount) // unchanged
         assertEquals(1, cachedTagDao.getTag(3)?.documentCount) // 0 + 1
+    }
+
+    @Test
+    fun `updateDocument rolls back cache insert when a tag-delta DAO call throws inside the transaction`() = runTest {
+        // #65: cache insert + per-tag count deltas must be ONE atomic unit. If a tag-delta
+        // DAO call throws inside db.withTransaction, the whole transaction rolls back so the
+        // updated document is NEVER persisted with inconsistent tag counts alongside it.
+        //
+        // To force the delta to throw we build a dedicated repo with a MOCKED cachedTagDao
+        // (throws on updateDocumentCount) while keeping the REAL database + real
+        // cachedDocumentDao, so the rollback applies to the real DB transaction.
+        val throwingTagDao = mockk<CachedTagDao>(relaxed = true)
+        coEvery { throwingTagDao.updateDocumentCount(any(), any()) } throws RuntimeException("delta boom")
+
+        val repoWithThrowingTagDao = DocumentMetadataRepository(
+            context,
+            api,
+            database,
+            cachedDocumentDao,
+            throwingTagDao,
+            networkMonitor,
+            serializer,
+            sync,
+        )
+
+        // Seed the document's old tag set [1, 2] so changing to [2, 3] yields a real delta
+        // (remove 1, add 3) that hits updateDocumentCount and triggers the throw.
+        cachedDocumentDao.insert(cachedDoc(id = 1, title = "Before", tagsJson = "[1,2]"))
+        coEvery { api.updateDocument(eq(1), any()) } returns
+            apiDoc(id = 1, title = "After", tags = listOf(2, 3))
+
+        val result = runOnlineUpdateThroughSync(repoWithThrowingTagDao, documentId = 1, tags = listOf(2, 3))
+
+        assertTrue(result.isFailure)
+        // Real DB verification: the transaction rolled back — the document still shows the
+        // pre-update state, NOT the "After"/tags=[2,3] update that the online lambda attempted.
+        val cached = cachedDocumentDao.getDocument(1)
+        assertEquals("Before", cached?.title)
+        assertEquals("[1,2]", cached?.tags)
+    }
+
+    /**
+     * Runs the online lambda of updateDocument through the (relaxed) sync mock so that any
+     * exception thrown inside the transaction surfaces as Result.failure — mirroring how the
+     * real DocumentSyncRepository.executeOrQueue wraps the online lambda.
+     */
+    private suspend fun runOnlineUpdateThroughSync(
+        target: DocumentMetadataRepository,
+        documentId: Int,
+        tags: List<Int>,
+    ): Result<Document> {
+        coEvery { sync.executeOrQueue<Document>(any(), any()) } coAnswers {
+            try {
+                Result.success(firstArg<suspend () -> Document>().invoke())
+            } catch (e: Exception) {
+                Result.failure(PaperlessException.from(e))
+            }
+        }
+        return target.updateDocument(documentId = documentId, tags = tags)
     }
 
     @Test

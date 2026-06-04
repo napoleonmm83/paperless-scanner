@@ -1,0 +1,5 @@
+Version 1.5.182:
+
+🐛 Fehlerbehebungen:
+- Benutzerdefinierte Felder, Benutzer & Gruppen werden jetzt vollständig geladen (Listen über 100 Einträge wurden abgeschnitten)
+- Tag-Zähler bleiben beim Bearbeiten der Tags eines Dokuments konsistent

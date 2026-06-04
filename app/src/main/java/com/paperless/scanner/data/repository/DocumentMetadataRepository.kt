@@ -1,6 +1,8 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
+import android.util.Log
+import androidx.room.withTransaction
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
@@ -8,6 +10,7 @@ import com.paperless.scanner.data.api.models.PermissionSet
 import com.paperless.scanner.data.api.models.SetPermissionsRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest
+import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.map
 class DocumentMetadataRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val api: PaperlessApi,
+    private val db: AppDatabase,
     private val cachedDocumentDao: CachedDocumentDao,
     private val cachedTagDao: CachedTagDao,
     private val networkMonitor: NetworkMonitor,
@@ -95,6 +99,9 @@ class DocumentMetadataRepository @Inject constructor(
         created: String? = null,
     ): Result<Document> = sync.executeOrQueue(
         online = {
+            // Deserialize the previous tag set OUTSIDE the transaction: it reads JSON
+            // and could fail, but a read/parse failure must not abort the update itself.
+            // On failure getOldTagIds logs + returns emptyList (see below).
             val oldTagIds = if (tags != null) getOldTagIds(documentId) else null
             val request = UpdateDocumentRequest(
                 title = title,
@@ -105,9 +112,17 @@ class DocumentMetadataRepository @Inject constructor(
                 created = created,
             )
             val updatedDocument = withRetry { api.updateDocument(documentId, request) }
-            cachedDocumentDao.insert(updatedDocument.toCachedEntity())
-            if (tags != null && oldTagIds != null) {
-                updateTagDocumentCounts(oldTagIds, tags)
+            // #65: the cache insert and the per-tag count deltas must be ONE atomic unit.
+            // If a delta DAO call throws, the whole transaction rolls back so the cached
+            // document is never persisted with stale/incorrect tag counts alongside it.
+            db.withTransaction {
+                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+                if (tags != null && oldTagIds != null) {
+                    val oldSet = oldTagIds.toSet()
+                    val newSet = tags.toSet()
+                    (oldSet - newSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, -1) }
+                    (newSet - oldSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, 1) }
+                }
             }
             updatedDocument.toDomain()
         },
@@ -170,19 +185,13 @@ class DocumentMetadataRepository @Inject constructor(
         return try {
             val cached = cachedDocumentDao.getDocument(documentId)
             serializer.deserializeCachedTagIds(cached?.tags)
-        } catch (_: Exception) {
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Read/parse of the cached tag JSON failed. Don't abort the update — just
+            // skip the tag-count delta (we have no reliable "old" set to diff against).
+            Log.w("DocumentMetadataRepository", "Failed to read old tag ids for doc $documentId", e)
             emptyList()
-        }
-    }
-
-    private suspend fun updateTagDocumentCounts(oldTagIds: List<Int>, newTagIds: List<Int>) {
-        try {
-            val oldSet = oldTagIds.toSet()
-            val newSet = newTagIds.toSet()
-            (oldSet - newSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, -1) }
-            (newSet - oldSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, 1) }
-        } catch (_: Exception) {
-            // best effort — server is in sync, cache will reconcile on next full sync
         }
     }
 }

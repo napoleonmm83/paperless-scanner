@@ -2,9 +2,11 @@ package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.data.api.fetchAllPages
 import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
 import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,11 +44,15 @@ class CustomFieldRepository @Inject constructor(
                 return Result.success(_customFields.value)
             }
 
-            // Network fetch (if online)
+            // Network fetch (if online).
+            // Walk ALL pages — fetching only page 1 silently truncates the field list
+            // when a server defines more custom fields than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getCustomFields(page = 1, pageSize = 100) }
-                _customFields.value = response.results
-                Result.success(response.results)
+                val fields = fetchAllPages { page ->
+                    api.getCustomFields(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                }
+                _customFields.value = fields
+                Result.success(fields)
             } else {
                 // Offline, return cached data
                 Result.success(_customFields.value)
