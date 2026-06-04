@@ -139,6 +139,6 @@ val Typography = Typography(
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.1.em  // Style guide: labels use 0.1em tracking
     )
 )

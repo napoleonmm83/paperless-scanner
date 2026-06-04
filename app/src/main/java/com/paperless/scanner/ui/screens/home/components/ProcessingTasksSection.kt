@@ -355,17 +355,12 @@ private fun ProcessingTaskCardContent(
     onDismiss: () -> Unit,
     showDismissButton: Boolean
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = style.backgroundColor
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        enabled = task.status == TaskStatus.SUCCESS && task.documentId != null
-    ) {
+    // Only SUCCESS tasks that point at a document are actionable. For
+    // everything else, use the NON-clickable Card overload so the card is not
+    // exposed to accessibility services as a (disabled) button.
+    val isClickable = task.status == TaskStatus.SUCCESS && task.documentId != null
+
+    val cardContent: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -469,6 +464,34 @@ private fun ProcessingTaskCardContent(
                     maxLines = 2
                 )
             }
+        }
+    }
+
+    val cardShape = RoundedCornerShape(20.dp)
+    val cardColors = CardDefaults.cardColors(containerColor = style.backgroundColor)
+    val cardElevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    val cardBorder = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+
+    if (isClickable) {
+        Card(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            shape = cardShape,
+            colors = cardColors,
+            elevation = cardElevation,
+            border = cardBorder
+        ) {
+            cardContent()
+        }
+    } else {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = cardShape,
+            colors = cardColors,
+            elevation = cardElevation,
+            border = cardBorder
+        ) {
+            cardContent()
         }
     }
 }
