@@ -1,0 +1,4 @@
+Version 1.5.181:
+
+🐛 Fixes:
+- Tags, correspondents & document types now load completely (lists longer than 100 entries were silently cut off)

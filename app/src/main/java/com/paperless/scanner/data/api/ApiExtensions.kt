@@ -1,5 +1,8 @@
 package com.paperless.scanner.data.api
 
+import android.util.Log
+import com.paperless.scanner.data.api.models.PaginatedResponse
+import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.CancellationException
 import retrofit2.Response
@@ -35,6 +38,45 @@ suspend fun <T> safeApiCall(
     } catch (e: Exception) {
         Result.failure(PaperlessException.from(e))
     }
+}
+
+/**
+ * Fetches every page of a Paperless-ngx paginated list endpoint and returns the
+ * concatenated [PaginatedResponse.results].
+ *
+ * Walks pages `1..N`, stopping as soon as the server reports no further page
+ * ([PaginatedResponse.next] is null/blank). Each page is fetched through
+ * [withRetry] because the list endpoints are idempotent GETs.
+ *
+ * Before this helper, callers fetched only page 1 and silently dropped every item
+ * beyond the page size (Issue #126).
+ *
+ * [maxPages] is a safety cap: a server that never clears `next` cannot spin an
+ * unbounded loop. If the cap is reached, the results gathered so far are returned
+ * and a warning is logged — the truncation is explicit, never silent.
+ *
+ * [CancellationException] propagates unchanged (thrown from within [withRetry]).
+ */
+suspend fun <T> fetchAllPages(
+    maxPages: Int = NetworkConfig.MAX_PAGINATED_PAGES,
+    fetchPage: suspend (page: Int) -> PaginatedResponse<T>
+): List<T> {
+    val all = mutableListOf<T>()
+    var page = 1
+    while (page <= maxPages) {
+        val response = withRetry { fetchPage(page) }
+        all += response.results
+        if (response.next.isNullOrBlank()) {
+            return all
+        }
+        page++
+    }
+    Log.w(
+        "Pagination",
+        "Reached maxPages=$maxPages cap while the server still reported more pages; " +
+            "returning ${all.size} items."
+    )
+    return all
 }
 
 /**

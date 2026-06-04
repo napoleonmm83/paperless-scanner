@@ -120,6 +120,31 @@ class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
         }
 
     @Test
+    fun `getDocumentTypes walks all pages and caches every row when results span multiple pages`() =
+        runTest {
+            every { networkMonitor.checkOnlineStatus() } returns true
+            val page1 = (1..100).map { DocumentType(id = it, name = "DT$it") }
+            val page2 = (101..150).map { DocumentType(id = it, name = "DT$it") }
+            coEvery { api.getDocumentTypes(page = 1, pageSize = 100) } returns
+                DocumentTypesResponse(
+                    count = 150,
+                    next = "https://example.test/api/document_types/?page=2",
+                    results = page1
+                )
+            coEvery { api.getDocumentTypes(page = 2, pageSize = 100) } returns
+                DocumentTypesResponse(count = 150, next = null, results = page2)
+
+            val result = documentTypeRepository.getDocumentTypes(forceRefresh = true)
+
+            assertTrue(result.isSuccess)
+            // Issue #126: all 150 returned, not just the first page of 100.
+            assertEquals(150, result.getOrNull()?.size)
+            coVerify(exactly = 1) { api.getDocumentTypes(page = 1, pageSize = 100) }
+            coVerify(exactly = 1) { api.getDocumentTypes(page = 2, pageSize = 100) }
+            assertEquals(150, cachedDocumentTypeDao.getAllDocumentTypes().size)
+        }
+
+    @Test
     fun `getDocumentTypes without forceRefresh returns cache first`() = runTest {
         cachedDocumentTypeDao.insert(cached(id = 1, name = "Cached", documentCount = 2))
 

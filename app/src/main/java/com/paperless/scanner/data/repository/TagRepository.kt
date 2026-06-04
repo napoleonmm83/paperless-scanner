@@ -6,6 +6,7 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
+import com.paperless.scanner.data.api.fetchAllPages
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
@@ -17,6 +18,7 @@ import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.domain.mapper.toDomain
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -110,13 +112,17 @@ class TagRepository @Inject constructor(
                 }
             }
 
-            // Network fetch (if online and forceRefresh or cache empty)
+            // Network fetch (if online and forceRefresh or cache empty).
+            // Walk ALL pages — fetching only page 1 silently truncates tag lists
+            // longer than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTags(page = 1, pageSize = 100) }
+                val tags = fetchAllPages { page ->
+                    api.getTags(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                }
                 // Update cache
-                val cachedEntities = response.results.map { it.toCachedEntity() }
+                val cachedEntities = tags.map { it.toCachedEntity() }
                 cachedTagDao.insertAll(cachedEntities)
-                Result.success(response.results.toDomain())
+                Result.success(tags.toDomain())
             } else {
                 // Offline, no cache
                 Result.success(emptyList())

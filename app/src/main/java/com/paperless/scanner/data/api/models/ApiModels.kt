@@ -24,16 +24,29 @@ data class Tag(
     val documentCount: Int? = null
 )
 
+/**
+ * Common shape of Paperless-ngx paginated list responses (DRF pagination).
+ *
+ * [next] is the absolute URL of the following page, or `null` on the last page.
+ * Walk every page via [com.paperless.scanner.data.api.fetchAllPages] instead of
+ * reading only the first page, which silently truncates lists longer than the
+ * page size (Issue #126).
+ */
+interface PaginatedResponse<out T> {
+    val next: String?
+    val results: List<T>
+}
+
 data class TagsResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<Tag>
-)
+    override val results: List<Tag>
+) : PaginatedResponse<Tag>
 
 data class CreateTagRequest(
     @SerializedName("name")
@@ -63,12 +76,12 @@ data class DocumentTypesResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<DocumentType>
-)
+    override val results: List<DocumentType>
+) : PaginatedResponse<DocumentType>
 
 data class UploadResponse(
     @SerializedName("task_id")
@@ -92,12 +105,12 @@ data class CorrespondentsResponse(
     @SerializedName("count")
     val count: Int,
     @SerializedName("next")
-    val next: String? = null,
+    override val next: String? = null,
     @SerializedName("previous")
     val previous: String? = null,
     @SerializedName("results")
-    val results: List<Correspondent>
-)
+    override val results: List<Correspondent>
+) : PaginatedResponse<Correspondent>
 
 // Note Models
 data class NoteUser(

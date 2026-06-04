@@ -92,6 +92,33 @@ class TagRepositoryTest : BaseRoomRepositoryTest() {
     }
 
     @Test
+    fun `getTags walks all pages and caches every tag when results span multiple pages`() = runTest {
+        every { networkMonitor.checkOnlineStatus() } returns true
+        val page1 = (1..100).map { Tag(id = it, name = "Tag$it", color = null) }
+        val page2 = (101..150).map { Tag(id = it, name = "Tag$it", color = null) }
+        coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(
+            count = 150,
+            next = "https://example.test/api/tags/?page=2",
+            results = page1
+        )
+        coEvery { api.getTags(page = 2, pageSize = 100) } returns TagsResponse(
+            count = 150,
+            next = null,
+            results = page2
+        )
+
+        val result = tagRepository.getTags(forceRefresh = true)
+
+        assertTrue(result.isSuccess)
+        // Issue #126: all 150 returned, not just the first page of 100.
+        assertEquals(150, result.getOrNull()?.size)
+        coVerify(exactly = 1) { api.getTags(page = 1, pageSize = 100) }
+        coVerify(exactly = 1) { api.getTags(page = 2, pageSize = 100) }
+        // Real DB verification: every page persisted, not just page 1.
+        assertEquals(150, cachedTagDao.getAllTags().size)
+    }
+
+    @Test
     fun `getTags with empty list returns empty result and leaves cache empty`() = runTest {
         every { networkMonitor.checkOnlineStatus() } returns true
         coEvery { api.getTags(page = 1, pageSize = 100) } returns TagsResponse(

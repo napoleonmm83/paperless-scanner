@@ -121,6 +121,31 @@ class CorrespondentRepositoryTest : BaseRoomRepositoryTest() {
         }
 
     @Test
+    fun `getCorrespondents walks all pages and caches every row when results span multiple pages`() =
+        runTest {
+            every { networkMonitor.checkOnlineStatus() } returns true
+            val page1 = (1..100).map { Correspondent(id = it, name = "Corp$it") }
+            val page2 = (101..150).map { Correspondent(id = it, name = "Corp$it") }
+            coEvery { api.getCorrespondents(page = 1, pageSize = 100) } returns
+                CorrespondentsResponse(
+                    count = 150,
+                    next = "https://example.test/api/correspondents/?page=2",
+                    results = page1
+                )
+            coEvery { api.getCorrespondents(page = 2, pageSize = 100) } returns
+                CorrespondentsResponse(count = 150, next = null, results = page2)
+
+            val result = correspondentRepository.getCorrespondents(forceRefresh = true)
+
+            assertTrue(result.isSuccess)
+            // Issue #126: all 150 returned, not just the first page of 100.
+            assertEquals(150, result.getOrNull()?.size)
+            coVerify(exactly = 1) { api.getCorrespondents(page = 1, pageSize = 100) }
+            coVerify(exactly = 1) { api.getCorrespondents(page = 2, pageSize = 100) }
+            assertEquals(150, cachedCorrespondentDao.getAllCorrespondents().size)
+        }
+
+    @Test
     fun `getCorrespondents without forceRefresh returns cache first`() = runTest {
         cachedCorrespondentDao.insert(cached(id = 1, name = "Cached", documentCount = 1))
 
