@@ -244,6 +244,9 @@ jobs:
             echo "✓ No empty strings"
           fi
 
+      - name: Check for keyless Lazy item slots (#224)
+        run: ./scripts/check-lazy-keys.sh app/src/main/java
+
   # ========== CONDITIONAL JOBS (only on manual trigger or schedule) ==========
 
   code-quality:
