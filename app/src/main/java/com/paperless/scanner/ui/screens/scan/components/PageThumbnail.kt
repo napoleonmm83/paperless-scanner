@@ -30,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -113,44 +114,63 @@ fun PageThumbnail(
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Rotate button
+                // a11y: keep the 28dp visual badge but expand the interactive
+                // target to >=48dp via minimumInteractiveComponentSize() (the
+                // clickable carries the size; the inner visual stays 28dp).
+                val rotateLabel = stringResource(R.string.scan_rotate)
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            shape = CircleShape
-                        )
-                        .clickable { onRotate() },
+                        .minimumInteractiveComponentSize()
+                        .clickable(onClickLabel = rotateLabel) { onRotate() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.RotateRight,
-                        contentDescription = stringResource(R.string.scan_rotate),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.RotateRight,
+                            contentDescription = stringResource(R.string.scan_rotate),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
 
                 // Remove button
+                // a11y: keep the 28dp visual badge but expand the interactive
+                // target to >=48dp; LongPress haptic preserved on the clickable.
+                val removeLabel = stringResource(R.string.scan_remove)
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
-                        .background(
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            shape = CircleShape
-                        )
-                        .clickable {
+                        .minimumInteractiveComponentSize()
+                        .clickable(onClickLabel = removeLabel) {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onRemove()
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.scan_remove),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.scan_remove),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
                 }
             }
 

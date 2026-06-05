@@ -14,6 +14,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -21,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
+import kotlinx.coroutines.delay
 
 /**
  * Dashboard header: "Welcome back / Your archive" title plus the last-synced
@@ -73,8 +79,17 @@ private fun LastSyncedIndicator(
 ) {
     if (lastSyncedAt == null) return
 
+    // Tick the relative time live: re-read the clock once a minute so the
+    // "x min ago" label advances without waiting for an unrelated recomposition.
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(lastSyncedAt) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(60_000L)
+        }
+    }
+
     // Calculate relative time
-    val now = System.currentTimeMillis()
     val diffMinutes = ((now - lastSyncedAt) / 60_000).toInt()
     val diffHours = diffMinutes / 60
 
