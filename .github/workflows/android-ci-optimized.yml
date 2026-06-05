@@ -200,6 +200,19 @@ jobs:
         run: ./gradlew lintRelease --build-cache
         shell: bash
 
+      # 🚦 BLOCKING: enforce ONLY the custom paperless-compose Compose-convention rules.
+      # Lives in the lint job because it runs per-PR (the detekt job is dispatch/schedule-only).
+      # No continue-on-error: a violation or rule-test regression fails the PR.
+      - name: Enforce Compose conventions (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat :detekt-rules:test :app:detektComposeRules --no-daemon
+        shell: cmd
+
+      - name: Enforce Compose conventions (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew :detekt-rules:test :app:detektComposeRules
+        shell: bash
+
       - name: Upload lint results
         uses: actions/upload-artifact@v7
         if: always()
@@ -299,18 +312,6 @@ jobs:
       - name: Run code quality checks (Linux/macOS)
         if: runner.os != 'Windows'
         run: ./gradlew detekt ktlintCheck --continue --parallel || true
-        shell: bash
-
-      # 🚦 BLOCKING: enforce ONLY the custom paperless-compose Compose-convention rules.
-      # Stock detekt above stays advisory (|| true), so this gate needs no 1242-issue baseline.
-      - name: Enforce Compose conventions (Windows)
-        if: runner.os == 'Windows'
-        run: gradlew.bat :detekt-rules:test :app:detektComposeRules --no-daemon
-        shell: cmd
-
-      - name: Enforce Compose conventions (Linux/macOS)
-        if: runner.os != 'Windows'
-        run: ./gradlew :detekt-rules:test :app:detektComposeRules
         shell: bash
 
       - name: Upload Detekt results
