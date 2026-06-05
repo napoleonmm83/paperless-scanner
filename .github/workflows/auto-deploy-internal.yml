@@ -285,7 +285,7 @@ jobs:
         run: |
           Write-Host "Installing Fastlane..."
           ruby --version
-          gem install fastlane --no-document
+          gem install fastlane multi_json --no-document
           Write-Host "✅ Fastlane installed"
           fastlane --version
 
@@ -295,7 +295,7 @@ jobs:
         run: |
           echo "Installing Fastlane..."
           ruby --version
-          gem install fastlane --no-document
+          gem install fastlane multi_json --no-document
           echo "✅ Fastlane installed"
           fastlane --version
 
