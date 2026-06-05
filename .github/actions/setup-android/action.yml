@@ -54,6 +54,23 @@ runs:
           exit 1
         }
 
+    - name: Setup Android SDK path (self-hosted Linux)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "Setting up Android SDK for self-hosted Linux runner..."
+        ANDROID_SDK="$HOME/Android/Sdk"
+        if [ -d "$ANDROID_SDK" ]; then
+          echo "ANDROID_HOME=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "✅ Android SDK found at: $ANDROID_SDK"
+        else
+          echo "❌ Android SDK not found at: $ANDROID_SDK"
+          exit 1
+        fi
+
     - name: Grant execute permission for gradlew
       if: runner.os != 'Windows'
       shell: bash
