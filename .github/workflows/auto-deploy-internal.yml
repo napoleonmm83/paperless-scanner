@@ -297,11 +297,13 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Ruby (Linux — GitHub-hosted or self-hosted)
-        # Runs on ubuntu-latest AND a self-hosted Linux runner; Windows has its
-        # own RubyInstaller step below. Without this, a Linux self-hosted runner
-        # would reach `gem install fastlane` with no Ruby (codex P2).
-        if: runner.os == 'Linux'
+      - name: Set up Ruby (GitHub-hosted Linux)
+        # GitHub-hosted Linux only: ruby/setup-ruby has no prebuilt Ruby for
+        # arbitrary self-hosted distros and errors out ("detected as self-hosted").
+        # The self-hosted Linux runner uses its own rbenv Ruby (already on PATH via
+        # the runner .path); "Install Fastlane" runs `rbenv rehash` so the fastlane
+        # shim resolves.
+        if: runner.os == 'Linux' && needs.check-runner.outputs.is-self-hosted != 'true'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
@@ -340,6 +342,8 @@ jobs:
           echo "Installing Fastlane..."
           ruby --version
           gem install fastlane multi_json --no-document
+          # self-hosted runners use rbenv: refresh shims so `fastlane` resolves
+          command -v rbenv >/dev/null 2>&1 && rbenv rehash || true
           echo "✅ Fastlane installed"
           fastlane --version
 
