@@ -138,6 +138,15 @@ android {
                 it.maxHeapSize = "4096m"
                 it.jvmArgs("-XX:MaxMetaspaceSize=1024m", "-XX:+HeapDumpOnOutOfMemoryError")
 
+                // Run test-class forks in parallel. forkEvery=1 (below) already isolates
+                // each class in its own JVM (the Robolectric font-FS race fix), so running
+                // several of those isolated JVMs at once stays safe. The count comes from
+                // `testMaxParallelForks`, injected per-runner by .github/actions/setup-android
+                // on big self-hosted runners; it defaults to 1 everywhere else so the 16 GB
+                // GitHub-hosted fallback and local dev never over-commit RAM (each fork = 4g). (perf)
+                it.maxParallelForks =
+                    providers.gradleProperty("testMaxParallelForks").orNull?.toIntOrNull()?.coerceAtLeast(1) ?: 1
+
                 // Kill hanging tests - 3 minute timeout per test
                 it.testLogging {
                     events("passed", "skipped", "failed", "standardError")

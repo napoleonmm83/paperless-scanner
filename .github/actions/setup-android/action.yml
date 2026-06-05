@@ -18,7 +18,9 @@ runs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        cache: gradle
+        # No `cache: gradle` — the explicit "Restore Gradle build cache" step handles
+        # GitHub-hosted runners and is skipped on self-hosted (persistent ~/.gradle on disk),
+        # avoiding multi-minute redundant cache up/download on the self-hosted runner. (perf)
 
     - name: Setup Android SDK path (self-hosted macOS)
       if: inputs.runner-is-self-hosted == 'true' && runner.os == 'macOS'
@@ -54,6 +56,23 @@ runs:
           exit 1
         }
 
+    - name: Setup Android SDK path (self-hosted Linux)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        echo "Setting up Android SDK for self-hosted Linux runner..."
+        ANDROID_SDK="$HOME/Android/Sdk"
+        if [ -d "$ANDROID_SDK" ]; then
+          echo "ANDROID_HOME=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK" >> "$GITHUB_ENV"
+          echo "$ANDROID_SDK/platform-tools" >> "$GITHUB_PATH"
+          echo "$ANDROID_SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "✅ Android SDK found at: $ANDROID_SDK"
+        else
+          echo "❌ Android SDK not found at: $ANDROID_SDK"
+          exit 1
+        fi
+
     - name: Grant execute permission for gradlew
       if: runner.os != 'Windows'
       shell: bash
@@ -83,3 +102,43 @@ runs:
           '{"project_info":{"project_number":"000000000000","project_id":"dummy","storage_bucket":"dummy.appspot.com"},"client":[{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000000","android_client_info":{"package_name":"com.paperless.scanner"}},"api_key":[{"current_key":"dummy"}]},{"client_info":{"mobilesdk_app_id":"1:000000000000:android:0000000000000000000001","android_client_info":{"package_name":"com.paperless.scanner.debug"}},"api_key":[{"current_key":"dummy"}]}],"configuration_version":"1"}' | Out-File -FilePath app/google-services.json -Encoding UTF8
           Write-Host "::warning::Using dummy google-services.json for CI"
         }
+
+    - name: Tune Gradle daemon for self-hosted runner (Linux/macOS)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os != 'Windows'
+      shell: bash
+      run: |
+        # Give the Gradle daemon a RAM-adaptive heap on big self-hosted runners.
+        # Written to GRADLE_USER_HOME (~/.gradle), which overrides the repo's
+        # OOM-safe baseline (gradle.properties) on THIS machine only. The
+        # GitHub-hosted fallback runner keeps the smaller repo baseline.
+        # Idempotent: a managed block is replaced each run, never appended-to. (perf / plan-07)
+        if [ "$(uname)" = "Darwin" ]; then
+          mem_gb=$(( $(sysctl -n hw.memsize) / 1024 / 1024 / 1024 ))
+        else
+          mem_gb=$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)
+        fi
+        [ -z "$mem_gb" ] && mem_gb=16
+        gradle_heap=$(( mem_gb * 40 / 100 )); [ "$gradle_heap" -gt 16 ] && gradle_heap=16; [ "$gradle_heap" -lt 4 ] && gradle_heap=4
+        kotlin_heap=$(( mem_gb * 20 / 100 )); [ "$kotlin_heap" -gt 8 ] && kotlin_heap=8; [ "$kotlin_heap" -lt 2 ] && kotlin_heap=2
+        # Parallel unit-test forks: bounded by cores AND RAM (each fork's JVM = 4g, see app/build.gradle.kts).
+        cpu=$(nproc 2>/dev/null || echo 4)
+        test_forks=$(( cpu / 2 )); ram_forks=$(( mem_gb / 8 ))
+        [ "$ram_forks" -lt "$test_forks" ] && test_forks=$ram_forks
+        [ "$test_forks" -lt 1 ] && test_forks=1; [ "$test_forks" -gt 8 ] && test_forks=8
+        gradle_home="${GRADLE_USER_HOME:-$HOME/.gradle}"
+        mkdir -p "$gradle_home"
+        props="$gradle_home/gradle.properties"
+        touch "$props"
+        # Drop any previous managed block (portable awk range filter), then re-add a fresh one.
+        awk 'BEGIN{skip=0}
+             /# >>> ci self-hosted tuning/{skip=1}
+             skip==0{print}
+             /# <<< ci self-hosted tuning/{skip=0}' "$props" > "$props.tmp" && mv "$props.tmp" "$props"
+        {
+          echo "# >>> ci self-hosted tuning (managed by setup-android, perf)"
+          echo "org.gradle.jvmargs=-Xmx${gradle_heap}g -XX:MaxMetaspaceSize=2g -Dfile.encoding=UTF-8"
+          echo "kotlin.daemon.jvmargs=-Xmx${kotlin_heap}g"
+          echo "testMaxParallelForks=${test_forks}"
+          echo "# <<< ci self-hosted tuning"
+        } >> "$props"
+        echo "✅ Tuned Gradle for self-hosted runner: heap ${gradle_heap}g, kotlin ${kotlin_heap}g, test forks ${test_forks} (host ${mem_gb}GB RAM, ${cpu} cores)"
