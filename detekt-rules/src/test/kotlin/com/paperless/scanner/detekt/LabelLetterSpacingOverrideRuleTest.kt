@@ -15,6 +15,14 @@ class LabelLetterSpacingOverrideRuleTest {
     }
 
     @Test
+    fun `does not flag a zero letterSpacing (no-op, not a token drift)`() {
+        val findings = LabelLetterSpacingOverrideRule().lint(
+            "fun c() { val s = TextStyle(letterSpacing = 0.sp) }",
+        )
+        assertEquals(0, findings.size)
+    }
+
+    @Test
     fun `does not flag a scalable em token value`() {
         val findings = LabelLetterSpacingOverrideRule().lint(
             "fun c() { val s = TextStyle(letterSpacing = 0.1.em) }",

@@ -47,6 +47,18 @@ class TouchTargetSizeRuleTest {
     }
 
     @Test
+    fun `does not flag a clickable in a Glance widget file (different framework)`() {
+        val findings = TouchTargetSizeRule().lint(
+            """
+            import androidx.glance.GlanceModifier
+            import androidx.glance.action.clickable
+            fun c() { val m = GlanceModifier.clickable { } }
+            """.trimIndent(),
+        )
+        assertEquals(0, findings.size)
+    }
+
+    @Test
     fun `flags clickable with only padding (no touch-target guarantee)`() {
         val findings = TouchTargetSizeRule().lint(
             "fun c() { val m = Modifier.padding(8.dp).clickable { } }",

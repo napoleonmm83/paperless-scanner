@@ -30,6 +30,13 @@ class TouchTargetSizeRule(config: Config = Config.empty) : Rule(config) {
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
         if (expression.calleeExpression?.text != "clickable") return
+        // Glance widgets use GlanceModifier with a different (non-48dp) touch model.
+        if (expression.containingKtFile.importDirectives.any {
+                it.importedFqName?.asString()?.startsWith("androidx.glance") == true
+            }
+        ) {
+            return
+        }
         if (chainCalls(expression).none { it.isTouchTargetGuard() }) {
             report(
                 CodeSmell(

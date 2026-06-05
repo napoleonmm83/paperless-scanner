@@ -31,7 +31,12 @@ class LabelLetterSpacingOverrideRule(config: Config = Config.empty) : Rule(confi
         super.visitArgument(argument)
         if (argument.getArgumentName()?.asName?.asString() != "letterSpacing") return
         val value = argument.getArgumentExpression() as? KtDotQualifiedExpression ?: return
-        if (value.selectorExpression?.text == "sp" && value.receiverExpression is KtConstantExpression) {
+        val receiver = value.receiverExpression
+        // Only a non-zero hardcoded `.sp` literal is a drift; `0.sp` is a harmless no-op.
+        if (value.selectorExpression?.text == "sp" &&
+            receiver is KtConstantExpression &&
+            receiver.text.toDoubleOrNull() != 0.0
+        ) {
             report(
                 CodeSmell(
                     issue,

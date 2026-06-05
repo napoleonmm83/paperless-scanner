@@ -193,6 +193,9 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 dependencies {
+    // Custom detekt rules (Compose conventions: touch targets, label typography, typed nav)
+    detektPlugins(project(":detekt-rules"))
+
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
