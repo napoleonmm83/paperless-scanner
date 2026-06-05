@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -148,6 +149,7 @@ private fun ColorCircle(
                 },
                 shape = CircleShape
             )
+            .minimumInteractiveComponentSize()
             .clickable(enabled = enabled, onClick = onClick)
     )
 }

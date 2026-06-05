@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.paperless.scanner.R
 import com.paperless.scanner.ui.theme.DarkTechBackground
@@ -194,7 +195,7 @@ private fun WidgetConfigScreen(
             color = DarkTechOnSurface,
             fontSize = 24.sp,
             fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 0.1.sp
+            letterSpacing = 0.1.em
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -248,7 +249,7 @@ private fun WidgetConfigScreen(
                 text = stringResource(R.string.widget_config_save).uppercase(),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 16.sp,
-                letterSpacing = 0.1.sp
+                letterSpacing = 0.1.em
             )
         }
     }
