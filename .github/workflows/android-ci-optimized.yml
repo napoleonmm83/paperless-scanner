@@ -305,12 +305,12 @@ jobs:
       # Stock detekt above stays advisory (|| true), so this gate needs no 1242-issue baseline.
       - name: Enforce Compose conventions (Windows)
         if: runner.os == 'Windows'
-        run: gradlew.bat :app:detektComposeRules --no-daemon
+        run: gradlew.bat :detekt-rules:test :app:detektComposeRules --no-daemon
         shell: cmd
 
       - name: Enforce Compose conventions (Linux/macOS)
         if: runner.os != 'Windows'
-        run: ./gradlew :app:detektComposeRules
+        run: ./gradlew :detekt-rules:test :app:detektComposeRules
         shell: bash
 
       - name: Upload Detekt results
