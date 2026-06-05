@@ -18,7 +18,9 @@ runs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        cache: gradle
+        # No `cache: gradle` — the explicit "Restore Gradle build cache" step handles
+        # GitHub-hosted runners and is skipped on self-hosted (persistent ~/.gradle on disk),
+        # avoiding multi-minute redundant cache up/download on the self-hosted runner. (perf)
 
     - name: Setup Android SDK path (self-hosted macOS)
       if: inputs.runner-is-self-hosted == 'true' && runner.os == 'macOS'

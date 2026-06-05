@@ -93,6 +93,7 @@ jobs:
 
       # ✅ OPTIMIZATION: Restore Gradle build cache from previous runs
       - name: Restore Gradle build cache
+        if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
         uses: actions/cache@v4
         with:
           path: |
@@ -117,7 +118,7 @@ jobs:
       # ✅ OPTIMIZATION: Share build outputs with other jobs via cache
       - name: Cache build outputs
         uses: actions/cache/save@v4
-        if: always()
+        if: always() && needs.check-runner.outputs.is-self-hosted != 'true'
         with:
           path: |
             app/build/intermediates
@@ -163,6 +164,7 @@ jobs:
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Restore Gradle build cache
+        if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
         uses: actions/cache@v4
         with:
           path: |
@@ -175,6 +177,7 @@ jobs:
 
       # ✅ OPTIMIZATION: Reuse build outputs from build job if available
       - name: Restore build outputs
+        if: needs.check-runner.outputs.is-self-hosted != 'true'
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -276,6 +279,7 @@ jobs:
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Restore Gradle build cache
+        if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
         uses: actions/cache@v4
         with:
           path: |
@@ -330,6 +334,7 @@ jobs:
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Restore Gradle build cache
+        if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
         uses: actions/cache@v4
         with:
           path: |
