@@ -301,6 +301,18 @@ jobs:
         run: ./gradlew detekt ktlintCheck --continue --parallel || true
         shell: bash
 
+      # 🚦 BLOCKING: enforce ONLY the custom paperless-compose Compose-convention rules.
+      # Stock detekt above stays advisory (|| true), so this gate needs no 1242-issue baseline.
+      - name: Enforce Compose conventions (Windows)
+        if: runner.os == 'Windows'
+        run: gradlew.bat :app:detektComposeRules --no-daemon
+        shell: cmd
+
+      - name: Enforce Compose conventions (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew :app:detektComposeRules
+        shell: bash
+
       - name: Upload Detekt results
         uses: actions/upload-artifact@v7
         if: always()

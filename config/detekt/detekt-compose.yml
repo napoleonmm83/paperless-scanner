@@ -1,0 +1,14 @@
+# Focused, BLOCKING detekt config: ONLY the custom paperless-compose Compose-convention
+# rules (module :detekt-rules). Stock detekt stays advisory via the main detekt.yml, so
+# this gate can enforce the custom a11y/nav invariants WITHOUT baselining the large
+# pre-existing stock-detekt debt. Run: ./gradlew :app:detektComposeRules
+build:
+  maxIssues: 0
+
+paperless-compose:
+  TouchTargetSize:
+    active: true
+  LabelLetterSpacingOverride:
+    active: true
+  RawRouteString:
+    active: true

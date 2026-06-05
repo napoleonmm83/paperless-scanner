@@ -242,6 +242,11 @@ echo ""
 run_step "3.1" "Lint Check (lintRelease)" "$GRADLEW lintRelease $GRADLE_OPTS" || true
 echo ""
 
+# 3.2 Compose-convention enforcement (custom paperless-compose detekt rules only;
+#     stock detekt stays advisory, so this does NOT depend on a 1242-issue baseline)
+run_step "3.2" "Compose conventions (detektComposeRules)" "$GRADLEW :app:detektComposeRules $GRADLE_OPTS" || true
+echo ""
+
 # =============================================================================
 # Summary
 # =============================================================================
