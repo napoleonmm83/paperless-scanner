@@ -5,6 +5,7 @@ import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateCorrespondentRequest
 import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
 import com.paperless.scanner.data.api.fetchAllPages
+import com.paperless.scanner.data.api.withReadTimeout
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
@@ -114,7 +115,7 @@ class CorrespondentRepository @Inject constructor(
             // lists longer than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
                 val correspondents = fetchAllPages { page ->
-                    api.getCorrespondents(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                    withReadTimeout { api.getCorrespondents(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE) }
                 }
                 // Update cache
                 val cachedEntities = correspondents.map { it.toCachedEntity() }

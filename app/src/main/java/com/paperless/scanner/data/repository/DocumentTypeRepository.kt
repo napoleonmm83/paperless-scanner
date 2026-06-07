@@ -5,6 +5,7 @@ import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateDocumentTypeRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentTypeRequest
 import com.paperless.scanner.data.api.fetchAllPages
+import com.paperless.scanner.data.api.withReadTimeout
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
 import com.paperless.scanner.data.database.dao.PendingChangeDao
@@ -62,7 +63,7 @@ class DocumentTypeRepository @Inject constructor(
             // lists longer than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
                 val types = fetchAllPages { page ->
-                    api.getDocumentTypes(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                    withReadTimeout { api.getDocumentTypes(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE) }
                 }
                 // Update cache
                 val cachedEntities = types.map { it.toCachedEntity() }

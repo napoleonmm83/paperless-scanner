@@ -7,6 +7,7 @@ import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import com.paperless.scanner.data.api.fetchAllPages
+import com.paperless.scanner.data.api.withReadTimeout
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedTagDao
@@ -124,7 +125,7 @@ class TagRepository @Inject constructor(
             // longer than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
                 val tags = fetchAllPages { page ->
-                    api.getTags(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                    withReadTimeout { api.getTags(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE) }
                 }
                 // Update cache
                 val cachedEntities = tags.map { it.toCachedEntity() }
