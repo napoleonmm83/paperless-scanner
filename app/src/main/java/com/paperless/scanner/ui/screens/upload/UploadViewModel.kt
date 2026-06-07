@@ -7,9 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
-import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.CustomField
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder

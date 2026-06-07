@@ -3,12 +3,12 @@ package com.paperless.scanner.ui.screens.labels
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
-import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.CustomFieldRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.CustomField
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import io.mockk.coEvery
