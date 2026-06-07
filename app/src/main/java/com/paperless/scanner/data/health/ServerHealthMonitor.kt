@@ -2,7 +2,7 @@ package com.paperless.scanner.data.health
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.api.ServerOfflineReason
+import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.network.NetworkMonitor
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope

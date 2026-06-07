@@ -1,7 +1,7 @@
 package com.paperless.scanner.data.repository
 
 import com.google.gson.Gson
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.health.ServerHealthMonitor

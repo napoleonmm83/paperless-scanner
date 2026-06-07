@@ -111,10 +111,10 @@ object RetryUtil {
             }
 
             // Paperless-specific errors
-            error is com.paperless.scanner.data.api.PaperlessException -> {
+            error is com.paperless.scanner.domain.error.PaperlessException -> {
                 when (error) {
-                    is com.paperless.scanner.data.api.PaperlessException.NetworkError -> true
-                    is com.paperless.scanner.data.api.PaperlessException.ServerError -> {
+                    is com.paperless.scanner.domain.error.PaperlessException.NetworkError -> true
+                    is com.paperless.scanner.domain.error.PaperlessException.ServerError -> {
                         error.code >= 500  // Only retry 5xx server errors
                     }
                     else -> false

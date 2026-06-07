@@ -18,7 +18,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry

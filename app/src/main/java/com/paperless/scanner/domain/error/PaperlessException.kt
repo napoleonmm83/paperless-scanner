@@ -1,8 +1,9 @@
-package com.paperless.scanner.data.api
+package com.paperless.scanner.domain.error
 
 import android.content.Context
 import androidx.annotation.StringRes
 import com.paperless.scanner.R
+import com.paperless.scanner.data.api.CleartextNotAllowlistedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
 import java.io.IOException
 import java.net.ConnectException

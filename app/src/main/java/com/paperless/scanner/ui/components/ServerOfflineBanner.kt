@@ -27,7 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
-import com.paperless.scanner.data.api.ServerOfflineReason
+import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.health.ServerStatus
 
 /**

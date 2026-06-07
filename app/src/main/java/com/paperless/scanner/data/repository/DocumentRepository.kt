@@ -2,7 +2,7 @@ package com.paperless.scanner.data.repository
 
 import android.net.Uri
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.ProgressRequestBody
 import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.service.DocumentSerializer

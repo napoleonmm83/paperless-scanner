@@ -5,7 +5,7 @@ import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinStore
@@ -745,7 +745,7 @@ class LoginViewModelTest {
     @Test
     fun `detection failure with CleartextBlocked yields RequiresHttpAccept HTTPS_FAILED_HTTP_BLOCKED`() = runTest {
         coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
-            com.paperless.scanner.data.api.PaperlessException.CleartextBlocked("192.168.1.1")
+            PaperlessException.CleartextBlocked("192.168.1.1")
         )
 
         val viewModel = createViewModel()
@@ -773,7 +773,7 @@ class LoginViewModelTest {
         //  3. detectServerProtocol again
         every { tokenManager.isHostAcceptedForHttp("192.168.1.1") } returns false
         coEvery { authRepository.detectServerProtocol(any()) } returnsMany listOf(
-            Result.failure(com.paperless.scanner.data.api.PaperlessException.CleartextBlocked("192.168.1.1")),
+            Result.failure(PaperlessException.CleartextBlocked("192.168.1.1")),
             Result.success("http://192.168.1.1")
         )
 

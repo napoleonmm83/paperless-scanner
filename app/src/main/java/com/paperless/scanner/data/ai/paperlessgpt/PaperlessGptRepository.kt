@@ -5,7 +5,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.paperlessgpt.models.GenerateSuggestionsRequest
 import com.paperless.scanner.data.ai.paperlessgpt.models.DocumentSuggestion
 import com.paperless.scanner.data.ai.paperlessgpt.models.OcrJobRequest
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.qualifiers.ApplicationContext

@@ -11,8 +11,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
-import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.userMessage
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.userMessage
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource

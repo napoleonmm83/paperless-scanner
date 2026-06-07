@@ -1,7 +1,7 @@
 package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.CreateCorrespondentRequest
 import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
 import com.paperless.scanner.data.api.fetchAllPages

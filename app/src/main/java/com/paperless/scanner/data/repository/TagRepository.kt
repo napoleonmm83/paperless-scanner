@@ -3,7 +3,7 @@ package com.paperless.scanner.data.repository
 import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.CreateTagRequest
 import com.paperless.scanner.data.api.models.UpdateTagRequest
 import com.paperless.scanner.data.api.fetchAllPages

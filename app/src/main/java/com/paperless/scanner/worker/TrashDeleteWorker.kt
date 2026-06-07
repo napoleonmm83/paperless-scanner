@@ -6,8 +6,8 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.paperless.scanner.R
-import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.isRetryable
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.isRetryable
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
 import com.paperless.scanner.data.datastore.TokenManager
