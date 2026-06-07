@@ -38,7 +38,9 @@ class ServerStatusRepositoryTest {
     fun `getServerStatus falls back to the x-version header when body version is blank`() = runTest {
         coEvery { api.getServerStatus() } returns
             Response.success(
-                ServerStatusResponse(paperlessVersion = null),
+                // Whitespace-only (not null) so the repository's isNotBlank() branch
+                // is the one exercised, matching this test's name (CodeRabbit PR #340).
+                ServerStatusResponse(paperlessVersion = "   "),
                 Headers.headersOf("x-version", "2.7.0"),
             )
 
