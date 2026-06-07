@@ -5,7 +5,7 @@ import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import dagger.hilt.android.qualifiers.ApplicationContext
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.service.ProtocolDetector
 import com.paperless.scanner.util.LogSanitizer

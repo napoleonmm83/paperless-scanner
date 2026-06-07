@@ -159,7 +159,7 @@ class DocumentCountRepositoryTest : BaseRoomRepositoryTest() {
         assertTrue(result.isFailure)
         assertTrue(
             "expected PaperlessException, got ${result.exceptionOrNull()}",
-            result.exceptionOrNull() is com.paperless.scanner.data.api.PaperlessException
+            result.exceptionOrNull() is com.paperless.scanner.domain.error.PaperlessException
         )
     }
 }

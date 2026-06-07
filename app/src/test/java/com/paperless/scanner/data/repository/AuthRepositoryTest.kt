@@ -6,7 +6,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.service.ProtocolDetector
 import io.mockk.coEvery
@@ -432,7 +432,7 @@ class AuthRepositoryTest {
         assertTrue("Empty host should fail parse", result.isFailure)
         assertTrue(
             "Expected ContentError, got: ${result.exceptionOrNull()?.javaClass?.simpleName}",
-            result.exceptionOrNull() is com.paperless.scanner.data.api.PaperlessException.ContentError
+            result.exceptionOrNull() is com.paperless.scanner.domain.error.PaperlessException.ContentError
         )
     }
 
@@ -514,12 +514,12 @@ class AuthRepositoryTest {
         val cause = result.exceptionOrNull()
         assertTrue(
             "Expected CleartextBlocked, got: ${cause?.javaClass?.simpleName} - ${cause?.message}",
-            cause is com.paperless.scanner.data.api.PaperlessException.CleartextBlocked
+            cause is com.paperless.scanner.domain.error.PaperlessException.CleartextBlocked
         )
         assertEquals(
             "Host field should match the requested host",
             "192.168.178.19",
-            (cause as com.paperless.scanner.data.api.PaperlessException.CleartextBlocked).host
+            (cause as com.paperless.scanner.domain.error.PaperlessException.CleartextBlocked).host
         )
     }
 }

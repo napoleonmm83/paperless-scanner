@@ -9,8 +9,8 @@ import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.api.HttpAllowlistInterceptor
-import com.paperless.scanner.data.api.PaperlessException
-import com.paperless.scanner.data.api.getLocalizedMessage
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
@@ -545,11 +545,11 @@ class LoginViewModel @Inject constructor(
         // own proxy. Excluded by TYPE here, BEFORE the message fallback below —
         // its (possibly localized) text could otherwise contain a substring like
         // "forbidden"/"invalid" and be mis-classified as an auth error.
-        if (exception is com.paperless.scanner.data.api.PaperlessException.ProxyBlocked) {
+        if (exception is PaperlessException.ProxyBlocked) {
             return false
         }
         // Check for PaperlessException.AuthError
-        if (exception is com.paperless.scanner.data.api.PaperlessException.AuthError) {
+        if (exception is PaperlessException.AuthError) {
             return true
         }
         // Check for common auth error patterns in message (English - base language)

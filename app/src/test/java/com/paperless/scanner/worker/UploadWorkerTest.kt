@@ -140,7 +140,7 @@ class UploadWorkerTest {
     fun `doWork retries when server is not reachable`() = runTest {
         // Given: Server is not reachable
         every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
-        every { serverHealthMonitor.serverStatus } returns MutableStateFlow(ServerStatus.Offline(com.paperless.scanner.data.api.ServerOfflineReason.UNKNOWN))
+        every { serverHealthMonitor.serverStatus } returns MutableStateFlow(ServerStatus.Offline(com.paperless.scanner.domain.error.ServerOfflineReason.UNKNOWN))
 
         val worker = createWorker()
         val result = worker.doWork()

@@ -6,7 +6,7 @@ import androidx.work.Data
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.repository.SyncHistoryRepository

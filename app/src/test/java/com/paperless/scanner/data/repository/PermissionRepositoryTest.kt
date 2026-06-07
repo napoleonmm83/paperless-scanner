@@ -3,7 +3,7 @@ package com.paperless.scanner.data.repository
 import android.content.Context
 import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.Group as ApiGroup
 import com.paperless.scanner.data.api.models.GroupsResponse
 import com.paperless.scanner.data.api.models.User as ApiUser

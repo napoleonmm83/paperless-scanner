@@ -2,7 +2,7 @@ package com.paperless.scanner.data.service
 
 import android.content.Context
 import androidx.test.filters.SmallTest
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient

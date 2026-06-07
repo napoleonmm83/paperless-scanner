@@ -3,7 +3,7 @@ package com.paperless.scanner.data.health
 import android.util.Log
 import app.cash.turbine.test
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.ServerOfflineReason
+import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.api.models.TagsResponse
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor

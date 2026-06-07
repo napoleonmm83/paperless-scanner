@@ -7,7 +7,7 @@ import androidx.test.filters.SmallTest
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService

@@ -12,7 +12,7 @@ package com.paperless.scanner.util
  *  - caps the length.
  *
  * The full, unredacted body may still be carried for typed error handling
- * (e.g. inside [com.paperless.scanner.data.api.PaperlessException]); this
+ * (e.g. inside [com.paperless.scanner.domain.error.PaperlessException]); this
  * helper is specifically for the logging path, where bodies linger in logcat
  * captures that get shared during support/debugging.
  */

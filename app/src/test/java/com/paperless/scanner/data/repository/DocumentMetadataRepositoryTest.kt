@@ -5,7 +5,7 @@ import androidx.test.filters.LargeTest
 import app.cash.turbine.test
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.Document as ApiDocument
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentWithPermissionsRequest

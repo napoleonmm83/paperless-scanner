@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.test.filters.LargeTest
 import app.cash.turbine.test
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.Document as ApiDocument
 import com.paperless.scanner.data.api.models.DocumentsResponse as DtoDocumentsResponse
 import com.paperless.scanner.data.database.dao.CachedDocumentDao

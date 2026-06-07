@@ -2,7 +2,7 @@ package com.paperless.scanner.data.repository
 
 import android.util.Log
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
 import com.paperless.scanner.data.api.safeApiCall
 import com.paperless.scanner.data.api.models.PaperlessTask as ApiPaperlessTask

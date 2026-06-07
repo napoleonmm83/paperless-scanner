@@ -3,7 +3,7 @@ package com.paperless.scanner.data.repository
 import android.content.Context
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.CreateNoteRequest
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.domain.mapper.toAuditLogDomain

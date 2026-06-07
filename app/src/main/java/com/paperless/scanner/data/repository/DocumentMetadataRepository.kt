@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.room.withTransaction
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.PaperlessException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.PermissionSet
 import com.paperless.scanner.data.api.models.SetPermissionsRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest

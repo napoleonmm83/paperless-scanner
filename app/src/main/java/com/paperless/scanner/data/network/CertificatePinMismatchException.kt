@@ -8,7 +8,7 @@ import java.io.IOException
  *
  * Extends [IOException] because OkHttp interceptors may only throw [IOException];
  * this also lets the existing network-error pipeline propagate it. It MUST be
- * mapped to [com.paperless.scanner.data.api.PaperlessException.CertificatePinMismatch]
+ * mapped to [com.paperless.scanner.domain.error.PaperlessException.CertificatePinMismatch]
  * BEFORE any generic `IOException` branch (mirror of `CleartextNotAllowlistedException`).
  *
  * Carries only the host and the opaque SPKI pin strings — no token or document data.

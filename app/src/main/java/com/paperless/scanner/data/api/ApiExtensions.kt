@@ -2,6 +2,10 @@ package com.paperless.scanner.data.api
 
 import android.util.Log
 import com.paperless.scanner.data.api.models.PaginatedResponse
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.isRetryable
+import com.paperless.scanner.domain.error.requiresReauth
+import com.paperless.scanner.domain.error.userMessage
 import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.CancellationException
