@@ -19,6 +19,13 @@ import kotlin.coroutines.cancellation.CancellationException
  * Repository for managing custom fields.
  * Uses in-memory cache only (no Room DAO) since custom fields are rarely edited.
  * Implements feature detection - gracefully handles servers without custom fields API.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** In-memory `MutableStateFlow<List<CustomField>>` (no Room/DataStore); write-through cache of `/api/custom_fields/`.
+ * - **Staleness / TTL:** No TTL — cache is treated fresh while non-empty; a non-empty cache short-circuits the network fetch unless `forceRefresh`.
+ * - **Refresh trigger:** Reactive `observeCustomFields()` Flow emits on every cache mutation; `getCustomFields(forceRefresh = true)` pulls ALL pages via `fetchAllPages` and replaces the cache. Create/delete mutate the cache in place.
+ * - **Soft-delete:** N/A — hard delete; `deleteCustomField` issues a DELETE (404 treated as already-gone) and evicts from cache.
+ * - **Offline / pending changes:** N/A — no PendingChange/SyncManager; offline simply serves the existing in-memory cache, no queued edits.
  */
 class CustomFieldRepository @Inject constructor(
     private val api: PaperlessApi,

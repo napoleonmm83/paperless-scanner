@@ -66,6 +66,13 @@ import kotlin.coroutines.cancellation.CancellationException
  * @see PaperlessApi.getTags For API endpoint
  * @see CachedTagDao For cache operations
  * @see Tag Domain model for tags
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room [CachedTagDao] (cached_tags); write-through cache of the `/api/tags/` API resource.
+ * - **Staleness / TTL:** None — no TTL constant; reactive Room Flow plus on-demand `getTags(forceRefresh=true)`.
+ * - **Refresh trigger:** [observeTags] Flow auto-emits on cache change; `getTags(forceRefresh)` pulls all pages via [fetchAllPages] and upserts; CRUD ops write-through immediately.
+ * - **Soft-delete:** N/A — hard delete; `deleteByIds` plus cascade stripping the tag ID from cached documents.
+ * - **Offline / pending changes:** N/A — [PendingChangeDao] injected but unused; offline reads fall back to cache, writes require network.
  */
 class TagRepository @Inject constructor(
     private val api: PaperlessApi,

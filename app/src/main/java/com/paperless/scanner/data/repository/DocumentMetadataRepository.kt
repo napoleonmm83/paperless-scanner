@@ -38,6 +38,13 @@ import kotlinx.coroutines.flow.map
  * [DocumentSyncRepository.executeOrQueue], which centralizes the
  * serverHealth-snapshot + IOException-fallback pattern and uses gson-based
  * payload serialization.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room — CachedDocumentDao (cached_documents); write-through cache of /api/documents/{id}, with CachedTagDao tag-count deltas.
+ * - **Staleness / TTL:** None — no time-based window; online reads always refetch, offline/HttpException falls back to cache.
+ * - **Refresh trigger:** observeDocument is a reactive Room Flow; getDocument(forceRefresh) pulls API + upserts; update* write-through on success.
+ * - **Soft-delete:** N/A — no delete ops.
+ * - **Offline / pending changes:** updateDocument queues via DocumentSyncRepository + optimistic cache read; updateDocumentPermissions has no queue (offline → NetworkError).
  */
 @Singleton
 class DocumentMetadataRepository @Inject constructor(

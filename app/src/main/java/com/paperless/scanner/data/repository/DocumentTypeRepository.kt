@@ -21,6 +21,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
+/**
+ * Repository for Paperless-ngx document types: offline-first reads plus create/update/delete,
+ * backed by a Room write-through cache of the `/api/document_types/` resource.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room `cached_document_types` table via [CachedDocumentTypeDao]; write-through cache of the `/api/document_types/` API resource.
+ * - **Staleness / TTL:** N/A — no TTL; offline-first + reactive (cache served unless `forceRefresh` and online).
+ * - **Refresh trigger:** Reactive Room Flow ([observeDocumentTypes]) auto-emits on DB change; `getDocumentTypes(forceRefresh=true)` pulls all pages via `fetchAllPages` and upserts; create/update/delete mutate cache directly.
+ * - **Soft-delete:** Yes — `deleteDocumentType` calls `softDelete` (isDeleted=1, filtered from reads); hard delete only for sync orphan cleanup.
+ * - **Offline / pending changes:** N/A — `pendingChangeDao` injected but unused; no PendingChange/delta tracking here.
+ */
 class DocumentTypeRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedDocumentTypeDao: CachedDocumentTypeDao,

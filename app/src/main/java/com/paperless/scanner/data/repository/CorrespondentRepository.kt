@@ -59,6 +59,13 @@ import kotlin.coroutines.cancellation.CancellationException
  * @see PaperlessApi.getCorrespondents For API endpoint
  * @see CachedCorrespondentDao For cache operations
  * @see Correspondent Domain model for correspondents
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room `cached_correspondents` table via [CachedCorrespondentDao]; write-through cache of the `/api/correspondents/` API resource.
+ * - **Staleness / TTL:** None — no time-based window; cache persists until an explicit `forceRefresh` or a mutation upserts it.
+ * - **Refresh trigger:** Reactive Room Flow ([observeCorrespondents]) auto-emits on any cache change; [getCorrespondents] with `forceRefresh=true` pulls all pages from the API and upserts via `insertAll`; create/update/delete write through immediately.
+ * - **Soft-delete:** Yes — [deleteCorrespondent] calls `softDelete` (sets `isDeleted=1`); read queries filter `isDeleted=0`. Hard delete (`deleteByIds`) only during sync orphan pruning.
+ * - **Offline / pending changes:** N/A — `pendingChangeDao` injected but unused; no PendingChange/SyncManager wiring. `NetworkMonitor` only gates fetch (offline returns cache or empty list).
  */
 class CorrespondentRepository @Inject constructor(
     private val api: PaperlessApi,

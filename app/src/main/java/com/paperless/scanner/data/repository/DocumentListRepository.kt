@@ -31,6 +31,13 @@ import kotlinx.coroutines.flow.map
  *
  * Owns list / paging operations: observeDocuments, getDocumentsPaged,
  * getDocuments, getUntaggedDocuments.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room [CachedDocumentDao] (cached_documents) — write-through cache of the `/api/documents/` list resource.
+ * - **Staleness / TTL:** No TTL — cached rows are served regardless of age whenever `!forceRefresh` or offline.
+ * - **Refresh trigger:** Reactive Room Flow auto-emits on DB change (observeDocuments/getDocumentsPaged); explicit getDocuments(forceRefresh=true) pulls API (withRetry) and insertAll-upserts (online only).
+ * - **Soft-delete:** N/A — repo never deletes.
+ * - **Offline / pending changes:** No PendingChange/SyncManager; only gates on networkMonitor (serves cache offline, else NetworkError when cache empty).
  */
 @Singleton
 class DocumentListRepository @Inject constructor(

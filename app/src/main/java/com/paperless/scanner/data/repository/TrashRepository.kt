@@ -41,6 +41,13 @@ import okhttp3.ResponseBody.Companion.toResponseBody
  * restoreDocuments, permanentlyDeleteDocuments) are delegated to
  * [DocumentSyncRepository.executeOrQueue], which centralizes the
  * serverHealth-snapshot + IOException-fallback pattern.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room `cached_documents` table via [CachedDocumentDao] (trash = rows with `isDeleted = 1`); write-through to paperless trash API.
+ * - **Staleness / TTL:** No cache-window TTL; the 30-day `retentionDays` in getOldDeletedDocumentIds is server trash retention, not a refresh window.
+ * - **Refresh trigger:** Reactive Room Flows (observeTrashedDocuments/Count, observeOldestDeletedTimestamp) auto-emit; getTrashDocuments pull-fetches a page from `api.getTrash` and upserts via insertAll.
+ * - **Soft-delete:** Soft — deleteDocument sets `isDeleted = 1`/`deletedAt` optimistically; restore clears the flag; only permanentlyDelete + cleanupOrphanedTrashDocs hard-delete rows.
+ * - **Offline / pending changes:** Delete/restore/permanent-delete fall back to [DocumentSyncRepository.executeOrQueue] (queueDocumentDelete/queueTrashAction) on IOException, applying the optimistic DB write while queued.
  */
 @Singleton
 class TrashRepository @Inject constructor(

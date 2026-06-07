@@ -23,6 +23,13 @@ import kotlin.coroutines.cancellation.CancellationException
  *    without IOException fallback; if state flipped between check and API call,
  *    the user's edit was lost rather than queued. executeOrQueue snapshots
  *    once and recovers via IOException-fallback.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room `PendingChangeDao` (`PendingChange` entity) — a write-only offline mutation queue, not a read cache.
+ * - **Staleness / TTL:** N/A — no TTL; online/offline decided per-call from `serverHealthMonitor.isServerReachable.value` snapshot.
+ * - **Refresh trigger:** N/A — write-only; queued `PendingChange` rows are drained later by SyncManager (no read/fetch path here).
+ * - **Soft-delete:** Soft — `queueDocumentDelete` queues document→trash; `queueTrashAction` queues RESTORE/PERMANENT_DELETE.
+ * - **Offline / pending changes:** Core purpose — `executeOrQueue` runs online or, on offline/IOException, inserts optimistic `PendingChange`s.
  */
 @Singleton
 class DocumentSyncRepository @Inject constructor(

@@ -17,6 +17,13 @@ import kotlinx.coroutines.flow.Flow
  * Owns the four document-count methods. Two reactive Flow methods are unified
  * internally via a private CountFilter sealed class; the two suspend methods
  * keep their distinct cache/API semantics.
+ *
+ * **CACHE & REFRESH POLICY:**
+ * - **Backing store:** Room `CachedDocumentDao` count projections over the cached-documents table; `getUntaggedCount()` is API-only (never reads cache).
+ * - **Staleness / TTL:** No time-based TTL; freshness gated only by `getDocumentCount`'s `forceRefresh` flag + non-empty (`count > 0`) cache heuristic.
+ * - **Refresh trigger:** Flow methods auto-emit on Room change (reactive); `getDocumentCount` pulls from API (`getDocuments(page=1,pageSize=1).count`) when forced or cache empty+online; `getUntaggedCount` always hits API.
+ * - **Soft-delete:** N/A — read-only repo, never deletes.
+ * - **Offline / pending changes:** No PendingChange/SyncManager; `getDocumentCount` falls back to cached count when `NetworkMonitor` reports offline (this repo only reads counts, never upserts the cache).
  */
 @Singleton
 class DocumentCountRepository @Inject constructor(
