@@ -57,8 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.paperless.scanner.R
-import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.domain.model.CustomField
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 

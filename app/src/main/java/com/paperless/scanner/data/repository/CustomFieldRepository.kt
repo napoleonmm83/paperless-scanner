@@ -5,8 +5,9 @@ import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.fetchAllPages
 import com.paperless.scanner.data.api.withReadTimeout
 import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
-import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.network.NetworkMonitor
+import com.paperless.scanner.domain.mapper.toDomain
+import com.paperless.scanner.domain.model.CustomField
 import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.flow.Flow
@@ -58,7 +59,7 @@ class CustomFieldRepository @Inject constructor(
             if (networkMonitor.checkOnlineStatus()) {
                 val fields = fetchAllPages { page ->
                     withReadTimeout { api.getCustomFields(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE) }
-                }
+                }.toDomain()
                 _customFields.value = fields
                 Result.success(fields)
             } else {
@@ -87,7 +88,7 @@ class CustomFieldRepository @Inject constructor(
             // POST: non-idempotent — no withRetry, would risk duplicate custom field on 5xx.
             val response = api.createCustomField(
                 CreateCustomFieldRequest(name = name, dataType = dataType)
-            )
+            ).toDomain()
 
             // Add to cache to trigger reactive Flow update immediately
             _customFields.value = _customFields.value + response
