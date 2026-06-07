@@ -599,7 +599,9 @@ object AppModule {
         cachedDocumentTypeDao: CachedDocumentTypeDao,
         pendingChangeDao: PendingChangeDao,
         syncMetadataDao: SyncMetadataDao,
-        gson: Gson
+        gson: Gson,
+        db: AppDatabase,
+        serializer: DocumentSerializer
     ): SyncManager = SyncManager(
         api,
         cachedDocumentDao,
@@ -608,7 +610,9 @@ object AppModule {
         cachedDocumentTypeDao,
         pendingChangeDao,
         syncMetadataDao,
-        gson
+        gson,
+        db,
+        serializer
     )
 
     @Provides

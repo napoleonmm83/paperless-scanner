@@ -2,11 +2,13 @@ package com.paperless.scanner.data.sync
 
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.models.Document
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.api.models.UpdateDocumentRequest
+import com.paperless.scanner.data.database.AppDatabase
 import com.paperless.scanner.data.database.dao.CachedCorrespondentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.dao.CachedDocumentTypeDao
@@ -15,6 +17,7 @@ import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.dao.SyncMetadataDao
 import com.paperless.scanner.data.database.entities.SyncMetadata
 import com.paperless.scanner.data.database.mappers.toCachedEntity
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.util.withResponseRetry
 import com.paperless.scanner.util.withRetry
 import kotlin.coroutines.cancellation.CancellationException
@@ -75,6 +78,8 @@ import javax.inject.Singleton
  * @property pendingChangeDao Room DAO for offline change queue
  * @property syncMetadataDao Room DAO for sync timestamps
  * @property gson JSON serializer for change data
+ * @property db Room database handle for atomic multi-DAO transactions (#65)
+ * @property serializer Reused cached-tag-id JSON parser (#65)
  *
  * @see DocumentRepository For document-level operations
  * @see PendingChangeDao For offline change persistence
@@ -89,7 +94,9 @@ class SyncManager @Inject constructor(
     private val cachedDocumentTypeDao: CachedDocumentTypeDao,
     private val pendingChangeDao: PendingChangeDao,
     private val syncMetadataDao: SyncMetadataDao,
-    private val gson: Gson
+    private val gson: Gson,
+    private val db: AppDatabase,
+    private val serializer: DocumentSerializer
 ) {
     private val TAG = "SyncManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -456,7 +463,8 @@ class SyncManager @Inject constructor(
         }
     }
 
-    private suspend fun pushDocumentChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
+    @VisibleForTesting
+    internal suspend fun pushDocumentChange(change: com.paperless.scanner.data.database.entities.PendingChange) {
         val entityId = change.entityId
         if (entityId == null) {
             Log.w(TAG, "Skipping document change ${change.id}: entityId is null")
@@ -476,6 +484,11 @@ class SyncManager @Inject constructor(
                 val archiveSerialNumber = (data["archiveSerialNumber"] as? Double)?.toInt()
                 val created = data["created"] as? String
 
+                // #65: read the previously-cached tag set BEFORE the API call (and outside
+                // the transaction). A read/parse failure must not abort the push, so
+                // getOldTagIds logs + returns emptyList in that case.
+                val oldTagIds = if (tags != null) getOldTagIds(entityId) else null
+
                 // Create request and call API
                 val request = UpdateDocumentRequest(
                     title = title,
@@ -488,8 +501,19 @@ class SyncManager @Inject constructor(
 
                 val updatedDocument = withRetry { api.updateDocument(entityId, request) }
 
-                // Update cache with response
-                cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+                // #65: the cache insert and the per-tag count deltas must be ONE atomic
+                // unit, mirroring DocumentMetadataRepository.updateDocument. If a delta DAO
+                // call throws, the whole transaction rolls back so the cached document is
+                // never persisted with stale/incorrect tag counts alongside it.
+                db.withTransaction {
+                    cachedDocumentDao.insert(updatedDocument.toCachedEntity())
+                    if (tags != null && oldTagIds != null) {
+                        val oldSet = oldTagIds.toSet()
+                        val newSet = tags.toSet()
+                        (oldSet - newSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, -1) }
+                        (newSet - oldSet).forEach { tagId -> cachedTagDao.updateDocumentCount(tagId, 1) }
+                    }
+                }
 
                 Log.d(TAG, "Successfully pushed document update $entityId")
             }
@@ -499,6 +523,23 @@ class SyncManager @Inject constructor(
             else -> {
                 Log.w(TAG, "Unknown change type: ${change.changeType}")
             }
+        }
+    }
+
+    /**
+     * #65: reads the previously-cached tag-id set for a document so the push can compute
+     * tag-count deltas. A read/parse failure is non-fatal — it just skips the delta (we
+     * have no reliable "old" set to diff against), mirroring DocumentMetadataRepository.
+     */
+    private suspend fun getOldTagIds(documentId: Int): List<Int> {
+        return try {
+            val cached = cachedDocumentDao.getDocument(documentId)
+            serializer.deserializeCachedTagIds(cached?.tags)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read old tag ids for doc $documentId", e)
+            emptyList()
         }
     }
 

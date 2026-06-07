@@ -3,9 +3,14 @@ package com.paperless.scanner.data.sync
 import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
+import com.paperless.scanner.data.api.models.Document as ApiDocument
+import com.paperless.scanner.data.database.dao.CachedTagDao
 import com.paperless.scanner.data.database.entities.CachedDocument
+import com.paperless.scanner.data.database.entities.CachedTag
 import com.paperless.scanner.data.database.entities.PendingChange
+import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.testing.BaseRoomRepositoryTest
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -16,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 
@@ -36,6 +42,7 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
 
     private lateinit var syncManager: SyncManager
     private lateinit var api: PaperlessApi
+    private val gson = Gson()
 
     @Before
     fun setUpSyncManager() {
@@ -57,7 +64,9 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
             cachedDocumentTypeDao = database.cachedDocumentTypeDao(),
             pendingChangeDao = database.pendingChangeDao(),
             syncMetadataDao = database.syncMetadataDao(),
-            gson = Gson(),
+            gson = gson,
+            db = database,
+            serializer = DocumentSerializer(gson),
         )
     }
 
@@ -82,6 +91,7 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
         title: String = "Doc $id",
         isDeleted: Boolean = false,
         deletedAt: Long? = null,
+        tagsJson: String = "[]",
     ): CachedDocument = CachedDocument(
         id = id,
         title = title,
@@ -94,7 +104,7 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
         correspondent = null,
         documentType = null,
         storagePath = null,
-        tags = "[]",
+        tags = tagsJson,
         customFields = null,
         isCached = true,
         lastSyncedAt = 0L,
@@ -220,5 +230,101 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
         // must not block normal upserts.
         assertEquals("Server 5 updated", dao.getDocument(5)?.title)
         assertEquals("Server 6 new", dao.getDocument(6)?.title)
+    }
+
+    // ---- #65: offline tag-count atomicity when replaying a queued document update ----
+
+    private fun cachedTag(id: Int, name: String, documentCount: Int = 0) = CachedTag(
+        id = id,
+        name = name,
+        color = null,
+        match = null,
+        matchingAlgorithm = null,
+        isInboxTag = false,
+        documentCount = documentCount,
+    )
+
+    private fun apiDoc(
+        id: Int = 1,
+        title: String = "Doc $id",
+        tags: List<Int> = emptyList(),
+    ): ApiDocument = ApiDocument(
+        id = id,
+        title = title,
+        content = null,
+        created = "2026-01-01T00:00:00Z",
+        modified = "2026-01-01T00:00:00Z",
+        added = "2026-01-01T00:00:00Z",
+        correspondentId = null,
+        documentTypeId = null,
+        tags = tags,
+        archiveSerialNumber = null,
+        originalFileName = null,
+        notes = emptyList(),
+        owner = null,
+        permissions = null,
+        userCanChange = true,
+        ocrConfidence = null,
+    )
+
+    private fun updateChange(documentId: Int, tags: List<Int>): PendingChange = PendingChange(
+        entityType = "document",
+        entityId = documentId,
+        changeType = "update",
+        changeData = gson.toJson(mapOf("tags" to tags)),
+    )
+
+    @Test
+    fun `pushDocumentChange update adjusts cached tag counts by the new-minus-old delta`() = runTest {
+        val tagDao = database.cachedTagDao()
+        val docDao = database.cachedDocumentDao()
+        // Old tag set [1, 2] cached on the document; tags 1 & 2 count 1, tag 3 count 0.
+        tagDao.insertAll(listOf(cachedTag(1, "T1", 1), cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        docDao.insert(cachedDoc(id = 1, title = "Before", tagsJson = "[1,2]"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, title = "After", tags = listOf(2, 3))
+
+        syncManager.pushDocumentChange(updateChange(documentId = 1, tags = listOf(2, 3)))
+
+        // tag 1 removed (-1), tag 3 added (+1), tag 2 untouched.
+        assertEquals(0, tagDao.getTag(1)?.documentCount)
+        assertEquals(1, tagDao.getTag(2)?.documentCount)
+        assertEquals(1, tagDao.getTag(3)?.documentCount)
+        // The cache row reflects the pushed update.
+        assertEquals("After", docDao.getDocument(1)?.title)
+    }
+
+    @Test
+    fun `pushDocumentChange update rolls back the cache insert when a tag-delta DAO call throws`() = runTest {
+        // #65: the cache insert and per-tag deltas must be ONE atomic unit. Force the delta
+        // to throw by injecting a mocked cachedTagDao (keeping the REAL database + real
+        // cachedDocumentDao) so the rollback applies to the real Room transaction.
+        val throwingTagDao = mockk<CachedTagDao>(relaxed = true)
+        coEvery { throwingTagDao.updateDocumentCount(any(), any()) } throws RuntimeException("delta boom")
+        val managerWithThrowingTagDao = SyncManager(
+            api = api,
+            cachedDocumentDao = database.cachedDocumentDao(),
+            cachedTagDao = throwingTagDao,
+            cachedCorrespondentDao = database.cachedCorrespondentDao(),
+            cachedDocumentTypeDao = database.cachedDocumentTypeDao(),
+            pendingChangeDao = database.pendingChangeDao(),
+            syncMetadataDao = database.syncMetadataDao(),
+            gson = gson,
+            db = database,
+            serializer = DocumentSerializer(gson),
+        )
+        database.cachedDocumentDao().insert(cachedDoc(id = 1, title = "Before", tagsJson = "[1,2]"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, title = "After", tags = listOf(2, 3))
+
+        try {
+            managerWithThrowingTagDao.pushDocumentChange(updateChange(documentId = 1, tags = listOf(2, 3)))
+            fail("expected the tag-delta throw to propagate out of the transaction")
+        } catch (e: RuntimeException) {
+            assertEquals("delta boom", e.message)
+        }
+
+        // Rollback: the cache row still shows the pre-update state, never the "After" insert.
+        val cached = database.cachedDocumentDao().getDocument(1)
+        assertEquals("Before", cached?.title)
+        assertEquals("[1,2]", cached?.tags)
     }
 }
