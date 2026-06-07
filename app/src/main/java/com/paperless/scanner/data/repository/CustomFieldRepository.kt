@@ -3,6 +3,7 @@ package com.paperless.scanner.data.repository
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.api.fetchAllPages
+import com.paperless.scanner.data.api.withReadTimeout
 import com.paperless.scanner.data.api.models.CreateCustomFieldRequest
 import com.paperless.scanner.data.api.models.CustomField
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -56,7 +57,7 @@ class CustomFieldRepository @Inject constructor(
             // when a server defines more custom fields than the page size (Issue #126).
             if (networkMonitor.checkOnlineStatus()) {
                 val fields = fetchAllPages { page ->
-                    api.getCustomFields(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+                    withReadTimeout { api.getCustomFields(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE) }
                 }
                 _customFields.value = fields
                 Result.success(fields)

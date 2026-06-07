@@ -5,8 +5,12 @@ import com.paperless.scanner.data.api.models.PaginatedResponse
 import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withTimeout
 import retrofit2.Response
 import java.io.IOException
+import kotlin.coroutines.coroutineContext
 
 /**
  * Extension functions for safe API calls with proper error handling.
@@ -77,6 +81,36 @@ suspend fun <T> fetchAllPages(
             "returning ${all.size} items."
     )
     return all
+}
+
+/**
+ * Bounds a single network read with a coroutine-level total timeout (#82).
+ *
+ * The OkHttp client deliberately configures only connect + read (per-socket) timeouts, NOT
+ * a global `callTimeout` — a `callTimeout` would break the adaptive long upload timeouts. A
+ * response that keeps trickling bytes (each individual socket read staying under the read
+ * timeout) could therefore stall a list GET indefinitely. Wrapping the read in [withTimeout]
+ * gives it the `callTimeout`-equivalent it lacks, scoped to these reads only.
+ *
+ * A timeout is surfaced as an [IOException] (a genuine network failure) so callers report it
+ * as a failure instead of swallowing it. Only **this** function's own timeout is converted:
+ * if the surrounding coroutine was itself cancelled (e.g. a caller wrapping the read in its
+ * own [withTimeout]), that cancellation arrives here as a [TimeoutCancellationException] too,
+ * so [ensureActive] re-checks the outer scope and lets the cancellation propagate unchanged —
+ * structured cancellation is preserved and `withRetry` never retries a cancel.
+ */
+suspend fun <T> withReadTimeout(
+    timeoutMs: Long = NetworkConfig.READ_TIMEOUT_SECONDS * 1000,
+    block: suspend () -> T
+): T {
+    return try {
+        withTimeout(timeoutMs) { block() }
+    } catch (e: TimeoutCancellationException) {
+        // If the OUTER coroutine was cancelled, honour that cancellation rather than masking
+        // it as a retryable IOException (ensureActive rethrows the outer CancellationException).
+        coroutineContext.ensureActive()
+        throw IOException("Network read timed out after ${timeoutMs}ms")
+    }
 }
 
 /**
