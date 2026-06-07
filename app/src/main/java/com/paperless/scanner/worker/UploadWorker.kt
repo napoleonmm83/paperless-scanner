@@ -314,7 +314,8 @@ class UploadWorker @AssistedInject constructor(
                 //    the request is in flight (body sent, response pending) the commit
                 //    state is unknown; we deliberately favour at-least-once — re-upload
                 //    beats losing a scan, and Paperless de-dups identical content by
-                //    checksum. True at-most-once needs a server idempotency key (#287).
+                //    checksum. True at-most-once needs a server idempotency key, which
+                //    post_document/ does not offer (#287; see docs/KNOWN_ISSUES.md §8).
                 withContext(NonCancellable) {
                     if (uploadCommitted) {
                         uploadQueueRepository.markAsCompleted(pendingUpload.id)

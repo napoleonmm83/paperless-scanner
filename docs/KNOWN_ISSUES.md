@@ -184,6 +184,25 @@ Cannot resolve symbol '@mipmap/ic_launcher'
 
 ---
 
+### 8. Upload-Duplikat-Risiko: Cancellation im Request/Response-Fenster
+
+**Problem:** Wird der `UploadWorker` exakt **während** eines laufenden `post_document/`-Requests gestoppt (Constraint verloren, System-Kill, erzwungener Reschedule), ist nach der `CancellationException` unbekannt, ob der Server das Dokument bereits committed hat. Der Worker favorisiert bewusst **at-least-once** (lieber erneut hochladen als einen Scan verlieren) — dasselbe Dokument kann dann ein zweites Mal hochgeladen werden.
+
+**Ursache:** Die Paperless-ngx API `POST /api/documents/post_document/` bietet **keinen** Idempotency-/Dedup-Key. Der Endpoint nimmt nur Multipart-Felder (`document`, `title`, `created`, `correspondent`, `document_type`, `storage_path`, `tags`, `archive_serial_number`, `custom_fields`) und liefert eine Plain-Text Task-UUID zurück. Es gibt keinen Idempotency-Header, keinen Dedup-Query-Param und keine POST-then-finalize-Sequenz, mit der der Client „at-most-once" erzwingen könnte.
+
+**Aktuelle Mitigation:**
+- Paperless-ngx dedupliziert **inhaltsgleiche** Dokumente serverseitig per Content-Checksum → exakte Duplikate werden i. d. R. erkannt und verworfen.
+- Der Worker minimiert das Fenster: `uploadCommitted`-Guard + `NonCancellable`-Finalisierung (#128) — Cancellation **vor** dem Commit setzt `UPLOADING → PENDING` zurück (Retry), Cancellation **nach** dem Commit schließt die Row ab (kein Re-Upload).
+- Echtes „at-most-once" ist nur mit einem serverseitigen Idempotency-Key möglich.
+
+**Empfehlung:** Upstream-Feature-Request an Paperless-ngx (Idempotency-Key auf `post_document/`). Bis dahin bleibt das geringe Restrisiko akzeptiert — ein seltenes Duplikat ist verkraftbarer als ein verlorener Scan.
+
+**Code:** `app/src/main/java/com/paperless/scanner/worker/UploadWorker.kt` (CancellationException-Handler, `uploadCommitted`-Branch)
+
+**Tracking:** #287 — als `wontfix` geschlossen, da ohne Server-Support keine client-seitige Lösung existiert.
+
+---
+
 ## Best Practices
 
 ### API-Integration
