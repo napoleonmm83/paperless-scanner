@@ -17,8 +17,12 @@ import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Document
 import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
+import com.paperless.scanner.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -72,21 +76,46 @@ class CorrespondentRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedCorrespondentDao: CachedCorrespondentDao,
     private val pendingChangeDao: PendingChangeDao,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    @ApplicationScope private val applicationScope: CoroutineScope,
 ) {
+    // #50: share the cold Room flow across collectors so N observers trigger ONE upstream
+    // query instead of N. Created once (per singleton) and reused. WhileSubscribed tears the
+    // upstream down 5s after the last collector unsubscribes (no leak); replay = 1 gives a new
+    // *concurrent* collector the latest list immediately. replayExpirationMillis = 0 clears the
+    // replay cache the moment the upstream stops, so a one-shot first() caller (e.g. the
+    // suggestion services) after a no-subscriber gap never gets a stale snapshot — it restarts
+    // the upstream and reads the current Room state.
+    private val correspondentsFlow: Flow<List<Correspondent>> =
+        cachedCorrespondentDao.observeCorrespondents()
+            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
+            .shareIn(
+                applicationScope,
+                SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0),
+                replay = 1,
+            )
+
     /**
      * Observe all correspondents reactively.
      *
-     * **BEST PRACTICE:** Reactive Flow for automatic UI updates.
+     * **BEST PRACTICE:** Reactive Flow for automatic UI updates; shared across collectors (#50).
      * Emits new list whenever correspondents are added, modified, or deleted.
      *
      * @return [Flow] emitting list of [Correspondent] objects on any cache change
      * @see CachedCorrespondentDao.observeCorrespondents For underlying Room query
      */
-    fun observeCorrespondents(): Flow<List<Correspondent>> {
-        return cachedCorrespondentDao.observeCorrespondents()
-            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
-    }
+    fun observeCorrespondents(): Flow<List<Correspondent>> = correspondentsFlow
+
+    /**
+     * One-shot snapshot of the currently-cached correspondents (#50).
+     *
+     * Reads the DAO directly instead of `observeCorrespondents().first()`, which — now that the
+     * observe flow is shared/replayed — could hand back a slightly-stale replayed value. Use this
+     * for snapshot consumers (e.g. the suggestion services); use [observeCorrespondents] for
+     * reactive streaming.
+     */
+    suspend fun getCachedCorrespondents(): List<Correspondent> =
+        cachedCorrespondentDao.getAllCorrespondents().map { it.toCachedDomain() }
 
     /**
      * Get all correspondents with optional network refresh.

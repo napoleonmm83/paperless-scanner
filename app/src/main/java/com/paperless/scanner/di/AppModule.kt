@@ -444,8 +444,9 @@ object AppModule {
         api: PaperlessApi,
         cachedDocumentTypeDao: CachedDocumentTypeDao,
         pendingChangeDao: PendingChangeDao,
-        networkMonitor: NetworkMonitor
-    ): DocumentTypeRepository = DocumentTypeRepository(api, cachedDocumentTypeDao, pendingChangeDao, networkMonitor)
+        networkMonitor: NetworkMonitor,
+        @ApplicationScope applicationScope: CoroutineScope
+    ): DocumentTypeRepository = DocumentTypeRepository(api, cachedDocumentTypeDao, pendingChangeDao, networkMonitor, applicationScope)
 
     @Provides
     @Singleton
@@ -453,8 +454,9 @@ object AppModule {
         api: PaperlessApi,
         cachedCorrespondentDao: CachedCorrespondentDao,
         pendingChangeDao: PendingChangeDao,
-        networkMonitor: NetworkMonitor
-    ): CorrespondentRepository = CorrespondentRepository(api, cachedCorrespondentDao, pendingChangeDao, networkMonitor)
+        networkMonitor: NetworkMonitor,
+        @ApplicationScope applicationScope: CoroutineScope
+    ): CorrespondentRepository = CorrespondentRepository(api, cachedCorrespondentDao, pendingChangeDao, networkMonitor, applicationScope)
 
     @Provides
     @Singleton

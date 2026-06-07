@@ -16,8 +16,14 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -43,6 +49,11 @@ class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var documentTypeRepository: DocumentTypeRepository
 
+    // #50: dedicated scope for the repository's shareIn upstream. Unconfined forwards emissions
+    // eagerly so the Turbine flow tests stay deterministic; cancelled in @After to avoid leaking
+    // the shared-flow controller across tests.
+    private val sharingScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+
     @Before
     fun setup() {
         api = mockk()
@@ -53,8 +64,14 @@ class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
             api,
             cachedDocumentTypeDao,
             pendingChangeDao,
-            networkMonitor
+            networkMonitor,
+            sharingScope
         )
+    }
+
+    @After
+    fun cancelSharingScope() {
+        sharingScope.cancel()
     }
 
     private fun cached(id: Int, name: String, documentCount: Int? = 0) = CachedDocumentType(
@@ -81,6 +98,16 @@ class DocumentTypeRepositoryTest : BaseRoomRepositoryTest() {
             assertEquals("Rechnung", updated[0].name)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `observeDocumentTypes returns the same shared flow instance across calls`() {
+        // #50: the flow is created once and shared, so multiple collectors trigger ONE upstream
+        // Room query — a fresh cold flow per call would defeat the sharing.
+        assertSame(
+            documentTypeRepository.observeDocumentTypes(),
+            documentTypeRepository.observeDocumentTypes(),
+        )
     }
 
     // ---------------- Get (Offline-First) ----------------

@@ -94,8 +94,8 @@ class AiAnalysisIntegrationTest {
 
         // Setup repository flows
         every { tagRepository.observeTags() } returns flowOf(testTags)
-        every { correspondentRepository.observeCorrespondents() } returns flowOf(testCorrespondents)
-        every { documentTypeRepository.observeDocumentTypes() } returns flowOf(testDocumentTypes)
+        coEvery { correspondentRepository.getCachedCorrespondents() } returns testCorrespondents
+        coEvery { documentTypeRepository.getCachedDocumentTypes() } returns testDocumentTypes
 
         // Setup tokenManager flows (required by SuggestionOrchestrator)
         every { tokenManager.aiWifiOnly } returns flowOf(false)
