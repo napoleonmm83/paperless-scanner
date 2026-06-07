@@ -1,7 +1,8 @@
 package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
-import com.paperless.scanner.data.api.models.ServerStatusResponse
+import com.paperless.scanner.domain.mapper.toDomain
+import com.paperless.scanner.domain.model.ServerStatus
 import com.paperless.scanner.util.withResponseRetry
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
@@ -18,7 +19,7 @@ import javax.inject.Singleton
 class ServerStatusRepository @Inject constructor(
     private val api: PaperlessApi
 ) {
-    suspend fun getServerStatus(): Result<ServerStatusResponse> = try {
+    suspend fun getServerStatus(): Result<ServerStatus> = try {
         val response = withResponseRetry { api.getServerStatus() }
         if (!response.isSuccessful) {
             throw HttpException(response)
@@ -26,7 +27,7 @@ class ServerStatusRepository @Inject constructor(
         val body = response.body() ?: throw IOException("Empty response body")
         val headerVersion = response.headers()["x-version"]?.takeIf { it.isNotBlank() }
         val mergedVersion = body.paperlessVersion?.takeIf { it.isNotBlank() } ?: headerVersion
-        Result.success(body.copy(paperlessVersion = mergedVersion))
+        Result.success(body.copy(paperlessVersion = mergedVersion).toDomain())
     } catch (e: CancellationException) {
         // Must propagate so coroutine cancellation is not swallowed.
         throw e

@@ -2,8 +2,8 @@ package com.paperless.scanner.ui.screens.diagnostics
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.repository.ServerStatusRepository
+import com.paperless.scanner.domain.model.ServerStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,7 +26,7 @@ enum class HealthStatus {
 data class DiagnosticsUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
-    val serverStatus: ServerStatusResponse? = null,
+    val serverStatus: ServerStatus? = null,
     val healthStatus: HealthStatus = HealthStatus.UNKNOWN,
     val isUnavailable: Boolean = false  // True if 403 (no admin permission)
 )
@@ -118,7 +118,7 @@ class DiagnosticsViewModel @Inject constructor(
     /**
      * Calculate overall system health from server status response.
      */
-    private fun calculateHealthStatus(response: ServerStatusResponse): HealthStatus {
+    private fun calculateHealthStatus(response: ServerStatus): HealthStatus {
         var hasCritical = false
         var hasWarning = false
 

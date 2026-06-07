@@ -19,7 +19,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
-import com.paperless.scanner.data.api.models.ServerStatusResponse
+import com.paperless.scanner.domain.model.ServerDatabase
+import com.paperless.scanner.domain.model.ServerStatus
+import com.paperless.scanner.domain.model.ServerTasks
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -207,7 +209,7 @@ private fun ErrorState(error: String, onRetry: () -> Unit) {
 
 @Composable
 private fun DiagnosticsContent(
-    serverStatus: ServerStatusResponse,
+    serverStatus: ServerStatus,
     healthStatus: HealthStatus,
     viewModel: DiagnosticsViewModel
 ) {
@@ -514,7 +516,7 @@ private fun StorageSection(
 }
 
 @Composable
-private fun DatabaseSection(database: com.paperless.scanner.data.api.models.DatabaseInfo) {
+private fun DatabaseSection(database: ServerDatabase) {
     // Only show section if at least one field is available
     if (database.type == null && database.status == null && database.migrationStatus?.unappliedMigrations == null) {
         return
@@ -561,7 +563,7 @@ private fun DatabaseSection(database: com.paperless.scanner.data.api.models.Data
 }
 
 @Composable
-private fun TaskSystemSection(tasks: com.paperless.scanner.data.api.models.TasksInfo) {
+private fun TaskSystemSection(tasks: ServerTasks) {
     // Only show section if at least one status is available
     if (tasks.redisStatus == null && tasks.celeryStatus == null) {
         return

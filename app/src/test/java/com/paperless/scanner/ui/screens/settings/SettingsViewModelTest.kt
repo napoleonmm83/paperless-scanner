@@ -2,8 +2,8 @@ package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
-import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.repository.ServerStatusRepository
+import com.paperless.scanner.domain.model.ServerStatus
 import okhttp3.ResponseBody.Companion.toResponseBody
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.PremiumFeatureManager
@@ -97,7 +97,7 @@ class SettingsViewModelTest {
     @Test
     fun `loadServerVersion populates serverVersion on success`() = runTest {
         coEvery { serverStatusRepository.getServerStatus() } returns
-            Result.success(ServerStatusResponse(paperlessVersion = "2.6.0"))
+            Result.success(ServerStatus(paperlessVersion = "2.6.0"))
 
         val viewModel = createViewModel()
         advanceUntilIdle()
