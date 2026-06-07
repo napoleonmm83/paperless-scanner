@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.domain.error.PaperlessException
-import com.paperless.scanner.domain.error.userMessage
+import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
@@ -396,7 +396,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isDeleting = false,
-                        deleteError = paperlessException.userMessage
+                        deleteError = paperlessException.getLocalizedMessage(context)
                     )
                 }
             }
@@ -445,7 +445,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isUpdating = false,
-                        updateError = paperlessException.userMessage
+                        updateError = paperlessException.getLocalizedMessage(context)
                     )
                 }
             }
@@ -489,7 +489,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isAddingNote = false,
-                        addNoteError = paperlessException.userMessage
+                        addNoteError = paperlessException.getLocalizedMessage(context)
                     )
                 }
             }
@@ -520,7 +520,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isDeletingNoteId = null,
-                        deleteNoteError = paperlessException.userMessage
+                        deleteNoteError = paperlessException.getLocalizedMessage(context)
                     )
                 }
             }
@@ -621,7 +621,7 @@ class DocumentDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isUpdatingPermissions = false,
-                        updatePermissionsError = paperlessException.userMessage
+                        updatePermissionsError = paperlessException.getLocalizedMessage(context)
                     )
                 }
             }
@@ -653,7 +653,7 @@ class DocumentDetailViewModel @Inject constructor(
                 onFailure = { error ->
                     val paperlessException = PaperlessException.from(error)
                     _createTagState.update {
-                        CreateTagState.Error(paperlessException.userMessage)
+                        CreateTagState.Error(paperlessException.getLocalizedMessage(context))
                     }
                 }
             )
@@ -778,7 +778,7 @@ class DocumentDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Document analysis failed", e)
                 val paperlessException = PaperlessException.from(e)
-                _analysisState.update { AnalysisState.Error(paperlessException.userMessage) }
+                _analysisState.update { AnalysisState.Error(paperlessException.getLocalizedMessage(context)) }
             }
         }
     }
