@@ -141,6 +141,12 @@ jobs:
           retention-days: 14
 
       - name: Show runner info
+        # Cosmetic build-performance summary only. On the self-hosted Windows
+        # runner `shell: bash` can resolve to WSL bash (C:\Windows\System32\bash.exe),
+        # which mangles the Windows temp-script path ("No such file or directory")
+        # and fails this step even though tests + the release build already passed.
+        # A summary line must never red a green build. (Windows-runner reliability)
+        continue-on-error: true
         run: |
           echo "## Build Performance" >> $GITHUB_STEP_SUMMARY
           echo "- **Runner:** ${{ runner.name }}" >> $GITHUB_STEP_SUMMARY
