@@ -18,8 +18,12 @@ import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.util.withRetry
 import kotlin.coroutines.cancellation.CancellationException
+import com.paperless.scanner.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import javax.inject.Inject
 
 /**
@@ -37,16 +41,41 @@ class DocumentTypeRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedDocumentTypeDao: CachedDocumentTypeDao,
     private val pendingChangeDao: PendingChangeDao,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    @ApplicationScope private val applicationScope: CoroutineScope,
 ) {
+    // #50: share the cold Room flow across collectors so N observers trigger ONE upstream
+    // query instead of N. Created once (per singleton) and reused. WhileSubscribed tears the
+    // upstream down 5s after the last collector unsubscribes (no leak); replay = 1 gives a new
+    // *concurrent* collector the latest list immediately. replayExpirationMillis = 0 clears the
+    // replay cache the moment the upstream stops, so a one-shot first() caller (e.g. the
+    // suggestion services) after a no-subscriber gap never gets a stale snapshot — it restarts
+    // the upstream and reads the current Room state.
+    private val documentTypesFlow: Flow<List<DocumentType>> =
+        cachedDocumentTypeDao.observeDocumentTypes()
+            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
+            .shareIn(
+                applicationScope,
+                SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000, replayExpirationMillis = 0),
+                replay = 1,
+            )
+
     /**
-     * BEST PRACTICE: Reactive Flow for automatic UI updates.
+     * BEST PRACTICE: Reactive Flow for automatic UI updates; shared across collectors (#50).
      * Observes cached document types and automatically notifies when data changes.
      */
-    fun observeDocumentTypes(): Flow<List<DocumentType>> {
-        return cachedDocumentTypeDao.observeDocumentTypes()
-            .map { cachedList -> cachedList.map { it.toCachedDomain() } }
-    }
+    fun observeDocumentTypes(): Flow<List<DocumentType>> = documentTypesFlow
+
+    /**
+     * One-shot snapshot of the currently-cached document types (#50).
+     *
+     * Reads the DAO directly instead of `observeDocumentTypes().first()`, which — now that the
+     * observe flow is shared/replayed — could hand back a slightly-stale replayed value. Use this
+     * for snapshot consumers (e.g. the suggestion services); use [observeDocumentTypes] for
+     * reactive streaming.
+     */
+    suspend fun getCachedDocumentTypes(): List<DocumentType> =
+        cachedDocumentTypeDao.getAllDocumentTypes().map { it.toCachedDomain() }
 
     suspend fun getDocumentTypes(forceRefresh: Boolean = false): Result<List<DocumentType>> {
         return try {

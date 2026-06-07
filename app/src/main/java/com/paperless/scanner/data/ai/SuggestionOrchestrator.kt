@@ -68,8 +68,8 @@ class SuggestionOrchestrator @Inject constructor(
         Log.d(TAG, "Starting suggestion orchestration")
 
         val availableTags = tagRepository.observeTags().first()
-        val availableCorrespondents = correspondentRepository.observeCorrespondents().first()
-        val availableDocumentTypes = documentTypeRepository.observeDocumentTypes().first()
+        val availableCorrespondents = correspondentRepository.getCachedCorrespondents()
+        val availableDocumentTypes = documentTypeRepository.getCachedDocumentTypes()
 
         // Read AI settings
         val aiWifiOnly = tokenManager.aiWifiOnly.first()

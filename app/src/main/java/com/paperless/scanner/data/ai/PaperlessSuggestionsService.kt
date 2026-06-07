@@ -44,8 +44,8 @@ class PaperlessSuggestionsService @Inject constructor(
 
             // Get current metadata to resolve IDs to names
             val allTags = tagRepository.observeTags().first()
-            val allCorrespondents = correspondentRepository.observeCorrespondents().first()
-            val allDocumentTypes = documentTypeRepository.observeDocumentTypes().first()
+            val allCorrespondents = correspondentRepository.getCachedCorrespondents()
+            val allDocumentTypes = documentTypeRepository.getCachedDocumentTypes()
 
             // Convert tag IDs to TagSuggestions
             val tagSuggestions = response.tags.mapNotNull { tagId ->
