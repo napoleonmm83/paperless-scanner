@@ -58,6 +58,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.data.service.ProtocolDetector
 import com.paperless.scanner.data.sync.SyncManager
 import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
@@ -408,7 +409,8 @@ object AppModule {
         crashlyticsHelper: CrashlyticsHelper,
         authDebugService: AuthDebugService,
         httpCache: Cache,
-    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache)
+        protocolDetector: ProtocolDetector,
+    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache, protocolDetector)
 
     @Provides
     @Singleton

@@ -8,6 +8,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.api.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.service.ProtocolDetector
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -64,7 +65,10 @@ class AuthRepositoryTest {
         authDebugService = mockk(relaxed = true)
         httpCache = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
-        authRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache)
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, authDebugService, httpCache, ProtocolDetector(context, client)
+        )
     }
 
     @After
@@ -499,7 +503,7 @@ class AuthRepositoryTest {
         val wiredClient = OkHttpClient.Builder().addInterceptor(interceptor).build()
         val wiredRepo = AuthRepository(
             context, tokenManager, wiredClient, cloudflareDetectionInterceptor,
-            crashlyticsHelper, authDebugService, httpCache
+            crashlyticsHelper, authDebugService, httpCache, ProtocolDetector(context, wiredClient)
         )
 
         // Non-loopback host that the interceptor will refuse. We pass with
