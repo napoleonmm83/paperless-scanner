@@ -16,6 +16,7 @@ import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -100,6 +101,16 @@ class ServerHealthMonitorTest {
 
         Dispatchers.resetMain()
         unmockkStatic(Log::class)
+    }
+
+    @Test
+    fun `destroy cancels the coroutine scope and is idempotent`() {
+        assertTrue("scope should be active before destroy", serverHealthMonitor.scope.isActive)
+        serverHealthMonitor.destroy()
+        assertFalse("destroy must cancel the scope", serverHealthMonitor.scope.isActive)
+        // Idempotent: a second destroy must be a safe no-op, scope stays cancelled.
+        serverHealthMonitor.destroy()
+        assertFalse("scope stays cancelled after a repeat destroy", serverHealthMonitor.scope.isActive)
     }
 
     @Test

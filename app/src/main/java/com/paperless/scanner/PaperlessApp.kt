@@ -26,6 +26,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.File
 import javax.inject.Inject
@@ -66,6 +67,22 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
 
         // Initialize Google Play Billing
         billingManager.initialize()
+    }
+
+    /**
+     * Best-effort teardown of the app-singleton coroutine scopes (#142).
+     *
+     * NOTE: on real Android devices [onTerminate] is NEVER called — the OS kills the process
+     * without notice and reclaims these scopes with it. It DOES run under the emulator and in
+     * instrumentation, so this gives an explicit, testable teardown seam and prevents the
+     * managers' coroutine scopes from outliving an orderly shutdown.
+     */
+    override fun onTerminate() {
+        networkMonitor.destroy()
+        serverHealthMonitor.destroy()
+        billingManager.destroy()
+        appScope.cancel()
+        super.onTerminate()
     }
 
     private fun initializeOfflineMode() {

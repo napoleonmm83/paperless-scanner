@@ -17,6 +17,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -186,6 +187,24 @@ class NetworkMonitor @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to trigger UploadWorker", e)
         }
+    }
+
+    /**
+     * Cancels this monitor's coroutine scope and any pending offline-debounce job (#142).
+     *
+     * Idempotent. The scope is an app-singleton, so this is a best-effort teardown invoked
+     * from [com.paperless.scanner.PaperlessApp.onTerminate] — on real devices the OS reclaims
+     * the process (and the scope) without notice; this stops any in-flight debounce / auto-sync
+     * coroutine in an orderly shutdown and under instrumentation.
+     */
+    fun destroy() {
+        // Unregister the ConnectivityManager callback FIRST so the framework stops delivering
+        // callbacks into a half-torn-down monitor once the scope is cancelled. stopMonitoring()
+        // is no-op-safe (it catches the not-registered case) if monitoring was never started.
+        stopMonitoring()
+        offlineDebounceJob?.cancel()
+        offlineDebounceJob = null
+        scope.cancel()
     }
 
     fun startMonitoring() {
