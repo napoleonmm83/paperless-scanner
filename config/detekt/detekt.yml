@@ -500,3 +500,12 @@ style:
     excludeImports:
       - 'java.util.*'
       - 'kotlinx.android.synthetic.*'
+
+# Custom Paperless Compose-convention rules (module :detekt-rules)
+paperless-compose:
+  TouchTargetSize:
+    active: true
+  LabelLetterSpacingOverride:
+    active: true
+  RawRouteString:
+    active: true

@@ -193,6 +193,9 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 dependencies {
+    // Custom detekt rules (Compose conventions: touch targets, label typography, typed nav)
+    detektPlugins(project(":detekt-rules"))
+
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -331,6 +334,22 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
         txt.required.set(false)
         sarif.required.set(false)
     }
+}
+
+// Focused, BLOCKING detekt check: ONLY the custom paperless-compose Compose-convention
+// rules (module :detekt-rules). Stock detekt stays advisory via the main detekt.yml, so
+// this gate enforces the a11y/nav invariants without baselining the pre-existing debt.
+// Run: ./gradlew :app:detektComposeRules
+val detektComposeRules by tasks.registering(io.gitlab.arturbosch.detekt.Detekt::class) {
+    description = "Lints only the custom paperless-compose Compose-convention rules (blocking)."
+    group = "verification"
+    setSource(files("src/main/java", "src/main/kotlin"))
+    include("**/*.kt")
+    config.setFrom(files("$rootDir/config/detekt/detekt-compose.yml"))
+    buildUponDefaultConfig = false
+    parallel = true
+    detektClasspath.setFrom(configurations["detekt"])
+    pluginClasspath.setFrom(configurations["detektPlugins"])
 }
 
 // KtLint configuration

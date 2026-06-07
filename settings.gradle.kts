@@ -18,3 +18,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PaperlessScanner"
 include(":app")
+include(":detekt-rules")

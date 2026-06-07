@@ -2,6 +2,15 @@ package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
 
+/**
+ * Type-safe Compose navigation destinations.
+ *
+ * Every parameterized route MUST be built through its `createRoute(...)` factory — never a raw
+ * string literal or hand-built concatenation. Factories give compile-time parameter types and
+ * route all dynamic segments through [encodeSegment]/[encodeUriList] for consistent percent-
+ * encoding (e.g. [Scan.createRoute], [Upload.createRoute], [PdfViewer.createRoute]). Raw
+ * `navigate("...")` literals are rejected by the `RawRouteString` detekt rule. Plan-08 (#45).
+ */
 sealed class Screen(val route: String) {
     // Onboarding flow
     data object OnboardingWelcome : Screen("onboarding-welcome")
@@ -11,7 +20,7 @@ sealed class Screen(val route: String) {
     data object ServerSetup : Screen("server-setup")
     data object Login : Screen("login/{serverUrl}") {
         fun createRoute(serverUrl: String): String {
-            return "login/${Uri.encode(serverUrl)}"
+            return "login/${encodeSegment(serverUrl)}"
         }
     }
     data object Success : Screen("success")
@@ -26,8 +35,7 @@ sealed class Screen(val route: String) {
         // Route with page URIs for MultiPageContent (after scanning)
         fun createRoute(pageUris: List<Uri>): String {
             if (pageUris.isEmpty()) return routeBase
-            val encodedUris = pageUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "scan?pageUris=$encodedUris"
+            return "scan?pageUris=${encodeUriList(pageUris)}"
         }
 
         // Route with a specific scan action (for deep links: camera, gallery, file)
@@ -49,8 +57,7 @@ sealed class Screen(val route: String) {
     // PDF Viewer
     data object PdfViewer : Screen("pdf-viewer/{documentId}/{documentTitle}") {
         fun createRoute(documentId: Int, documentTitle: String): String {
-            val encodedTitle = Uri.encode(documentTitle)
-            return "pdf-viewer/$documentId/$encodedTitle"
+            return "pdf-viewer/$documentId/${encodeSegment(documentTitle)}"
         }
     }
 
@@ -75,19 +82,27 @@ sealed class Screen(val route: String) {
     // Upload flow screens
     data object Upload : Screen("upload/{documentUri}") {
         fun createRoute(documentUri: Uri): String {
-            return "upload/${Uri.encode(documentUri.toString())}"
+            return "upload/${encodeSegment(documentUri.toString())}"
         }
     }
     data object MultiPageUpload : Screen("upload-multi/{documentUris}/{uploadAsSingleDocument}") {
         fun createRoute(documentUris: List<Uri>, uploadAsSingleDocument: Boolean = true): String {
-            val encodedUris = documentUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "upload-multi/$encodedUris/$uploadAsSingleDocument"
+            return "upload-multi/${encodeUriList(documentUris)}/$uploadAsSingleDocument"
         }
     }
     data object StepByStepMetadata : Screen("step-by-step-metadata/{pageUris}") {
         fun createRoute(pageUris: List<Uri>): String {
-            val encodedUris = pageUris.joinToString("|") { Uri.encode(it.toString()) }
-            return "step-by-step-metadata/$encodedUris"
+            return "step-by-step-metadata/${encodeUriList(pageUris)}"
         }
     }
 }
+
+/** Percent-encodes one dynamic route segment so reserved characters survive nav routing. */
+private fun encodeSegment(value: String): String = Uri.encode(value)
+
+/**
+ * Joins multiple URIs into one route segment: each part is percent-encoded, while the '|'
+ * delimiter is intentionally left raw so the segment can be split apart again on read.
+ */
+private fun encodeUriList(uris: List<Uri>): String =
+    uris.joinToString("|") { encodeSegment(it.toString()) }
