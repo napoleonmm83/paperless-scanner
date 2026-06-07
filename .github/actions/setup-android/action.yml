@@ -142,3 +142,52 @@ runs:
           echo "# <<< ci self-hosted tuning"
         } >> "$props"
         echo "✅ Tuned Gradle for self-hosted runner: heap ${gradle_heap}g, kotlin ${kotlin_heap}g, test forks ${test_forks} (host ${mem_gb}GB RAM, ${cpu} cores)"
+
+    - name: Tune Gradle daemon for self-hosted runner (Windows)
+      if: inputs.runner-is-self-hosted == 'true' && runner.os == 'Windows'
+      shell: powershell
+      run: |
+        # RAM-adaptive Gradle/Kotlin heap + parallel unit-test forks for the
+        # Windows self-hosted runner — the PowerShell mirror of the Linux/macOS
+        # step above. Without it the repo baseline applies (no testMaxParallelForks
+        # => maxParallelForks defaults to 1), so a many-core / large-RAM box runs
+        # the unit-test suite serially. Written to the runner's persistent
+        # GRADLE_USER_HOME (~/.gradle) as an idempotent managed block (replaced
+        # each run, never appended-to); it overrides the OOM-safe repo baseline on
+        # THIS machine only and coexists with any existing entries (e.g. the JDK pin).
+        # (perf / plan-07)
+        $memGb = [int][math]::Floor((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+        if ($memGb -lt 1) { $memGb = 16 }
+        $gradleHeap = [int][math]::Floor($memGb * 40 / 100)
+        if ($gradleHeap -gt 16) { $gradleHeap = 16 } elseif ($gradleHeap -lt 4) { $gradleHeap = 4 }
+        $kotlinHeap = [int][math]::Floor($memGb * 20 / 100)
+        if ($kotlinHeap -gt 8) { $kotlinHeap = 8 } elseif ($kotlinHeap -lt 2) { $kotlinHeap = 2 }
+        # Parallel unit-test forks: bounded by cores AND RAM (each fork JVM = 4g, see app/build.gradle.kts).
+        $cpu = [int]$env:NUMBER_OF_PROCESSORS
+        if ($cpu -lt 1) { $cpu = 4 }
+        $testForks = [int][math]::Floor($cpu / 2)
+        $ramForks = [int][math]::Floor($memGb / 8)
+        if ($ramForks -lt $testForks) { $testForks = $ramForks }
+        if ($testForks -lt 1) { $testForks = 1 } elseif ($testForks -gt 8) { $testForks = 8 }
+        $gradleHome = if ($env:GRADLE_USER_HOME) { $env:GRADLE_USER_HOME } else { Join-Path $env:USERPROFILE '.gradle' }
+        New-Item -ItemType Directory -Force -Path $gradleHome | Out-Null
+        $props = Join-Path $gradleHome 'gradle.properties'
+        $begin = '# >>> ci self-hosted tuning (managed by setup-android, perf)'
+        $end   = '# <<< ci self-hosted tuning'
+        # Drop any previous managed block (markers inclusive), then re-add a fresh one.
+        $kept = New-Object System.Collections.Generic.List[string]
+        if (Test-Path -LiteralPath $props) {
+          $skip = $false
+          foreach ($line in Get-Content -LiteralPath $props) {
+            if ($line -eq $begin) { $skip = $true; continue }
+            if ($line -eq $end)   { $skip = $false; continue }
+            if (-not $skip) { $kept.Add($line) }
+          }
+        }
+        $kept.Add($begin)
+        $kept.Add("org.gradle.jvmargs=-Xmx${gradleHeap}g -XX:MaxMetaspaceSize=2g -Dfile.encoding=UTF-8")
+        $kept.Add("kotlin.daemon.jvmargs=-Xmx${kotlinHeap}g")
+        $kept.Add("testMaxParallelForks=${testForks}")
+        $kept.Add($end)
+        Set-Content -LiteralPath $props -Value $kept -Encoding ascii
+        Write-Host "Tuned Gradle for self-hosted Windows runner: heap ${gradleHeap}g, kotlin ${kotlinHeap}g, test forks ${testForks} (host ${memGb}GB RAM, ${cpu} cores)"
