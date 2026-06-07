@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -863,6 +864,11 @@ class BillingManager @Inject constructor(
 
         billingClient = null
         _billingState.value = BillingState.Uninitialized
+        // #142: cancel the manager's in-flight coroutines (reconnect/backoff, queryPurchases,
+        // queryProductDetails) so they are torn down rather than leaked. cancelChildren() — NOT
+        // scope.cancel() — keeps the singleton scope reusable: destroy() resets state to
+        // Uninitialized, so a later initialize() can relaunch work on this same scope.
+        scope.coroutineContext.cancelChildren()
         AppLogger.d(TAG, "BillingClient destroyed")
     }
 }

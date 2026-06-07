@@ -4,10 +4,12 @@ import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.api.ServerOfflineReason
 import com.paperless.scanner.data.network.NetworkMonitor
+import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -129,7 +131,8 @@ class ServerHealthMonitor @Inject constructor(
         private const val MAX_CONSECUTIVE_FAILURES = 5 // Stop polling after 5 failures
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @VisibleForTesting
+    internal val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var pollingJob: Job? = null
     private var isInForeground = false
@@ -245,6 +248,18 @@ class ServerHealthMonitor @Inject constructor(
     fun stopPolling() {
         pollingJob?.cancel()
         pollingJob = null
+    }
+
+    /**
+     * Stops polling and cancels this monitor's coroutine scope (#142).
+     *
+     * Idempotent. Best-effort teardown invoked from
+     * [com.paperless.scanner.PaperlessApp.onTerminate]; on real devices the OS reclaims the
+     * process (and the scope) without notice.
+     */
+    fun destroy() {
+        stopPolling()
+        scope.cancel()
     }
 
     /**
