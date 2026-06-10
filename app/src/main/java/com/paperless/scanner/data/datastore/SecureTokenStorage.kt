@@ -197,31 +197,102 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
     private var backupSeedChecked = false
 
     private fun seedBackupIfMissing() {
-        if (backupSeedChecked) return
-        backupSeedChecked = true
-        try {
-            if (!backupFile().exists()) {
-                backupCurrentPrefsFile()
+        if (backupSeedChecked) return // volatile fast path keeps Present reads lock-free
+        synchronized(this) {
+            // #359 (codex R3 P1): the seed copy must hold the storage monitor — an
+            // unsynchronized seed racing a credential-mutating write could rename a
+            // STALE snapshot of the pre-write file over the fresh post-commit one,
+            // reintroducing the resurrection risk the tombstone-first writes close.
+            if (backupSeedChecked) return
+            try {
+                // Arm the guard only once a snapshot actually exists (CodeRabbit): a
+                // single failed copy must not disable reseeding for the rest of the
+                // process — the next Present read retries instead.
+                if (backupFile().exists() || backupCurrentPrefsFile()) {
+                    backupSeedChecked = true
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to seed backup snapshot", e)
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to seed backup snapshot", e)
         }
     }
 
-    private fun deleteBackupFile() {
-        try {
-            backupFile().delete()
+    /** Staging file for the restore swap (#359). Lives in noBackupFilesDir like the
+     *  snapshot itself: backup_rules.xml / data_extraction_rules.xml exclude only the
+     *  exact prefs path, so a crash-leftover tmp inside shared_prefs would silently
+     *  become Auto-Backup/D2D-eligible ciphertext. */
+    private fun restoreStagingFile(): java.io.File =
+        java.io.File(context.noBackupFilesDir, "$BACKUP_FILE_NAME.restore.tmp")
+
+    /**
+     * Tombstone for the restore artifacts. Returns true only when neither the snapshot
+     * nor the staging tmp remains on disk — the credential-mutating writes use this as
+     * a hard PRECONDITION (#359 codex P1): if the old snapshot cannot be deleted, the
+     * commit is aborted, because a crash before the post-commit snapshot refresh would
+     * otherwise leave a backup from which a restore could resurrect the previous (or
+     * just-cleared) credential.
+     */
+    internal fun deleteBackupArtifacts(): Boolean {
+        return try {
+            val backupGone = backupFile().let { !it.exists() || it.delete() }
+            // #359: a crash-leftover restore staging file must not outlive the snapshot —
+            // a later completion of an orphaned tmp could resurrect a wiped credential.
+            val stagingGone = restoreStagingFile().let { !it.exists() || it.delete() }
+            // Re-arm the one-time seed guard: with the snapshot gone, the next healthy
+            // Present read may re-seed protection from the CURRENT file (always safe).
+            backupSeedChecked = false
+            backupGone && stagingGone
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to delete backup file", e)
+            Log.w(TAG, "Failed to delete backup artifacts", e)
+            false
         }
     }
 
-    /** Restores the prefs file from the last snapshot. Returns false when no backup exists. */
+    /**
+     * Restores the prefs file from the last snapshot. Returns false when no backup exists.
+     *
+     * #359: Android caches the SharedPreferencesImpl per file name for the process
+     * lifetime, so overwriting the file on disk is INVISIBLE to every later
+     * getSharedPreferences() call (and SharedPreferencesImpl's own stale `.bak` can
+     * even roll corrupt bytes back over a restored file). deleteSharedPreferences is
+     * the only public API that evicts that cache, hence stage → evict → rename:
+     * a fresh SharedPreferencesImpl is then built from the restored bytes.
+     *
+     * A process death between evict and rename leaves no prefs file: the next launch
+     * opens a fresh empty store (silent logged-out, no corruption signal) — same data
+     * outcome as today's wipe, accepted as a two-syscall-wide window. Deliberately NO
+     * auto-completion of an orphaned tmp on a later open: a stale tmp surviving a
+     * subsequent wipe could resurrect a wiped credential.
+     *
+     * Destructive (evicts the process cache): callers MUST hold the storage monitor.
+     */
     internal fun restorePrefsFileFromBackup(): Boolean {
+        check(Thread.holdsLock(this)) { "restorePrefsFileFromBackup requires the storage lock" }
         return try {
             val backup = backupFile()
             if (!backup.exists()) return false
-            backup.copyTo(prefsFile(), overwrite = true)
+            // overwrite=true: a crash-leftover tmp must never turn every future
+            // restore into a FileAlreadyExistsException → wipe.
+            val tmp = restoreStagingFile()
+            backup.copyTo(tmp, overwrite = true)
+            // The destructive operation owns the in-memory cache: a stale cachedPrefs
+            // would keep serving (and writing through) the evicted instance.
+            cachedPrefs = null
+            // Evicts the process-level cache and removes BOTH <name>.xml and <name>.xml.bak.
+            if (!context.deleteSharedPreferences(ENCRYPTED_PREFS_FILE)) {
+                Log.w(TAG, "deleteSharedPreferences reported incomplete deletion — continuing restore")
+            }
+            val target = prefsFile()
+            target.parentFile?.mkdirs()
+            if (!tmp.renameTo(target)) {
+                // rename-over-existing can fail on some filesystems: delete-then-rename.
+                target.delete()
+                if (!tmp.renameTo(target)) {
+                    Log.w(TAG, "Failed to move restored snapshot into place")
+                    tmp.delete()
+                    return false
+                }
+            }
             true
         } catch (e: Exception) {
             Log.w(TAG, "Failed to restore encrypted prefs from backup", e)
@@ -265,8 +336,9 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         }
 
         // 1b. #320 Phase 2: the snapshot did not help (or matches the corrupt
-        // state) — delete it so a later corruption can't restore stale garbage.
-        deleteBackupFile()
+        // state) — delete it (and any restore staging leftover, #359) so a later
+        // corruption can't restore stale garbage.
+        deleteBackupArtifacts()
 
         try {
             // 2. Remove the corrupted master key from Android Keystore
@@ -336,8 +408,11 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      * re-reads the token. Returns null when no backup exists or the retry fails —
      * the caller then surfaces the original CRYPTO_CORRUPTION failure.
      */
-    private fun restoreAndRereadToken(): TokenStorageResult<String>? {
-        synchronized(this) { cachedPrefs = null }
+    private fun restoreAndRereadToken(): TokenStorageResult<String>? = synchronized(this) {
+        // #359: the whole restore + reopen + re-read is one critical section. Many
+        // threads read tokens concurrently (every OkHttp request); two racing restores
+        // would interleave the destructive evict/rename and could convert a recoverable
+        // corruption into a wipe. cachedPrefs is invalidated inside the restore itself.
         if (!restorePrefsFileFromBackup()) return null
         val restored = getOrCreateEncryptedPrefs() ?: return null
         // The restored snapshot may itself be corrupt: the reopen above can have gone
@@ -364,10 +439,26 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      * Classified write (#320 Phase 2). A successful commit refreshes the ciphertext
      * snapshot used for restore-instead-of-wipe.
      */
-    override fun saveTokenResult(token: String): TokenStorageResult<Unit> {
+    override fun saveTokenResult(token: String): TokenStorageResult<Unit> = synchronized(this) {
+        // #359: writes hold the storage monitor so a commit can never interleave with
+        // the destructive restore eviction — a write through an evicted (orphaned)
+        // SharedPreferencesImpl would rewrite the freshly restored file from a stale
+        // in-memory map.
         val prefs = getOrCreateEncryptedPrefs()
             ?: return lastOpenFailure.toFailureResult()
         return try {
+            // Tombstone-first (#359 codex P1): the snapshot must die BEFORE the commit.
+            // The monitor cannot protect across process death — a crash after the
+            // commit but before the snapshot refresh would otherwise leave a backup
+            // holding the PREVIOUS token, which a later corruption restore (now that
+            // it actually works) would pair with the freshly saved server state.
+            // The tombstone is a hard gate: if it fails, abort the save (fail closed).
+            // Worst case of the new order (crash between delete and commit): token
+            // unchanged, no snapshot → restore degrades to the wipe, never resurrects.
+            if (!deleteBackupArtifacts()) {
+                Log.w(TAG, "Could not tombstone the old snapshot — aborting save (fail closed)")
+                return TokenStorageResult.Failure(TokenStorageFailureKind.IO_ERROR)
+            }
             val committed = prefs.edit()
                 .putString(KEY_AUTH_TOKEN, token)
                 .commit()
@@ -376,7 +467,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 // backup — a later restore must never resurrect a PREVIOUS token and
                 // pair it with the freshly saved server state.
                 if (!backupCurrentPrefsFile()) {
-                    deleteBackupFile()
+                    deleteBackupArtifacts()
                 }
                 // A freshly committed token supersedes any pending corruption signal:
                 // the user just (re-)authenticated, so the next read must return THIS
@@ -440,18 +531,28 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      *
      * @return true if removal was successful
      */
-    override fun clearToken(): Boolean {
+    override fun clearToken(): Boolean = synchronized(this) {
+        // #359: see saveTokenResult — writes must not race the restore eviction.
         return try {
-            val committed = getOrCreateEncryptedPrefs()?.edit()
-                ?.remove(KEY_AUTH_TOKEN)
-                ?.commit() ?: false
+            // Open FIRST: a transient open failure must not cost the snapshot.
+            val prefs = getOrCreateEncryptedPrefs() ?: return false
+            // Tombstone-first (#359 codex P1): kill the snapshot BEFORE the commit —
+            // a crash between commit and snapshot refresh must never leave a backup
+            // from which a later restore could resurrect the credential the user
+            // just cleared (logout!). Hard gate: no tombstone, no commit.
+            if (!deleteBackupArtifacts()) {
+                Log.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
+                return false
+            }
+            val committed = prefs.edit()
+                .remove(KEY_AUTH_TOKEN)
+                .commit()
             if (committed) {
-                // #320: refresh the snapshot so a later corruption restore can NOT
-                // resurrect the credential the user just cleared (logout!). Fail
-                // closed: if the refresh fails, DELETE the old backup — a stale
-                // snapshot with the cleared credential must never survive (codex P2).
+                // #320: refresh the snapshot with the CLEARED state. Fail closed: if
+                // the refresh fails, DELETE the old backup — a stale snapshot with the
+                // cleared credential must never survive (codex P2).
                 if (!backupCurrentPrefsFile()) {
-                    deleteBackupFile()
+                    deleteBackupArtifacts()
                 }
             }
             committed
@@ -476,11 +577,23 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
     /**
      * Marks migration as completed.
      */
-    override fun setMigrationCompleted(): Boolean {
+    override fun setMigrationCompleted(): Boolean = synchronized(this) {
+        // #359: see saveTokenResult — writes must not race the restore eviction, and
+        // the snapshot must track the committed state (CodeRabbit): restoring a
+        // pre-commit snapshot would roll the migration flag back and re-run migration.
         return try {
-            getOrCreateEncryptedPrefs()?.edit()
-                ?.putBoolean(KEY_MIGRATION_COMPLETED, true)
-                ?.commit() ?: false
+            val prefs = getOrCreateEncryptedPrefs() ?: return false
+            if (!deleteBackupArtifacts()) {
+                Log.w(TAG, "Could not tombstone the old snapshot — aborting migration flag update (fail closed)")
+                return false
+            }
+            val committed = prefs.edit()
+                .putBoolean(KEY_MIGRATION_COMPLETED, true)
+                .commit()
+            if (committed && !backupCurrentPrefsFile()) {
+                deleteBackupArtifacts()
+            }
+            committed
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set migration completed", e)
             false
@@ -491,17 +604,25 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      * Clears all secure storage data.
      * Use with caution - this will require user to re-authenticate.
      */
-    fun clearAll(): Boolean {
+    fun clearAll(): Boolean = synchronized(this) {
+        // #359: see saveTokenResult — writes must not race the restore eviction.
         return try {
-            val committed = getOrCreateEncryptedPrefs()?.edit()
-                ?.clear()
-                ?.commit() ?: false
+            // Open FIRST: a transient open failure must not cost the snapshot.
+            val prefs = getOrCreateEncryptedPrefs() ?: return false
+            // Tombstone-first (#359 codex P1): kill the snapshot BEFORE the commit —
+            // see clearToken. Hard gate: no tombstone, no commit.
+            if (!deleteBackupArtifacts()) {
+                Log.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
+                return false
+            }
+            val committed = prefs.edit()
+                .clear()
+                .commit()
             if (committed) {
-                // #320: refresh the snapshot so a later corruption restore can NOT
-                // resurrect the credentials the user just cleared. Fail closed: if the
-                // refresh fails, DELETE the old backup (codex P2).
+                // #320: refresh the snapshot with the CLEARED state. Fail closed: if
+                // the refresh fails, DELETE the old backup (codex P2).
                 if (!backupCurrentPrefsFile()) {
-                    deleteBackupFile()
+                    deleteBackupArtifacts()
                 }
             }
             committed
