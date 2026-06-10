@@ -163,7 +163,9 @@ class SecureTokenStorageRestoreEvictionTest {
 
     /**
      * The wipe path must clean the staging tmp alongside the snapshot — an orphaned
-     * tmp completed after a wipe could resurrect a wiped credential.
+     * tmp completed after a wipe could resurrect a wiped credential. The return value
+     * is the tombstone gate for the credential-mutating writes: true only when nothing
+     * remains on disk (and idempotently true when nothing existed).
      */
     @Test
     fun `deleteBackupArtifacts removes snapshot AND staging tmp`() {
@@ -171,10 +173,13 @@ class SecureTokenStorageRestoreEvictionTest {
         backupFile.writeText("snapshot")
         stagingFile.writeText("staging")
 
-        storage.deleteBackupArtifacts()
+        assertTrue(storage.deleteBackupArtifacts())
 
         assertFalse(backupFile.exists())
         assertFalse(stagingFile.exists())
+
+        // Idempotent tombstone: absent artifacts count as successfully deleted.
+        assertTrue(storage.deleteBackupArtifacts())
     }
 
     /** The destructive restore (cache eviction) demands the storage lock. */
