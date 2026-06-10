@@ -141,7 +141,7 @@ class TokenManager(
                     Log.i(TAG, "Migrating token from plaintext to encrypted storage...")
 
                     // Save to encrypted storage
-                    val saved = secureStorage.saveToken(plaintextToken)
+                    val saved = secureStorage.saveTokenResult(plaintextToken) is TokenStorageResult.Present
                     if (saved) {
                         // Remove from plaintext storage
                         context.dataStore.edit { preferences ->
@@ -170,7 +170,7 @@ class TokenManager(
      * Emits the current token value and updates when token changes.
      */
     val token: Flow<String?> = flow {
-        emit(secureStorage.getToken())
+        emit(readTokenClassified())
     }
 
     val serverUrl: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -276,9 +276,10 @@ class TokenManager(
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
         // Save token to encrypted storage
-        val tokenSaved = secureStorage.saveToken(token)
-        if (!tokenSaved) {
-            Log.e(TAG, "Failed to save token to encrypted storage")
+        when (val result = secureStorage.saveTokenResult(token)) {
+            is TokenStorageResult.Failure ->
+                Log.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
+            else -> Unit
         }
 
         // Save server URL to DataStore (not sensitive)
@@ -351,9 +352,26 @@ class TokenManager(
      * Safe to call from any thread (blocking).
      */
     @WorkerThread
-    fun getTokenSync(): String? {
-        return secureStorage.getToken()
-    }
+    fun getTokenSync(): String? = readTokenClassified()
+
+    /**
+     * #320 Phase 2: reads via the classified result API. Callers keep the simple
+     * String? surface, but a read-time CRYPTO_CORRUPTION now also raises
+     * [storageCorruptionDetected] (the init-time path is covered by the Phase 1
+     * signal) instead of being indistinguishable from "no token stored".
+     */
+    private fun readTokenClassified(): String? =
+        when (val result = secureStorage.getTokenResult()) {
+            is TokenStorageResult.Present -> result.value
+            TokenStorageResult.Absent -> null
+            is TokenStorageResult.Failure -> {
+                Log.w(TAG, "Token read failed (${result.kind})", result.cause)
+                if (result.kind == TokenStorageFailureKind.CRYPTO_CORRUPTION) {
+                    _storageCorruptionDetected.value = true
+                }
+                null
+            }
+        }
 
     @WorkerThread
     fun getServerUrlSync(): String? = runBlocking {

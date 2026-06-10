@@ -1,0 +1,5 @@
+Version 1.5.209:
+
+🔧 Verbesserungen:
+- Anmeldedaten werden bei Speicherproblemen automatisch aus einem Backup wiederhergestellt
+- Präzisere Fehlerbehandlung beim sicheren Speicher

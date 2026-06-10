@@ -47,9 +47,9 @@ class TokenManagerTest {
         context = RuntimeEnvironment.getApplication()
         secureStorage = mockk(relaxed = true)
         // Default: no token in secure storage, migration already complete.
-        every { secureStorage.getToken() } returns null
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Absent
         every { secureStorage.isMigrationCompleted() } returns true
-        every { secureStorage.saveToken(any()) } returns true
+        every { secureStorage.saveTokenResult(any()) } returns TokenStorageResult.Present(Unit)
         every { secureStorage.clearToken() } returns true
         // Default: no crypto-corruption recovery happened (#320 Phase 1). Explicit
         // because a relaxed mock would return a child-mock Exception, not null.
@@ -102,13 +102,47 @@ class TokenManagerTest {
         }
     }
 
+    // ==================== Result taxonomy mapping (#320 Phase 2) ====================
+
+    @Test
+    fun `getTokenSync flags corruption on read-time CRYPTO_CORRUPTION failure`() = runTest {
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Failure(
+            TokenStorageFailureKind.CRYPTO_CORRUPTION,
+            javax.crypto.AEADBadTagException("value decrypt failed"),
+        )
+
+        val token = tokenManager.getTokenSync()
+
+        assertNull(token)
+        tokenManager.storageCorruptionDetected.test {
+            assertTrue(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `getTokenSync returns null WITHOUT corruption flag on transient failure`() = runTest {
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Failure(
+            TokenStorageFailureKind.KEYSTORE_UNAVAILABLE,
+            java.security.KeyStoreException("keystore busy"),
+        )
+
+        val token = tokenManager.getTokenSync()
+
+        assertNull(token)
+        tokenManager.storageCorruptionDetected.test {
+            assertFalse(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // ==================== Credentials ====================
 
     @Test
     fun `saveCredentials persists serverUrl and saves token via secure storage`() = runTest {
         tokenManager.saveCredentials(serverUrl = "https://paperless.example.com", token = "abc123")
 
-        verify { secureStorage.saveToken("abc123") }
+        verify { secureStorage.saveTokenResult("abc123") }
         assertEquals("https://paperless.example.com", tokenManager.serverUrl.first())
     }
 
@@ -134,14 +168,14 @@ class TokenManagerTest {
 
     @Test
     fun `getTokenSync delegates to secure storage`() {
-        every { secureStorage.getToken() } returns "synctoken"
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Present("synctoken")
 
         assertEquals("synctoken", tokenManager.getTokenSync())
     }
 
     @Test
     fun `hasStoredCredentials true when token and serverUrl present`() = runTest {
-        every { secureStorage.getToken() } returns "tok"
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Present("tok")
         tokenManager.saveCredentials("https://x.example.com", "tok")
 
         assertTrue(tokenManager.hasStoredCredentials())
@@ -149,7 +183,7 @@ class TokenManagerTest {
 
     @Test
     fun `hasStoredCredentials false when token missing`() = runTest {
-        every { secureStorage.getToken() } returns null
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Absent
         tokenManager.saveCredentials("https://x.example.com", "tok")
 
         assertFalse(tokenManager.hasStoredCredentials())
@@ -157,7 +191,7 @@ class TokenManagerTest {
 
     @Test
     fun `hasStoredCredentials false when serverUrl missing`() {
-        every { secureStorage.getToken() } returns "tok"
+        every { secureStorage.getTokenResult() } returns TokenStorageResult.Present("tok")
         // No serverUrl saved.
 
         assertFalse(tokenManager.hasStoredCredentials())

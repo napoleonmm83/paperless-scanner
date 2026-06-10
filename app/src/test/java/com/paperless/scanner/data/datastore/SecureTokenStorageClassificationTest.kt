@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.datastore
 
 import android.content.Context
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -73,5 +74,81 @@ class SecureTokenStorageClassificationTest {
     @Test
     fun `consumeRecoveredCryptoFailure returns null when nothing was recovered`() {
         assertTrue(storage.consumeRecoveredCryptoFailure() == null)
+    }
+
+    // ==================== classifyFailure taxonomy (#320 Phase 2) ====================
+
+    @Test
+    fun `classifyFailure maps AEADBadTagException to CRYPTO_CORRUPTION`() {
+        assertEquals(
+            TokenStorageFailureKind.CRYPTO_CORRUPTION,
+            storage.classifyFailure(GeneralSecurityException("wrap", AEADBadTagException("bad tag"))),
+        )
+    }
+
+    @Test
+    fun `classifyFailure maps keystore exceptions to KEYSTORE_UNAVAILABLE`() {
+        assertEquals(
+            TokenStorageFailureKind.KEYSTORE_UNAVAILABLE,
+            storage.classifyFailure(KeyStoreException("keystore busy")),
+        )
+        assertEquals(
+            TokenStorageFailureKind.KEYSTORE_UNAVAILABLE,
+            storage.classifyFailure(RuntimeException("wrap", java.security.ProviderException("provider down"))),
+        )
+    }
+
+    @Test
+    fun `classifyFailure maps IOException to IO_ERROR`() {
+        assertEquals(
+            TokenStorageFailureKind.IO_ERROR,
+            storage.classifyFailure(RuntimeException("wrap", IOException("disk full"))),
+        )
+    }
+
+    @Test
+    fun `classifyFailure maps anything else to UNEXPECTED`() {
+        assertEquals(
+            TokenStorageFailureKind.UNEXPECTED,
+            storage.classifyFailure(IllegalStateException("boom")),
+        )
+    }
+
+    // ==================== Backup / restore roundtrip (#320 Phase 2) ====================
+
+    @Test
+    fun `backup and restore roundtrip preserves the prefs file content`() {
+        val context: Context = RuntimeEnvironment.getApplication()
+        val prefsDir = java.io.File(context.dataDir, "shared_prefs").apply { mkdirs() }
+        val prefsFile = java.io.File(prefsDir, "paperless_secure_prefs.xml")
+
+        prefsFile.writeText("original-ciphertext")
+        storage.backupCurrentPrefsFile()
+
+        // Simulate corruption of the live file, then restore the snapshot.
+        prefsFile.writeText("corrupted-garbage")
+        assertTrue(storage.restorePrefsFileFromBackup())
+
+        assertEquals("original-ciphertext", prefsFile.readText())
+    }
+
+    @Test
+    fun `restore returns false when no backup exists`() {
+        val context: Context = RuntimeEnvironment.getApplication()
+        java.io.File(context.noBackupFilesDir, "paperless_secure_prefs.backup.xml").delete()
+
+        assertFalse(storage.restorePrefsFileFromBackup())
+    }
+
+    @Test
+    fun `backup snapshot lives in noBackupFilesDir — excluded from Android Auto Backup`() {
+        val context: Context = RuntimeEnvironment.getApplication()
+        val prefsDir = java.io.File(context.dataDir, "shared_prefs").apply { mkdirs() }
+        java.io.File(prefsDir, "paperless_secure_prefs.xml").writeText("ciphertext")
+
+        storage.backupCurrentPrefsFile()
+
+        assertTrue(java.io.File(context.noBackupFilesDir, "paperless_secure_prefs.backup.xml").exists())
+        assertFalse(java.io.File(context.filesDir, "paperless_secure_prefs.backup.xml").exists())
     }
 }
