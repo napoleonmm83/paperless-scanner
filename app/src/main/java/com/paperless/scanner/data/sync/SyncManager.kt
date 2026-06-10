@@ -485,8 +485,9 @@ class SyncManager @Inject constructor(
                 val created = data["created"] as? String
 
                 // #65: read the previously-cached tag set BEFORE the API call (and outside
-                // the transaction). A read/parse failure must not abort the push, so
-                // getOldTagIds logs + returns emptyList in that case.
+                // the transaction). A read/parse failure must not abort the push;
+                // getOldTagIds returns null when the old set is unknown (#334) and the
+                // delta below is then skipped instead of over-counting every new tag.
                 val oldTagIds = if (tags != null) getOldTagIds(entityId) else null
 
                 // Create request and call API
@@ -527,19 +528,21 @@ class SyncManager @Inject constructor(
     }
 
     /**
-     * #65: reads the previously-cached tag-id set for a document so the push can compute
-     * tag-count deltas. A read/parse failure is non-fatal — it just skips the delta (we
-     * have no reliable "old" set to diff against), mirroring DocumentMetadataRepository.
+     * #65/#334: reads the previously-cached tag-id set for a document so the push can
+     * compute tag-count deltas. Returns null when that set is UNKNOWN — cached row missing,
+     * tags JSON unparseable, or the read threw — so the caller skips the delta instead of
+     * treating unknown as empty and over-counting every new tag. A genuinely empty old set
+     * ("[]") returns emptyList(). Mirrors DocumentMetadataRepository.
      */
-    private suspend fun getOldTagIds(documentId: Int): List<Int> {
+    private suspend fun getOldTagIds(documentId: Int): List<Int>? {
         return try {
-            val cached = cachedDocumentDao.getDocument(documentId)
-            serializer.deserializeCachedTagIds(cached?.tags)
+            val cached = cachedDocumentDao.getDocument(documentId) ?: return null
+            serializer.deserializeCachedTagIdsOrNull(cached.tags)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed to read old tag ids for doc $documentId", e)
-            emptyList()
+            null
         }
     }
 

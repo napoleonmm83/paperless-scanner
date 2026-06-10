@@ -1,0 +1,5 @@
+Version 1.5.202:
+
+🐛 Bug Fixes:
+- Tag counts are no longer skewed when a document was not yet in the local cache
+- More reliable tag statistics during offline sync

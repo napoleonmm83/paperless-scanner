@@ -17,8 +17,11 @@ import javax.inject.Singleton
  * - serializeCustomFieldsForUpload: returns null for null/empty input. Otherwise
  *   serializes a list of {field, value} maps as JSON wrapped in an
  *   application/json RequestBody.
- * - deserializeCachedTagIds: returns emptyList() for null or unparseable input;
- *   otherwise parses a Gson List<Int>.
+ * - deserializeCachedTagIdsOrNull: returns null for null/blank/unparseable input —
+ *   the old tag set is UNKNOWN, as opposed to a genuinely empty set ("[]" parses to
+ *   emptyList()). Callers computing tag-count deltas must skip the delta on null (#334).
+ * - deserializeCachedTagIds: same parse, but collapses the unknown case to emptyList()
+ *   for callers that don't need the distinction.
  */
 @Singleton
 class DocumentSerializer @Inject constructor(
@@ -32,13 +35,16 @@ class DocumentSerializer @Inject constructor(
         return gson.toJson(customFieldsList).toRequestBody("application/json".toMediaTypeOrNull())
     }
 
-    fun deserializeCachedTagIds(cachedJson: String?): List<Int> {
-        if (cachedJson.isNullOrBlank()) return emptyList()
+    fun deserializeCachedTagIds(cachedJson: String?): List<Int> =
+        deserializeCachedTagIdsOrNull(cachedJson) ?: emptyList()
+
+    fun deserializeCachedTagIdsOrNull(cachedJson: String?): List<Int>? {
+        if (cachedJson.isNullOrBlank()) return null
         return try {
             val listType = object : TypeToken<List<Int>>() {}.type
-            gson.fromJson<List<Int>>(cachedJson, listType) ?: emptyList()
+            gson.fromJson<List<Int>>(cachedJson, listType)
         } catch (e: JsonSyntaxException) {
-            emptyList()
+            null
         }
     }
 }
