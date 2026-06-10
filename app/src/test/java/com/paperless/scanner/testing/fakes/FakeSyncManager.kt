@@ -6,8 +6,9 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Typed fake for [SyncManagerContract] (#239/#321): drive [pendingChanges] directly;
- * configure [fullSyncResult] (or [fullSyncException] to throw) for the next
- * [performFullSync] call.
+ * configure [fullSyncResult] (or [fullSyncException] to throw). Both are STICKY —
+ * they apply to every [performFullSync] call until reassigned (set
+ * [fullSyncException] back to null to stop throwing).
  */
 class FakeSyncManager : SyncManagerContract {
     val pendingChanges = MutableStateFlow(0)
