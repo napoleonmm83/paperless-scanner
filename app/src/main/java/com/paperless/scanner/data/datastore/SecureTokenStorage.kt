@@ -197,14 +197,21 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
     private var backupSeedChecked = false
 
     private fun seedBackupIfMissing() {
-        if (backupSeedChecked) return
-        backupSeedChecked = true
-        try {
-            if (!backupFile().exists()) {
-                backupCurrentPrefsFile()
+        if (backupSeedChecked) return // volatile fast path keeps Present reads lock-free
+        synchronized(this) {
+            // #359 (codex R3 P1): the seed copy must hold the storage monitor — an
+            // unsynchronized seed racing a credential-mutating write could rename a
+            // STALE snapshot of the pre-write file over the fresh post-commit one,
+            // reintroducing the resurrection risk the tombstone-first writes close.
+            if (backupSeedChecked) return
+            backupSeedChecked = true
+            try {
+                if (!backupFile().exists()) {
+                    backupCurrentPrefsFile()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to seed backup snapshot", e)
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to seed backup snapshot", e)
         }
     }
 
