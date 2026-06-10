@@ -17,7 +17,7 @@ import javax.inject.Singleton
 @Singleton
 class SyncHistoryRepository @Inject constructor(
     private val syncHistoryDao: SyncHistoryDao
-) {
+) : SyncHistoryRepositoryContract {
     companion object {
         // Default retention period for history entries
         private const val DEFAULT_RETENTION_DAYS = 30
@@ -50,7 +50,7 @@ class SyncHistoryRepository @Inject constructor(
      * Observe count of failed entries.
      * Used for badge display.
      */
-    fun observeFailedCount(): Flow<Int> =
+    override fun observeFailedCount(): Flow<Int> =
         syncHistoryDao.observeFailedCount()
 
     // ==================== Recording Methods (for Workers) ====================
@@ -63,11 +63,11 @@ class SyncHistoryRepository @Inject constructor(
      * @param details Additional details (filename, etc.)
      * @param documentId Optional document ID
      */
-    suspend fun recordSuccess(
+    override suspend fun recordSuccess(
         actionType: String,
         title: String,
-        details: String? = null,
-        documentId: Int? = null
+        details: String?,
+        documentId: Int?
     ) {
         val entry = SyncHistoryEntry.success(
             actionType = actionType,
@@ -111,13 +111,13 @@ class SyncHistoryRepository @Inject constructor(
      * @param details Additional details
      * @param documentId Optional document ID
      */
-    suspend fun recordFailure(
+    override suspend fun recordFailure(
         actionType: String,
         title: String,
         userMessage: String,
-        technicalError: String? = null,
-        details: String? = null,
-        documentId: Int? = null
+        technicalError: String?,
+        details: String?,
+        documentId: Int?
     ) {
         val entry = SyncHistoryEntry.failure(
             actionType = actionType,
@@ -176,7 +176,7 @@ class SyncHistoryRepository @Inject constructor(
      * @param exception The exception that occurred (optional)
      * @return User-friendly localized error message
      */
-    fun getUserFriendlyError(context: Context, httpCode: Int?, exception: Exception? = null): String {
+    override fun getUserFriendlyError(context: Context, httpCode: Int?, exception: Exception?): String {
         return when (httpCode) {
             401 -> context.getString(R.string.sync_unauthorized)
             403 -> context.getString(R.string.sync_access_denied)
@@ -199,7 +199,7 @@ class SyncHistoryRepository @Inject constructor(
     /**
      * Get technical error description.
      */
-    fun getTechnicalError(httpCode: Int?, message: String?, exception: Exception?): String {
+    override fun getTechnicalError(httpCode: Int?, message: String?, exception: Exception?): String {
         return buildString {
             if (httpCode != null) {
                 append("HTTP $httpCode")

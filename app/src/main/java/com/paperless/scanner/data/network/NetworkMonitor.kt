@@ -30,7 +30,7 @@ import javax.inject.Singleton
 class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context,
     private val syncManager: SyncManager
-) {
+) : NetworkMonitorContract {
     private val TAG = "NetworkMonitor"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
@@ -41,7 +41,7 @@ class NetworkMonitor @Inject constructor(
     private val OFFLINE_DEBOUNCE_MS = 2000L // Wait 2 seconds before declaring offline
 
     private val _isOnline = MutableStateFlow(checkInitialOnlineStatus())
-    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+    override val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     private val _isWifiConnected = MutableStateFlow(checkInitialWifiStatus())
     val isWifiConnected: StateFlow<Boolean> = _isWifiConnected.asStateFlow()
@@ -253,7 +253,7 @@ class NetworkMonitor @Inject constructor(
      *
      * @return true if validated internet available, false otherwise
      */
-    fun hasValidatedInternet(): Boolean = checkOnlineStatus()
+    override fun hasValidatedInternet(): Boolean = checkOnlineStatus()
 
     /**
      * Check if device is connected to WiFi with validated internet access (synchronous).

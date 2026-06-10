@@ -24,7 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class AnalyticsService @Inject constructor(
     @ApplicationContext private val context: Context
-) {
+) : AnalyticsServiceContract {
     private val firebaseAnalytics: FirebaseAnalytics by lazy {
         Firebase.analytics
     }
@@ -52,7 +52,7 @@ class AnalyticsService @Inject constructor(
      * Track an analytics event.
      * Events are only sent if analytics is enabled.
      */
-    fun trackEvent(event: AnalyticsEvent) {
+    override fun trackEvent(event: AnalyticsEvent) {
         if (!isEnabled) {
             Log.d(TAG, "Event '${event.name}' skipped (analytics disabled)")
             return

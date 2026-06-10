@@ -3,12 +3,12 @@ package com.paperless.scanner.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.analytics.AnalyticsEvent
-import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.health.ServerHealthMonitor
-import com.paperless.scanner.data.network.NetworkMonitor
-import com.paperless.scanner.data.repository.SyncHistoryRepository
-import com.paperless.scanner.data.repository.UploadQueueRepository
-import com.paperless.scanner.data.sync.SyncManager
+import com.paperless.scanner.data.analytics.AnalyticsServiceContract
+import com.paperless.scanner.data.health.ServerHealthMonitorContract
+import com.paperless.scanner.data.network.NetworkMonitorContract
+import com.paperless.scanner.data.repository.SyncHistoryRepositoryContract
+import com.paperless.scanner.data.repository.UploadQueueRepositoryContract
+import com.paperless.scanner.data.sync.SyncManagerContract
 import com.paperless.scanner.util.asUiResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -53,12 +53,12 @@ sealed class ServerHealthError {
  */
 @HiltViewModel
 class ServerHealthViewModel @Inject constructor(
-    private val networkMonitor: NetworkMonitor,
-    private val serverHealthMonitor: ServerHealthMonitor,
-    private val uploadQueueRepository: UploadQueueRepository,
-    private val syncHistoryRepository: SyncHistoryRepository,
-    private val syncManager: SyncManager,
-    private val analyticsService: AnalyticsService,
+    private val networkMonitor: NetworkMonitorContract,
+    private val serverHealthMonitor: ServerHealthMonitorContract,
+    private val uploadQueueRepository: UploadQueueRepositoryContract,
+    private val syncHistoryRepository: SyncHistoryRepositoryContract,
+    private val syncManager: SyncManagerContract,
+    private val analyticsService: AnalyticsServiceContract,
 ) : ViewModel() {
 
     companion object {

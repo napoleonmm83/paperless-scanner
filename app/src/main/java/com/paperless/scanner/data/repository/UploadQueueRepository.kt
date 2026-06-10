@@ -57,7 +57,7 @@ import javax.inject.Singleton
 @Singleton
 class UploadQueueRepository @Inject constructor(
     private val pendingUploadDao: PendingUploadDao
-) {
+) : UploadQueueRepositoryContract {
     /**
      * Reactive Flow of all pending uploads.
      * Emits updated list whenever queue changes (add, remove, status change).
@@ -68,7 +68,7 @@ class UploadQueueRepository @Inject constructor(
      * Reactive Flow of pending upload count.
      * Useful for badge/notification display.
      */
-    val pendingCount: Flow<Int> = pendingUploadDao.getPendingCount()
+    override val pendingCount: Flow<Int> = pendingUploadDao.getPendingCount()
 
     /**
      * Get uploads filtered by status as a reactive Flow.
@@ -161,7 +161,7 @@ class UploadQueueRepository @Inject constructor(
      *
      * @return First [PendingUpload] with PENDING or FAILED status, or null if queue empty
      */
-    suspend fun getNextPendingUpload(): PendingUpload? {
+    override suspend fun getNextPendingUpload(): PendingUpload? {
         return pendingUploadDao.getPendingAndFailedUploads().firstOrNull()
     }
 
@@ -170,7 +170,7 @@ class UploadQueueRepository @Inject constructor(
      *
      * @return Number of uploads in PENDING or FAILED status
      */
-    suspend fun getPendingUploadCount(): Int {
+    override suspend fun getPendingUploadCount(): Int {
         return pendingUploadDao.getPendingUploadCountSync()
     }
 
@@ -189,7 +189,7 @@ class UploadQueueRepository @Inject constructor(
      *
      * @param id Upload database ID
      */
-    suspend fun markAsUploading(id: Long) {
+    override suspend fun markAsUploading(id: Long) {
         pendingUploadDao.updateStatus(id, UploadStatus.UPLOADING)
     }
 
@@ -204,7 +204,7 @@ class UploadQueueRepository @Inject constructor(
      *
      * @param id Upload database ID
      */
-    suspend fun resetToPending(id: Long) {
+    override suspend fun resetToPending(id: Long) {
         pendingUploadDao.updateStatus(id, UploadStatus.PENDING)
     }
 
@@ -213,7 +213,7 @@ class UploadQueueRepository @Inject constructor(
      *
      * @param id Upload database ID
      */
-    suspend fun markAsCompleted(id: Long) {
+    override suspend fun markAsCompleted(id: Long) {
         pendingUploadDao.deleteById(id)
     }
 
@@ -223,7 +223,7 @@ class UploadQueueRepository @Inject constructor(
      * @param id Upload database ID
      * @param errorMessage Optional error message for display
      */
-    suspend fun markAsFailed(id: Long, errorMessage: String?) {
+    override suspend fun markAsFailed(id: Long, errorMessage: String?) {
         pendingUploadDao.markAsFailed(id, errorMessage = errorMessage)
     }
 
@@ -268,7 +268,7 @@ class UploadQueueRepository @Inject constructor(
      * @param upload The [PendingUpload] to get URIs from
      * @return List of all page URIs (primary + additional)
      */
-    fun getAllUris(upload: PendingUpload): List<Uri> {
+    override fun getAllUris(upload: PendingUpload): List<Uri> {
         val uris = mutableListOf(Uri.parse(upload.uri))
         upload.additionalUris.forEach { uriString ->
             uris.add(Uri.parse(uriString))

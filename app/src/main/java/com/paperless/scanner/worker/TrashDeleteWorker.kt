@@ -10,12 +10,12 @@ import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.isRetryable
 import com.paperless.scanner.data.database.dao.CachedDocumentDao
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
-import com.paperless.scanner.data.datastore.TokenManager
-import com.paperless.scanner.data.repository.TrashRepository
-import com.paperless.scanner.data.repository.SyncHistoryRepository
+import com.paperless.scanner.data.datastore.TokenManagerContract
+import com.paperless.scanner.data.repository.TrashRepositoryContract
+import com.paperless.scanner.data.repository.SyncHistoryRepositoryContract
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -36,11 +36,11 @@ import kotlinx.coroutines.CancellationException
 class TrashDeleteWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val trashRepository: TrashRepository,
-    private val tokenManager: TokenManager,
-    private val syncHistoryRepository: SyncHistoryRepository,
+    private val trashRepository: TrashRepositoryContract,
+    private val tokenManager: TokenManagerContract,
+    private val syncHistoryRepository: SyncHistoryRepositoryContract,
     private val cachedDocumentDao: CachedDocumentDao,
-    private val crashlyticsHelper: CrashlyticsHelper
+    private val crashlyticsHelper: CrashlyticsHelperContract
 ) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {

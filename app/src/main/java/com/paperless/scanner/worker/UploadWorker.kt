@@ -19,13 +19,15 @@ import androidx.work.workDataOf
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.error.PaperlessException
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
-import com.paperless.scanner.data.repository.DocumentRepository
-import com.paperless.scanner.data.repository.SyncHistoryRepository
-import com.paperless.scanner.data.repository.TaskRepository
-import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.health.ServerHealthMonitorContract
+import com.paperless.scanner.data.network.NetworkMonitorContract
+import com.paperless.scanner.data.repository.DocumentRepositoryContract
+import com.paperless.scanner.data.repository.SyncHistoryRepositoryContract
+import com.paperless.scanner.data.repository.TaskRepositoryContract
+import com.paperless.scanner.data.repository.UploadQueueRepositoryContract
 import com.paperless.scanner.util.FileUtils
 import com.paperless.scanner.widget.WidgetUpdateWorker
 import dagger.assisted.Assisted
@@ -39,13 +41,13 @@ import kotlinx.coroutines.withContext
 class UploadWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val uploadQueueRepository: UploadQueueRepository,
-    private val documentRepository: DocumentRepository,
-    private val taskRepository: TaskRepository,
-    private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
-    private val syncHistoryRepository: SyncHistoryRepository,
-    private val crashlyticsHelper: CrashlyticsHelper
+    private val uploadQueueRepository: UploadQueueRepositoryContract,
+    private val documentRepository: DocumentRepositoryContract,
+    private val taskRepository: TaskRepositoryContract,
+    private val networkMonitor: NetworkMonitorContract,
+    private val serverHealthMonitor: ServerHealthMonitorContract,
+    private val syncHistoryRepository: SyncHistoryRepositoryContract,
+    private val crashlyticsHelper: CrashlyticsHelperContract
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

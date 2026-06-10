@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @Singleton
 class CrashlyticsHelper @Inject constructor(
     private val analyticsService: AnalyticsService
-) {
+) : CrashlyticsHelperContract {
     companion object {
         private const val TAG = "CrashlyticsHelper"
 
@@ -57,7 +57,7 @@ class CrashlyticsHelper @Inject constructor(
      * @param action Action identifier (e.g., "UPLOAD_START", "LOGIN", "SCAN")
      * @param details Optional details (e.g., "3 pages", "multi-page")
      */
-    fun logActionBreadcrumb(action: String, details: String? = null) {
+    override fun logActionBreadcrumb(action: String, details: String?) {
         if (!analyticsService.isAnalyticsEnabled()) return
 
         val message = if (details != null) {
@@ -76,7 +76,7 @@ class CrashlyticsHelper @Inject constructor(
      * @param state State identifier (e.g., "UPLOAD_ERROR", "OFFLINE", "TOKEN_EXPIRED")
      * @param details Optional details (e.g., error message, HTTP code)
      */
-    fun logStateBreadcrumb(state: String, details: String? = null) {
+    override fun logStateBreadcrumb(state: String, details: String?) {
         if (!analyticsService.isAnalyticsEnabled()) return
 
         val message = if (details != null) {
@@ -98,7 +98,7 @@ class CrashlyticsHelper @Inject constructor(
      *
      * @param throwable The unexpected throwable to record as a non-fatal event.
      */
-    fun recordException(throwable: Throwable) {
+    override fun recordException(throwable: Throwable) {
         if (!analyticsService.isAnalyticsEnabled()) return
 
         Firebase.crashlytics.recordException(throwable)

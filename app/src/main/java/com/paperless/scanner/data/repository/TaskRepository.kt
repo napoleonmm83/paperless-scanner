@@ -25,7 +25,7 @@ class TaskRepository @Inject constructor(
     private val api: PaperlessApi,
     private val cachedTaskDao: CachedTaskDao,
     private val networkMonitor: NetworkMonitor
-) {
+) : TaskRepositoryContract {
     companion object {
         private const val TAG = "TaskRepository"
     }
@@ -92,7 +92,7 @@ class TaskRepository @Inject constructor(
      *                     If false, return cache if available (offline-first).
      * @return Result with list of tasks
      */
-    suspend fun getTasks(forceRefresh: Boolean = false): Result<List<PaperlessTask>> {
+    override suspend fun getTasks(forceRefresh: Boolean): Result<List<PaperlessTask>> {
         return try {
             // Offline-First: Try cache first unless forceRefresh
             if (!forceRefresh || !networkMonitor.checkOnlineStatus()) {

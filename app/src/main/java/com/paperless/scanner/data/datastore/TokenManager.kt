@@ -23,7 +23,7 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 class TokenManager(
     private val context: Context,
     private val secureStorage: TokenStorage = SecureTokenStorage(context)
-) {
+) : TokenManagerContract {
 
     companion object {
         private const val TAG = "TokenManager"
@@ -669,7 +669,7 @@ class TokenManager(
      * Returns null if no pending deletes are stored.
      */
     @WorkerThread
-    fun getPendingTrashDeletesSync(): String? = runBlocking {
+    override fun getPendingTrashDeletesSync(): String? = runBlocking {
         context.dataStore.data.first()[TRASH_PENDING_DELETES_KEY]
     }
 
@@ -691,7 +691,7 @@ class TokenManager(
      * (retry), a restore MUST clear it so the retry doesn't delete the restored doc
      * (#129). Format: "docId:startTime,docId:startTime,...".
      */
-    suspend fun removePendingTrashDelete(documentId: Int) {
+    override suspend fun removePendingTrashDelete(documentId: Int) {
         context.dataStore.edit { preferences ->
             val current = preferences[TRASH_PENDING_DELETES_KEY] ?: return@edit
             val updated = current.split(",")
