@@ -425,6 +425,14 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         val prefs = getOrCreateEncryptedPrefs()
             ?: return lastOpenFailure.toFailureResult()
         return try {
+            // Tombstone-first (#359 codex P1): the snapshot must die BEFORE the commit.
+            // The monitor cannot protect across process death — a crash after the
+            // commit but before the snapshot refresh would otherwise leave a backup
+            // holding the PREVIOUS token, which a later corruption restore (now that
+            // it actually works) would pair with the freshly saved server state.
+            // Worst case of the new order (crash between delete and commit): token
+            // unchanged, no snapshot → restore degrades to the wipe, never resurrects.
+            deleteBackupArtifacts()
             val committed = prefs.edit()
                 .putString(KEY_AUTH_TOKEN, token)
                 .commit()
@@ -500,14 +508,18 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
     override fun clearToken(): Boolean = synchronized(this) {
         // #359: see saveTokenResult — writes must not race the restore eviction.
         return try {
+            // Tombstone-first (#359 codex P1): kill the snapshot BEFORE the commit —
+            // a crash between commit and snapshot refresh must never leave a backup
+            // from which a later restore could resurrect the credential the user
+            // just cleared (logout!).
+            deleteBackupArtifacts()
             val committed = getOrCreateEncryptedPrefs()?.edit()
                 ?.remove(KEY_AUTH_TOKEN)
                 ?.commit() ?: false
             if (committed) {
-                // #320: refresh the snapshot so a later corruption restore can NOT
-                // resurrect the credential the user just cleared (logout!). Fail
-                // closed: if the refresh fails, DELETE the old backup — a stale
-                // snapshot with the cleared credential must never survive (codex P2).
+                // #320: refresh the snapshot with the CLEARED state. Fail closed: if
+                // the refresh fails, DELETE the old backup — a stale snapshot with the
+                // cleared credential must never survive (codex P2).
                 if (!backupCurrentPrefsFile()) {
                     deleteBackupArtifacts()
                 }
@@ -553,13 +565,15 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
     fun clearAll(): Boolean = synchronized(this) {
         // #359: see saveTokenResult — writes must not race the restore eviction.
         return try {
+            // Tombstone-first (#359 codex P1): kill the snapshot BEFORE the commit —
+            // see clearToken.
+            deleteBackupArtifacts()
             val committed = getOrCreateEncryptedPrefs()?.edit()
                 ?.clear()
                 ?.commit() ?: false
             if (committed) {
-                // #320: refresh the snapshot so a later corruption restore can NOT
-                // resurrect the credentials the user just cleared. Fail closed: if the
-                // refresh fails, DELETE the old backup (codex P2).
+                // #320: refresh the snapshot with the CLEARED state. Fail closed: if
+                // the refresh fails, DELETE the old backup (codex P2).
                 if (!backupCurrentPrefsFile()) {
                     deleteBackupArtifacts()
                 }
