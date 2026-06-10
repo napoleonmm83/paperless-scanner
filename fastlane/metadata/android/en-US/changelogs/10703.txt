@@ -1,0 +1,5 @@
+Version 1.5.203:
+
+🔧 Improvements:
+- Updated internal build and release infrastructure
+- Improved delivery pipeline stability

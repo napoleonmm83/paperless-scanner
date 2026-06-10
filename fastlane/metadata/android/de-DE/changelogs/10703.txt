@@ -1,0 +1,5 @@
+Version 1.5.203:
+
+🔧 Verbesserungen:
+- Interne Build- und Release-Infrastruktur aktualisiert
+- Stabilität der App-Auslieferung verbessert
