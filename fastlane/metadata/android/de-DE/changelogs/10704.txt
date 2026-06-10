@@ -2,4 +2,4 @@ Version 1.5.204:
 
 🔧 Verbesserungen:
 - Interne Architektur-Verbesserungen für höhere Stabilität
-- Zuverlässigere Hintergrund-Uploads und Synchronisierung
+- Zuverlässigere Hintergrund-Uploads und Auto-Sync
