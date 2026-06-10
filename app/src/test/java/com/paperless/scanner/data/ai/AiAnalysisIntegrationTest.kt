@@ -57,6 +57,7 @@ class AiAnalysisIntegrationTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
+    private lateinit var ocrTextExtractor: OcrTextExtractor
     private lateinit var context: Context
 
     // Test data
@@ -91,6 +92,7 @@ class AiAnalysisIntegrationTest {
         documentTypeRepository = mockk()
         paperlessSuggestionsService = mockk()
         tagMatchingEngine = mockk()
+        ocrTextExtractor = mockk()
 
         // Setup repository flows
         every { tagRepository.observeTags() } returns flowOf(testTags)
@@ -105,6 +107,11 @@ class AiAnalysisIntegrationTest {
         // Required now that tagMatchingEngine is a strict mock (no relaxed default).
         every { tagMatchingEngine.findMatchingTags(any(), any()) } returns emptyList()
 
+        // Default OCR result (#296): blank text reproduces the pre-OCR behavior. Tests
+        // that assert OCR-backed matching override this; AI-success tests verify the
+        // extractor is never invoked at all.
+        coEvery { ocrTextExtractor.extractText(any()) } returns ""
+
         // Create real AiAnalysisService (we'll mock Firebase via constructor)
         aiAnalysisService = AiAnalysisService(context)
 
@@ -118,7 +125,8 @@ class AiAnalysisIntegrationTest {
             tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
         )
     }
 
@@ -166,7 +174,8 @@ class AiAnalysisIntegrationTest {
             tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
         )
 
         // When: Request suggestions with bitmap
@@ -218,7 +227,8 @@ class AiAnalysisIntegrationTest {
             tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
         )
 
         // When: Request suggestions with documentId
@@ -270,7 +280,8 @@ class AiAnalysisIntegrationTest {
             tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
         )
 
         // When: Request suggestions offline
@@ -385,7 +396,8 @@ class AiAnalysisIntegrationTest {
             tokenManager = tokenManager,
             tagRepository = tagRepository,
             correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
         )
 
         // When: Request suggestions with AI available
@@ -406,6 +418,10 @@ class AiAnalysisIntegrationTest {
         // Verify local matching was NOT called (AI-only mode)
         verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
 
+        // #296: no wasted OCR on the premium happy path — extraction is lazy and the
+        // fallback step never ran.
+        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+
         // Invoice should have AI confidence
         val invoiceTag = success.analysis.suggestedTags.find { it.tagId == 1 }
         assertNotNull(invoiceTag)
@@ -413,6 +429,145 @@ class AiAnalysisIntegrationTest {
 
         // Tags should be sorted by confidence descending
         assertTrue(success.analysis.suggestedTags[0].confidence >= success.analysis.suggestedTags[1].confidence)
+    }
+
+    // ==================== OCR Text Extraction Tests (#296) ====================
+
+    @Test
+    fun `free user never gets OCR - intelligent suggestions are premium-only`() = runTest {
+        // Given: no premium, offline, no caller-provided text. Product decision
+        // (2026-06-11): on-device text recognition is part of the paid intelligent
+        // suggestions — free users keep the pre-#296 behavior (no suggestions here).
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns false
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        // When: scan-flow shape — bitmap only
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        val result = suggestionOrchestrator.getSuggestions(bitmap = bitmap)
+
+        // Then: OCR never runs, no local matching, empty success
+        assertTrue(result is SuggestionResult.Success)
+        val success = result as SuggestionResult.Success
+        assertTrue(success.analysis.suggestedTags.isEmpty())
+        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
+    }
+
+    @Test
+    fun `caller-provided text still feeds local matching for free users - without OCR`() = runTest {
+        // Given: DocumentDetail shape — server-side content is already available. This
+        // pre-existing free functionality must survive the premium-only OCR gating.
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns false
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        // When: both text and bitmap provided
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        val result = suggestionOrchestrator.getSuggestions(
+            bitmap = bitmap,
+            extractedText = "Invoice from ACME Corp"
+        )
+
+        // Then: the provided text is matched, OCR never runs
+        assertTrue(result is SuggestionResult.Success)
+        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+        verify { tagMatchingEngine.findMatchingTags("Invoice from ACME Corp", any()) }
+    }
+
+    @Test
+    fun `premium AI failure falls back to OCR-backed local matching`() = runTest {
+        // Given: premium, but the AI call fails; offline so Paperless is skipped too
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        val aiService = spyk(aiAnalysisService)
+        coEvery {
+            aiService.analyzeImage(any(), any(), any(), any())
+        } returns Result.failure(Exception("Firebase AI error"))
+
+        coEvery { ocrTextExtractor.extractText(any()) } returns "Vertrag mit Global Ltd"
+        every { tagMatchingEngine.findMatchingTags("Vertrag mit Global Ltd", any()) } returns listOf(
+            com.paperless.scanner.data.ai.models.TagSuggestion(
+                tagId = 3, tagName = "Contract", confidence = 0.7f,
+                reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_KEYWORD_MATCH
+            )
+        )
+
+        val orchestrator = SuggestionOrchestrator(
+            premiumFeatureManager = premiumFeatureManager,
+            aiAnalysisService = aiService,
+            tagMatchingEngine = tagMatchingEngine,
+            paperlessSuggestionsService = paperlessSuggestionsService,
+            networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
+            tagRepository = tagRepository,
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
+        )
+
+        // When
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        val result = orchestrator.getSuggestions(bitmap = bitmap)
+
+        // Then: instead of a bare error, the user gets local suggestions
+        assertTrue(result is SuggestionResult.Success)
+        val success = result as SuggestionResult.Success
+        assertEquals(SuggestionSource.LOCAL_MATCHING, success.source)
+        assertEquals(1, success.analysis.suggestedTags.size)
+        coVerify(exactly = 1) { ocrTextExtractor.extractText(bitmap) }
+    }
+
+    @Test
+    fun `WiFi-required skip does not burn OCR for a result it would discard`() = runTest {
+        // Given: premium, WiFi-only enabled, no WiFi — the chain ends in WiFiRequired,
+        // so any OCR-backed local suggestions would be thrown away (codex P3).
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
+        every { tokenManager.aiWifiOnly } returns flowOf(true)
+        every { networkMonitor.isWifiConnectedSync() } returns false
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        // When
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        val result = suggestionOrchestrator.getSuggestions(bitmap = bitmap)
+
+        // Then: banner shown promptly, no OCR spent
+        assertTrue(result is SuggestionResult.WiFiRequired)
+        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+    }
+
+    @Test
+    fun `blank OCR result reproduces the pre-OCR behavior`() = runTest {
+        // Given: premium, AI fails, OCR finds nothing (non-Latin doc, blank page) —
+        // before #296 this exact scenario surfaced the AI error; it still must.
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
+        every { networkMonitor.checkOnlineStatus() } returns false
+
+        val aiService = spyk(aiAnalysisService)
+        coEvery {
+            aiService.analyzeImage(any(), any(), any(), any())
+        } returns Result.failure(Exception("Firebase AI error"))
+        coEvery { ocrTextExtractor.extractText(any()) } returns ""
+
+        val orchestrator = SuggestionOrchestrator(
+            premiumFeatureManager = premiumFeatureManager,
+            aiAnalysisService = aiService,
+            tagMatchingEngine = tagMatchingEngine,
+            paperlessSuggestionsService = paperlessSuggestionsService,
+            networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
+            tagRepository = tagRepository,
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
+        )
+
+        // When
+        val bitmap = mockk<Bitmap>(relaxed = true)
+        val result = orchestrator.getSuggestions(bitmap = bitmap)
+
+        // Then: no local matching attempted, AI error surfaced — byte-identical to before
+        assertTrue(result is SuggestionResult.Error)
+        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
     }
 
     // ==================== Error Handling Tests ====================

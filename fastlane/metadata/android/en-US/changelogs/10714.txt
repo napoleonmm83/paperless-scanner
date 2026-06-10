@@ -1,0 +1,4 @@
+Version 1.5.214:
+
+✨ New Features:
+- Premium: text-recognition backup for tag suggestions when the AI analysis fails
