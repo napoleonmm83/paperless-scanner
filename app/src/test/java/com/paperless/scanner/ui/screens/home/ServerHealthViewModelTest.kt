@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -74,10 +73,12 @@ class ServerHealthViewModelTest {
     fun `isOnline reflects networkMonitor StateFlow`() = runTest {
         val vm = createViewModel()
 
-        assertEquals(true, vm.isOnline.value)
-        networkMonitor.online.value = false
-        advanceUntilIdle()
-        assertEquals(false, vm.isOnline.value)
+        vm.isOnline.test {
+            assertEquals(true, awaitItem())
+            networkMonitor.online.value = false
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -86,10 +87,12 @@ class ServerHealthViewModelTest {
 
         val vm = createViewModel()
 
-        assertEquals(false, vm.isServerReachable.value)
-        serverHealthMonitor.reachable.value = true
-        advanceUntilIdle()
-        assertEquals(true, vm.isServerReachable.value)
+        vm.isServerReachable.test {
+            assertEquals(false, awaitItem())
+            serverHealthMonitor.reachable.value = true
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -99,18 +102,18 @@ class ServerHealthViewModelTest {
         syncManager.pendingChanges.value = 3
 
         val vm = createViewModel()
-        // Subscribe so WhileSubscribed(5000) kicks the combine in.
-        backgroundScope.launch { vm.pendingChangesCount.collect { } }
-        advanceUntilIdle()
-        assertEquals(5, vm.pendingChangesCount.value)
+        // Turbine's collector is the WhileSubscribed(5000) subscriber that kicks the combine in.
+        vm.pendingChangesCount.test {
+            assertEquals(0, awaitItem()) // stateIn initial value before the combine emits
+            assertEquals(5, awaitItem())
 
-        queue.value = 0
-        advanceUntilIdle()
-        assertEquals(3, vm.pendingChangesCount.value)
+            queue.value = 0
+            assertEquals(3, awaitItem())
 
-        syncManager.pendingChanges.value = 0
-        advanceUntilIdle()
-        assertEquals(0, vm.pendingChangesCount.value)
+            syncManager.pendingChanges.value = 0
+            assertEquals(0, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -120,11 +123,14 @@ class ServerHealthViewModelTest {
 
         val vm = createViewModel()
         advanceUntilIdle()
-        assertEquals(0, vm.uiState.value.activeUploadsCount)
 
-        queue.value = 7
-        advanceUntilIdle()
-        assertEquals(7, vm.uiState.value.activeUploadsCount)
+        vm.uiState.test {
+            assertEquals(0, awaitItem().activeUploadsCount)
+
+            queue.value = 7
+            assertEquals(7, awaitItem().activeUploadsCount)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -134,11 +140,14 @@ class ServerHealthViewModelTest {
 
         val vm = createViewModel()
         advanceUntilIdle()
-        assertEquals(0, vm.uiState.value.failedSyncCount)
 
-        failed.value = 4
-        advanceUntilIdle()
-        assertEquals(4, vm.uiState.value.failedSyncCount)
+        vm.uiState.test {
+            assertEquals(0, awaitItem().failedSyncCount)
+
+            failed.value = 4
+            assertEquals(4, awaitItem().failedSyncCount)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -178,10 +187,14 @@ class ServerHealthViewModelTest {
         }
         val vm = createViewModel()
         advanceUntilIdle()
-        assertNotNull(vm.error.value)
 
-        vm.clearError()
-        assertNull(vm.error.value)
+        vm.error.test {
+            assertNotNull(awaitItem())
+
+            vm.clearError()
+            assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

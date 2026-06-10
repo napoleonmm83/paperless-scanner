@@ -7,25 +7,36 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
- * Typed fake for [UploadQueueRepositoryContract] (#239/#321). [pendingCountFlow] is
- * replaceable so tests can inject a throwing flow for error-path coverage; queue
- * mutations are recorded in [recordedCalls] for behavior assertions.
+ * Typed fake for [UploadQueueRepositoryContract] (#239/#321). The queue is encapsulated
+ * (seed via [enqueue]) so the default [pendingCount] flow and [getPendingUploadCount]
+ * can never diverge; [pendingCountFlow] stays replaceable so tests can inject a
+ * throwing flow for error-path coverage. Mutations are recorded in [recordedCalls].
  */
 class FakeUploadQueueRepository : UploadQueueRepositoryContract {
-    /** Replace with a throwing flow to drive upstream-error paths. */
-    var pendingCountFlow: Flow<Int> = MutableStateFlow(0)
+    private val queue = ArrayDeque<PendingUpload>()
+    private val queueCount = MutableStateFlow(0)
+
+    /** Replace with a throwing flow to drive upstream-error paths; defaults to the live queue count. */
+    var pendingCountFlow: Flow<Int> = queueCount
 
     override val pendingCount: Flow<Int> get() = pendingCountFlow
 
-    val uploads = ArrayDeque<PendingUpload>()
     val recordedCalls = mutableListOf<String>()
+
+    /** Seed the queue; keeps the default [pendingCount] flow in sync. */
+    fun enqueue(upload: PendingUpload) {
+        queue.addLast(upload)
+        queueCount.value = queue.size
+    }
+
+    val queued: List<PendingUpload> get() = queue.toList()
 
     override suspend fun getNextPendingUpload(): PendingUpload? {
         recordedCalls += "getNextPendingUpload"
-        return uploads.firstOrNull()
+        return queue.firstOrNull()
     }
 
-    override suspend fun getPendingUploadCount(): Int = uploads.size
+    override suspend fun getPendingUploadCount(): Int = queue.size
 
     override suspend fun markAsUploading(id: Long) {
         recordedCalls += "markAsUploading($id)"
@@ -37,12 +48,14 @@ class FakeUploadQueueRepository : UploadQueueRepositoryContract {
 
     override suspend fun markAsCompleted(id: Long) {
         recordedCalls += "markAsCompleted($id)"
-        uploads.removeAll { it.id == id }
+        queue.removeAll { it.id == id }
+        queueCount.value = queue.size
     }
 
     override suspend fun markAsFailed(id: Long, errorMessage: String?) {
         recordedCalls += "markAsFailed($id, $errorMessage)"
-        uploads.removeAll { it.id == id }
+        queue.removeAll { it.id == id }
+        queueCount.value = queue.size
     }
 
     override fun getAllUris(upload: PendingUpload): List<Uri> {
