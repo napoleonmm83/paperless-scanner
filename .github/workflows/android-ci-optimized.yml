@@ -94,7 +94,7 @@ jobs:
       # ✅ OPTIMIZATION: Restore Gradle build cache from previous runs
       - name: Restore Gradle build cache
         if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -117,7 +117,7 @@ jobs:
 
       # ✅ OPTIMIZATION: Share build outputs with other jobs via cache
       - name: Cache build outputs
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: always() && needs.check-runner.outputs.is-self-hosted != 'true'
         with:
           path: |
@@ -171,7 +171,7 @@ jobs:
 
       - name: Restore Gradle build cache
         if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -184,7 +184,7 @@ jobs:
       # ✅ OPTIMIZATION: Reuse build outputs from build job if available
       - name: Restore build outputs
         if: needs.check-runner.outputs.is-self-hosted != 'true'
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             app/build/intermediates
@@ -299,7 +299,7 @@ jobs:
 
       - name: Restore Gradle build cache
         if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
@@ -354,7 +354,7 @@ jobs:
 
       - name: Restore Gradle build cache
         if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
