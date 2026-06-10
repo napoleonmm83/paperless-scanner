@@ -1,0 +1,4 @@
+Version 1.5.207:
+
+🔧 Improvements:
+- Internal quality improvements for better stability

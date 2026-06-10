@@ -3,35 +3,30 @@ package com.paperless.scanner.worker
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.work.Data
-import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
-import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.health.ServerStatus
-import com.paperless.scanner.data.network.NetworkMonitor
-import com.paperless.scanner.data.repository.DocumentRepository
-import com.paperless.scanner.data.repository.SyncHistoryRepository
-import com.paperless.scanner.data.repository.TaskRepository
-import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.domain.error.ServerOfflineReason
+import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
+import com.paperless.scanner.testing.fakes.FakeDocumentRepository
+import com.paperless.scanner.testing.fakes.FakeNetworkMonitor
+import com.paperless.scanner.testing.fakes.FakeServerHealthMonitor
+import com.paperless.scanner.testing.fakes.FakeSyncHistoryRepository
+import com.paperless.scanner.testing.fakes.FakeTaskRepository
+import com.paperless.scanner.testing.fakes.FakeUploadQueueRepository
 import com.paperless.scanner.util.FileUtils
-import kotlinx.coroutines.flow.MutableStateFlow
 import com.google.common.util.concurrent.ListenableFuture
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.Runs
-import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
-import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -56,38 +51,38 @@ import org.robolectric.annotation.Config
  * - Multiple uploads with mixed results
  * - Retry limit behavior
  * - Safety limits for iteration
+ *
+ * #202 (plan-03): all collaborators are the typed fakes from testing/fakes/
+ * (compile-time-checked against the #321 contracts); assertions inspect recorded
+ * data instead of relaxed verify calls. The worker itself stays a spyk — its
+ * WorkManager surface (setForeground/setProgressAsync) is the test subject's own
+ * framework boundary, not a collaborator.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class UploadWorkerTest {
 
     private lateinit var context: Context
-    private lateinit var uploadQueueRepository: UploadQueueRepository
-    private lateinit var documentRepository: DocumentRepository
-    private lateinit var taskRepository: TaskRepository
-    private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var serverHealthMonitor: ServerHealthMonitor
-    private lateinit var syncHistoryRepository: SyncHistoryRepository
-    private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private lateinit var uploadQueueRepository: FakeUploadQueueRepository
+    private lateinit var documentRepository: FakeDocumentRepository
+    private lateinit var taskRepository: FakeTaskRepository
+    private lateinit var networkMonitor: FakeNetworkMonitor
+    private lateinit var serverHealthMonitor: FakeServerHealthMonitor
+    private lateinit var syncHistoryRepository: FakeSyncHistoryRepository
+    private lateinit var crashlyticsHelper: FakeCrashlyticsHelper
 
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication()
-        uploadQueueRepository = mockk(relaxed = true)
-        documentRepository = mockk(relaxed = true)
-        taskRepository = mockk(relaxed = true)
-        networkMonitor = mockk(relaxed = true)
-        serverHealthMonitor = mockk(relaxed = true)
-        syncHistoryRepository = mockk(relaxed = true)
-        crashlyticsHelper = mockk(relaxed = true)
-
-        // Default: hasValidatedInternet returns true
-        every { networkMonitor.hasValidatedInternet() } returns true
-
-        // Default: Server is reachable
-        every { serverHealthMonitor.serverStatus } returns MutableStateFlow<ServerStatus>(ServerStatus.Online(System.currentTimeMillis()))
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
-        coEvery { serverHealthMonitor.checkServerHealth() } returns com.paperless.scanner.data.health.ServerHealthResult.Success
+        uploadQueueRepository = FakeUploadQueueRepository()
+        documentRepository = FakeDocumentRepository()
+        taskRepository = FakeTaskRepository()
+        // Defaults: validated internet + reachable server.
+        networkMonitor = FakeNetworkMonitor(initiallyOnline = true)
+        serverHealthMonitor = FakeServerHealthMonitor(initiallyReachable = true)
+        serverHealthMonitor.status.value = ServerStatus.Online(System.currentTimeMillis())
+        syncHistoryRepository = FakeSyncHistoryRepository()
+        crashlyticsHelper = FakeCrashlyticsHelper()
 
         // Mock Android Log class to avoid "Method not mocked" errors
         mockkStatic(Log::class)
@@ -134,13 +129,16 @@ class UploadWorkerTest {
         return worker
     }
 
+    private fun markCalls(name: String, id: Long): Int =
+        uploadQueueRepository.recordedCalls.count { it.startsWith("$name($id") }
+
     // ==================== Pre-Check Tests ====================
 
     @Test
     fun `doWork retries when server is not reachable`() = runTest {
         // Given: Server is not reachable
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(false)
-        every { serverHealthMonitor.serverStatus } returns MutableStateFlow(ServerStatus.Offline(com.paperless.scanner.domain.error.ServerOfflineReason.UNKNOWN))
+        serverHealthMonitor.reachable.value = false
+        serverHealthMonitor.status.value = ServerStatus.Offline(ServerOfflineReason.UNKNOWN)
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -149,16 +147,13 @@ class UploadWorkerTest {
         assertEquals(ListenableWorker.Result.retry(), result)
 
         // And: No uploads were attempted
-        coVerify(exactly = 0) { uploadQueueRepository.getNextPendingUpload() }
+        assertEquals(0, uploadQueueRepository.recordedCalls.count { it == "getNextPendingUpload" })
     }
 
     // ==================== No Pending Uploads Tests ====================
 
-        @Test
+    @Test
     fun `doWork returns success when no pending uploads`() = runTest {
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returns null
-
         val worker = createWorker()
         val result = worker.doWork()
 
@@ -167,50 +162,26 @@ class UploadWorkerTest {
 
     // ==================== Single Upload Tests ====================
 
-        @Test
+    @Test
     fun `doWork processes single upload successfully`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.defaultUploadResult = Result.success("task-123")
 
         val worker = createWorker()
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsUploading(1) }
-        coVerify { uploadQueueRepository.markAsCompleted(1) }
+        assertEquals(1, markCalls("markAsUploading", 1))
+        assertEquals(1, markCalls("markAsCompleted", 1))
         // Refresh tasks so the new server-side consumption task shows up in the
         // "In Verarbeitung" list immediately (reactive Room flow).
-        coVerify { taskRepository.getTasks(forceRefresh = true) }
+        assertEquals(listOf(true), taskRepository.getTasksCalls)
     }
 
-        @Test
+    @Test
     fun `doWork marks upload as failed on error`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.failure(Exception("Network error"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.defaultUploadResult = Result.failure(Exception("Network error"))
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -218,165 +189,72 @@ class UploadWorkerTest {
         // The worker drained the queue; the per-item failure is persisted via
         // markAsFailed, so the work unit itself succeeds (#128 success-after-drain).
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsUploading(1) }
-        coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
+        assertEquals(1, markCalls("markAsUploading", 1))
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, Network error)"))
     }
 
-        @Test
+    @Test
     fun `doWork uses document title when available`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/doc1.pdf",
-            title = "My Invoice"
+        uploadQueueRepository.enqueue(
+            createPendingUpload(id = 1, uri = "content://test/doc1.pdf", title = "My Invoice")
         )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = eq("My Invoice"),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
 
         val worker = createWorker()
         worker.doWork()
 
-        coVerify {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = "My Invoice",
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        }
+        assertEquals("My Invoice", documentRepository.uploads.single().title)
     }
 
-        @Test
+    @Test
     fun `doWork passes tag ids to repository`() = runTest {
         val tagIds = listOf(1, 2, 3)
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/doc1.pdf",
-            tagIds = tagIds
+        uploadQueueRepository.enqueue(
+            createPendingUpload(id = 1, uri = "content://test/doc1.pdf", tagIds = tagIds)
         )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = eq(tagIds),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
 
         val worker = createWorker()
         worker.doWork()
 
-        coVerify {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = tagIds,
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        }
+        assertEquals(tagIds, documentRepository.uploads.single().tagIds)
     }
 
-        @Test
+    @Test
     fun `doWork passes document type id to repository`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/doc1.pdf",
-            documentTypeId = 5
+        uploadQueueRepository.enqueue(
+            createPendingUpload(id = 1, uri = "content://test/doc1.pdf", documentTypeId = 5)
         )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = eq(5),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
 
         val worker = createWorker()
         worker.doWork()
 
-        coVerify {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = 5,
-                correspondentId = any(),
-                onProgress = any()
-            )
-        }
+        assertEquals(5, documentRepository.uploads.single().documentTypeId)
     }
 
-        @Test
+    @Test
     fun `doWork passes correspondent id to repository`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/doc1.pdf",
-            correspondentId = 10
+        uploadQueueRepository.enqueue(
+            createPendingUpload(id = 1, uri = "content://test/doc1.pdf", correspondentId = 10)
         )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = eq(10),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
 
         val worker = createWorker()
         worker.doWork()
 
-        coVerify {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = 10,
-                onProgress = any()
-            )
-        }
+        assertEquals(10, documentRepository.uploads.single().correspondentId)
     }
 
     // ==================== Multi-Page Upload Tests ====================
 
-        @Test
+    @Test
     fun `doWork processes multi-page upload successfully`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/page1.jpg",
-            isMultiPage = true,
-            additionalUris = listOf("content://test/page2.jpg", "content://test/page3.jpg")
+        uploadQueueRepository.enqueue(
+            createPendingUpload(
+                id = 1,
+                uri = "content://test/page1.jpg",
+                isMultiPage = true,
+                additionalUris = listOf("content://test/page2.jpg", "content://test/page3.jpg")
+            )
         )
+        documentRepository.defaultUploadResult = Result.success("task-456")
 
         val expectedUris = listOf(
             Uri.parse("content://test/page1.jpg"),
@@ -384,153 +262,72 @@ class UploadWorkerTest {
             Uri.parse("content://test/page3.jpg")
         )
 
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery { uploadQueueRepository.getAllUris(pendingUpload) } returns expectedUris
-        coEvery {
-            documentRepository.uploadMultiPageDocument(
-                uris = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-456")
-
         val worker = createWorker()
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsCompleted(1) }
-        coVerify {
-            documentRepository.uploadMultiPageDocument(
-                uris = expectedUris,
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        }
+        assertEquals(1, markCalls("markAsCompleted", 1))
+        val upload = documentRepository.uploads.single()
+        assertTrue(upload.isMultiPage)
+        assertEquals(expectedUris, upload.uris)
     }
 
-        @Test
+    @Test
     fun `doWork marks multi-page upload as failed on error`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/page1.jpg",
-            isMultiPage = true
+        uploadQueueRepository.enqueue(
+            createPendingUpload(id = 1, uri = "content://test/page1.jpg", isMultiPage = true)
         )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery { uploadQueueRepository.getAllUris(pendingUpload) } returns listOf(Uri.parse("content://test/page1.jpg"))
-        coEvery {
-            documentRepository.uploadMultiPageDocument(
-                uris = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.failure(Exception("PDF conversion failed"))
+        documentRepository.uploadResults["content://test/page1.jpg"] =
+            Result.failure(Exception("PDF conversion failed"))
 
         val worker = createWorker()
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsFailed(1, "PDF conversion failed") }
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, PDF conversion failed)"))
     }
 
     // ==================== Multiple Uploads Tests ====================
 
-        @Test
+    @Test
     fun `doWork processes multiple uploads successfully`() = runTest {
-        val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-        val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
-        val upload3 = createPendingUpload(id = 3, uri = "content://test/doc3.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 3
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(upload1, upload2, upload3, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 2, uri = "content://test/doc2.pdf"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 3, uri = "content://test/doc3.pdf"))
+        documentRepository.defaultUploadResult = Result.success("task-123")
 
         val worker = createWorker()
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsCompleted(1) }
-        coVerify { uploadQueueRepository.markAsCompleted(2) }
-        coVerify { uploadQueueRepository.markAsCompleted(3) }
+        assertEquals(1, markCalls("markAsCompleted", 1))
+        assertEquals(1, markCalls("markAsCompleted", 2))
+        assertEquals(1, markCalls("markAsCompleted", 3))
     }
 
-        @Test
+    @Test
     fun `doWork returns success with partial failures`() = runTest {
-        val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-        val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 2
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(upload1, upload2, null)
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 2, uri = "content://test/doc2.pdf"))
 
         // First upload succeeds, second fails
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = eq(Uri.parse("content://test/doc1.pdf")),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-1")
-
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = eq(Uri.parse("content://test/doc2.pdf")),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.failure(Exception("Failed"))
+        documentRepository.uploadResults["content://test/doc1.pdf"] = Result.success("task-1")
+        documentRepository.uploadResults["content://test/doc2.pdf"] = Result.failure(Exception("Failed"))
 
         val worker = createWorker()
         val result = worker.doWork()
 
         // Partial success still returns success
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsCompleted(1) }
-        coVerify { uploadQueueRepository.markAsFailed(2, "Failed") }
+        assertEquals(1, markCalls("markAsCompleted", 1))
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(2, Failed)"))
     }
 
-        @Test
+    @Test
     fun `doWork returns success after draining even when all uploads fail`() = runTest {
-        val upload1 = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-        val upload2 = createPendingUpload(id = 2, uri = "content://test/doc2.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 2
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(upload1, upload2, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.failure(Exception("Network error"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 2, uri = "content://test/doc2.pdf"))
+        documentRepository.defaultUploadResult = Result.failure(Exception("Network error"))
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -538,88 +335,56 @@ class UploadWorkerTest {
         // Draining completed (both per-item failures persisted via markAsFailed);
         // the work unit succeeds so it can't poison an APPEND-chained follow-up (#128).
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsFailed(1, "Network error") }
-        coVerify { uploadQueueRepository.markAsFailed(2, "Network error") }
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, Network error)"))
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(2, Network error)"))
         // No successful upload -> no task refresh needed.
-        coVerify(exactly = 0) { taskRepository.getTasks(any()) }
+        assertTrue(taskRepository.getTasksCalls.isEmpty())
     }
 
     // ==================== Retry Behavior Tests ====================
 
-        @Test
+    @Test
     fun `doWork logs max retries warning when retry count exceeded`() = runTest {
-        val pendingUpload = createPendingUpload(
-            id = 1,
-            uri = "content://test/doc1.pdf",
-            retryCount = 3 // MAX_RETRIES reached
-        )
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
+        uploadQueueRepository.enqueue(
+            createPendingUpload(
+                id = 1,
+                uri = "content://test/doc1.pdf",
+                retryCount = 3 // MAX_RETRIES reached
             )
-        } returns Result.failure(Exception("Still failing"))
+        )
+        documentRepository.defaultUploadResult = Result.failure(Exception("Still failing"))
 
         val worker = createWorker()
         worker.doWork()
 
         // Should still mark as failed
-        coVerify { uploadQueueRepository.markAsFailed(1, "Still failing") }
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, Still failing)"))
     }
 
     // ==================== Safety Limit Tests ====================
 
-        @Test
+    @Test
     fun `doWork breaks loop when same upload returned twice`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        // Return same upload repeatedly (simulates bug where upload isn't removed from queue)
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returns pendingUpload
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        // Simulate a buggy queue where completion does not remove the row and the same
+        // upload keeps being returned.
+        uploadQueueRepository.stickyNextUpload = true
+        documentRepository.defaultUploadResult = Result.success("task-123")
 
         val worker = createWorker()
         val result = worker.doWork()
 
         // Should process once then break
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify(exactly = 1) { uploadQueueRepository.markAsCompleted(1) }
+        assertEquals(1, markCalls("markAsCompleted", 1))
     }
 
     // ==================== Exception Handling Tests ====================
 
-        @Test
+    @Test
     fun `doWork handles unexpected exception during upload`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } throws RuntimeException("Unexpected crash")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.uploadExceptions["content://test/doc1.pdf"] = RuntimeException("Unexpected crash")
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -627,56 +392,31 @@ class UploadWorkerTest {
         // A genuine bug is recorded per-item (markAsFailed) and the drain completes,
         // so the work unit succeeds (the bug surfaces via Crashlytics, not the Result).
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, Unexpected crash)"))
     }
 
     @Test
     fun `doWork reports unexpected throwable to Crashlytics as non-fatal`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } throws RuntimeException("Unexpected crash")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.uploadExceptions["content://test/doc1.pdf"] = RuntimeException("Unexpected crash")
 
         val worker = createWorker()
         val result = worker.doWork()
 
         // A genuine bug (thrown, not Result-wrapped) surfaces in Crashlytics as a
         // non-fatal with its full stack trace...
-        verify(exactly = 1) {
-            crashlyticsHelper.recordException(match { it is RuntimeException && it.message == "Unexpected crash" })
-        }
+        val recorded = crashlyticsHelper.recordedExceptions.single()
+        assertTrue(recorded is RuntimeException && recorded.message == "Unexpected crash")
         // ...while the per-item outcome is still persisted via markAsFailed and the
         // drain itself succeeds (per-item failure does not fail the work unit, #128).
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify { uploadQueueRepository.markAsFailed(1, "Unexpected crash") }
+        assertTrue(uploadQueueRepository.recordedCalls.contains("markAsFailed(1, Unexpected crash)"))
     }
 
     @Test
     fun `doWork rethrows CancellationException and resets the in-flight row to PENDING`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } throws CancellationException("cancelled")
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.uploadExceptions["content://test/doc1.pdf"] = CancellationException("cancelled")
 
         val worker = createWorker()
 
@@ -692,37 +432,21 @@ class UploadWorkerTest {
         assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
         // The row was moved to UPLOADING before the attempt; on cancellation it must
         // be reset to PENDING so the next run retries it instead of stranding it (#128).
-        coVerify { uploadQueueRepository.resetToPending(1) }
+        assertEquals(1, markCalls("resetToPending", 1))
         // A cancelled in-flight upload must NOT be marked permanently failed...
-        coVerify(exactly = 0) { uploadQueueRepository.markAsFailed(1, any()) }
+        assertEquals(0, markCalls("markAsFailed", 1))
         // ...and cancellation is not a crash → no Crashlytics non-fatal.
-        verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
+        assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
     }
 
     @Test
     fun `doWork completes the row instead of requeuing when cancelled after a successful upload`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
         // The server ACCEPTS the document...
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
+        documentRepository.defaultUploadResult = Result.success("task-123")
         // ...but the worker is cancelled while finishing the row: the first
         // markAsCompleted is interrupted, the NonCancellable finalization retries it.
-        var completeCalls = 0
-        coEvery { uploadQueueRepository.markAsCompleted(1) } answers {
-            completeCalls++
-            if (completeCalls == 1) throw CancellationException("cancelled during completion")
-        }
+        uploadQueueRepository.markAsCompletedFailures.addLast(CancellationException("cancelled during completion"))
 
         val worker = createWorker()
 
@@ -736,51 +460,32 @@ class UploadWorkerTest {
         assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
         // The server already has the document → the row must NOT be reset to PENDING
         // (that would re-upload and create a DUPLICATE); it must be completed instead.
-        coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
-        coVerify(exactly = 2) { uploadQueueRepository.markAsCompleted(1) }
+        assertEquals(0, markCalls("resetToPending", 1))
+        assertEquals(2, markCalls("markAsCompleted", 1))
     }
 
     @Test
     fun `doWork completes the row instead of requeuing on a non-cancellation error after a successful upload`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
         // The server ACCEPTS the document...
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.success("task-123")
+        documentRepository.defaultUploadResult = Result.success("task-123")
         // ...but finishing the row throws a regular (non-cancellation) error the first
         // time (e.g. the markAsCompleted delete hiccups). The generic catch must NOT
         // mark a server-accepted upload as failed (that would re-upload → duplicate).
-        var completeCalls = 0
-        coEvery { uploadQueueRepository.markAsCompleted(1) } answers {
-            completeCalls++
-            if (completeCalls == 1) throw RuntimeException("db error during completion")
-        }
+        uploadQueueRepository.markAsCompletedFailures.addLast(RuntimeException("db error during completion"))
 
         val worker = createWorker()
         val result = worker.doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
-        coVerify(exactly = 0) { uploadQueueRepository.markAsFailed(1, any()) }
-        coVerify(exactly = 0) { uploadQueueRepository.resetToPending(1) }
-        coVerify(exactly = 2) { uploadQueueRepository.markAsCompleted(1) }
+        assertEquals(0, markCalls("markAsFailed", 1))
+        assertEquals(0, markCalls("resetToPending", 1))
+        assertEquals(2, markCalls("markAsCompleted", 1))
     }
 
     @Test
     fun `doWork resets the row when cancelled after claiming it but before uploading`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
 
         val worker = createWorker()
         // Cancel during the per-item setForeground() — AFTER markAsUploading has moved
@@ -804,29 +509,15 @@ class UploadWorkerTest {
         assertTrue("doWork must rethrow CancellationException", thrown is CancellationException)
         // The row was claimed (UPLOADING) then cancelled before the upload → it must be
         // reset to PENDING, and the upload must never have been attempted.
-        coVerify { uploadQueueRepository.markAsUploading(1) }
-        coVerify { uploadQueueRepository.resetToPending(1) }
-        coVerify(exactly = 0) {
-            documentRepository.uploadDocument(any(), any(), any(), any(), any(), onProgress = any())
-        }
+        assertEquals(1, markCalls("markAsUploading", 1))
+        assertEquals(1, markCalls("resetToPending", 1))
+        assertTrue("upload must never be attempted", documentRepository.uploads.isEmpty())
     }
 
     @Test
     fun `doWork does not report Crashlytics non-fatal for repo Result failure`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        } returns Result.failure(Exception("Network error"))
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.defaultUploadResult = Result.failure(Exception("Network error"))
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -834,50 +525,24 @@ class UploadWorkerTest {
         // A typed Result.failure from the repo (.onFailure path) is an EXPECTED
         // failure and must NOT generate Crashlytics non-fatal noise.
         assertEquals(ListenableWorker.Result.success(), result)
-        verify(exactly = 0) { crashlyticsHelper.recordException(any()) }
+        assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
     }
 
     // ==================== Progress Callback Tests ====================
 
-        @Test
+    @Test
     fun `doWork invokes progress callback during upload`() = runTest {
-        val pendingUpload = createPendingUpload(id = 1, uri = "content://test/doc1.pdf")
-        val progressSlot = slot<(Float) -> Unit>()
-
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 1
-        coEvery { uploadQueueRepository.getNextPendingUpload() } returnsMany listOf(pendingUpload, null)
-        coEvery {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = capture(progressSlot)
-            )
-        } answers {
-            // Simulate progress updates
-            progressSlot.captured(0.25f)
-            progressSlot.captured(0.5f)
-            progressSlot.captured(0.75f)
-            progressSlot.captured(1.0f)
-            Result.success("task-123")
-        }
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        // The fake replays these through onProgress before returning the result.
+        documentRepository.progressSteps = listOf(0.25f, 0.5f, 0.75f, 1.0f)
+        documentRepository.defaultUploadResult = Result.success("task-123")
 
         val worker = createWorker()
         worker.doWork()
 
-        // Verify progress callback was captured and invoked
-        coVerify {
-            documentRepository.uploadDocument(
-                uri = any(),
-                title = any(),
-                tagIds = any(),
-                documentTypeId = any(),
-                correspondentId = any(),
-                onProgress = any()
-            )
-        }
+        // The upload ran and every progress step was delivered through the callback.
+        assertEquals(1, documentRepository.uploads.size)
+        assertEquals(listOf(0.25f, 0.5f, 0.75f, 1.0f), documentRepository.reportedProgress)
     }
 
     // ==================== Foreground Refresh Throttle Tests ====================
