@@ -1,0 +1,5 @@
+Version 1.5.202:
+
+🐛 Fehlerbehebungen:
+- Tag-Zähler werden nicht mehr verfälscht, wenn ein Dokument noch nicht im lokalen Cache war
+- Stabilere Tag-Statistiken bei Offline-Synchronisierung

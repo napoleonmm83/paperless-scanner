@@ -1,200 +1,217 @@
-# 00 — Master Execution Plan (Stand 2026-06-05)
+# 00 — Master Execution Plan (Stand 2026-06-10)
 
-> Reconciled, code-verifizierter Ausführungsplan für die **letzten offenen Issues**.
-> Erstellt durch Phase-0-Discovery (10 Agenten, jeder Design-Doc gegen den echten Code/Git-Stand
-> auf `origin/main` @ `4c775045` geprüft). Dieser Plan **ersetzt die Wellen-Sequenz in `README.md`**,
-> weil diese teils veraltet ist (siehe „Roadmap-Korrekturen"). Die `0X-*.md` Design-Docs bleiben die
-> Detail-Specs; dieses Dokument ist die Reihenfolge + die Stolperfallen-Leitplanken pro Phase.
+> Code-verifizierter Ausführungsplan für die **letzten offenen Issues**. Verifiziert gegen
+> `origin/main` @ `8f8537e2` (v1.5.201) durch 5 parallele Prüf-Agenten (je Issue-Cluster einer).
+> Ersetzt den Stand 2026-06-05. Die `0X-*.md` Design-Docs bleiben die Detail-Specs; dieses
+> Dokument ist Reihenfolge + verifizierte Stolperfallen-Leitplanken.
+
+## 0. Was seit 2026-06-05 erledigt wurde
+
+Wave A (Housekeeping), B1–B4 (detekt-Modul, plan-04 #322, plan-08 #45, plan-05-kdoc), C1/C2
+(plan-05 #323, plan-06 #324), D1 (plan-01 **#319 komplett**: #48→PR#339, #153→PR#340/341,
+#343→PR#344, #342→PR#345, #132 closed-tautological) und plan-07a (#302→PR#328) sind **gemerged
+und deployed** (Internal v1.5.182–v1.5.201). Übrig: **5 Issues + 8 Dependabot-PRs.**
 
 ## 1. Reconciled Status — was *wirklich* noch offen ist
 
-| Plan | Master | Reststand (verifiziert) | Aufwand | Risiko | Blockiert? |
-|------|--------|--------------------------|---------|--------|------------|
-| plan-04 | #322 | Runtime-Fixes **gemerged** (#327); nur **detekt-Regeln + detekt blockierend** fehlen | M (S ohne Custom-Rule) | mittel | nein |
-| plan-08 | #45 | Factories **vorhanden**; nur **KDoc + detekt-Route-Regel + Test** fehlen | M (S ohne Custom-Rule) | niedrig | nein |
-| plan-05 | #323 | Online-Pfad **gemerged** (#65/#126); **Offline-Tag-Count (#65)** + **#66 kdoc** fehlen | M | mittel | nein |
-| plan-06 | #324 | 3 unabhängige Slices (#82, #142, #50) — alle offen | L | mittel | nein |
-| plan-01 | #319 | Komplett offen, sequenziert **#48 → #153 → #132** | L | mittel | nein |
-| plan-03 | #321 | Komplett offen (Interface-Extraktion → #239, #202) | XL | mittel | nein |
-| plan-02 | #320 | Komplett offen (**#303 → #37**); #37-Krypto-Pfad nur am Gerät voll testbar | L | **hoch** | nein* |
-| plan-07b | #325 | #302 **gemerged** (#328); nur **#145 ProGuard-iText** offen | M | mittel | **ja** (Geräte-QA) |
-| plan-10 | #287 | #128-Hardening **gemerged**; **Upstream-API-Investigation-Gate** offen | S (NO) / L–XL (YES) | niedrig | **ja** (externe API) |
+| Item | Was | Aufwand | Risiko | Blockiert? |
+|------|-----|---------|--------|------------|
+| **#334** | tag-count delta: unknown ≠ empty old-tag-set (plan-05 Follow-up, P3) | **S** | niedrig | nein |
+| **Dependabot #346/347/348** | github_actions Bumps (cache v5, gh-release v3, upload-artifact v7) — Batch-PR wie #305 | **S** | niedrig | nein |
+| **#321 plan-03** | Test-Double-Foundation: ~9 `*Contract`-Interfaces → #239 + #202 | **XL** | mittel | nein |
+| **#320 plan-02** | SecureTokenStorage Failure-Taxonomy (Phase 1 = ex-#303, Phase 2 = ex-#37) | **L** | **hoch** | nein* |
+| **#325 plan-07** | Rest = NUR ProGuard-iText-Narrowing (#302 ✅ gelandet, #145 closed/not_planned) | **S** (+Geräte-Smoke) | mittel | **Entscheidung + Geräte-QA** |
+| **#296** | Umbrella-Tracker: 6 Feature-TODOs (3 unblocked S/M, 3 premium/produkt-gated) | optional | niedrig | teilweise (Produkt) |
+| Dependabot #13–17 | cameraX/workManager/firebase/coroutines-test/ben-manes | M | **runtime-riskant** | Geräte-QA |
 
-`#296` bleibt eigenständiger Umbrella-Tracker (verschobene Feature-TODOs) — **kein** Plan, nicht hier.
+\* plan-02 ist nicht extern blockiert, aber der echte `AEADBadTagException`-Pfad ist unter
+JVM/Robolectric nicht testbar → dokumentierter Real-Device-Test als Abschluss-Gate.
 
-\* plan-02 ist nicht extern blockiert, aber der echte `AEADBadTagException`-Entschlüsselungspfad ist
-unter JVM/Robolectric **nicht** testbar → braucht einen dokumentierten Real-Device-Test.
+## 2. Verifizierte Korrekturen an den Design-Docs (2026-06-10 — VOR Ausführung lesen!)
 
-## 2. Roadmap-Korrekturen (`README.md` ist stale — vor Ausführung beachten)
+### plan-03 / #321 (`03-test-interfaces.md` + Issue-Body haben 4 Fehler)
+1. **`SyncManager.pendingChangesCount` ist `StateFlow<Int>`** (SyncManager.kt:109), nicht `Flow`.
+   `UploadQueueRepository.pendingCount` ist dagegen `Flow<Int>` (:71). Contracts müssen die
+   ECHTEN Typen deklarieren — vorher je Property greppen, nicht dem Doc glauben.
+2. **`recordException` existiert NUR auf `CrashlyticsHelper`** (:101). `AnalyticsService` hat
+   stattdessen `logError()` (:108) / `logMessage()` (:120) / `isAnalyticsEnabled()` (:129).
+   `FakeAnalyticsService` für #239 muss logError/logMessage aufzeichnen, nicht recordException.
+3. **`SyncManager.stop()` existiert NICHT.** Der Contract darf keine stop()-Methode deklarieren.
+4. **3 Collaborators sind `@Provides` in AppModule** → für sie KEIN `@Binds`, sondern
+   Rückgabetyp des Providers auf `*Contract` ändern: `provideUploadQueueRepository` (:576),
+   `provideSyncManager` (:598, 9 DAO-Params), `provideTokenManager` (:164; TokenManager hat
+   keinen `@Inject`-Konstruktor). Die übrigen 6 (`SyncHistoryRepository`, `DocumentRepository`,
+   `TrashRepository`, `NetworkMonitor`, `ServerHealthMonitor`, `CrashlyticsHelper` —
+   plus `AnalyticsService`) sind `@Inject`-auto-wired → neues `@Binds`-Modul funktioniert.
 
-- **Wave 0 ist KOMPLETT.** `README.md` Z. 15/20/27-28 behauptet plan-04 (#264/#266) und plan-09 (#307)
-  lägen „done on local branch — land it" auf un-gemergten Branches. **Falsch:** beide sind via
-  Squash-PRs **#327** (`24436128`) und **#326** (`9074130b`) auf `main`. Einziger Rest von Wave 0 =
-  die plan-04-**detekt-Regel** (Wave B1/B2 unten).
-- **Zwei verwaiste lokale Branches** (`fix/a11y-home-polish`, `fix/scan-shared-images-cleanup`) sind
-  obsolet (Inhalt squash-gemerged, Remote serverseitig gelöscht) → **löschen**, nicht rebasen. Sie
-  erscheinen NICHT in `git branch --merged` (Squash erzeugt neue SHAs) — Verifikation per Inhalt, nicht Ancestry.
-- **detekt ist aktuell wirkungslos in CI:** `android-ci-optimized.yml:296/301` läuft `gradlew detekt`
-  mit `|| exit 0` / `|| true`. Auch `scripts/validate-ci.sh` (der Pre-Push-Gate) ruft detekt **gar nicht** auf.
-  → Jede neue detekt-Regel braucht zusätzlich das Schärfen dieses Gates, sonst blockiert sie nichts.
-- **`config/detekt/baseline.xml`** wird in `app/build.gradle.kts:323` referenziert, **existiert aber nicht**
-  auf der Platte → bei detekt-Arbeit entweder anlegen oder die Zeile entfernen.
-- Lokales `main` ist 1 Commit hinter `origin/main` — **`origin/main` ist die Wahrheit**.
+Verifizierte Injektionsstellen (alle müssen auf Contract-Typ flippen):
+- `UploadWorker` (:39–49): uploadQueueRepository, documentRepository, taskRepository,
+  networkMonitor, serverHealthMonitor, syncHistoryRepository, crashlyticsHelper
+- `SyncWorker` (:21–26): syncManager, crashlyticsHelper
+- `TrashDeleteWorker` (:36–44): trashRepository, tokenManager, syncHistoryRepository,
+  crashlyticsHelper (— `cachedDocumentDao` bleibt DAO, kein Contract)
+- `WidgetUpdateWorker` (:35–39): uploadQueueRepository
+- `ServerHealthViewModel` (:55–62): networkMonitor, serverHealthMonitor, uploadQueueRepository,
+  syncHistoryRepository, syncManager, analyticsService
 
-## 3. Shared-Infra-Erkenntnis (Sequenzierungs-Hebel)
+Weitere Fakten: kein `*Contract.kt`/`Fake*.kt` existiert; 207× `mockk(relaxed=true)` in 20+
+Test-Dateien (Scope hier: nur die 5 Ziel-Dateien); Test-Pfade wie im Doc
+(`SyncWorkerTest`→`data/sync/`, `WidgetUpdateWorkerTest`→`widget/`).
 
-plan-04 **und** plan-08 brauchen dieselbe nicht-existente Infrastruktur: ein **Custom-detekt-Ruleset-
-Gradle-Modul** (`RuleSetProvider` + `Rule`-Klassen) plus **blockierendes detekt in CI**. Heute gibt es
-weder ein Custom-Modul, noch eine `detektPlugins`-Dependency, noch einen `RuleSetProvider` im Baum.
-→ **Modul EINMAL bauen (Wave B1), dann tragen plan-04 und plan-08 nur noch je eine Regel ein.** Das
-senkt beide von M auf ~S. Falls ein leichteres ktlint/Regex-Gate akzeptabel ist, entfällt das Modul ganz.
+### plan-02 / #320 (Zitate stimmen noch)
+Verifiziert: `getOrCreateEncryptedPrefs` :38–51 (catch-all → Recovery :46–48),
+`recoverCorruptedStorage` :77–110 (löscht Prefs-File :82 + Master-Key :90–95),
+getToken/saveToken-Swallowing :118–141, `TokenStorage`-Interface :14–18 (5 Methoden),
+`TokenManager.init` :84–136 (ruft `isMigrationCompleted()` :102, KEIN Corruption-Signal),
+`getTokenSync` :324–326. Sealed-Vorbild: `ServerHealthResult` in ServerHealthMonitor.kt:60–101.
+`TokenManagerTest` mockt das Interface (Robolectric + MockK) → Taxonomy ist JVM-testbar.
+Es existiert noch KEINE TokenStorageResult/FailureKind-Vorarbeit.
 
-## 4. Ausführungs-Wellen (re-sequenziert nach ROI × Abhängigkeit)
+### #334 (Befund bestätigt, Fix-Geometrie)
+- Sites: `SyncManager.getOldTagIds` :534–543 (Call-Site :490, Delta :510–515) und
+  `DocumentMetadataRepository.getOldTagIds` :191–200 (Call-Site :112, Delta :127–131).
+- `DocumentSerializer.deserializeCachedTagIds` :35–41 gibt `emptyList()` für null/blank UND
+  unparseable zurück (dokumentierter Contract :20) — **dritter Consumer `TagRepository:249`**
+  darf nicht brechen → neue nullable Variante (`deserializeCachedTagIdsOrNull`, null = Parse-
+  Fehler) ergänzen statt Semantik der bestehenden Methode zu ändern.
+- Fix: beide `getOldTagIds` → `List<Int>?`; `null` wenn (a) cached row fehlt (`cached == null`)
+  oder (b) Parse-Fehler/Exception. `tags == "[]"` bleibt `emptyList()` (echte leere Menge,
+  Delta soll laufen). Die bestehenden Guards `if (tags != null && oldTagIds != null)` greifen
+  dann automatisch. Kdoc-Kommentare (:487–489, :109–111, :529–533) mit-aktualisieren.
 
-Jede Phase ist als **eigener frischer Kontext** ausführbar. Pflicht-Gate pro PR:
-`git rebase origin/main` → `scripts/validate-ci.sh` grün → push. **COPY** aus den Design-Docs, nicht „migrieren".
+### plan-07 / #325 (nur noch ProGuard übrig)
+- **#302-Slice vollständig gelandet** (PR #328, `ae0338b9`): pre-push liest stdin-Refs und
+  rebased nur `main` (:15–22); `scripts/check-lazy-keys.sh` existiert und wird von
+  `validate-ci.sh:206` UND `android-ci-optimized.yml:279` aufgerufen. ✔ verifiziert.
+- **Rest:** `app/proguard-rules.pro:46–52` hat weiterhin 3 Blanket-Keeps (`com.itextpdf.**`
+  class/interface/abstract-class); einziger iText-Consumer ist `PdfGeneratorService.kt:5–10`
+  mit exakt 6 Klassen (ImageDataFactory, PageSize, PdfDocument, PdfWriter, Document, Image).
+  Reflection-Guard für PdfObject-Subklassen (:59–61) existiert bereits separat — behalten.
+- #145 wurde als not_planned geschlossen (Geräte-QA-gated) → #325 braucht eine **Entscheidung**
+  (siehe Wave 4).
 
----
+### #296 (alle 6 TODOs verifiziert vorhanden, KNOWN_ISSUES.md §Known Debt aktuell)
+Unblocked: `LabelsScreen:291` isCreating-State (**S**, CreateEntityDialog-Param existiert),
+`UploadComponents:500` DatePicker (**S**, Material3-DatePicker verfügbar),
+`StepByStepMetadataScreen:231` Tag-Dialog (**M**, CreateEntityDialog-Muster wiederverwendbar).
+Produkt-/Premium-gated: `MainActivity:110` + `AnalyzeDocumentUseCase:105` (Billing-Tier),
+`AnalyzeDocumentUseCase:82` OCR-Extraktion (**L**, ML-Kit-Pipeline + Produktentscheid).
 
-### Wave A — Housekeeping (S, 0 Risiko, sofort)
+## 3. Ausführungs-Wellen
 
-**Was:** Repo-Hygiene + Roadmap entstauben.
-1. Lokales `main` auf `origin/main` synchronisieren (`git fetch --all --prune`, fast-forward).
-2. Obsolete Branches löschen: `git branch -D fix/a11y-home-polish fix/scan-shared-images-cleanup`.
-3. `README.md` korrigieren: Status-Spalte plan-04/plan-09 = „landed (#327/#326)", Wave-0-Block als erledigt
-   markieren, Verweis auf dieses `00-execution-plan.md` ergänzen.
-
-**Verifikation:** `git branch` zeigt die zwei Branches nicht mehr; `git log origin/main..main` ist leer.
-**Anti-Pattern-Guard:** Branches NICHT rebasen/mergen — Inhalt ist schon auf main; das 1-ahead-Commit ist der redundante Pre-Squash-Stand.
-
----
-
-### Wave B — Enforcement-Infra + Doc/Quick-Wins (low risk, hoher ROI)
-
-#### B1 — detekt-rules-Modul + detekt blockierend  *(Shared-Infra für B2 & B3)*
-**Was:** Neues Gradle-Modul `config/detekt/rules` (oder `detekt-rules/`) mit `RuleSetProvider`. `detektPlugins(project(...))`
-in `app/build.gradle.kts` (detekt-Block Z. 319-325). `baseline.xml` anlegen ODER die Referenz Z. 323 entfernen.
-CI scharf stellen: in `android-ci-optimized.yml:296/301` das `|| true` / `|| exit 0` entfernen.
-**Verifikation:** `./gradlew detekt` schlägt bei einer Test-Fixture-Verletzung fehl (heute no-op).
-**Guard:** Stock-detekt kann diese Compose-UI-Invarianten **nicht** ausdrücken — Custom-Rule ist Pflicht (oder Lint).
-
-#### B2 — plan-04 Enforcement (#322)  → Design-Doc `04-a11y-styleguide.md`
-**Was:** Zwei Custom-Regeln ins B1-Modul: `TouchTargetSize` (clickable ohne vorangestelltes
-`.minimumInteractiveComponentSize()` an Box/Row/Column) + `LabelLetterSpacingOverride` (inline `letterSpacing=` in Label-TextStyles).
-Compliant-Vorlage: `PageThumbnail.kt:123-124/151-152`. Exempt: `PageThumbnail.kt:86/235` (Full-Image / 160dp-Card).
-Prüf-/Entscheide-Sites: `WidgetConfigActivity.kt:197/251` (0.1.sp inline), `DiagnosticsScreen.kt:353` (Token-Referenz → nicht flaggen).
-**Verifikation:** detekt FAILt bei `Box.clickable` < 48dp, PASSt auf PageThumbnail-Muster.
-**Guard:** Runtime-Defekte sind **schon gemerged** (#327) — KEINE Laufzeit-Fixes mehr, nur Enforcement.
-
-#### B3 — plan-08 Typed Navigation (#45)  → Design-Doc `08-typed-navigation.md`
-**Was:** (1) Klassen-KDoc über `Screen.kt:5` (Factory-Pflicht, Beispiele `Scan/Upload/PdfViewer.createRoute`).
-(4) `Uri.encode` (Z. 14/29/52/78/83/89) über einen Top-of-File-Helper konsolidieren — **PdfViewer encodet nur den
-Titel, nicht die id; Scan-Pipe-Delimiter nicht encoden**. (3) detekt-Regel `RawRouteString` (Literal-Arg an `navigate(...)`
-mit Route-Form) ins B1-Modul. (5) `ScreenTest.kt` neu (Route-Form-Asserts).
-**Verifikation:** `rg 'navigate\("' app/src/main/java/` = 0; `./gradlew testDebugUnitTest --tests '*ScreenTest*'` grün.
-**Guard:** `android.net.Uri.encode` ist unter purem JVM ein No-op → Test ggf. Robolectric. `AppLockNavigationInterceptor`
-nur **auditieren**, nicht umschreiben; dessen `targetRoute`-Variable darf die neue Regel nicht flaggen. ⚠️ #45 war am Jun-4 (C3)
-triage-deferred — vor Ausführung bestätigen, dass der Slice noch gewünscht ist.
-
-#### B4 — plan-05 #66 KDoc-Sweep (S, reine Docs)  → Design-Doc `05-docrepo-integrity.md`
-**Was:** Standardisierten `**CACHE & REFRESH POLICY:**`-Block (TTL/Refresh-Trigger/Soft-Delete/Pending-Change) auf die
-Repos ohne Cache-Contract-kdoc setzen. `DocumentTypeRepository.kt:24` hat **gar kein** kdoc. Vorlage: `TagRepository.kt:28-68`.
-`TagRepository`/`CorrespondentRepository` sind die Referenzen (nur Methoden-Einzeiler prüfen, nicht neu schreiben).
-**Verifikation:** `grep 'CACHE' data/repository/*.kt` trifft alle 9 Repos.
+Pflicht-Gate je PR (unverändert): `git rebase origin/main` → `scripts/validate-ci.sh` grün →
+`codex review` PASS → PR → CodeRabbit abarbeiten → squash-merge → Auto-Deploy Internal.
+Changelog `<versionCode>.txt` (DE+EN, ≤500 Zeichen) **zur Merge-Zeit** berechnen (Memory:
+feedback_changelog_version_alignment). Self-hosted-Runner = diese Maschine → kein lokales
+Gradle während aktiver Deploys.
 
 ---
 
-### Wave C — Daten-Integrität & Coroutine-Hygiene (mittel)
+### Wave 1 — Quick Wins (S, ~½ Session)
 
-#### C1 — plan-05 #65 Offline-Tag-Count-Atomarität  → Design-Doc `05-docrepo-integrity.md`
-**Was:** `SyncManager` zwei Ctor-Params geben: `db: AppDatabase` + `serializer: DocumentSerializer` (fehlen beide).
-In `pushDocumentChange` (`SyncManager.kt:489-494`, „update"-Branch) das `withTransaction`+Tag-Delta-Muster aus
-`DocumentMetadataRepository.kt:105/118-126` **kopieren**; `getOldTagIds`-try/catch aus `:184-196` spiegeln.
-Tests in `SyncManagerTest.kt` (extends `BaseRoomRepositoryTest`, echtes In-Memory-Room): Rollback- + Divergenz-Test
-analog `DocumentMetadataRepositoryTest.kt:247-283 / 230-246`.
-**Verifikation:** `rg 'withTransaction' SyncManager.kt` trifft jetzt; neue Tests grün; Online-Tests bleiben grün.
-**Guard:** `pushDocumentChange` ist `private` → Test über den öffentlichen Sync-Pfad treiben (oder `@VisibleForTesting`).
+**PR-1: #334 unknown-vs-empty Tag-Delta.** Fix-Geometrie wie oben in §2/#334. Tests: je
+Implementierung 2 neue Fälle (cached row fehlt → kein Delta; invalid JSON → kein Delta) +
+Bestands-Fall leer→nonempty inkrementiert weiter — spiegeln an
+`DocumentMetadataRepositoryTest` (Rollback/Divergenz-Tests) und `SyncManagerTest`.
+→ schließt #334, plan-05-Faden komplett zu.
 
-#### C2 — plan-06 Coroutine-Hygiene (3 unabhängige PRs)  → Design-Doc `06-coroutine-hygiene.md`
-Reihenfolge: **#82 → #142 → #50** (jede eigener PR).
-- **#82 (read-timeout):** `withReadTimeout(...)` in `ApiExtensions.kt` neu (CancellationException durchreichen wie `safeApiCall`),
-  4 `get*()`-Netzwerk-Branches wrappen (Tag/Correspondent/DocumentType/CustomField-Repo). **`READ_TIMEOUT_SECONDS` existiert
-  schon** (`NetworkConfig.kt:19`) — NICHT neu anlegen. **Kein globaler OkHttp `callTimeout`** (würde adaptive Upload-Timeouts brechen).
-- **#142 (scope-teardown):** `destroy()` auf `NetworkMonitor`/`ServerHealthMonitor` (mit `scope.cancel()`), `scope.cancel()` in
-  `BillingManager.destroy():838` ergänzen, alle drei aus `PaperlessApp.kt` aufrufen. **Guard:** `ProcessLifecycleOwner` hat
-  KEIN process-level `onDestroy` — realen Teardown-Seam wählen (`Application.onTerminate`/Best-Effort-Hook) und dokumentieren.
-- **#50 (shareIn):** `observeCorrespondents`/`observeDocumentTypes` (rohe Room-Flows) `.shareIn(scope, WhileSubscribed(5000))`,
-  CoroutineScope in die Repos injizieren. **Guard:** `CustomFieldRepository.observeCustomFields` ist **schon StateFlow** → shareIn
-  redundant. `TagRepository:88-91` hat KEIN repo-level stateIn (das liegt in `TagSuggestionsViewModel:88-89`) — Doc ist hier falsch.
-**Verifikation:** `grep 'fun destroy'`/`'scope.cancel'`/`'withReadTimeout'`/`'shareIn'` treffen; `grep 'callTimeout'` bleibt leer; Leak-/Timeout-/ShareIn-Tests grün.
+**PR-2: Dependabot-Batch #346+#347+#348** (actions/cache v5, softprops/action-gh-release v3,
+actions/upload-artifact v7) in EINEM PR (Präzedenz: PR #305 — vermeidet 3 redundante Deploys +
+kaskadierende Rebases). Die 3 Einzel-PRs danach schließen. **Achtung gh-release 2→3 ist ein
+Major** — vor Merge Release-Notes des Actions-Repos auf Breaking-Inputs prüfen (`release.yml`
++ `auto-deploy-internal.yml` nutzen es); der nächste Auto-Deploy testet den Bump end-to-end.
 
 ---
 
-### Wave D — Architektur (groß)
+### Wave 2 — plan-03 #321 Test-Double-Foundation (XL, 2–3 Sessions, 4 PRs)
 
-#### D1 — plan-01 Layer Boundary (#319)  → Design-Doc `01-layer-boundary.md`
-Strikt sequenziert **#48 → #153 → #132**:
-- **#48:** `ProtocolDetector.kt` (neu, `data/service/`) — `detectionClient`/`tryProtocol`/`verifyPaperlessWithDocumentsEndpoint`/
-  `isPaperlessApiResponse` aus `AuthRepository.kt` herausziehen; die zwei Detection-`newCall()` (L282/L435) delegieren.
-  **Guard:** die zwei NICHT-Detection-`newCall()` (L520/L762, echte Auth) **bleiben** in AuthRepository.
-- **#153:** Domain-Modelle + Mapper (`ServerStatus`, `CustomField`, `domain/error/`-Paket für `PaperlessException`/`userMessage`/
-  `ServerOfflineReason`), 9 ui/-Import-Sites umbiegen, `ServerStatusRepository.getServerStatus()` auf `Result<ServerStatus>`.
-  Deprecated typealias-Shim in `data/api` lassen, damit Nicht-ui-Caller nicht in einem Commit brechen.
-- **#132:** JSON-Round-Trip-Test gegen `@SerializedName` mit `GsonProvider.instance` (NICHT frisches Gson); Fixtures je DTO.
-**Verifikation:** `rg 'com.paperless.scanner.data.api' app/.../ui/` = 0 nicht-deprecated Treffer (heute 17 über 9 Dateien, `HttpAllowlistInterceptor` ausgenommen); Round-Trip-Test grün.
-**Guard:** Doc sagt „~24 ui-Sites" — real **17**. `getLocalizedMessage` nimmt `Context` (streift deferred #55) — Context-Variante behalten, `userMessage` an UI exposen.
+Design-Doc `03-test-interfaces.md`, MIT den §2-Korrekturen. Strikt sequenziert:
 
-#### D2 — plan-03 Test-Double-Foundation (#321)  → Design-Doc `03-test-interfaces.md`
-**Phase 1 (harte Voraussetzung):** `*Contract`-Interfaces **adjazent** zu den 10 Impl-Klassen extrahieren, Hilt umverdrahten,
-Produktions-Injektionsstellen auf Contracts umstellen, grün kompilieren. **Dann** parallel: **#239** (ServerHealthViewModelTest)
-und **#202** (4 Worker-Tests) auf typed Fakes.
-**Guards (Doc hat mehrere Fehler):** (a) Contracts liegen **adjazent**, nicht in `di/`. (b) `@Binds` bricht für die 3 bereits-
-`@Provides`-Collaborators (UploadQueueRepository/SyncManager/TokenManager) → **Rückgabetyp** auf `*Contract` ändern, kein @Binds.
-(c) `recordException` liegt auf **CrashlyticsHelper**, nicht AnalyticsService. (d) `pendingCount` ist **Flow**, nicht StateFlow.
-(e) `fix/missing-worker-tests`-Warnung ist gegenstandslos (#139 via #201 gemerged). `SyncWorkerTest`→`data/sync/`, `WidgetUpdateWorkerTest`→`widget/`.
-**Verifikation:** `compileDebugKotlin` löst alle Bindings; alle Tests grün; `rg 'mockk\(relaxed' <5 Dateien>` = 0; ~10 `*Contract.kt` + ~9 `Fake*.kt`.
-**Guard:** `UploadWorkerTest` zuletzt/vorsichtig (30 Tests, 37KB, coVerify/spyk/mockkStatic). `SyncManager.stop()` + `DocumentRepository.upload*`-Signaturen vor Contract-Deklaration greppen.
+**PR-A — Contracts + Hilt-Rewiring (Phase 1, reine Produktion, keine Test-Migration):**
+~9 `*Contract`-Interfaces **adjazent** zu den Impls (nicht in `di/`). Signaturen 1:1 aus den
+ECHTEN Klassen kopieren (StateFlow/Flow-Typen exakt, kein stop()). 6 auto-wired → neues
+`@Binds`-Modul; 3 `@Provides` → Rückgabetyp flippen. Alle §2-Injektionsstellen auf Contracts.
+Bestehende Tests müssen UNVERÄNDERT grün bleiben (Compile-Anpassungen erlaubt, keine
+Semantik-Änderung). Gate: `compileReleaseKotlin` löst alle Hilt-Bindings.
 
----
+**PR-B — #239 ServerHealthViewModelTest auf typed Fakes:** FakeNetworkMonitor,
+FakeServerHealthMonitor, FakeUploadQueueRepository, FakeSyncManager, FakeSyncHistoryRepository,
+FakeAnalyticsService (logError/logMessage-Recording!) unter `app/src/test/.../testing/fakes/`.
+Turbine für Flow-Asserts (`.coderabbit.yaml` mandatiert Turbine). → schließt #239.
 
-### Wave E — Security-Hardening (hohes Risiko, sorgfältig)
+**PR-C — #202 leichte Worker-Tests:** SyncWorkerTest (2 Mocks), TrashDeleteWorkerTest,
+WidgetUpdateWorkerTest auf Fakes (FakeTrashRepository, FakeCrashlyticsHelper, FakeTokenManager
+neu). DAO-Mocks bleiben (kein Contract für DAOs).
 
-#### E1 — plan-02 Token-Failure-Taxonomy (#320)  → Design-Doc `02-token-taxonomy.md`
-Strikt sequenziell **Phase 1 (#303) → Phase 2 (#37)**:
-- **Phase 1 (#303):** `@Volatile lastRecoveredCryptoFailure: AEADBadTagException?` in `SecureTokenStorage`; im Catch
-  (`:44-49`) klassifizieren **bevor** `recoverCorruptedStorage` (`:77`) läuft — Wipe nur bei bestätigtem `AEADBadTagException`.
-  `TokenManager.init` Signal-Flag setzen.
-- **Phase 2 (#37):** `sealed TokenStorageResult` + `enum TokenStorageFailureKind` (in `TokenStorage.kt`, Muster `ServerHealthResult:58`),
-  `getTokenResult`/`saveTokenResult`, Backup-Snapshot + **Restore-statt-Wipe**, `getTokenSync` pattern-matched. Alte API als deprecated Delegatoren.
-**Verifikation:** `rg 'TokenStorageResult|classifyFailure'` trifft; Unit-Test beweist **kein** Wipe bei `KEYSTORE_UNAVAILABLE`; TokenManager-Mapping-Tests grün.
-**Guards:** Child-Issues #303/#37 sind auf GitHub als `not_planned` **geschlossen** (konsolidiert, **nicht** implementiert) — Arbeit steht aus.
-Der echte `AEADBadTagException`-Decrypt-Pfad ist unter Robolectric **nicht** testbar (Shadow entschlüsselt nicht) → Signal/Klassifikation
-via Fake/Mock testen, **realen Device-Test dokumentieren** (adb-Keystore-Korruption + Neustart). Sicherheitskritischer Credential-Pfad → Backup/Restore sorgfältig reviewen.
+**PR-D — #202 UploadWorkerTest ZULETZT:** 30 Tests / 37KB, coVerify/spyk/mockkStatic — der
+riskanteste Brocken bewusst isoliert. Verhalten-für-Verhalten migrieren, Testanzahl darf nicht
+sinken. → schließt #202, dann **#321 komplett zu**.
 
 ---
 
-### Deferred / Blocked (nicht autonom abschließbar)
+### Wave 3 — plan-02 #320 Token-Failure-Taxonomy (L, HOCH-Risiko, 1–2 Sessions, 2 PRs)
 
-#### plan-07b — #145 ProGuard-iText-Narrowing  → Design-Doc `07-tooling-hardening.md`  *(blockiert: Geräte-QA)*
-Code machbar: `proguard-rules.pro:46-61` die 4 Blanket-`-keep com.itextpdf.**` durch gezielte Keeps der **6 real genutzten**
-Klassen ersetzen (einziger Consumer: `PdfGeneratorService.kt:5-10`). `-printusage`/`-printseeds` temporär für Evidenz, dann entfernen.
-**Blocker:** Pflicht-Geräte-Smoketest (Multi-Page-PDF erzeugen, Render/Crash prüfen) — nicht CI-automatisierbar.
+Design-Doc `02-token-taxonomy.md`. Sicherheitskritischer Credential-Pfad → bewusst NACH
+Wave 2 (Fakes/Contracts aus plan-03 können TokenManager-Tests stützen). Strikt Phase 1 → 2:
 
-#### plan-10 — #287 Upload-Idempotency  → Design-Doc `10-upload-idempotency.md`  *(blockiert: Upstream-API)*
-**Investigation-Gate ZUERST:** Paperless-ngx `post_document/` auf Idempotency-Key/Dedup-Token prüfen (Docs + Server-Source),
-YES/NO-Findings als Kommentar an #287. **NO (wahrscheinlich)** → `docs/KNOWN_ISSUES.md` **Sektion 8** (nicht 10!) + Cross-Link
-in `UploadWorker.kt:317` + #287 als `wontfix` schließen (S). **YES** → `idempotencyKey` auf `PendingUpload` (Room-Migration!),
-`@Header`/`@Query` in `PaperlessApi.kt:272-281` (NICHT DocumentRepository — Doc ist stale), durchfädeln (L/XL).
+**PR-E — Phase 1 Signal-Threading (ex-#303-Scope):** `@Volatile lastRecoveredCryptoFailure` in
+SecureTokenStorage; im Catch (:44–48) klassifizieren BEVOR Recovery läuft — Wipe nur bei
+bestätigter `AEADBadTagException`, transiente Fehler (Keystore unavailable, IO) rethrow.
+`TokenManager.init` (:84–136) pollt das Signal und setzt ein Flag für den Login-Flow
+(„Anmeldedaten beschädigt, bitte neu einloggen"). Tests via gemocktem Interface/Fake.
 
-## 5. Empfohlene Reihenfolge (Kurzfassung)
+**PR-F — Phase 2 Result-Taxonomy + Restore-statt-Wipe (ex-#37-Scope):** `sealed
+TokenStorageResult` + `TokenStorageFailureKind` (Vorbild ServerHealthResult :60–101),
+`getTokenResult`/`saveTokenResult` im Interface (alte API als deprecated Delegatoren),
+Backup-Snapshot beim ersten Open + Restore bei Korruption statt unbedingtem Wipe.
+Kern-Beweis-Test: **KEIN Wipe bei KEYSTORE_UNAVAILABLE.**
+
+**Abschluss-Gate:** dokumentierter Real-Device-Test (adb-Keystore-Korruption + Neustart →
+Re-Login-Dialog statt stillem Token-Verlust) — Anleitung in `docs/` ablegen, User führt aus.
+→ schließt #320.
+
+---
+
+### Wave 4 — plan-07 #325 abschließen (ENTSCHEIDUNG nötig)
+
+**Option A (empfohlen): ProGuard-Narrowing doch bauen (S) + Geräte-Smoke-Test.**
+3 Blanket-Keeps (:46–52) durch gezielte Keeps der 6 realen Klassen ersetzen; PdfObject-
+Reflection-Guard (:59–61) behalten; `-printusage`/`-printseeds` temporär für Evidenz, APK-Delta
+im Commit dokumentieren. **Merge-Gate: User-Smoke-Test auf echtem Gerät** (Multi-Page-PDF
+erzeugen + rendern) mit dem Internal-Build — Deploy geht ohnehin erst auf Internal Track.
+→ danach #325 schließen.
+
+**Option B: #325 ohne Code schließen** — Rationale: #302 gelandet, #145 bewusst not_planned
+(Risiko/Nutzen: nur APK-Größe vs. Release-only-PDF-Korruptionsrisiko). 1 Kommentar, 0 Aufwand.
+
+---
+
+### Wave 5 — #296 Feature-TODOs (OPTIONAL, Feature- nicht Bugfix-Arbeit)
+
+Nur nach User-Freigabe (neue Features → Rückfrage-Pflicht): **PR-G** mit den 3 unblocked
+TODOs — LabelsScreen `isCreating` (S), UploadComponents DatePicker (S),
+StepByStepMetadataScreen Tag-Dialog (M, CreateEntityDialog-Muster). Die 3 premium-/produkt-
+gated Sites (Billing-Tier ×2, OCR-Extraktion) bleiben im Tracker bis Produktentscheid.
+#296 bleibt offen, schrumpft aber auf die gated Hälfte.
+
+---
+
+### Deferred (bewusst NICHT in dieser Runde)
+
+- **Dependabot #13–17** (cameraX 1.4.1→1.5.2, workManager 2.10→2.11, firebase-bom,
+  kotlinx-coroutines-test 1.9→1.10.2, ben-manes): runtime-riskant, CI-grün ≠ runtime-safe.
+  Falls gewünscht: je Bump eigener PR + Geräte-QA-Session, beginnend mit den harmlosesten
+  (ben-manes = reines Build-Tooling, coroutines-test = nur Test-Scope).
+- **OCR-Extraktion** (`AnalyzeDocumentUseCase:82`): L, braucht ML-Kit-Text-Recognition-Pipeline
+  + Produktentscheid (free vs. premium).
+
+## 4. Empfohlene Reihenfolge (Kurzfassung)
 
 ```
-A (housekeeping)
-  → B1 (detekt-Modul) → B2 (a11y-Regel) + B3 (nav) ‖ B4 (kdoc)
-    → C1 (offline tag-count) ‖ C2 (#82→#142→#50)
-      → D1 (#48→#153→#132) ‖ D2 (interfaces → #239‖#202)
-        → E1 (#303→#37, device-gated)
-Parallel/deferred: plan-10 Investigation-Gate (cheap), plan-07b (device-QA)
+Wave 1 (PR-1 #334 ‖ PR-2 deps-batch)
+  → Wave 2 (PR-A contracts → PR-B #239 → PR-C worker-light → PR-D UploadWorkerTest) → #321 zu
+    → Wave 3 (PR-E signal → PR-F taxonomy, device-gated) → #320 zu
+      → Wave 4 (#325: Option A narrowing+smoke ODER Option B schließen)
+        → Wave 5 (optional, nach Freigabe: #296 unblocked-Trio)
+Ende-Zustand: 0–2 offene Issues (#296 geschrumpft, ggf. #325 zu), Backlog faktisch leer.
 ```
-
-Pflicht je PR: `git rebase origin/main` → `scripts/validate-ci.sh` grün → push.

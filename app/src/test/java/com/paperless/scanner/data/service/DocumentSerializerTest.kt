@@ -79,4 +79,29 @@ class DocumentSerializerTest {
         assertEquals(emptyList<Int>(), serializer.deserializeCachedTagIds("not json"))
         assertEquals(emptyList<Int>(), serializer.deserializeCachedTagIds("[1,2,"))
     }
+
+    // ---- deserializeCachedTagIdsOrNull (#334: unknown vs known-empty) ----
+
+    @Test
+    fun `deserializeCachedTagIdsOrNull returns null for null and blank input`() {
+        assertNull(serializer.deserializeCachedTagIdsOrNull(null))
+        assertNull(serializer.deserializeCachedTagIdsOrNull(""))
+        assertNull(serializer.deserializeCachedTagIdsOrNull("   "))
+    }
+
+    @Test
+    fun `deserializeCachedTagIdsOrNull returns null for malformed JSON`() {
+        assertNull(serializer.deserializeCachedTagIdsOrNull("not json"))
+        assertNull(serializer.deserializeCachedTagIdsOrNull("[1,2,"))
+    }
+
+    @Test
+    fun `deserializeCachedTagIdsOrNull returns empty list for genuinely empty JSON array`() {
+        assertEquals(emptyList<Int>(), serializer.deserializeCachedTagIdsOrNull("[]"))
+    }
+
+    @Test
+    fun `deserializeCachedTagIdsOrNull parses valid JSON int list`() {
+        assertEquals(listOf(1, 2, 3), serializer.deserializeCachedTagIdsOrNull("[1,2,3]"))
+    }
 }

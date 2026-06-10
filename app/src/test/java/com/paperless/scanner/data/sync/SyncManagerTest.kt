@@ -294,6 +294,51 @@ class SyncManagerTest : BaseRoomRepositoryTest() {
     }
 
     @Test
+    fun `pushDocumentChange update skips tag delta when old set is unknown - cached row missing`() = runTest {
+        val tagDao = database.cachedTagDao()
+        // #334: no cached row for doc 1 → the old tag set is UNKNOWN, not empty. The delta
+        // must be skipped instead of incrementing every requested tag.
+        tagDao.insertAll(listOf(cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, title = "After", tags = listOf(2, 3))
+
+        syncManager.pushDocumentChange(updateChange(documentId = 1, tags = listOf(2, 3)))
+
+        assertEquals(1, tagDao.getTag(2)?.documentCount) // NOT over-counted to 2
+        assertEquals(0, tagDao.getTag(3)?.documentCount) // NOT over-counted to 1
+        // The push itself still lands the updated cache row.
+        assertEquals("After", database.cachedDocumentDao().getDocument(1)?.title)
+    }
+
+    @Test
+    fun `pushDocumentChange update skips tag delta when cached tags JSON is unparseable`() = runTest {
+        val tagDao = database.cachedTagDao()
+        val docDao = database.cachedDocumentDao()
+        // #334: the cached row exists but its tags JSON is corrupt → old set UNKNOWN.
+        tagDao.insertAll(listOf(cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        docDao.insert(cachedDoc(id = 1, title = "Before", tagsJson = "{corrupt"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, title = "After", tags = listOf(2, 3))
+
+        syncManager.pushDocumentChange(updateChange(documentId = 1, tags = listOf(2, 3)))
+
+        assertEquals(1, tagDao.getTag(2)?.documentCount)
+        assertEquals(0, tagDao.getTag(3)?.documentCount)
+        assertEquals("After", docDao.getDocument(1)?.title)
+    }
+
+    @Test
+    fun `pushDocumentChange update with genuinely empty old tag set still applies the delta`() = runTest {
+        val tagDao = database.cachedTagDao()
+        // #334 boundary: "[]" is a KNOWN-empty old set — empty→non-empty must still increment.
+        tagDao.insertAll(listOf(cachedTag(3, "T3", 0)))
+        database.cachedDocumentDao().insert(cachedDoc(id = 1, tagsJson = "[]"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(3))
+
+        syncManager.pushDocumentChange(updateChange(documentId = 1, tags = listOf(3)))
+
+        assertEquals(1, tagDao.getTag(3)?.documentCount) // 0 + 1
+    }
+
+    @Test
     fun `pushDocumentChange update rolls back the cache insert when a tag-delta DAO call throws`() = runTest {
         // #65: the cache insert and per-tag deltas must be ONE atomic unit. Force the delta
         // to throw by injecting a mocked cachedTagDao (keeping the REAL database + real

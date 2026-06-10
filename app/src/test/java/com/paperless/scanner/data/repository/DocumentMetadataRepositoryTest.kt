@@ -244,6 +244,47 @@ class DocumentMetadataRepositoryTest : BaseRoomRepositoryTest() {
     }
 
     @Test
+    fun `updateDocument online skips tag delta when old set is unknown - cached row missing`() = runTest {
+        // #334: no cached row exists for doc 1 → the old tag set is UNKNOWN, not empty.
+        // The delta must be skipped entirely instead of incrementing every requested tag.
+        cachedTagDao.insertAll(listOf(cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(2, 3))
+
+        val result = repo.updateDocument(documentId = 1, tags = listOf(2, 3))
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, cachedTagDao.getTag(2)?.documentCount) // NOT over-counted to 2
+        assertEquals(0, cachedTagDao.getTag(3)?.documentCount) // NOT over-counted to 1
+    }
+
+    @Test
+    fun `updateDocument online skips tag delta when cached tags JSON is unparseable`() = runTest {
+        // #334: the cached row exists but its tags JSON is corrupt → old set UNKNOWN.
+        cachedTagDao.insertAll(listOf(cachedTag(2, "T2", 1), cachedTag(3, "T3", 0)))
+        cachedDocumentDao.insert(cachedDoc(id = 1, tagsJson = "{corrupt"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(2, 3))
+
+        val result = repo.updateDocument(documentId = 1, tags = listOf(2, 3))
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, cachedTagDao.getTag(2)?.documentCount)
+        assertEquals(0, cachedTagDao.getTag(3)?.documentCount)
+    }
+
+    @Test
+    fun `updateDocument online with genuinely empty old tag set still applies the delta`() = runTest {
+        // #334 boundary: "[]" is a KNOWN-empty old set — empty→non-empty must still increment.
+        cachedTagDao.insertAll(listOf(cachedTag(3, "T3", 0)))
+        cachedDocumentDao.insert(cachedDoc(id = 1, tagsJson = "[]"))
+        coEvery { api.updateDocument(eq(1), any()) } returns apiDoc(id = 1, tags = listOf(3))
+
+        val result = repo.updateDocument(documentId = 1, tags = listOf(3))
+
+        assertTrue(result.isSuccess)
+        assertEquals(1, cachedTagDao.getTag(3)?.documentCount) // 0 + 1
+    }
+
+    @Test
     fun `updateDocument rolls back cache insert when a tag-delta DAO call throws inside the transaction`() = runTest {
         // #65: cache insert + per-tag count deltas must be ONE atomic unit. If a tag-delta
         // DAO call throws inside db.withTransaction, the whole transaction rolls back so the

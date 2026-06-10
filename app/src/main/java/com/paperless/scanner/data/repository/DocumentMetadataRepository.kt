@@ -108,7 +108,8 @@ class DocumentMetadataRepository @Inject constructor(
         online = {
             // Deserialize the previous tag set OUTSIDE the transaction: it reads JSON
             // and could fail, but a read/parse failure must not abort the update itself.
-            // On failure getOldTagIds logs + returns emptyList (see below).
+            // getOldTagIds returns null when the old set is unknown (#334) — the delta
+            // below is then skipped instead of over-counting every requested tag.
             val oldTagIds = if (tags != null) getOldTagIds(documentId) else null
             val request = UpdateDocumentRequest(
                 title = title,
@@ -188,17 +189,23 @@ class DocumentMetadataRepository @Inject constructor(
         }
     }
 
-    private suspend fun getOldTagIds(documentId: Int): List<Int> {
+    /**
+     * #334: returns the previously-cached tag-id set, or null when that set is UNKNOWN —
+     * cached row missing, tags JSON unparseable, or the read threw. null makes the caller
+     * skip the tag-count delta; a genuinely empty old set ("[]") returns emptyList() so an
+     * empty→non-empty change still increments counts.
+     */
+    private suspend fun getOldTagIds(documentId: Int): List<Int>? {
         return try {
-            val cached = cachedDocumentDao.getDocument(documentId)
-            serializer.deserializeCachedTagIds(cached?.tags)
+            val cached = cachedDocumentDao.getDocument(documentId) ?: return null
+            serializer.deserializeCachedTagIdsOrNull(cached.tags)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // Read/parse of the cached tag JSON failed. Don't abort the update — just
-            // skip the tag-count delta (we have no reliable "old" set to diff against).
+            // Read of the cached row failed. Don't abort the update — just skip the
+            // tag-count delta (we have no reliable "old" set to diff against).
             Log.w("DocumentMetadataRepository", "Failed to read old tag ids for doc $documentId", e)
-            emptyList()
+            null
         }
     }
 }
