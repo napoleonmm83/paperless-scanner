@@ -1,0 +1,7 @@
+Version 1.5.212:
+
+🐛 Fehlerbehebungen:
+- Login übersteht beschädigten Speicher (Restore statt Neuanmeldung)
+
+🔐 Sicherheit:
+- Schutz vor Wiederherstellung gelöschter Anmeldedaten

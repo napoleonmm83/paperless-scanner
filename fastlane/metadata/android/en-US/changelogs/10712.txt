@@ -1,0 +1,7 @@
+Version 1.5.212:
+
+🐛 Bug Fixes:
+- Login now survives corrupted storage (restore instead of re-login)
+
+🔐 Security:
+- Cleared credentials can never be restored from stale backups
