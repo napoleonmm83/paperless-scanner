@@ -204,10 +204,12 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             // STALE snapshot of the pre-write file over the fresh post-commit one,
             // reintroducing the resurrection risk the tombstone-first writes close.
             if (backupSeedChecked) return
-            backupSeedChecked = true
             try {
-                if (!backupFile().exists()) {
-                    backupCurrentPrefsFile()
+                // Arm the guard only once a snapshot actually exists (CodeRabbit): a
+                // single failed copy must not disable reseeding for the rest of the
+                // process — the next Present read retries instead.
+                if (backupFile().exists() || backupCurrentPrefsFile()) {
+                    backupSeedChecked = true
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to seed backup snapshot", e)
@@ -576,11 +578,22 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      * Marks migration as completed.
      */
     override fun setMigrationCompleted(): Boolean = synchronized(this) {
-        // #359: see saveTokenResult — writes must not race the restore eviction.
+        // #359: see saveTokenResult — writes must not race the restore eviction, and
+        // the snapshot must track the committed state (CodeRabbit): restoring a
+        // pre-commit snapshot would roll the migration flag back and re-run migration.
         return try {
-            getOrCreateEncryptedPrefs()?.edit()
-                ?.putBoolean(KEY_MIGRATION_COMPLETED, true)
-                ?.commit() ?: false
+            val prefs = getOrCreateEncryptedPrefs() ?: return false
+            if (!deleteBackupArtifacts()) {
+                Log.w(TAG, "Could not tombstone the old snapshot — aborting migration flag update (fail closed)")
+                return false
+            }
+            val committed = prefs.edit()
+                .putBoolean(KEY_MIGRATION_COMPLETED, true)
+                .commit()
+            if (committed && !backupCurrentPrefsFile()) {
+                deleteBackupArtifacts()
+            }
+            committed
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set migration completed", e)
             false
