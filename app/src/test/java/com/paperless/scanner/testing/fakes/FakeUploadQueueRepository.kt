@@ -36,7 +36,14 @@ class FakeUploadQueueRepository : UploadQueueRepositoryContract {
         return queue.firstOrNull()
     }
 
-    override suspend fun getPendingUploadCount(): Int = queue.size
+    /** Set to make [getPendingUploadCount] throw (e.g. simulate a closed DB). */
+    var getPendingUploadCountException: Throwable? = null
+
+    override suspend fun getPendingUploadCount(): Int {
+        recordedCalls += "getPendingUploadCount"
+        getPendingUploadCountException?.let { throw it }
+        return queue.size
+    }
 
     override suspend fun markAsUploading(id: Long) {
         recordedCalls += "markAsUploading($id)"

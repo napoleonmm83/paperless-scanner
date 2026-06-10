@@ -4,12 +4,11 @@ import android.content.Context
 import android.util.Log
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
-import io.mockk.coEvery
+import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
+import com.paperless.scanner.testing.fakes.FakeSyncManager
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
-import io.mockk.spyk
 import io.mockk.unmockkStatic
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -29,20 +28,24 @@ import org.robolectric.annotation.Config
  * - sync failure + retries available → Result.retry
  * - sync failure + retries exhausted → Result.failure
  * - exception thrown → Result.retry (or failure if at max attempts)
+ *
+ * #202 (plan-03): collaborators are the typed fakes from testing/fakes/ — relaxed
+ * mocks silently accept any call; the fakes are compile-time-checked against the
+ * #321 *Contract interfaces. WorkerParameters stays a mock (WorkManager type).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class SyncWorkerTest {
 
     private lateinit var context: Context
-    private lateinit var syncManager: SyncManager
-    private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private lateinit var syncManager: FakeSyncManager
+    private lateinit var crashlyticsHelper: FakeCrashlyticsHelper
 
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication()
-        syncManager = mockk(relaxed = true)
-        crashlyticsHelper = mockk(relaxed = true)
+        syncManager = FakeSyncManager()
+        crashlyticsHelper = FakeCrashlyticsHelper()
 
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -58,21 +61,22 @@ class SyncWorkerTest {
     private fun createWorker(runAttemptCount: Int = 0): SyncWorker {
         val workerParams: WorkerParameters = mockk(relaxed = true)
         every { workerParams.runAttemptCount } returns runAttemptCount
-        return spyk(SyncWorker(context, workerParams, syncManager, crashlyticsHelper))
+        return SyncWorker(context, workerParams, syncManager, crashlyticsHelper)
     }
 
     @Test
     fun `doWork returns success when sync succeeds`() = runTest {
-        coEvery { syncManager.performFullSync() } returns Result.success(Unit)
+        syncManager.fullSyncResult = Result.success(Unit)
 
         val result = createWorker().doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(1, syncManager.performFullSyncCalls)
     }
 
     @Test
     fun `doWork returns retry when sync fails and below max attempts`() = runTest {
-        coEvery { syncManager.performFullSync() } returns Result.failure(Exception("API down"))
+        syncManager.fullSyncResult = Result.failure(Exception("API down"))
 
         val result = createWorker(runAttemptCount = 0).doWork()
 
@@ -81,7 +85,7 @@ class SyncWorkerTest {
 
     @Test
     fun `doWork returns failure when sync fails and max attempts reached`() = runTest {
-        coEvery { syncManager.performFullSync() } returns Result.failure(Exception("API down"))
+        syncManager.fullSyncResult = Result.failure(Exception("API down"))
 
         val result = createWorker(runAttemptCount = SyncWorker.MAX_RETRIES).doWork()
 
@@ -90,7 +94,7 @@ class SyncWorkerTest {
 
     @Test
     fun `doWork returns retry when exception thrown below max attempts`() = runTest {
-        coEvery { syncManager.performFullSync() } throws RuntimeException("Boom")
+        syncManager.fullSyncException = RuntimeException("Boom")
 
         val result = createWorker(runAttemptCount = 1).doWork()
 
@@ -99,7 +103,7 @@ class SyncWorkerTest {
 
     @Test
     fun `doWork returns failure when exception thrown at max attempts`() = runTest {
-        coEvery { syncManager.performFullSync() } throws RuntimeException("Boom")
+        syncManager.fullSyncException = RuntimeException("Boom")
 
         val result = createWorker(runAttemptCount = SyncWorker.MAX_RETRIES).doWork()
 

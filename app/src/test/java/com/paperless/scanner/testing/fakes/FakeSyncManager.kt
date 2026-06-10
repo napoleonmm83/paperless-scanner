@@ -6,12 +6,14 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Typed fake for [SyncManagerContract] (#239/#321): drive [pendingChanges] directly;
- * configure [fullSyncResult] for the next [performFullSync] call.
+ * configure [fullSyncResult] (or [fullSyncException] to throw) for the next
+ * [performFullSync] call.
  */
 class FakeSyncManager : SyncManagerContract {
     val pendingChanges = MutableStateFlow(0)
 
     var fullSyncResult: Result<Unit> = Result.success(Unit)
+    var fullSyncException: Throwable? = null
     var performFullSyncCalls = 0
         private set
 
@@ -19,6 +21,7 @@ class FakeSyncManager : SyncManagerContract {
 
     override suspend fun performFullSync(): Result<Unit> {
         performFullSyncCalls++
+        fullSyncException?.let { throw it }
         return fullSyncResult
     }
 }

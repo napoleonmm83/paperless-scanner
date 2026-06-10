@@ -33,6 +33,9 @@ class FakeSyncHistoryRepository : SyncHistoryRepositoryContract {
     val successes = mutableListOf<RecordedSuccess>()
     val failures = mutableListOf<RecordedFailure>()
 
+    /** Set to make [recordSuccess] throw (history-write failures must not propagate). */
+    var recordSuccessException: Throwable? = null
+
     override fun observeFailedCount(): Flow<Int> = failedCountFlow
 
     override suspend fun recordSuccess(
@@ -41,6 +44,7 @@ class FakeSyncHistoryRepository : SyncHistoryRepositoryContract {
         details: String?,
         documentId: Int?,
     ) {
+        recordSuccessException?.let { throw it }
         successes += RecordedSuccess(actionType, title, details, documentId)
     }
 
