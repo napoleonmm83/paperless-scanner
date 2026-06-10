@@ -126,8 +126,9 @@ class SecureTokenStorageClassificationTest {
         storage.backupCurrentPrefsFile()
 
         // Simulate corruption of the live file, then restore the snapshot.
+        // (#359: the restore is destructive — cache eviction — and demands the lock.)
         prefsFile.writeText("corrupted-garbage")
-        assertTrue(storage.restorePrefsFileFromBackup())
+        assertTrue(synchronized(storage) { storage.restorePrefsFileFromBackup() })
 
         assertEquals("original-ciphertext", prefsFile.readText())
     }
@@ -137,7 +138,7 @@ class SecureTokenStorageClassificationTest {
         val context: Context = RuntimeEnvironment.getApplication()
         java.io.File(context.noBackupFilesDir, "paperless_secure_prefs.backup.xml").delete()
 
-        assertFalse(storage.restorePrefsFileFromBackup())
+        assertFalse(synchronized(storage) { storage.restorePrefsFileFromBackup() })
     }
 
     @Test
