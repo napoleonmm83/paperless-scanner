@@ -1,0 +1,8 @@
+Version 1.5.211:
+
+✨ Neue Features:
+- Datums-Auswahl per Kalender bei Custom-Fields
+- Tags direkt im Schritt-für-Schritt-Scan erstellen
+
+🔧 Verbesserungen:
+- Ladeanzeige beim Erstellen von Labels

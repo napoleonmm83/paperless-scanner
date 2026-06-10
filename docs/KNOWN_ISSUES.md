@@ -256,9 +256,9 @@ HttpLoggingInterceptor().apply {
 
 These production `TODO`s are deferred feature enhancements (not bugs), tracked under **#296** and annotated `// TODO(#296):` in source (closes #144):
 
-- `MainActivity.kt:110` — subscription status hardcoded `"free"`; wire to BillingManager.
-- `LabelsScreen.kt:291` — add `isCreating` state to the labels ViewModel.
-- `AnalyzeDocumentUseCase.kt:82` — add OCR text extraction.
-- `AnalyzeDocumentUseCase.kt:105` — wire `subscriptionType` once premium is implemented.
-- `UploadComponents.kt:500` — add DatePicker dialog.
-- `StepByStepMetadataScreen.kt:231` — implement tag-creation dialog.
+- `MainActivity.kt:110` — subscription status hardcoded `"free"`; wire to BillingManager (premium-gated).
+- `AnalyzeDocumentUseCase.kt:82` — add OCR text extraction (product decision pending).
+- `AnalyzeDocumentUseCase.kt:105` — wire `subscriptionType` once premium is implemented (premium-gated).
+
+Resolved 2026-06-10 (the three unblocked sites): labels `isCreating` spinner,
+custom-field DatePicker dialog, and the step-by-step tag-creation dialog.

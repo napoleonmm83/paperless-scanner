@@ -21,7 +21,13 @@ import javax.inject.Inject
 data class StepByStepMetadataUiState(
     val currentPageIndex: Int = 0,
     val pages: List<ScannedPage> = emptyList(),
-    val pageMetadata: Map<String, PageMetadata> = emptyMap()  // pageId -> metadata
+    val pageMetadata: Map<String, PageMetadata> = emptyMap(),  // pageId -> metadata
+    // #296: tag-creation dialog state. The created tag appears in [tags]
+    // automatically via the reactive Room flow; the dialog stays open on
+    // failure so the user can retry.
+    val showCreateTagDialog: Boolean = false,
+    val isCreatingTag: Boolean = false,
+    val createTagFailed: Boolean = false,
 ) {
     val currentPage: ScannedPage? get() = pages.getOrNull(currentPageIndex)
     val totalPages: Int get() = pages.size
@@ -89,6 +95,34 @@ class StepByStepMetadataViewModel @Inject constructor(
     fun initializePages(pages: List<ScannedPage>) {
         _uiState.update { state ->
             if (state.pages.isEmpty()) state.copy(pages = pages) else state
+        }
+    }
+
+    fun openCreateTagDialog() {
+        _uiState.update { it.copy(showCreateTagDialog = true, createTagFailed = false) }
+    }
+
+    fun closeCreateTagDialog() {
+        _uiState.update { it.copy(showCreateTagDialog = false, createTagFailed = false) }
+    }
+
+    /**
+     * #296: creates a tag inline from the step-by-step flow. On success the new
+     * tag shows up in [tags] via the reactive Room flow — no manual refresh.
+     */
+    fun createTag(name: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCreatingTag = true, createTagFailed = false) }
+            tagRepository.createTag(name).fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(isCreatingTag = false, showCreateTagDialog = false)
+                    }
+                },
+                onFailure = {
+                    _uiState.update { it.copy(isCreatingTag = false, createTagFailed = true) }
+                },
+            )
         }
     }
 

@@ -106,7 +106,10 @@ data class LabelsUiState(
     // any Room update).
     val showCreateSheet: Boolean = false,
     val showSortFilterSheet: Boolean = false,
-    val editingEntityId: Int? = null
+    val editingEntityId: Int? = null,
+    // #296: create/update in flight — the dialog shows a spinner, disables its
+    // inputs and stays open on failure so the user can retry.
+    val isCreating: Boolean = false,
 )
 
 @HiltViewModel
@@ -498,6 +501,7 @@ class LabelsViewModel @Inject constructor(
      */
     fun createEntity(name: String, color: Color? = null, dataType: String? = null) {
         viewModelScope.launch {
+            _uiState.update { it.copy(isCreating = true) }
             val result = when (_uiState.value.currentEntityType) {
                 EntityType.TAG -> {
                     val colorHex = colorToHex(color ?: labelColorOptions.first())
@@ -515,10 +519,16 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                _uiState.update { it.copy(error = null) }
+                // #296: the VM owns the close-on-success so the dialog can show its
+                // spinner while the call runs (the screen no longer closes eagerly).
+                _uiState.update { it.copy(error = null, isCreating = false) }
+                closeCreateSheet()
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = getEntityErrorMessage("create", _uiState.value.currentEntityType))
+                    it.copy(
+                        error = getEntityErrorMessage("create", _uiState.value.currentEntityType),
+                        isCreating = false,
+                    )
                 }
             }
         }
@@ -535,6 +545,7 @@ class LabelsViewModel @Inject constructor(
      */
     fun updateEntity(id: Int, name: String, color: Color? = null, dataType: String? = null) {
         viewModelScope.launch {
+            _uiState.update { it.copy(isCreating = true) }
             val result = when (_uiState.value.currentEntityType) {
                 EntityType.TAG -> {
                     val colorHex = colorToHex(color ?: labelColorOptions.first())
@@ -554,10 +565,14 @@ class LabelsViewModel @Inject constructor(
             }
 
             result.onSuccess {
-                _uiState.update { it.copy(error = null) }
+                _uiState.update { it.copy(error = null, isCreating = false) }
+                closeCreateSheet()
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(error = getEntityErrorMessage("update", _uiState.value.currentEntityType))
+                    it.copy(
+                        error = getEntityErrorMessage("update", _uiState.value.currentEntityType),
+                        isCreating = false,
+                    )
                 }
             }
         }

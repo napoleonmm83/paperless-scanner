@@ -19,7 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -228,7 +230,7 @@ fun StepByStepMetadataScreen(
                                 selectedTagIds + tagId
                             }
                         },
-                        onCreateNew = { /* TODO(#296): Implement tag creation dialog */ }
+                        onCreateNew = { viewModel.openCreateTagDialog() }
                     )
                 }
 
@@ -306,4 +308,65 @@ fun StepByStepMetadataScreen(
             }
         }
     }
+
+    // #296: inline tag creation — the created tag appears in the chip list via
+    // the reactive Room flow and can be selected immediately.
+    if (uiState.showCreateTagDialog) {
+        CreateTagDialog(
+            isCreating = uiState.isCreatingTag,
+            showError = uiState.createTagFailed,
+            onDismiss = { if (!uiState.isCreatingTag) viewModel.closeCreateTagDialog() },
+            onCreate = { name -> viewModel.createTag(name) },
+        )
+    }
+}
+
+@Composable
+private fun CreateTagDialog(
+    isCreating: Boolean,
+    showError: Boolean,
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.create_tag_title)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.create_tag_name_label)) },
+                singleLine = true,
+                enabled = !isCreating,
+                isError = showError,
+                supportingText = if (showError) {
+                    { Text(stringResource(R.string.error_create_tag)) }
+                } else {
+                    null
+                },
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = { onCreate(name.trim()) },
+                enabled = !isCreating && name.isNotBlank(),
+            ) {
+                if (isCreating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text(stringResource(R.string.create_tag_create))
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isCreating) {
+                Text(stringResource(R.string.create_tag_cancel))
+            }
+        },
+    )
 }

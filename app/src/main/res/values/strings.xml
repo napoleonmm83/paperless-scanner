@@ -430,6 +430,7 @@
     <string name="custom_field_text_hint">Enter text</string>
     <string name="custom_field_number_hint">Enter number</string>
     <string name="custom_field_date_hint">Select date</string>
+    <string name="custom_field_pick_date">Open date picker</string>
     <string name="custom_field_url_hint">Enter URL</string>
     <string name="custom_field_select_hint">Select option</string>
 
