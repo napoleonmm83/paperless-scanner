@@ -2,16 +2,12 @@ package com.paperless.scanner.ui.screens.home
 
 import app.cash.turbine.test
 import com.paperless.scanner.data.analytics.AnalyticsEvent
-import kotlinx.coroutines.launch
-import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.health.ServerHealthMonitor
-import com.paperless.scanner.data.network.NetworkMonitor
-import com.paperless.scanner.data.repository.SyncHistoryRepository
-import com.paperless.scanner.data.repository.UploadQueueRepository
-import com.paperless.scanner.data.sync.SyncManager
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.verify
+import com.paperless.scanner.testing.fakes.FakeAnalyticsService
+import com.paperless.scanner.testing.fakes.FakeNetworkMonitor
+import com.paperless.scanner.testing.fakes.FakeServerHealthMonitor
+import com.paperless.scanner.testing.fakes.FakeSyncHistoryRepository
+import com.paperless.scanner.testing.fakes.FakeSyncManager
+import com.paperless.scanner.testing.fakes.FakeUploadQueueRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,33 +25,34 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
+/**
+ * #239 (plan-03): migrated from mockk(relaxed = true) to the typed fakes in
+ * testing/fakes/ — relaxed mocks silently accept any call and emit nothing by
+ * default, which let contract drift pass unnoticed. The fakes implement the
+ * #321 *Contract interfaces, so a contract change breaks these tests at compile
+ * time instead.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServerHealthViewModelTest {
 
-    private lateinit var networkMonitor: NetworkMonitor
-    private lateinit var serverHealthMonitor: ServerHealthMonitor
-    private lateinit var uploadQueueRepository: UploadQueueRepository
-    private lateinit var syncHistoryRepository: SyncHistoryRepository
-    private lateinit var syncManager: SyncManager
-    private lateinit var analyticsService: AnalyticsService
+    private lateinit var networkMonitor: FakeNetworkMonitor
+    private lateinit var serverHealthMonitor: FakeServerHealthMonitor
+    private lateinit var uploadQueueRepository: FakeUploadQueueRepository
+    private lateinit var syncHistoryRepository: FakeSyncHistoryRepository
+    private lateinit var syncManager: FakeSyncManager
+    private lateinit var analyticsService: FakeAnalyticsService
 
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        networkMonitor = mockk(relaxed = true)
-        serverHealthMonitor = mockk(relaxed = true)
-        uploadQueueRepository = mockk(relaxed = true)
-        syncHistoryRepository = mockk(relaxed = true)
-        syncManager = mockk(relaxed = true)
-        analyticsService = mockk(relaxed = true)
-
-        every { networkMonitor.isOnline } returns MutableStateFlow(true)
-        every { serverHealthMonitor.isServerReachable } returns MutableStateFlow(true)
-        every { uploadQueueRepository.pendingCount } returns MutableStateFlow(0)
-        every { syncManager.pendingChangesCount } returns MutableStateFlow(0)
-        every { syncHistoryRepository.observeFailedCount() } returns MutableStateFlow(0)
+        networkMonitor = FakeNetworkMonitor(initiallyOnline = true)
+        serverHealthMonitor = FakeServerHealthMonitor(initiallyReachable = true)
+        uploadQueueRepository = FakeUploadQueueRepository()
+        syncHistoryRepository = FakeSyncHistoryRepository()
+        syncManager = FakeSyncManager()
+        analyticsService = FakeAnalyticsService()
     }
 
     @After
@@ -74,83 +71,88 @@ class ServerHealthViewModelTest {
 
     @Test
     fun `isOnline reflects networkMonitor StateFlow`() = runTest {
-        val online = MutableStateFlow(true)
-        every { networkMonitor.isOnline } returns online
-
         val vm = createViewModel()
 
-        assertEquals(true, vm.isOnline.value)
-        online.value = false
-        advanceUntilIdle()
-        assertEquals(false, vm.isOnline.value)
+        vm.isOnline.test {
+            assertEquals(true, awaitItem())
+            networkMonitor.online.value = false
+            assertEquals(false, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `isServerReachable reflects serverHealthMonitor StateFlow`() = runTest {
-        val reachable = MutableStateFlow(false)
-        every { serverHealthMonitor.isServerReachable } returns reachable
+        serverHealthMonitor.reachable.value = false
 
         val vm = createViewModel()
 
-        assertEquals(false, vm.isServerReachable.value)
-        reachable.value = true
-        advanceUntilIdle()
-        assertEquals(true, vm.isServerReachable.value)
+        vm.isServerReachable.test {
+            assertEquals(false, awaitItem())
+            serverHealthMonitor.reachable.value = true
+            assertEquals(true, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `pendingChangesCount sums uploadQueue and syncManager counts`() = runTest {
         val queue = MutableStateFlow(2)
-        val pending = MutableStateFlow(3)
-        every { uploadQueueRepository.pendingCount } returns queue
-        every { syncManager.pendingChangesCount } returns pending
+        uploadQueueRepository.pendingCountFlow = queue
+        syncManager.pendingChanges.value = 3
 
         val vm = createViewModel()
-        // Subscribe so WhileSubscribed(5000) kicks the combine in.
-        backgroundScope.launch { vm.pendingChangesCount.collect { } }
-        advanceUntilIdle()
-        assertEquals(5, vm.pendingChangesCount.value)
+        // Turbine's collector is the WhileSubscribed(5000) subscriber that kicks the combine in.
+        vm.pendingChangesCount.test {
+            assertEquals(0, awaitItem()) // stateIn initial value before the combine emits
+            assertEquals(5, awaitItem())
 
-        queue.value = 0
-        advanceUntilIdle()
-        assertEquals(3, vm.pendingChangesCount.value)
+            queue.value = 0
+            assertEquals(3, awaitItem())
 
-        pending.value = 0
-        advanceUntilIdle()
-        assertEquals(0, vm.pendingChangesCount.value)
+            syncManager.pendingChanges.value = 0
+            assertEquals(0, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `activeUploadsCount in uiState tracks uploadQueue pendingCount`() = runTest {
         val queue = MutableStateFlow(0)
-        every { uploadQueueRepository.pendingCount } returns queue
+        uploadQueueRepository.pendingCountFlow = queue
 
         val vm = createViewModel()
         advanceUntilIdle()
-        assertEquals(0, vm.uiState.value.activeUploadsCount)
 
-        queue.value = 7
-        advanceUntilIdle()
-        assertEquals(7, vm.uiState.value.activeUploadsCount)
+        vm.uiState.test {
+            assertEquals(0, awaitItem().activeUploadsCount)
+
+            queue.value = 7
+            assertEquals(7, awaitItem().activeUploadsCount)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `failedSyncCount in uiState tracks syncHistoryRepository observeFailedCount`() = runTest {
         val failed = MutableStateFlow(0)
-        every { syncHistoryRepository.observeFailedCount() } returns failed
+        syncHistoryRepository.failedCountFlow = failed
 
         val vm = createViewModel()
         advanceUntilIdle()
-        assertEquals(0, vm.uiState.value.failedSyncCount)
 
-        failed.value = 4
-        advanceUntilIdle()
-        assertEquals(4, vm.uiState.value.failedSyncCount)
+        vm.uiState.test {
+            assertEquals(0, awaitItem().failedSyncCount)
+
+            failed.value = 4
+            assertEquals(4, awaitItem().failedSyncCount)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `observeActiveUploadsCount records LoadFailed on upstream error`() = runTest {
-        every { uploadQueueRepository.pendingCount } returns flow {
+        uploadQueueRepository.pendingCountFlow = flow {
             throw RuntimeException("upload queue boom")
         }
 
@@ -165,7 +167,7 @@ class ServerHealthViewModelTest {
 
     @Test
     fun `observeFailedSyncCount records LoadFailed on upstream error`() = runTest {
-        every { syncHistoryRepository.observeFailedCount() } returns flow {
+        syncHistoryRepository.failedCountFlow = flow {
             throw RuntimeException("sync history boom")
         }
 
@@ -180,22 +182,23 @@ class ServerHealthViewModelTest {
 
     @Test
     fun `clearError resets error to null`() = runTest {
-        every { syncHistoryRepository.observeFailedCount() } returns flow {
+        syncHistoryRepository.failedCountFlow = flow {
             throw RuntimeException("boom")
         }
         val vm = createViewModel()
         advanceUntilIdle()
-        assertNotNull(vm.error.value)
 
-        vm.clearError()
-        assertNull(vm.error.value)
+        vm.error.test {
+            assertNotNull(awaitItem())
+
+            vm.clearError()
+            assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
     fun `onlineTransition emits exactly once on offline-to-online`() = runTest {
-        val online = MutableStateFlow(true)
-        every { networkMonitor.isOnline } returns online
-
         val vm = createViewModel()
 
         vm.onlineTransition.test {
@@ -204,16 +207,16 @@ class ServerHealthViewModelTest {
             expectNoEvents()
 
             // Go offline, then back online: must emit once.
-            online.value = false
+            networkMonitor.online.value = false
             advanceUntilIdle()
             expectNoEvents()
 
-            online.value = true
+            networkMonitor.online.value = true
             advanceUntilIdle()
             awaitItem()
 
             // Staying online must not re-emit.
-            online.value = true
+            networkMonitor.online.value = true
             advanceUntilIdle()
             expectNoEvents()
 
@@ -223,8 +226,7 @@ class ServerHealthViewModelTest {
 
     @Test
     fun `onlineTransition does not emit when starting offline`() = runTest {
-        val online = MutableStateFlow(false)
-        every { networkMonitor.isOnline } returns online
+        networkMonitor.online.value = false
 
         val vm = createViewModel()
         vm.onlineTransition.test {
@@ -232,7 +234,7 @@ class ServerHealthViewModelTest {
             // Initial offline emission -> no transition
             expectNoEvents()
 
-            online.value = true
+            networkMonitor.online.value = true
             advanceUntilIdle()
             // First offline -> online transition fires
             awaitItem()
@@ -243,18 +245,24 @@ class ServerHealthViewModelTest {
 
     @Test
     fun `network status changes tracked in analytics`() = runTest {
-        val online = MutableStateFlow(true)
-        every { networkMonitor.isOnline } returns online
-
         createViewModel()
         advanceUntilIdle()
 
-        verify { analyticsService.trackEvent(AnalyticsEvent.NetworkStatusChanged(isOnline = true)) }
+        assertTrue(
+            "expected NetworkStatusChanged(online) in ${analyticsService.trackedEvents}",
+            analyticsService.trackedEvents.contains(AnalyticsEvent.NetworkStatusChanged(isOnline = true)),
+        )
 
-        online.value = false
+        networkMonitor.online.value = false
         advanceUntilIdle()
 
-        verify { analyticsService.trackEvent(AnalyticsEvent.NetworkStatusChanged(isOnline = false)) }
-        verify { analyticsService.trackEvent(AnalyticsEvent.OfflineModeUsed) }
+        assertTrue(
+            "expected NetworkStatusChanged(offline) in ${analyticsService.trackedEvents}",
+            analyticsService.trackedEvents.contains(AnalyticsEvent.NetworkStatusChanged(isOnline = false)),
+        )
+        assertTrue(
+            "expected OfflineModeUsed in ${analyticsService.trackedEvents}",
+            analyticsService.trackedEvents.contains(AnalyticsEvent.OfflineModeUsed),
+        )
     }
 }
