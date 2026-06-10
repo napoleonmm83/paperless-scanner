@@ -15,14 +15,14 @@ import androidx.work.WorkerParameters
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val syncManager: SyncManager,
-    private val crashlyticsHelper: CrashlyticsHelper
+    private val syncManager: SyncManagerContract,
+    private val crashlyticsHelper: CrashlyticsHelperContract
 ) : CoroutineWorker(context, params) {
 
     private val TAG = "SyncWorker"

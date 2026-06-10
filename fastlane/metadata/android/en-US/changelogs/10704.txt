@@ -1,0 +1,5 @@
+Version 1.5.204:
+
+🔧 Improvements:
+- Internal architecture improvements for better stability
+- More reliable background uploads and sync

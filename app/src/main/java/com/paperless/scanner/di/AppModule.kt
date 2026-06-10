@@ -53,6 +53,7 @@ import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.service.DocumentSerializer
@@ -406,7 +407,7 @@ object AppModule {
         tokenManager: TokenManager,
         @AuthClient client: OkHttpClient,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
-        crashlyticsHelper: CrashlyticsHelper,
+        crashlyticsHelper: CrashlyticsHelperContract,
         authDebugService: AuthDebugService,
         httpCache: Cache,
         protocolDetector: ProtocolDetector,

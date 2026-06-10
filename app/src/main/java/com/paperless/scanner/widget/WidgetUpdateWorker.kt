@@ -16,7 +16,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.paperless.scanner.data.repository.UploadQueueRepository
+import com.paperless.scanner.data.repository.UploadQueueRepositoryContract
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -35,7 +35,7 @@ import dagger.assisted.AssistedInject
 class WidgetUpdateWorker @AssistedInject constructor(
     @Assisted private val context: Context,
     @Assisted workerParams: WorkerParameters,
-    private val uploadQueueRepository: UploadQueueRepository
+    private val uploadQueueRepository: UploadQueueRepositoryContract
 ) : CoroutineWorker(context, workerParams) {
 
     companion object {

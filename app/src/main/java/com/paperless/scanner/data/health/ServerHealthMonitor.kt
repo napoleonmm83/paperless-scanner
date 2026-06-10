@@ -121,7 +121,7 @@ class ServerHealthMonitor @Inject constructor(
     private val api: PaperlessApi,
     private val tokenManager: TokenManager,
     private val networkMonitor: NetworkMonitor
-) {
+) : ServerHealthMonitorContract {
     companion object {
         private const val TAG = "ServerHealthMonitor"
         private const val FOREGROUND_POLL_INTERVAL_MS = 30_000L // 30 seconds
@@ -143,13 +143,13 @@ class ServerHealthMonitor @Inject constructor(
      * Emits updates whenever server status changes.
      */
     private val _serverStatus = MutableStateFlow<ServerStatus>(ServerStatus.Unknown)
-    val serverStatus: StateFlow<ServerStatus> = _serverStatus.asStateFlow()
+    override val serverStatus: StateFlow<ServerStatus> = _serverStatus.asStateFlow()
 
     /**
      * Combined status: Internet connectivity AND server reachability.
      * True only when both internet is available AND server is online.
      */
-    val isServerReachable: StateFlow<Boolean> = combine(
+    override val isServerReachable: StateFlow<Boolean> = combine(
         networkMonitor.isOnline,
         serverStatus
     ) { isOnline, status ->
@@ -290,7 +290,7 @@ class ServerHealthMonitor @Inject constructor(
      *
      * @return ServerHealthResult indicating the outcome of the health check
      */
-    suspend fun checkServerHealth(): ServerHealthResult {
+    override suspend fun checkServerHealth(): ServerHealthResult {
         // Skip health check if no internet connection
         if (!networkMonitor.checkOnlineStatus()) {
             _serverStatus.value = ServerStatus.Offline(ServerOfflineReason.NO_INTERNET)

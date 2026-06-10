@@ -30,19 +30,19 @@ class DocumentRepository @Inject constructor(
     private val imageProcessor: ImageProcessorService,
     private val pdfGenerator: PdfGeneratorService,
     private val serializer: DocumentSerializer,
-) {
+) : DocumentRepositoryContract {
     companion object {
         private const val TAG = "DocumentRepository"
     }
 
-    suspend fun uploadDocument(
+    override suspend fun uploadDocument(
         uri: Uri,
-        title: String? = null,
-        tagIds: List<Int> = emptyList(),
-        documentTypeId: Int? = null,
-        correspondentId: Int? = null,
-        customFields: Map<Int, String> = emptyMap(),
-        onProgress: (Float) -> Unit = {}
+        title: String?,
+        tagIds: List<Int>,
+        documentTypeId: Int?,
+        correspondentId: Int?,
+        customFields: Map<Int, String>,
+        onProgress: (Float) -> Unit
     ): Result<String> {
         uploadMetricsTracker.logSinglePageUploadStart()
         return try {
@@ -116,14 +116,14 @@ class DocumentRepository @Inject constructor(
         }
     }
 
-    suspend fun uploadMultiPageDocument(
+    override suspend fun uploadMultiPageDocument(
         uris: List<Uri>,
-        title: String? = null,
-        tagIds: List<Int> = emptyList(),
-        documentTypeId: Int? = null,
-        correspondentId: Int? = null,
-        customFields: Map<Int, String> = emptyMap(),
-        onProgress: (Float) -> Unit = {}
+        title: String?,
+        tagIds: List<Int>,
+        documentTypeId: Int?,
+        correspondentId: Int?,
+        customFields: Map<Int, String>,
+        onProgress: (Float) -> Unit
     ): Result<String> {
         uploadMetricsTracker.logMultiPageUploadStart(uris.size)
         return try {

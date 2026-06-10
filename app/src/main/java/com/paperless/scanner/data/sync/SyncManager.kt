@@ -97,7 +97,7 @@ class SyncManager @Inject constructor(
     private val gson: Gson,
     private val db: AppDatabase,
     private val serializer: DocumentSerializer
-) {
+) : SyncManagerContract {
     private val TAG = "SyncManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -106,7 +106,7 @@ class SyncManager @Inject constructor(
      * Updates every 2 seconds. Useful for sync status indicators.
      */
     private val _pendingChangesCount = MutableStateFlow(0)
-    val pendingChangesCount: StateFlow<Int> = _pendingChangesCount.asStateFlow()
+    override val pendingChangesCount: StateFlow<Int> = _pendingChangesCount.asStateFlow()
 
     init {
         // Start monitoring pending changes
@@ -152,7 +152,7 @@ class SyncManager @Inject constructor(
      *
      * @return [Result] with Unit on success, or failure with exception
      */
-    suspend fun performFullSync(): Result<Unit> {
+    override suspend fun performFullSync(): Result<Unit> {
         return try {
             Log.d(TAG, "Starting full sync...")
 

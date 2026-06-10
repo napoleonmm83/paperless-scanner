@@ -21,7 +21,7 @@ import java.io.IOException
 import javax.inject.Inject
 import com.paperless.scanner.data.analytics.AuthDebugReport
 import com.paperless.scanner.data.analytics.AuthDebugService
-import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 
 /**
  * AuthRepository - Repository for authentication and server connection handling.
@@ -70,7 +70,7 @@ class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val client: OkHttpClient,
     private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
-    private val crashlyticsHelper: CrashlyticsHelper,
+    private val crashlyticsHelper: CrashlyticsHelperContract,
     private val authDebugService: AuthDebugService,
     private val httpCache: Cache,
     private val protocolDetector: ProtocolDetector,

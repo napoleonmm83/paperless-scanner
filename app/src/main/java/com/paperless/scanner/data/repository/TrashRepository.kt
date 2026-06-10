@@ -59,7 +59,7 @@ class TrashRepository @Inject constructor(
     private val sync: DocumentSyncRepository,
     private val tokenManager: TokenManager,
     private val trashDeleteWorkManager: TrashDeleteWorkManager,
-) {
+) : TrashRepositoryContract {
 
     companion object {
         private const val TAG = "TrashRepository"
@@ -257,7 +257,7 @@ class TrashRepository @Inject constructor(
         )
     }
 
-    suspend fun permanentlyDeleteDocument(documentId: Int): Result<Unit> =
+    override suspend fun permanentlyDeleteDocument(documentId: Int): Result<Unit> =
         permanentlyDeleteDocuments(listOf(documentId))
 
     suspend fun permanentlyDeleteDocuments(documentIds: List<Int>): Result<Unit> = sync.executeOrQueue(
