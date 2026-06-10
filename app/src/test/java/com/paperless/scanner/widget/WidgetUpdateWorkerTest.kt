@@ -4,9 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
-import com.paperless.scanner.data.repository.UploadQueueRepository
-import io.mockk.coEvery
-import io.mockk.coVerify
+import com.paperless.scanner.testing.fakes.FakeUploadQueueRepository
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -32,18 +30,21 @@ import org.robolectric.annotation.Config
  * Glance widget state updates and AppWidgetManager broadcasts are exercised
  * indirectly through Robolectric's stubs; they don't need to succeed for the
  * worker to return success.
+ *
+ * #202 (plan-03): uploadQueueRepository is the typed fake from testing/fakes/,
+ * compile-time-checked against the #321 contract.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class WidgetUpdateWorkerTest {
 
     private lateinit var context: Context
-    private lateinit var uploadQueueRepository: UploadQueueRepository
+    private lateinit var uploadQueueRepository: FakeUploadQueueRepository
 
     @Before
     fun setup() {
         context = RuntimeEnvironment.getApplication()
-        uploadQueueRepository = mockk(relaxed = true)
+        uploadQueueRepository = FakeUploadQueueRepository()
 
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
@@ -65,8 +66,6 @@ class WidgetUpdateWorkerTest {
 
     @Test
     fun `doWork returns success on happy path`() = runTest {
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 5
-
         val result = createWorker().doWork()
 
         assertEquals(ListenableWorker.Result.success(), result)
@@ -74,7 +73,7 @@ class WidgetUpdateWorkerTest {
 
     @Test
     fun `doWork returns retry when repository throws`() = runTest {
-        coEvery { uploadQueueRepository.getPendingUploadCount() } throws RuntimeException("DB closed")
+        uploadQueueRepository.getPendingUploadCountException = RuntimeException("DB closed")
 
         val result = createWorker().doWork()
 
@@ -83,10 +82,11 @@ class WidgetUpdateWorkerTest {
 
     @Test
     fun `doWork queries pending upload count`() = runTest {
-        coEvery { uploadQueueRepository.getPendingUploadCount() } returns 0
-
         createWorker().doWork()
 
-        coVerify(exactly = 1) { uploadQueueRepository.getPendingUploadCount() }
+        assertEquals(
+            1,
+            uploadQueueRepository.recordedCalls.count { it == "getPendingUploadCount" },
+        )
     }
 }
