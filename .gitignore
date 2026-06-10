@@ -164,3 +164,6 @@ logs-*.txt
 
 # Auto Claude data directory
 .auto-claude/
+
+# Generated DEX/R8 diagnostic dumps (#325)
+/dex.txt

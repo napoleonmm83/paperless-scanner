@@ -1,0 +1,4 @@
+Version 1.5.210:
+
+🔧 Improvements:
+- Smaller app size through an optimized PDF library
