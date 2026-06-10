@@ -1,0 +1,5 @@
+Version 1.5.208:
+
+🔧 Improvements:
+- Login credentials now survive transient system errors (no more unnecessary logouts)
+- Clear detection of corrupted credentials

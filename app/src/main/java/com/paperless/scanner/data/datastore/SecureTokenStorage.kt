@@ -30,10 +30,28 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_MIGRATION_COMPLETED = "migration_completed"
         private const val MASTER_KEY_ALIAS = "_androidx_security_master_key_"
+
+        /** Cap for the cause-chain walk in [isCryptoCorruption] (guards against cycles). */
+        private const val MAX_CAUSE_CHAIN_DEPTH = 10
     }
 
     @Volatile
     private var cachedPrefs: SharedPreferences? = null
+
+    /**
+     * Set when a CONFIRMED crypto corruption (AEADBadTagException) forced
+     * [recoverCorruptedStorage] to wipe the store. Consumed once by
+     * [consumeRecoveredCryptoFailure] so TokenManager can surface "please
+     * re-authenticate" instead of a silent token loss (#320 Phase 1).
+     */
+    @Volatile
+    private var lastRecoveredCryptoFailure: Exception? = null
+
+    override fun consumeRecoveredCryptoFailure(): Exception? {
+        val failure = lastRecoveredCryptoFailure
+        lastRecoveredCryptoFailure = null
+        return failure
+    }
 
     private fun getOrCreateEncryptedPrefs(): SharedPreferences? {
         cachedPrefs?.let { return it }
@@ -44,11 +62,33 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             return try {
                 createEncryptedPrefs().also { cachedPrefs = it }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to create EncryptedSharedPreferences, attempting recovery", e)
-                recoverCorruptedStorage()
+                // #320 Phase 1: classify BEFORE recovering. Only a confirmed crypto
+                // corruption (AEADBadTagException in the cause chain) justifies the
+                // destructive wipe — a transient failure (Keystore temporarily
+                // unavailable, disk IO) must NOT delete the user's token: returning
+                // null leaves the data intact for a later retry.
+                if (isCryptoCorruption(e)) {
+                    Log.e(TAG, "Crypto corruption detected, recovering (stored token will be lost)", e)
+                    lastRecoveredCryptoFailure = e
+                    recoverCorruptedStorage()
+                } else {
+                    Log.e(TAG, "Transient failure opening encrypted prefs — NOT wiping, will retry later", e)
+                    null
+                }
             }
         }
     }
+
+    /**
+     * True when [e] is a confirmed crypto corruption: an [javax.crypto.AEADBadTagException]
+     * anywhere in the cause chain. EncryptedSharedPreferences wraps it in varying outer
+     * exceptions (GeneralSecurityException, SecurityException) depending on whether the
+     * keyset or a value fails to decrypt, so the whole chain is walked.
+     */
+    internal fun isCryptoCorruption(e: Throwable): Boolean =
+        generateSequence<Throwable>(e) { it.cause?.takeIf { cause -> cause !== it } }
+            .take(MAX_CAUSE_CHAIN_DEPTH)
+            .any { it is javax.crypto.AEADBadTagException }
 
     private fun createEncryptedPrefs(): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
