@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AssistChip
@@ -37,7 +38,10 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
@@ -45,6 +49,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -429,6 +435,7 @@ fun CustomFieldsSection(
 /**
  * Individual custom field input based on data type.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CustomFieldInput(
     field: CustomField,
@@ -496,8 +503,9 @@ private fun CustomFieldInput(
             )
         }
         "date" -> {
-            // Date: Simple text input for now (YYYY-MM-DD format)
-            // TODO(#296): Add DatePicker dialog in future enhancement
+            // Date: text input + Material3 date picker (#296). The picker writes the
+            // same YYYY-MM-DD format the API expects; manual typing stays possible.
+            var showDatePicker by remember { mutableStateOf(false) }
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -505,8 +513,39 @@ private fun CustomFieldInput(
                 placeholder = { Text(stringResource(R.string.custom_field_date_hint)) },
                 singleLine = true,
                 supportingText = { Text(stringResource(R.string.custom_field_date_format)) },
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = stringResource(R.string.custom_field_pick_date)
+                        )
+                    }
+                },
                 modifier = modifier.fillMaxWidth()
             )
+            if (showDatePicker) {
+                val datePickerState = rememberDatePickerState()
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let { millis ->
+                                    onValueChange(formatEpochMillisAsIsoDate(millis))
+                                }
+                                showDatePicker = false
+                            }
+                        ) { Text(stringResource(R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
         }
         else -> {
             // Default: String/Text input
@@ -624,3 +663,9 @@ fun UploadProgressIndicator(
         )
     }
 }
+/**
+ * #296: DatePicker millis are UTC-midnight based — format in UTC so the picked
+ * calendar day never shifts by timezone (API expects YYYY-MM-DD).
+ */
+private fun formatEpochMillisAsIsoDate(millis: Long): String =
+    java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate().toString()

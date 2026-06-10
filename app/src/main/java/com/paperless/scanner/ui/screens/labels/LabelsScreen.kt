@@ -288,15 +288,16 @@ fun LabelsScreen(
         CreateEntityDialog(
             entityType = uiState.currentEntityType,
             existingEntity = editingEntity,
-            isCreating = false, // TODO(#296): Add isCreating state to ViewModel
-            onDismiss = { viewModel.closeCreateSheet() },
+            isCreating = uiState.isCreating,
+            // #296: the VM closes the sheet on success; while a create/update is in
+            // flight the dialog must not be dismissable (spinner is showing).
+            onDismiss = { if (!uiState.isCreating) viewModel.closeCreateSheet() },
             onCreate = { name, color, dataType ->
                 if (editingEntity != null) {
                     viewModel.updateEntity(editingEntity.id, name, color, dataType)
                 } else {
                     viewModel.createEntity(name, color, dataType)
                 }
-                viewModel.closeCreateSheet()
             }
         )
     }

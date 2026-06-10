@@ -1,0 +1,8 @@
+Version 1.5.211:
+
+✨ New Features:
+- Calendar date picker for custom fields
+- Create tags directly in the step-by-step scan flow
+
+🔧 Improvements:
+- Loading indicator when creating labels

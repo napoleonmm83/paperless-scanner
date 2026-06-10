@@ -254,6 +254,39 @@ class LabelsViewModelTest {
     }
 
     @Test
+    fun `createEntity shows spinner and closes the sheet on success`() = runTest {
+        // #296: the VM owns close-on-success so the dialog can show its spinner.
+        coEvery { tagRepository.createTag(any(), any()) } returns
+            Result.success(Tag(id = 1, name = "New", color = "#FFFFFF", documentCount = 0))
+        val viewModel = createViewModel()
+        viewModel.openCreateSheet()
+        runCurrent()
+
+        viewModel.createEntity("New")
+        runCurrent()
+
+        assertEquals(false, viewModel.uiState.value.isCreating)
+        assertEquals(false, viewModel.uiState.value.showCreateSheet)
+    }
+
+    @Test
+    fun `createEntity keeps the sheet open with an error on failure`() = runTest {
+        // #296: on failure the dialog must stay open so the user can retry.
+        coEvery { tagRepository.createTag(any(), any()) } returns
+            Result.failure(Exception("boom"))
+        val viewModel = createViewModel()
+        viewModel.openCreateSheet()
+        runCurrent()
+
+        viewModel.createEntity("New")
+        runCurrent()
+
+        assertEquals(false, viewModel.uiState.value.isCreating)
+        assertTrue(viewModel.uiState.value.showCreateSheet)
+        assertTrue(viewModel.uiState.value.error != null)
+    }
+
+    @Test
     fun `closeCreateSheet clears sheet visibility and edit target in both places`() = runTest {
         val handle = SavedStateHandle().apply {
             set(LabelsViewModel.KEY_SHOW_CREATE_SHEET, true)
