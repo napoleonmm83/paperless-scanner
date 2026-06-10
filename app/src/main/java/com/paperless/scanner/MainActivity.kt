@@ -29,6 +29,8 @@ import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.BuildConfig
+import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.analyticsName
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.components.AnalyticsConsentDialog
 import com.paperless.scanner.ui.navigation.PaperlessNavGraph
@@ -65,6 +67,9 @@ class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var crashlyticsHelper: CrashlyticsHelper
+
+    @Inject
+    lateinit var billingManager: BillingManager
 
     /** Pending deep link action from widget or external source. Consumed once by NavGraph. */
     private val _pendingDeepLink = MutableStateFlow<DeepLinkAction?>(null)
@@ -107,7 +112,10 @@ class MainActivity : FragmentActivity() {
             // (see the @Suppress note above); deliberately on main, not moved off (#40).
             @Suppress("WrongThread")
             val serverUrl = tokenManager.getServerUrlSync()
-            val subscriptionStatus = "free" // TODO(#296): Get from BillingManager when available
+            // Non-blocking StateFlow read. Billing connects asynchronously, so this is
+            // usually still FREE here — SubscriptionAnalyticsSync (PaperlessApp) keeps
+            // the key current once the first purchase query lands (#296).
+            val subscriptionStatus = billingManager.subscriptionStatusSync().analyticsName()
             analyticsService.initializeCrashlyticsKeys(
                 serverUrl = serverUrl,
                 appVersion = BuildConfig.VERSION_NAME,

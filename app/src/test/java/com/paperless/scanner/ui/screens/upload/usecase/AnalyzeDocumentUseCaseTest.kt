@@ -54,6 +54,10 @@ class AnalyzeDocumentUseCaseTest {
         analyticsService = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
 
+        // Explicit stub (#296): a relaxed suspend-String mock would silently return ""
+        // and the exact-value verifications below would fail confusingly.
+        coEvery { premiumFeatureManager.analyticsSubscriptionType() } returns "free"
+
         useCase = AnalyzeDocumentUseCase(
             context = context,
             suggestionOrchestrator = suggestionOrchestrator,
@@ -96,6 +100,33 @@ class AnalyzeDocumentUseCaseTest {
                 inputTokens = 1000,
                 outputTokens = 200,
                 subscriptionType = "free"
+            )
+        }
+        // Compute-once pin (#296): both records must come from a single lookup.
+        coVerify(exactly = 1) { premiumFeatureManager.analyticsSubscriptionType() }
+    }
+
+    @Test
+    fun `logFirebaseUsage reports premium for subscribed users on BOTH records`() = runTest {
+        coEvery { premiumFeatureManager.analyticsSubscriptionType() } returns "premium"
+
+        useCase.logFirebaseUsage()
+
+        coVerify {
+            aiUsageRepository.logUsage(
+                featureType = "document_analysis",
+                inputTokens = 1000,
+                outputTokens = 200,
+                success = true,
+                subscriptionType = "premium"
+            )
+        }
+        coVerify {
+            analyticsService.trackAiFeatureUsage(
+                featureType = "document_analysis",
+                inputTokens = 1000,
+                outputTokens = 200,
+                subscriptionType = "premium"
             )
         }
     }

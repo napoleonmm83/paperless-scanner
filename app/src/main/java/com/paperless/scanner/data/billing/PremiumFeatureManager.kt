@@ -62,6 +62,13 @@ class PremiumFeatureManager @Inject constructor(
     private fun isPremiumAccessEnabledSync(): Boolean = billingManager.isSubscriptionActiveSync()
 
     /**
+     * Subscription dimension for AI-usage logging and analytics ("free"/"premium").
+     * Single seam so every `subscriptionType` log site reports the same value (#296).
+     */
+    suspend fun analyticsSubscriptionType(): String =
+        if (isPremiumAccessEnabled.first()) "premium" else "free"
+
+    /**
      * Whether AI suggestions are enabled and available.
      * Combines:
      * - Active Premium subscription (from BillingManager)

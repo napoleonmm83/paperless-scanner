@@ -64,6 +64,22 @@ class PremiumFeatureManagerTest {
         mockSubscriptionActive.value = enabled
     }
 
+    // ==================== analyticsSubscriptionType Tests (#296) ====================
+
+    @Test
+    fun `analyticsSubscriptionType is premium with an active subscription`() = runTest {
+        setPremiumAccessEnabled(true)
+
+        assertEquals("premium", premiumFeatureManager.analyticsSubscriptionType())
+    }
+
+    @Test
+    fun `analyticsSubscriptionType is free without a subscription`() = runTest {
+        setPremiumAccessEnabled(false)
+
+        assertEquals("free", premiumFeatureManager.analyticsSubscriptionType())
+    }
+
     // ==================== isAiEnabled Tests ====================
 
     @Test

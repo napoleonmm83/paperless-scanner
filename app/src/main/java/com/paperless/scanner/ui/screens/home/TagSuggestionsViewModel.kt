@@ -321,7 +321,7 @@ class TagSuggestionsViewModel @Inject constructor(
                                 inputTokens = 0,
                                 outputTokens = 0,
                                 estimatedCostUsd = 0.0,
-                                subscriptionType = "unknown",
+                                subscriptionType = premiumFeatureManager.analyticsSubscriptionType(),
                                 success = true,
                             ),
                         )

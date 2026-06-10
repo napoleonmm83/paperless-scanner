@@ -1,0 +1,5 @@
+Version 1.5.213:
+
+🔧 Improvements:
+- Subscription status is now reported correctly in analytics
+- More accurate crash diagnostics for premium users
