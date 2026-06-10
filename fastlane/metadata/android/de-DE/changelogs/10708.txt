@@ -1,0 +1,5 @@
+Version 1.5.208:
+
+🔧 Verbesserungen:
+- Anmeldedaten überleben jetzt vorübergehende Systemfehler (kein unnötiges Abmelden mehr)
+- Klare Erkennung beschädigter Anmeldedaten

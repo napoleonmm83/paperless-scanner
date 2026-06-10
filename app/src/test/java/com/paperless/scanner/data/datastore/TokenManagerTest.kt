@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.datastore
 
 import android.content.Context
+import app.cash.turbine.test
 import com.paperless.scanner.util.AppLockTimeout
 import io.mockk.every
 import io.mockk.mockk
@@ -50,6 +51,9 @@ class TokenManagerTest {
         every { secureStorage.isMigrationCompleted() } returns true
         every { secureStorage.saveToken(any()) } returns true
         every { secureStorage.clearToken() } returns true
+        // Default: no crypto-corruption recovery happened (#320 Phase 1). Explicit
+        // because a relaxed mock would return a child-mock Exception, not null.
+        every { secureStorage.consumeRecoveredCryptoFailure() } returns null
         tokenManager = TokenManager(context, secureStorage)
     }
 
@@ -58,6 +62,44 @@ class TokenManagerTest {
         // Reset the singleton DataStore between tests — Robolectric reuses the
         // application Context across the same VM, so preferences would otherwise leak.
         runBlocking { tokenManager.clearCredentials() }
+    }
+
+    // ==================== Storage corruption signal (#320 Phase 1) ====================
+
+    @Test
+    fun `storageCorruptionDetected stays false when no corruption recovery happened`() = runTest {
+        tokenManager.storageCorruptionDetected.test {
+            assertFalse(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `init flags corruption when secure storage recovered from a crypto failure`() = runTest {
+        every { secureStorage.consumeRecoveredCryptoFailure() } returns
+            javax.crypto.AEADBadTagException("keyset corrupted")
+
+        val corrupted = TokenManager(context, secureStorage)
+
+        corrupted.storageCorruptionDetected.test {
+            assertTrue(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `acknowledgeStorageCorruption clears the corruption flag`() = runTest {
+        every { secureStorage.consumeRecoveredCryptoFailure() } returns
+            javax.crypto.AEADBadTagException("keyset corrupted")
+        val corrupted = TokenManager(context, secureStorage)
+
+        corrupted.storageCorruptionDetected.test {
+            assertTrue(awaitItem())
+
+            corrupted.acknowledgeStorageCorruption()
+            assertFalse(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     // ==================== Credentials ====================

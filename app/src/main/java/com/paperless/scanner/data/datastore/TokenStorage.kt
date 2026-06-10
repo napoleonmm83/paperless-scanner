@@ -16,4 +16,13 @@ interface TokenStorage {
     fun clearToken(): Boolean
     fun isMigrationCompleted(): Boolean
     fun setMigrationCompleted(): Boolean
+
+    /**
+     * Returns and clears the crypto-corruption signal recorded when a confirmed
+     * AEADBadTagException forced a destructive recovery (stored token wiped). null
+     * when no corruption-recovery happened since the last call. [TokenManager.init]
+     * consumes this once so the login flow can tell "corrupted and wiped — please
+     * re-authenticate" apart from "never logged in" (#320 Phase 1).
+     */
+    fun consumeRecoveredCryptoFailure(): Exception? = null
 }

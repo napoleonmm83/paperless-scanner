@@ -13,6 +13,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.paperless.scanner.domain.model.DocumentFilter
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -81,9 +84,36 @@ class TokenManager(
         private val ACCEPTED_HTTP_HOSTS_KEY = stringPreferencesKey("accepted_http_hosts")
     }
 
+    private val _storageCorruptionDetected = MutableStateFlow(false)
+
+    /**
+     * #320 Phase 1: true when the encrypted token store was found CORRUPTED at startup
+     * and destructively recovered (stored token wiped). Lets the login flow show
+     * "authentication data was corrupted, please log in again" instead of silently
+     * presenting a logged-out state. Clear via [acknowledgeStorageCorruption] once
+     * the user has been informed.
+     */
+    val storageCorruptionDetected: StateFlow<Boolean> = _storageCorruptionDetected.asStateFlow()
+
+    fun acknowledgeStorageCorruption() {
+        _storageCorruptionDetected.value = false
+    }
+
     init {
-        // Perform migration from plaintext DataStore to encrypted storage
+        // Perform migration from plaintext DataStore to encrypted storage.
+        // This is the first secure-storage access after process start: if the
+        // encrypted store is corrupted, opening it triggers the recovery inside
+        // SecureTokenStorage and records the signal we consume right after.
         migrateTokenToSecureStorage()
+
+        secureStorage.consumeRecoveredCryptoFailure()?.let { failure ->
+            Log.w(
+                TAG,
+                "Encrypted token storage was corrupted and recovered — user must re-authenticate",
+                failure,
+            )
+            _storageCorruptionDetected.value = true
+        }
     }
 
     /**
