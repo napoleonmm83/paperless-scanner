@@ -47,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -66,6 +68,8 @@ fun PremiumUpgradeSheet(
     onDismiss: () -> Unit,
     onSubscribe: (productId: String) -> Unit,
     onRestore: () -> Unit,
+    // Scoped to the calling screen's nav entry — a separate instance from Home's banner VM,
+    // reading the same singleton LaunchPromoManager. Do not try to share instances across screens.
     promoViewModel: LaunchPromoViewModel = hiltViewModel()
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -341,20 +345,27 @@ private fun SubscriptionOption(
             Spacer(modifier = Modifier.height(4.dp))
 
             if (strikethroughPrice != null) {
+                val regularPriceDescription = stringResource(R.string.cd_regular_price, strikethroughPrice)
                 Text(
                     text = strikethroughPrice,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center,
                     textDecoration = TextDecoration.LineThrough,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { contentDescription = regularPriceDescription }
                 )
             }
 
             Text(
                 text = price,
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (strikethroughPrice != null) FontWeight.SemiBold else null,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (strikethroughPrice != null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
 
             if (trial != null) {

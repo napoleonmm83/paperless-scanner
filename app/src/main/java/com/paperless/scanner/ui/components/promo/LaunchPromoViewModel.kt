@@ -74,7 +74,10 @@ class LaunchPromoViewModel @Inject constructor(
                 )
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        // Eagerly: the sheet reads this on first frame for plan pre-selection — a late
+        // upstream emission would flash monthly→yearly. Upstream is a hot singleton, so
+        // this costs nothing.
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     fun onBannerVisible() {
         if (impressionLogged) return
