@@ -239,7 +239,10 @@ class BillingManager @Inject constructor(
                     // previous Disconnected episode (success after retry).
                     reconnectJob?.cancel()
                     reconnectJob = null
-                    // Query existing purchases
+                    // Order matters: purchases before product details — LaunchPromoManager's
+                    // not-premium gate must be resolved before the launch-offer gate can open
+                    // (prevents a premium user briefly seeing the promo). Pinned by
+                    // BillingManagerTest `setup success queries purchases before product details`.
                     scope.launch {
                         queryPurchases()
                         queryProductDetails()

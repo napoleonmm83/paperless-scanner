@@ -196,6 +196,28 @@ class BillingManagerTest {
     }
 
     @Test
+    fun `setup success queries purchases before product details`() {
+        // Cross-class invariant for LaunchPromoManager: the not-premium gate
+        // (queryPurchases → isSubscriptionActive) must be resolved before the
+        // launch-offer gate can open (queryProductDetails → launchOffer).
+        // Swapping the call order in onBillingSetupFinished would let a premium
+        // user briefly see the promo on cold start — this test fails on that swap.
+        billingManager.initialize()
+        transitionToReady()
+
+        verifyOrder {
+            mockBillingClient.queryPurchasesAsync(
+                any<QueryPurchasesParams>(),
+                any<PurchasesResponseListener>()
+            )
+            mockBillingClient.queryProductDetailsAsync(
+                any<QueryProductDetailsParams>(),
+                any<ProductDetailsResponseListener>()
+            )
+        }
+    }
+
+    @Test
     fun `disconnection transitions state to Disconnected with retry attempt`() {
         billingManager.initialize()
         transitionToReady()

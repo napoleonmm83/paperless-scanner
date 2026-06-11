@@ -15,12 +15,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-// UnconfinedTestDispatcher is required here: SharingStarted.Eagerly launches the combine
-// coroutine immediately when stateIn() is called. With StandardTestDispatcher (runTest's
-// default) that coroutine sits in the scheduler queue and .value stays Hidden even after
-// advanceUntilIdle() because backgroundScope is drained lazily. UnconfinedTestDispatcher
-// runs each coroutine step eagerly and inline, so .value is correct by the time any
-// assertion executes — matching the pattern used across this repo (SubscriptionAnalyticsSyncTest).
+// UnconfinedTestDispatcher matches the repo's SubscriptionAnalyticsSyncTest pattern for
+// stateIn(Eagerly) and makes .value assertions order-independent without advanceUntilIdle
+// bookkeeping. (Empirical note: the plain-runTest + advanceUntilIdle draft of this class
+// failed the two Active-asserting .value tests with coroutines-test 1.9.0 — Hidden was
+// observed — while the Turbine flip test passed; no mechanism claimed.)
 @OptIn(ExperimentalCoroutinesApi::class)
 class LaunchPromoManagerTest {
 
@@ -117,6 +116,37 @@ class LaunchPromoManagerTest {
             // deduplication ensures only the final Active value crosses the dedup barrier.
             assertEquals(expectedActive, awaitItem())
         }
+    }
+
+    @Test
+    fun `state flips back to Hidden when the kill switch turns off while collecting`() = runTest(UnconfinedTestDispatcher()) {
+        val m = manager()
+        m.state.test {
+            assertEquals(LaunchPromoState.Hidden, awaitItem())
+            openAllGates()
+            assertEquals(expectedActive, awaitItem())
+
+            promoConfigFlow.value = promoConfigFlow.value.copy(enabled = false)
+
+            assertEquals(LaunchPromoState.Hidden, awaitItem())
+        }
+    }
+
+    @Test
+    fun `destroy cancels the scope - state freezes and ignores later source changes`() = runTest(UnconfinedTestDispatcher()) {
+        openAllGates()
+        val m = manager()
+        advanceUntilIdle()
+        assertEquals(expectedActive, m.state.value)
+
+        m.destroy()
+
+        // The combine collector is cancelled: a source mutation that would otherwise
+        // flip the state to Hidden (kill switch off propagates synchronously under
+        // UnconfinedTestDispatcher) must no longer propagate.
+        promoConfigFlow.value = promoConfigFlow.value.copy(enabled = false)
+        advanceUntilIdle()
+        assertEquals(expectedActive, m.state.value)
     }
 
     @Test
