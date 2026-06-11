@@ -268,7 +268,9 @@ class SettingsViewModel @Inject constructor(
      * Launches the Play purchase flow. While the launch promo is active and the user
      * buys the yearly plan, the discounted launch50 offer is purchased instead of the
      * default offer. Logs [AnalyticsEvent.PremiumSubscribed] on success (GDPR-gated
-     * inside AnalyticsService).
+     * inside AnalyticsService). Google Play's own purchase sheet remains the
+     * authoritative price display — a promo flip between render and tap can only
+     * surface there, never silently change the charge.
      */
     suspend fun launchPurchaseFlow(activity: android.app.Activity, productId: String): PurchaseResult {
         val promoOfferToken = launchPromoManager.promoOfferTokenFor(productId)

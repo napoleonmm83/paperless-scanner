@@ -226,6 +226,24 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun `yearly purchase without promo logs offerTag none`() = runTest {
+        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns null
+        coEvery {
+            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null)
+        } returns PurchaseResult.Success
+
+        val viewModel = createViewModel()
+        viewModel.launchPurchaseFlow(mockk(relaxed = true), BillingManager.PRODUCT_ID_YEARLY)
+
+        coVerify { billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null) }
+        verify {
+            analyticsService.trackEvent(
+                AnalyticsEvent.PremiumSubscribed(plan = "yearly", offerTag = "none")
+            )
+        }
+    }
+
+    @Test
     fun `failed purchase logs no subscription event`() = runTest {
         every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns null
         coEvery {
