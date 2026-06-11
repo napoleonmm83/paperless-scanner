@@ -113,6 +113,10 @@ class BillingManager @Inject constructor(
 
     // Launch-promo offer on the yearly plan, re-extracted on every product query.
     // null = Play does not currently serve a discounted launch50 offer (fail-closed).
+    // Cleared on query failure and setup failure (fail-closed display); deliberately NOT
+    // cleared on transient Disconnected — purchases are already blocked by the not-Ready
+    // gate, the reconnect re-query repopulates it, and clearing would flicker the banner
+    // on every short blip.
     private val _launchOffer = MutableStateFlow<LaunchOfferDetails?>(null)
     val launchOffer: StateFlow<LaunchOfferDetails?> = _launchOffer.asStateFlow()
 
@@ -254,6 +258,7 @@ class BillingManager @Inject constructor(
                     AppLogger.e(TAG, "Billing setup failed — state = Failed (no auto-retry)")
                     AppLogger.d(TAG, "Billing setup failure reason: $reason")
                     _billingState.value = BillingState.Failed(reason)
+                    _launchOffer.value = null
                     // No auto-retry on setup failure — wait for next explicit
                     // initialize() call (e.g., user opens Premium screen).
                 }
@@ -345,6 +350,9 @@ class BillingManager @Inject constructor(
                     _launchOffer.value = extractLaunchOffer(productDetailsCache[PRODUCT_ID_YEARLY])
                 } else {
                     AppLogger.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
+
+                    // Fail-closed: don't keep advertising an offer we can no longer verify.
+                    _launchOffer.value = null
 
                     // Log to Crashlytics
                     try {

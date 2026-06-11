@@ -612,6 +612,98 @@ class BillingManagerTest {
         verify(exactly = 0) { mockBillingClient.launchBillingFlow(any(), any()) }
     }
 
+    // ==================== Launch Offer Lifecycle Tests ====================
+
+    @Test
+    fun `failed product details refresh clears previously extracted launch offer`() {
+        // Fail-closed contract: a promo extracted by an earlier successful query
+        // must NOT stay live after a later query fails — LaunchPromoManager would
+        // otherwise keep the offer gate open with data Play may no longer serve.
+        billingManager.initialize()
+
+        // Yearly product serving a live launch50 promo (trial + discounted intro + regular).
+        val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "promo-token"
+            every { offerTags } returns listOf("launch50")
+            every { pricingPhases } returns mockk {
+                every { pricingPhaseList } returns listOf(
+                    mockk {
+                        every { priceAmountMicros } returns 19_990_000L
+                        every { formattedPrice } returns "CHF 19.99"
+                    },
+                    mockk {
+                        every { priceAmountMicros } returns 39_990_000L
+                        every { formattedPrice } returns "CHF 39.99"
+                    }
+                )
+            }
+        }
+        val yearlyDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(promoOffer)
+        }
+
+        // First query succeeds with the promo; flipping the flag makes the
+        // next query fail (simulates Play refusing the refresh later on).
+        var failQuery = false
+        every {
+            mockBillingClient.queryProductDetailsAsync(
+                ofType<QueryProductDetailsParams>(),
+                ofType<ProductDetailsResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<ProductDetailsResponseListener>()
+            if (failQuery) {
+                val failResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+                    every { debugMessage } returns "Service unavailable"
+                }
+                val emptyQueryResult = mockk<QueryProductDetailsResult> {
+                    every { productDetailsList } returns emptyList()
+                    every { unfetchedProductList } returns emptyList()
+                }
+                callback.onProductDetailsResponse(failResult, emptyQueryResult)
+            } else {
+                val okResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.OK
+                }
+                val queryResult = mockk<QueryProductDetailsResult> {
+                    every { productDetailsList } returns listOf(yearlyDetails)
+                    every { unfetchedProductList } returns emptyList()
+                }
+                callback.onProductDetailsResponse(okResult, queryResult)
+            }
+        }
+        every {
+            mockBillingClient.queryPurchasesAsync(
+                ofType<QueryPurchasesParams>(),
+                ofType<PurchasesResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<PurchasesResponseListener>()
+            val okResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+            }
+            callback.onQueryPurchasesResponse(okResult, emptyList())
+        }
+
+        val setupOk = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+
+        // First Ready transition → successful query → promo extracted.
+        capturedBillingClientStateListener.onBillingSetupFinished(setupOk)
+        assertEquals("promo-token", billingManager.launchOffer.value?.offerToken)
+
+        // Re-drive the queries via the same state listener; this time the
+        // product query fails → offer must be cleared, not left stale.
+        failQuery = true
+        capturedBillingClientStateListener.onBillingSetupFinished(setupOk)
+
+        assertNull(billingManager.launchOffer.value)
+    }
+
     // ==================== Helper Methods ====================
 
     private fun setPrivateField(target: Any, fieldName: String, value: Any) {
