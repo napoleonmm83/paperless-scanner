@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import com.paperless.scanner.R
 
 /**
@@ -68,9 +67,8 @@ fun LaunchPromoBanner(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stringResource(R.string.launch_promo_banner_headline).uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.1.em,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(4.dp))

@@ -352,7 +352,9 @@ fun HomeScreen(
                 // Launch promo banner (only for non-premium users while the promo is live)
                 (launchPromoBanner as? LaunchPromoBannerState.Visible)?.let { promo ->
                     item(key = "launch-promo") {
-                        LaunchedEffect(Unit) { launchPromoViewModel.onBannerVisible() }
+                        // Keyed on the promo price: re-fires only for a genuinely different
+                        // offer. The VM's once-per-instance guard is the second layer.
+                        LaunchedEffect(promo.promoPrice) { launchPromoViewModel.onBannerVisible() }
                         LaunchPromoBanner(
                             promoPrice = promo.promoPrice,
                             regularPrice = promo.regularPrice,
