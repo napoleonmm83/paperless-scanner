@@ -312,6 +312,8 @@ class BillingManagerTest {
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
             every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
@@ -352,6 +354,8 @@ class BillingManagerTest {
 
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
             every { productId } returns BillingManager.PRODUCT_ID_YEARLY
@@ -610,6 +614,78 @@ class BillingManagerTest {
         assertTrue(result is PurchaseResult.Error)
         assertEquals("No subscription offers available", (result as PurchaseResult.Error).message)
         verify(exactly = 0) { mockBillingClient.launchBillingFlow(any(), any()) }
+    }
+
+    @Test
+    fun `default purchase path skips promo-tagged offers`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Play serves the launch50 promo FIRST (offer ordering is not guaranteed).
+        // A regular purchase (no explicit token) must NOT land on the discounted
+        // promo token when the promo gates are closed — it must pick the first
+        // untagged offer instead (revenue bug otherwise: silent undercharge).
+        val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "promo-token"
+            every { offerTags } returns listOf("launch50")
+        }
+        val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "base-token"
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(promoOffer, baseOffer)
+        }
+        setPrivateField(
+            billingManager,
+            "productDetailsCache",
+            mapOf(BillingManager.PRODUCT_ID_YEARLY to mockProductDetails)
+        )
+
+        // Capture the token handed to setOfferToken (same static-builder seam as
+        // the explicit-token test; real builders must not run on mocked details).
+        val offerTokenSlot = slot<String>()
+        mockkStatic(BillingFlowParams.ProductDetailsParams::class)
+        mockkStatic(BillingFlowParams::class)
+        try {
+            val mockParamsBuilder = mockk<BillingFlowParams.ProductDetailsParams.Builder>(relaxed = true)
+            every { BillingFlowParams.ProductDetailsParams.newBuilder() } returns mockParamsBuilder
+            every { mockParamsBuilder.setProductDetails(any()) } returns mockParamsBuilder
+            every { mockParamsBuilder.setOfferToken(capture(offerTokenSlot)) } returns mockParamsBuilder
+            every { mockParamsBuilder.build() } returns mockk(relaxed = true)
+
+            val mockFlowBuilder = mockk<BillingFlowParams.Builder>(relaxed = true)
+            every { BillingFlowParams.newBuilder() } returns mockFlowBuilder
+            every { mockFlowBuilder.setProductDetailsParamsList(any()) } returns mockFlowBuilder
+            every { mockFlowBuilder.build() } returns mockk(relaxed = true)
+
+            val launchOkResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+                val mockPurchase = mockk<Purchase>(relaxed = true) {
+                    every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                    every { isAcknowledged } returns true
+                    every { products } returns listOf(BillingManager.PRODUCT_ID_YEARLY)
+                }
+                val successResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.OK
+                    every { debugMessage } returns ""
+                }
+                capturedPurchasesUpdatedListener.onPurchasesUpdated(successResult, listOf(mockPurchase))
+                launchOkResult
+            }
+
+            val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_YEARLY)
+
+            assertTrue(result is PurchaseResult.Success)
+            assertEquals("base-token", offerTokenSlot.captured)
+        } finally {
+            unmockkStatic(BillingFlowParams.ProductDetailsParams::class)
+            unmockkStatic(BillingFlowParams::class)
+        }
     }
 
     // ==================== Launch Offer Lifecycle Tests ====================

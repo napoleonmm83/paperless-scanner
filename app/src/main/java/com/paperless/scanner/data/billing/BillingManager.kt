@@ -563,11 +563,17 @@ class BillingManager @Inject constructor(
         // Promo path: an explicitly requested offer must still be present in the latest
         // ProductDetails snapshot (cache refreshes on connect/reconnect; Play remains the
         // authoritative gate at purchase time).
-        // Default path: first offer (trial offer when configured as default in Play Console).
+        // Default path: first non-promo offer (trial offer when configured as default in Play Console).
         val resolvedOfferToken = if (offerToken != null) {
             productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }?.offerToken
         } else {
-            productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+            // Default path must never pick the promo offer: when the Console offer is live
+            // but the promo gates are closed (RC off/expired), a regular purchase would
+            // otherwise silently get the discount. All-tagged-offers (misconfig) → null →
+            // no-offers error, fail-closed.
+            productDetails.subscriptionOfferDetails
+                ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+                ?.offerToken
         }
         if (resolvedOfferToken == null) {
             if (offerToken != null) {
