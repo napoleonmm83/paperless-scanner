@@ -75,6 +75,7 @@ fun PremiumUpgradeSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val promo by promoViewModel.sheetPromo.collectAsState()
+    val basePrices by promoViewModel.basePlanPrices.collectAsState()
 
     // Explicit user selection wins; before any tap a live promo pre-selects yearly.
     var userSelectedPlan by remember { mutableStateOf<String?>(null) }
@@ -177,9 +178,10 @@ fun PremiumUpgradeSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val placeholder = stringResource(R.string.premium_price_placeholder)
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_monthly),
-                    price = stringResource(R.string.premium_price_monthly, "3.99€"),
+                    price = stringResource(R.string.premium_price_monthly, basePrices?.monthlyFormatted ?: placeholder),
                     trial = stringResource(R.string.premium_trial_7_days),
                     selected = selectedPlan == "monthly",
                     onClick = { userSelectedPlan = "monthly" },
@@ -188,7 +190,7 @@ fun PremiumUpgradeSheet(
 
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_yearly),
-                    price = stringResource(R.string.premium_price_yearly, promo?.promoPrice ?: "39.99€"),
+                    price = stringResource(R.string.premium_price_yearly, promo?.promoPrice ?: basePrices?.yearlyFormatted ?: placeholder),
                     strikethroughPrice = promo?.let { stringResource(R.string.premium_price_yearly, it.regularPrice) },
                     badge = if (promo != null) {
                         stringResource(R.string.launch_promo_badge)

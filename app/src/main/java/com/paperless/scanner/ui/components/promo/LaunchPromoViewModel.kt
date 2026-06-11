@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.billing.BasePlanPrices
+import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
@@ -44,6 +46,7 @@ data class LaunchPromoSheetUi(
 @HiltViewModel
 class LaunchPromoViewModel @Inject constructor(
     launchPromoManager: LaunchPromoManager,
+    billingManager: BillingManager,
     private val tokenManager: TokenManager,
     private val analyticsService: AnalyticsService,
     private val purchaseCoordinator: PremiumPurchaseCoordinator
@@ -82,6 +85,9 @@ class LaunchPromoViewModel @Inject constructor(
         // upstream emission would flash monthly→yearly. Upstream is a hot singleton, so
         // this costs nothing.
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Localized base-plan prices for the sheet (null until billing loads). */
+    val basePlanPrices: StateFlow<BasePlanPrices?> = billingManager.basePlanPrices
 
     fun onBannerVisible() {
         if (impressionLogged) return

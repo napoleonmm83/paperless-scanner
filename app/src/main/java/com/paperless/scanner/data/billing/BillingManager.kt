@@ -120,6 +120,12 @@ class BillingManager @Inject constructor(
     private val _launchOffer = MutableStateFlow<LaunchOfferDetails?>(null)
     val launchOffer: StateFlow<LaunchOfferDetails?> = _launchOffer.asStateFlow()
 
+    // Localized base-plan prices for the paywall (null until product details load).
+    // Extracted from the first NON-promo offer's last paid pricing phase — the
+    // recurring base price. Cleared alongside launchOffer (fail-closed display).
+    private val _basePlanPrices = MutableStateFlow<BasePlanPrices?>(null)
+    val basePlanPrices: StateFlow<BasePlanPrices?> = _basePlanPrices.asStateFlow()
+
     // Tracks the in-flight Disconnected-state reconnect coroutine so destroy()
     // can cancel it. A new disconnect cancels the previous schedule.
     private var reconnectJob: Job? = null
@@ -259,6 +265,7 @@ class BillingManager @Inject constructor(
                     AppLogger.d(TAG, "Billing setup failure reason: $reason")
                     _billingState.value = BillingState.Failed(reason)
                     _launchOffer.value = null
+                    _basePlanPrices.value = null
                     // No auto-retry on setup failure — wait for next explicit
                     // initialize() call (e.g., user opens Premium screen).
                 }
@@ -348,11 +355,13 @@ class BillingManager @Inject constructor(
                         AppLogger.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
                     }
                     _launchOffer.value = extractLaunchOffer(productDetailsCache[PRODUCT_ID_YEARLY])
+                    _basePlanPrices.value = extractBasePlanPrices(productDetailsCache)
                 } else {
                     AppLogger.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
 
                     // Fail-closed: don't keep advertising an offer we can no longer verify.
                     _launchOffer.value = null
+                    _basePlanPrices.value = null
 
                     // Log to Crashlytics
                     try {
@@ -392,6 +401,26 @@ class BillingManager @Inject constructor(
             introFormattedPrice = intro.formattedPrice,
             regularFormattedPrice = regular.formattedPrice
         )
+    }
+
+    /**
+     * Localized recurring base prices for both plans, from the first non-promo offer's
+     * last paid pricing phase. Null when either product is missing — the paywall then
+     * shows a neutral placeholder instead of inventing a price.
+     */
+    internal fun extractBasePlanPrices(cache: Map<String, ProductDetails>): BasePlanPrices? {
+        val monthly = baseRecurringPrice(cache[PRODUCT_ID_MONTHLY]) ?: return null
+        val yearly = baseRecurringPrice(cache[PRODUCT_ID_YEARLY]) ?: return null
+        return BasePlanPrices(monthlyFormatted = monthly, yearlyFormatted = yearly)
+    }
+
+    private fun baseRecurringPrice(productDetails: ProductDetails?): String? {
+        val offer = productDetails?.subscriptionOfferDetails
+            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+            ?: return null
+        return offer.pricingPhases.pricingPhaseList
+            .lastOrNull { it.priceAmountMicros > 0 }
+            ?.formattedPrice
     }
 
     /**
@@ -938,6 +967,7 @@ class BillingManager @Inject constructor(
         billingClient = null
         _billingState.value = BillingState.Uninitialized
         _launchOffer.value = null
+        _basePlanPrices.value = null
         // #142: cancel the manager's in-flight coroutines (reconnect/backoff, queryPurchases,
         // queryProductDetails) so they are torn down rather than leaked. cancelChildren() — NOT
         // scope.cancel() — keeps the singleton scope reusable: destroy() resets state to
@@ -1043,6 +1073,12 @@ data class LaunchOfferDetails(
     val offerToken: String,
     val introFormattedPrice: String,
     val regularFormattedPrice: String
+)
+
+/** Localized recurring base prices of both subscription plans (paywall display). */
+data class BasePlanPrices(
+    val monthlyFormatted: String,
+    val yearlyFormatted: String
 )
 
 /**

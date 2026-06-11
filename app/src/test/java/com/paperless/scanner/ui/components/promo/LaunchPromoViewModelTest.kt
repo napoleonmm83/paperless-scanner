@@ -3,6 +3,7 @@ package com.paperless.scanner.ui.components.promo
 import app.cash.turbine.test
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.billing.BasePlanPrices
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
@@ -32,9 +33,13 @@ class LaunchPromoViewModelTest {
 
     private val promoStateFlow = MutableStateFlow<LaunchPromoState>(LaunchPromoState.Hidden)
     private val dismissedFlow = MutableStateFlow(false)
+    private val basePlanPricesFlow = MutableStateFlow<BasePlanPrices?>(null)
 
     private val launchPromoManager = mockk<LaunchPromoManager> {
         every { state } returns promoStateFlow
+    }
+    private val billingManager = mockk<BillingManager> {
+        every { basePlanPrices } returns basePlanPricesFlow
     }
     private val tokenManager = mockk<TokenManager> {
         every { launchPromoBannerDismissed } returns dismissedFlow
@@ -60,7 +65,7 @@ class LaunchPromoViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = LaunchPromoViewModel(launchPromoManager, tokenManager, analyticsService, purchaseCoordinator)
+    private fun viewModel() = LaunchPromoViewModel(launchPromoManager, billingManager, tokenManager, analyticsService, purchaseCoordinator)
 
     @Test
     fun `banner visible with promo data when active and not dismissed`() = runTest {
@@ -144,5 +149,12 @@ class LaunchPromoViewModelTest {
 
         assertEquals(PurchaseResult.Success, result)
         coVerify { purchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY) }
+    }
+
+    @Test
+    fun `basePlanPrices exposes billing manager flow value`() = runTest {
+        val prices = BasePlanPrices(monthlyFormatted = "€3.99", yearlyFormatted = "€39.99")
+        basePlanPricesFlow.value = prices
+        assertEquals(prices, viewModel().basePlanPrices.value)
     }
 }

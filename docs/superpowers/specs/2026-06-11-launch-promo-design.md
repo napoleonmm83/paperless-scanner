@@ -67,7 +67,7 @@ sealed interface LaunchPromoState {
     data class Active(
         val promoPrice: String,      // lokalisiert, aus Billing
         val regularPrice: String,    // lokalisiert, aus Billing
-        val endDate: LocalDate,      // aus Remote Config
+        val endEpochMs: Long,        // aus Remote Config
         val offerToken: String,
     ) : LaunchPromoState
 }
