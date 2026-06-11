@@ -15,6 +15,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.paperless.scanner.data.analytics.SubscriptionAnalyticsSync
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.config.RemoteConfigManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -50,6 +51,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
 
     @Inject
     lateinit var remoteConfigManager: RemoteConfigManager
+
+    @Inject
+    lateinit var launchPromoManager: LaunchPromoManager
 
     @Inject
     lateinit var subscriptionAnalyticsSync: SubscriptionAnalyticsSync
@@ -96,6 +100,7 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         networkMonitor.destroy()
         serverHealthMonitor.destroy()
         billingManager.destroy()
+        launchPromoManager.destroy()
         appScope.cancel()
         super.onTerminate()
     }
