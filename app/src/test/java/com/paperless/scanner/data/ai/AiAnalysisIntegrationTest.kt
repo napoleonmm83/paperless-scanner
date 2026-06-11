@@ -2,6 +2,7 @@ package com.paperless.scanner.data.ai
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.paperless.scanner.data.ai.models.SuggestionError
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.billing.PremiumFeature
@@ -568,6 +569,84 @@ class AiAnalysisIntegrationTest {
         // Then: no local matching attempted, AI error surfaced — byte-identical to before
         assertTrue(result is SuggestionResult.Error)
         verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
+    }
+
+    // ==================== SuggestionError Classification Tests (#364) ====================
+
+    /** Builds an orchestrator around an [AiAnalysisService] spy with stubbed analyzeImage. */
+    private fun buildOrchestrator(aiService: AiAnalysisService): SuggestionOrchestrator =
+        SuggestionOrchestrator(
+            premiumFeatureManager = premiumFeatureManager,
+            aiAnalysisService = aiService,
+            tagMatchingEngine = tagMatchingEngine,
+            paperlessSuggestionsService = paperlessSuggestionsService,
+            networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
+            tagRepository = tagRepository,
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
+        )
+
+    /**
+     * Runs the chain with premium active, a failing AI call carrying [sdkMessage], blank OCR
+     * (no local matches) and the given connectivity — the end-of-chain classifier (#364) decides.
+     */
+    private suspend fun errorFromFailedAi(sdkMessage: String, online: Boolean): SuggestionResult {
+        every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
+        every { networkMonitor.checkOnlineStatus() } returns online
+
+        val aiService = spyk(aiAnalysisService)
+        coEvery {
+            aiService.analyzeImage(any(), any(), any(), any())
+        } returns Result.failure(Exception(sdkMessage))
+
+        return buildOrchestrator(aiService).getSuggestions(bitmap = mockk<Bitmap>(relaxed = true))
+    }
+
+    @Test
+    fun `AI failure while offline classifies as OFFLINE regardless of SDK wording`() = runTest {
+        // "timeout" in the SDK text must NOT win over the actionable root cause: no connectivity.
+        val result = errorFromFailedAi("Request timeout: Something unexpected happened.", online = false)
+
+        assertTrue(result is SuggestionResult.Error)
+        assertEquals(SuggestionError.OFFLINE, (result as SuggestionResult.Error).error)
+    }
+
+    @Test
+    fun `AI timeout while online classifies as TIMEOUT`() = runTest {
+        val result = errorFromFailedAi("Deadline exceeded: request Timeout", online = true)
+
+        assertTrue(result is SuggestionResult.Error)
+        assertEquals(SuggestionError.TIMEOUT, (result as SuggestionResult.Error).error)
+    }
+
+    @Test
+    fun `AI quota exhaustion while online classifies as QUOTA_EXHAUSTED`() = runTest {
+        val result = errorFromFailedAi("Quota exceeded for aiplatform.googleapis.com", online = true)
+
+        assertTrue(result is SuggestionResult.Error)
+        assertEquals(SuggestionError.QUOTA_EXHAUSTED, (result as SuggestionResult.Error).error)
+    }
+
+    @Test
+    fun `AI permission denial while online classifies as NOT_CONFIGURED`() = runTest {
+        val result = errorFromFailedAi("PERMISSION_DENIED: Vertex AI API has not been used", online = true)
+
+        assertTrue(result is SuggestionResult.Error)
+        assertEquals(SuggestionError.NOT_CONFIGURED, (result as SuggestionResult.Error).error)
+    }
+
+    @Test
+    fun `unrecognized AI failure while online classifies as UNKNOWN and keeps the exception out of the UI contract`() = runTest {
+        val result = errorFromFailedAi("Something unexpected happened.", online = true)
+
+        assertTrue(result is SuggestionResult.Error)
+        val error = result as SuggestionResult.Error
+        assertEquals(SuggestionError.UNKNOWN, error.error)
+        // The raw SDK text travels only in the exception (for logs) — the typed code has no
+        // message field, so the UI can only ever render the localized resource (#364).
+        assertEquals("Something unexpected happened.", error.exception?.message)
     }
 
     // ==================== Error Handling Tests ====================

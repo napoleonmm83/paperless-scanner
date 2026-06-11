@@ -1,0 +1,4 @@
+Version 1.5.215:
+
+🔧 Verbesserungen:
+- Klare Fehlermeldungen bei der KI-Analyse (z.B. "Keine Internetverbindung")

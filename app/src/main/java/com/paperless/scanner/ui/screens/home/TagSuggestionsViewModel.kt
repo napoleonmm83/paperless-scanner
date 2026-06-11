@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.ai.models.SuggestionResult
+import com.paperless.scanner.data.ai.models.getLocalizedMessage
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.PremiumFeatureManager
@@ -327,7 +328,10 @@ class TagSuggestionsViewModel @Inject constructor(
                         )
                     }
                     is SuggestionResult.Error -> {
-                        updateDocumentState(documentId, UntaggedDocAnalysisState.Error(result.message))
+                        updateDocumentState(
+                            documentId,
+                            UntaggedDocAnalysisState.Error(result.error.getLocalizedMessage(context)),
+                        )
                     }
                     is SuggestionResult.Loading -> {
                         // Already in loading state, no action needed.
@@ -340,10 +344,11 @@ class TagSuggestionsViewModel @Inject constructor(
                     }
                 }
             } catch (e: Exception) {
+                // #364: never surface e.message in the UI — raw exception text stays in logs.
                 logger.log(Level.WARNING, "Error analyzing document $documentId: ${e.message}")
                 updateDocumentState(
                     documentId,
-                    UntaggedDocAnalysisState.Error(e.message ?: context.getString(R.string.error_unknown)),
+                    UntaggedDocAnalysisState.Error(context.getString(R.string.error_unknown)),
                 )
             }
         }

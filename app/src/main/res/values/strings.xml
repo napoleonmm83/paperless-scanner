@@ -393,6 +393,13 @@
     <string name="error_deleting">Error deleting</string>
     <string name="error_analyze_document">Failed to analyze document</string>
 
+    <!-- Suggestion analysis failures (#364) — resolved from SuggestionError codes -->
+    <string name="suggestion_error_offline">No internet connection — AI analysis is unavailable. You can still upload and retry the analysis later.</string>
+    <string name="suggestion_error_timeout">AI analysis timed out. Please try again.</string>
+    <string name="suggestion_error_quota">AI quota exhausted. Please try again later.</string>
+    <string name="suggestion_error_not_configured">The AI service is currently unavailable. Please try again later.</string>
+    <string name="suggestion_error_unknown">AI analysis failed. Please try again.</string>
+
     <string name="loading">Loading...</string>
     <string name="retry">Retry</string>
     <string name="cancel">Cancel</string>

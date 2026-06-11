@@ -1,0 +1,4 @@
+Version 1.5.215:
+
+🔧 Improvements:
+- Clear error messages for AI analysis (e.g. "No internet connection")
