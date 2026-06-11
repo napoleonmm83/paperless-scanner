@@ -363,6 +363,10 @@ class BillingManager @Inject constructor(
      * product, if Play currently serves one. The intro price is the first paid pricing
      * phase, the regular price the last one. A tagged offer whose intro price is not
      * actually cheaper carries no real discount and is treated as "no promo" (fail-closed).
+     *
+     * Assumes intro and regular phases share the billing period (true for the launch50
+     * shape: trial + 1y intro + 1y renewal). If multiple offers carry the tag, the
+     * first one wins.
      */
     internal fun extractLaunchOffer(productDetails: ProductDetails?): LaunchOfferDetails? {
         val offer = productDetails?.subscriptionOfferDetails
@@ -457,6 +461,9 @@ class BillingManager @Inject constructor(
      *
      * @param activity Activity required for billing flow
      * @param productId Product ID from Play Console (e.g., "paperless_ai_monthly")
+     * @param offerToken Optional explicit offer token (promo path). When set, the offer
+     *   must still exist in the current ProductDetails snapshot or the call fails with
+     *   the no-offers error — it never silently falls back to the default offer.
      * @return PurchaseResult indicating success, cancellation, or error
      */
     suspend fun launchPurchaseFlow(activity: Activity, productId: String, offerToken: String? = null): PurchaseResult {
@@ -542,8 +549,9 @@ class BillingManager @Inject constructor(
 
         AppLogger.d(TAG, "✓ Product found: ${productDetails.name}")
 
-        // Promo path: an explicitly requested offer must still be served by Play right now
-        // (it disappears when the Console offer is deactivated — the authoritative gate).
+        // Promo path: an explicitly requested offer must still be present in the latest
+        // ProductDetails snapshot (cache refreshes on connect/reconnect; Play remains the
+        // authoritative gate at purchase time).
         // Default path: first offer (trial offer when configured as default in Play Console).
         val resolvedOfferToken = if (offerToken != null) {
             productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }?.offerToken
@@ -551,6 +559,10 @@ class BillingManager @Inject constructor(
             productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
         }
         if (resolvedOfferToken == null) {
+            if (offerToken != null) {
+                // Debug-gated; never log the token value itself.
+                AppLogger.d(TAG, "Requested offer token not found among ${productDetails.subscriptionOfferDetails?.size ?: 0} offers")
+            }
             AppLogger.e(TAG, "✗ No subscription offers available!")
             return PurchaseResult.Error(context.getString(R.string.billing_error_no_offers))
         }
@@ -908,6 +920,7 @@ class BillingManager @Inject constructor(
 
         billingClient = null
         _billingState.value = BillingState.Uninitialized
+        _launchOffer.value = null
         // #142: cancel the manager's in-flight coroutines (reconnect/backoff, queryPurchases,
         // queryProductDetails) so they are torn down rather than leaked. cancelChildren() — NOT
         // scope.cancel() — keeps the singleton scope reusable: destroy() resets state to

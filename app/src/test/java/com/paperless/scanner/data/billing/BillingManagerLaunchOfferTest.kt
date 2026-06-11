@@ -83,4 +83,34 @@ class BillingManagerLaunchOfferTest {
     fun `null product details yields null`() {
         assertNull(billingManager.extractLaunchOffer(null))
     }
+
+    @Test
+    fun `tagged offer with a single paid phase yields null`() {
+        // intro == regular phase → no real discount → fail closed
+        val details = productDetails(
+            listOf(
+                offer(
+                    tags = listOf("launch50"),
+                    token = "promo-token",
+                    phases = listOf(pricingPhase(39_990_000, "CHF 39.99"))
+                )
+            )
+        )
+        assertNull(billingManager.extractLaunchOffer(details))
+    }
+
+    @Test
+    fun `tagged offer with only free phases yields null`() {
+        // no paid phase at all → nothing to price → fail closed
+        val details = productDetails(
+            listOf(
+                offer(
+                    tags = listOf("launch50"),
+                    token = "promo-token",
+                    phases = listOf(pricingPhase(0, "Free"), pricingPhase(0, "Free"))
+                )
+            )
+        )
+        assertNull(billingManager.extractLaunchOffer(details))
+    }
 }
