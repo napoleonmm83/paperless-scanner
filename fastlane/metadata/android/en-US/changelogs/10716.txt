@@ -1,0 +1,4 @@
+Version 1.5.216:
+
+🐛 Bug Fixes:
+- Fixed offline detection when a VPN app (e.g. 1.1.1.1) is active
