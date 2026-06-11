@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.Build
 import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -49,11 +50,7 @@ class NetworkMonitor @Inject constructor(
     private fun checkInitialOnlineStatus(): Boolean {
         val network = connectivityManager?.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        // Check both INTERNET capability AND validated connection
-        // This ensures actual internet access, not just theoretical connectivity
-        // (excludes captive portals, payment barriers, WiFi/Mobile without real internet)
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return hasUsableUplink(capabilities)
     }
 
     private fun checkInitialWifiStatus(): Boolean {
@@ -81,10 +78,9 @@ class NetworkMonitor @Inject constructor(
         }
 
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-            // Update online status - require validated internet
+            // Update online status - require validated internet with a real uplink
             val wasOnline = _isOnline.value
-            val isOnlineNow = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            val isOnlineNow = hasUsableUplink(capabilities)
 
             if (_isOnline.value != isOnlineNow) {
                 Log.d(TAG, "Online status changed: $isOnlineNow (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
@@ -150,9 +146,8 @@ class NetworkMonitor @Inject constructor(
     private fun updateNetworkStatus(network: Network) {
         val capabilities = connectivityManager?.getNetworkCapabilities(network)
         if (capabilities != null) {
-            // Online status requires both INTERNET capability AND validated connection
-            _isOnline.value = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            // Online status requires validated internet with a real uplink
+            _isOnline.value = hasUsableUplink(capabilities)
             // WiFi status requires WiFi transport AND validated connection
             _isWifiConnected.value = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
                     capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
@@ -243,8 +238,7 @@ class NetworkMonitor @Inject constructor(
     fun checkOnlineStatus(): Boolean {
         val network = connectivityManager?.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return hasUsableUplink(capabilities)
     }
 
     /**
@@ -271,5 +265,48 @@ class NetworkMonitor @Inject constructor(
         // Require both WiFi transport AND validated internet connection
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    companion object {
+        /**
+         * True when [capabilities] describe a network with actual internet access.
+         *
+         * Beyond INTERNET+VALIDATED (which already excludes captive portals and
+         * payment barriers) this guards against the dead-VPN case (#364): a VPN whose
+         * underlying network is gone (observed with Cloudflare 1.1.1.1 in airplane
+         * mode on a Pixel 8) keeps its tun interface up and continues to advertise
+         * INTERNET|VALIDATED with `UnderlyingNetworks: []`. Since Android Q the system
+         * merges the underlying network's transports into the VPN network's
+         * capabilities, so a transport set containing ONLY VPN means there is no real
+         * uplink behind it.
+         */
+        internal fun hasUsableUplink(capabilities: NetworkCapabilities): Boolean {
+            if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ||
+                !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            ) {
+                return false
+            }
+            // Transport merging for VPN networks is only reliable on Q+; below that,
+            // keep the legacy behavior rather than risk a false offline under a real VPN.
+            val vpnWithoutUplink = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                    NON_VPN_TRANSPORTS.none { capabilities.hasTransport(it) }
+            return !vpnWithoutUplink
+        }
+
+        // Every transport a VPN's underlying network can surface as (codex P2: a VPN
+        // over USB reverse-tethering shows VPN+USB only). The newer constants are
+        // compile-time ints — hasTransport() with them is a harmless no-op pre-release.
+        private val NON_VPN_TRANSPORTS = intArrayOf(
+            NetworkCapabilities.TRANSPORT_WIFI,
+            NetworkCapabilities.TRANSPORT_CELLULAR,
+            NetworkCapabilities.TRANSPORT_ETHERNET,
+            NetworkCapabilities.TRANSPORT_BLUETOOTH,
+            NetworkCapabilities.TRANSPORT_WIFI_AWARE,
+            NetworkCapabilities.TRANSPORT_LOWPAN,
+            NetworkCapabilities.TRANSPORT_USB,
+            NetworkCapabilities.TRANSPORT_THREAD,
+            NetworkCapabilities.TRANSPORT_SATELLITE,
+        )
     }
 }
