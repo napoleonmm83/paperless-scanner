@@ -402,6 +402,14 @@ class BillingManager @Inject constructor(
     }
 
     /**
+     * Current subscription status synchronously (mirrors [isSubscriptionActiveSync]).
+     * Note: billing connects asynchronously after [initialize], so early-startup reads
+     * see FREE until the first purchase query lands — observe [subscriptionStatus]
+     * for updates (#296).
+     */
+    fun subscriptionStatusSync(): SubscriptionStatus = _subscriptionStatus.value
+
+    /**
      * Launch purchase flow for Premium subscription.
      *
      * **Trial Support:**
@@ -923,6 +931,22 @@ sealed class SubscriptionStatus {
     data object EXPIRED : SubscriptionStatus()
     data object GRACE_PERIOD : SubscriptionStatus() // Payment failed but still has access
     data object ON_HOLD : SubscriptionStatus() // Payment failed, access revoked
+}
+
+/**
+ * Analytics dimension name for this status (Crashlytics key `subscription_status`,
+ * Firebase user property, and the `subscriptionType` AI-usage dimension, #296).
+ *
+ * Only "free" and "premium" are currently producible — ACTIVE does not retain which
+ * product (monthly/yearly) was purchased, and EXPIRED/GRACE_PERIOD/ON_HOLD have no
+ * producer yet. The exhaustive `when` is compiler-enforced future-proofing.
+ */
+fun SubscriptionStatus.analyticsName(): String = when (this) {
+    SubscriptionStatus.FREE -> "free"
+    is SubscriptionStatus.ACTIVE -> "premium"
+    SubscriptionStatus.EXPIRED -> "expired"
+    SubscriptionStatus.GRACE_PERIOD -> "grace_period"
+    SubscriptionStatus.ON_HOLD -> "on_hold"
 }
 
 /**

@@ -9,6 +9,9 @@ import com.google.firebase.analytics.analytics
 import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.perf.performance
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +32,17 @@ class AnalyticsService @Inject constructor(
         Firebase.analytics
     }
 
-    private var isEnabled = false
+    private val _enabled = MutableStateFlow(false)
+
+    /**
+     * Consent state as a flow (#296): consent grants must re-fire dependent collectors
+     * (e.g. [SubscriptionAnalyticsSync]) — a status emitted while disabled would
+     * otherwise be lost forever, since StateFlows are distinct-until-changed.
+     */
+    val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
+
+    private val isEnabled: Boolean
+        get() = _enabled.value
 
     companion object {
         private const val TAG = "AnalyticsService"
@@ -40,7 +53,7 @@ class AnalyticsService @Inject constructor(
      * Should be called based on user consent.
      */
     fun setEnabled(enabled: Boolean) {
-        isEnabled = enabled
+        _enabled.value = enabled
         firebaseAnalytics.setAnalyticsCollectionEnabled(enabled)
         Firebase.crashlytics.setCrashlyticsCollectionEnabled(enabled)
         Firebase.performance.isPerformanceCollectionEnabled = enabled
@@ -137,7 +150,8 @@ class AnalyticsService @Inject constructor(
      * @param serverUrl Server URL (will be hashed for privacy)
      * @param appVersion Version name (e.g., "1.5.38")
      * @param versionCode Version code (e.g., 10538)
-     * @param subscriptionStatus Subscription status (e.g., "free", "monthly", "yearly")
+     * @param subscriptionStatus Subscription status ("free"/"premium"; see
+     *   [com.paperless.scanner.data.billing.analyticsName])
      * @param isOffline Current offline state
      */
     fun initializeCrashlyticsKeys(
@@ -179,7 +193,8 @@ class AnalyticsService @Inject constructor(
      * Update subscription status in Crashlytics.
      * Should be called when subscription status changes.
      *
-     * @param status Subscription status (e.g., "free", "monthly", "yearly")
+     * @param status Subscription status ("free"/"premium"; see
+     *   [com.paperless.scanner.data.billing.analyticsName])
      */
     fun updateCrashlyticsSubscriptionStatus(status: String) {
         if (!isEnabled) return
@@ -223,7 +238,8 @@ class AnalyticsService @Inject constructor(
      * Set user's subscription status.
      * Used for segmentation in analytics and monthly reports.
      *
-     * @param status Subscription status: "free", "monthly", or "yearly"
+     * @param status Subscription status ("free"/"premium"; see
+     *   [com.paperless.scanner.data.billing.analyticsName])
      */
     fun setSubscriptionStatus(status: String) {
         setUserProperty("subscription_status", status)

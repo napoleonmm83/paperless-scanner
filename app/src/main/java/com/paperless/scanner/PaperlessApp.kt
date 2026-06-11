@@ -13,6 +13,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.paperless.scanner.data.analytics.SubscriptionAnalyticsSync
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
@@ -47,6 +48,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
     lateinit var billingManager: BillingManager
 
     @Inject
+    lateinit var subscriptionAnalyticsSync: SubscriptionAnalyticsSync
+
+    @Inject
     lateinit var imageLoader: ImageLoader
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -67,6 +71,10 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
 
         // Initialize Google Play Billing
         billingManager.initialize()
+
+        // Mirror subscription status into Crashlytics/Analytics for the process
+        // lifetime (#296). Torn down with appScope in onTerminate.
+        subscriptionAnalyticsSync.start(appScope)
     }
 
     /**

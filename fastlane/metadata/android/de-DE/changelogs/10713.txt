@@ -1,0 +1,5 @@
+Version 1.5.213:
+
+🔧 Verbesserungen:
+- Abo-Status wird jetzt korrekt in Statistiken erfasst
+- Genauere Fehlerdiagnose für Premium-Nutzer

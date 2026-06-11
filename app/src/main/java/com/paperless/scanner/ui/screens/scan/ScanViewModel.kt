@@ -908,7 +908,7 @@ class ScanViewModel @Inject constructor(
                                 inputTokens = estimatedInputTokens,
                                 outputTokens = estimatedOutputTokens,
                                 success = true,
-                                subscriptionType = "free"
+                                subscriptionType = premiumFeatureManager.analyticsSubscriptionType()
                             )
                         }
 

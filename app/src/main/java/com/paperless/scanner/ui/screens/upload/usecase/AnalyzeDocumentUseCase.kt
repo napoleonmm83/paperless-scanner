@@ -96,20 +96,22 @@ class AnalyzeDocumentUseCase @Inject constructor(
         withContext(dispatchers.io) {
             val estimatedInputTokens = 1000  // ~1 image
             val estimatedOutputTokens = 200  // ~200 tokens for suggestions
+            // Computed once so both records carry the same dimension value (#296).
+            val subscriptionType = premiumFeatureManager.analyticsSubscriptionType()
 
             aiUsageRepository.logUsage(
                 featureType = "document_analysis",
                 inputTokens = estimatedInputTokens,
                 outputTokens = estimatedOutputTokens,
                 success = true,
-                subscriptionType = "free" // TODO(#296): Update when premium implemented
+                subscriptionType = subscriptionType
             )
 
             analyticsService.trackAiFeatureUsage(
                 featureType = "document_analysis",
                 inputTokens = estimatedInputTokens,
                 outputTokens = estimatedOutputTokens,
-                subscriptionType = "free"
+                subscriptionType = subscriptionType
             )
         }
     }
