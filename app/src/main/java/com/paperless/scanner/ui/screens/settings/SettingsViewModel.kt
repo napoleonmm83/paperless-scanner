@@ -9,6 +9,8 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugReport
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
+import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
@@ -48,6 +50,7 @@ data class SettingsUiState(
     // Premium / Subscription
     val isPremiumActive: Boolean = false,
     val premiumExpiryDate: String? = null,
+    val launchPromoActive: Boolean = false,
     val aiSuggestionsEnabled: Boolean = true,
     val aiNewTagsEnabled: Boolean = true,
     val aiWifiOnly: Boolean = false,
@@ -68,6 +71,7 @@ class SettingsViewModel @Inject constructor(
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager,
+    private val launchPromoManager: LaunchPromoManager,
     private val authDebugService: AuthDebugService
 ) : ViewModel() {
 
@@ -125,6 +129,13 @@ class SettingsViewModel @Inject constructor(
                         else -> null
                     }
                     _uiState.update { it.copy(isPremiumActive = isPremium, premiumExpiryDate = expiryDate) }
+                }
+            }
+
+            // Observe launch promo state for the PremiumSection badge
+            launch {
+                launchPromoManager.state.collect { promo ->
+                    _uiState.update { it.copy(launchPromoActive = promo is LaunchPromoState.Active) }
                 }
             }
 

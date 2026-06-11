@@ -6,6 +6,8 @@ import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.domain.model.ServerStatus
 import okhttp3.ResponseBody.Companion.toResponseBody
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
+import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
@@ -14,6 +16,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -35,6 +38,7 @@ class SettingsViewModelTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
+    private lateinit var launchPromoManager: LaunchPromoManager
     private lateinit var authDebugService: AuthDebugService
 
     private val testDispatcher = StandardTestDispatcher()
@@ -49,6 +53,7 @@ class SettingsViewModelTest {
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
+        launchPromoManager = mockk { every { state } returns MutableStateFlow(LaunchPromoState.Hidden) }
         authDebugService = mockk(relaxed = true)
 
         // Default mock responses
@@ -88,6 +93,7 @@ class SettingsViewModelTest {
             analyticsService = analyticsService,
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager,
+            launchPromoManager = launchPromoManager,
             authDebugService = authDebugService
         )
     }

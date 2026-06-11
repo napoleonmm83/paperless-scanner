@@ -79,6 +79,7 @@ fun SettingsScreen(
         PremiumSection(
             isPremiumActive = uiState.isPremiumActive,
             premiumExpiryDate = uiState.premiumExpiryDate,
+            launchPromoActive = uiState.launchPromoActive,
             aiSuggestionsEnabled = uiState.aiSuggestionsEnabled,
             aiWifiOnly = uiState.aiWifiOnly,
             aiNewTagsEnabled = uiState.aiNewTagsEnabled,
