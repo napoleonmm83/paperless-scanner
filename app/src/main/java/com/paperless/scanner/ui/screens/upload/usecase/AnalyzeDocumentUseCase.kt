@@ -79,7 +79,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
             // Handles Premium check, fallback chain (AI → Paperless → Local), and merging
             suggestionOrchestrator.getSuggestions(
                 bitmap = bitmap,
-                extractedText = "", // TODO(#296): Add OCR text extraction in future
+                extractedText = null, // OCR runs lazily in the orchestrator's fallback step (#296)
                 documentId = null, // Not applicable for pre-upload analysis
                 overrideWifiOnly = overrideWifiOnly
             )

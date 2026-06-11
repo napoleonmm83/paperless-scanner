@@ -46,7 +46,8 @@ class SuggestionOrchestrator @Inject constructor(
     private val tagRepository: TagRepository,
     private val correspondentRepository: CorrespondentRepository,
     private val documentTypeRepository: DocumentTypeRepository,
-    private val tokenManager: com.paperless.scanner.data.datastore.TokenManager
+    private val tokenManager: com.paperless.scanner.data.datastore.TokenManager,
+    private val ocrTextExtractor: OcrTextExtractor
 ) {
     /**
      * Get suggestions for a document using the fallback chain.
@@ -81,9 +82,12 @@ class SuggestionOrchestrator @Inject constructor(
         var localSuggestions: List<TagSuggestion> = emptyList()
         var aiError: Throwable? = null
         var aiAttempted = false
+        var aiSkippedForWifi = false
+
+        val aiAvailable = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
 
         // Step 1: Try Firebase AI (Premium only)
-        if (premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)) {
+        if (aiAvailable) {
             Log.d(TAG, "Premium active - checking WiFi requirements")
 
             // Check WiFi requirement
@@ -98,6 +102,7 @@ class SuggestionOrchestrator @Inject constructor(
                         // Return WiFiRequired ONLY if no other source can provide suggestions
                         // For now, let's continue with fallback and check at the end
                         aiAttempted = true
+                        aiSkippedForWifi = true
                         Log.d(TAG, "WiFi required - will return WiFiRequired if no other suggestions available")
                     }
                 } else {
@@ -189,15 +194,29 @@ class SuggestionOrchestrator @Inject constructor(
 
         // Step 3: Local matching only as FALLBACK when no AI/Paperless suggestions
         // Skip local matching when AI analysis succeeded (AI is fully comprehensive)
-        if (aiAnalysis == null && extractedText != null && extractedText.isNotBlank()) {
-            Log.d(TAG, "No AI analysis - running local tag matching as fallback")
-            localSuggestions = tagMatchingEngine.findMatchingTags(extractedText, availableTags)
-            Log.d(TAG, "Local matching found ${localSuggestions.size} suggestions")
+        if (aiAnalysis == null) {
+            // #296: caller-provided text (e.g. server-side document content) wins;
+            // otherwise run on-device OCR over the bitmap — PREMIUM ONLY (product
+            // decision 2026-06-11: intelligent suggestions require the subscription).
+            // OCR happens lazily HERE — only on the fallback path — so the AI-success
+            // path never pays the OCR latency for text it would discard. It serves as
+            // the backup when a premium user's AI call failed or was skipped; free
+            // users keep the pre-#296 behavior (no on-device text extraction).
+            // aiSkippedForWifi: the end-of-chain check returns WiFiRequired and would
+            // discard any local suggestions — don't burn OCR latency for nothing and
+            // don't delay the "Use anyway" banner (codex P3).
+            val textForMatching = extractedText?.takeIf { it.isNotBlank() }
+                ?: bitmap?.takeIf { aiAvailable && !aiSkippedForWifi }?.let { ocrTextExtractor.extractText(it) }
+            if (!textForMatching.isNullOrBlank()) {
+                Log.d(TAG, "No AI analysis - running local tag matching as fallback")
+                localSuggestions = tagMatchingEngine.findMatchingTags(textForMatching, availableTags)
+                Log.d(TAG, "Local matching found ${localSuggestions.size} suggestions")
 
-            if (paperlessAnalysis == null) {
-                primarySource = SuggestionSource.LOCAL_MATCHING
+                if (paperlessAnalysis == null) {
+                    primarySource = SuggestionSource.LOCAL_MATCHING
+                }
             }
-        } else if (aiAnalysis != null) {
+        } else {
             Log.d(TAG, "AI analysis available - skipping local matching (AI is primary source)")
         }
 

@@ -1,0 +1,4 @@
+Version 1.5.214:
+
+✨ Neue Features:
+- Premium: Texterkennungs-Backup für Tag-Vorschläge, wenn die KI-Analyse fehlschlägt

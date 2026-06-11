@@ -1,5 +1,7 @@
 package com.paperless.scanner.di
 
+import com.paperless.scanner.data.ai.MlKitOcrTextExtractor
+import com.paperless.scanner.data.ai.OcrTextExtractor
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AnalyticsServiceContract
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
@@ -82,4 +84,8 @@ object ContractsModule {
     @Provides
     @Singleton
     fun provideAnalyticsServiceContract(impl: AnalyticsService): AnalyticsServiceContract = impl
+
+    @Provides
+    @Singleton
+    fun provideOcrTextExtractor(impl: MlKitOcrTextExtractor): OcrTextExtractor = impl
 }

@@ -254,12 +254,14 @@ HttpLoggingInterceptor().apply {
 
 ## Known Debt: deferred feature TODOs
 
-These production `TODO`s are deferred feature enhancements (not bugs), tracked under **#296** and annotated `// TODO(#296):` in source (closes #144):
-
-- `AnalyzeDocumentUseCase.kt:82` — add OCR text extraction (product decision pending).
+These production `TODO`s were deferred feature enhancements (not bugs), tracked under **#296** and annotated `// TODO(#296):` in source (closes #144). All six sites are now resolved:
 
 Resolved 2026-06-10 (the three unblocked sites): labels `isCreating` spinner,
 custom-field DatePicker dialog, and the step-by-step tag-creation dialog.
 Resolved 2026-06-10 (subscription wiring): the `MainActivity` Crashlytics key and
 all four `subscriptionType` log sites now read the real BillingManager status via
 `PremiumFeatureManager.analyticsSubscriptionType()` / `SubscriptionAnalyticsSync`.
+Resolved 2026-06-11 (OCR): `SuggestionOrchestrator` runs ML Kit text recognition
+lazily on the local tag-matching fallback path (`OcrTextExtractor`) — **premium-only**
+(product decision 2026-06-11: intelligent suggestions require the subscription). It
+backs up failed/skipped AI analyses; free users keep the pre-#296 behavior.

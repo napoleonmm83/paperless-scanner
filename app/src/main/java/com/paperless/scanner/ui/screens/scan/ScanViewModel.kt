@@ -872,7 +872,7 @@ class ScanViewModel @Inject constructor(
                 // Use SuggestionOrchestrator for centralized suggestion logic
                 val result = suggestionOrchestrator.getSuggestions(
                     bitmap = rotatedBitmap,
-                    extractedText = "",
+                    extractedText = null, // OCR runs lazily in the orchestrator's fallback step (#296)
                     documentId = null,
                     overrideWifiOnly = _wifiOnlyOverride.value
                 )
