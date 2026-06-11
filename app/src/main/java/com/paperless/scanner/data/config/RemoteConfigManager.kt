@@ -3,6 +3,7 @@ package com.paperless.scanner.data.config
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import com.paperless.scanner.util.AppLogger
+import dagger.Lazy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,10 +22,18 @@ data class LaunchPromoConfig(
  * Fail-closed by design: until a fetch succeeds (or previously activated values
  * exist), the published config keeps the promo disabled. Listener-based — no
  * coroutine scope to manage or tear down.
+ *
+ * [FirebaseRemoteConfig] is injected via [dagger.Lazy]: `getInstance()` requires
+ * an initialized FirebaseApp, which does not exist under Robolectric (no
+ * FirebaseInitProvider) — eager resolution at Hilt member-injection time would
+ * crash every Robolectric test in `Application.onCreate`. Resolution happens in
+ * [initialize], guarded so a missing FirebaseApp degrades to the fail-closed
+ * defaults instead of crashing startup (matches the lazy/guarded pattern of the
+ * other Firebase usages in this app, e.g. AnalyticsService).
  */
 @Singleton
 class RemoteConfigManager @Inject constructor(
-    private val remoteConfig: FirebaseRemoteConfig
+    private val remoteConfigProvider: Lazy<FirebaseRemoteConfig>
 ) {
     companion object {
         // <=11 chars so AppLogger's "Paperless.{tag}" stays within Android's 23-char tag cap.
@@ -48,25 +57,33 @@ class RemoteConfigManager @Inject constructor(
 
     /** Sets in-app defaults and fetches remote values. Safe to call once from Application.onCreate. */
     fun initialize() {
-        remoteConfig.setConfigSettingsAsync(
+        val config = try {
+            remoteConfigProvider.get()
+        } catch (e: IllegalStateException) {
+            // FirebaseApp not initialized (e.g. Robolectric unit tests, stripped builds):
+            // stay on the fail-closed defaults instead of crashing app startup.
+            AppLogger.w(TAG, "Firebase unavailable — launch promo stays disabled", e)
+            return
+        }
+        config.setConfigSettingsAsync(
             FirebaseRemoteConfigSettings.Builder()
                 .setMinimumFetchIntervalInSeconds(MIN_FETCH_INTERVAL_SECONDS)
                 .build()
         )
-        remoteConfig.setDefaultsAsync(DEFAULTS)
-        remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
+        config.setDefaultsAsync(DEFAULTS)
+        config.fetchAndActivate().addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 AppLogger.w(TAG, "Remote Config fetch failed — publishing activated/default values")
             }
             // Previously activated values (or the fail-closed defaults) are still valid reads.
-            publishCurrentValues()
+            publishCurrentValues(config)
         }
     }
 
-    private fun publishCurrentValues() {
+    private fun publishCurrentValues(config: FirebaseRemoteConfig) {
         _launchPromoConfig.value = LaunchPromoConfig(
-            enabled = remoteConfig.getBoolean(KEY_LAUNCH_PROMO_ENABLED),
-            endEpochMs = remoteConfig.getLong(KEY_LAUNCH_PROMO_END_EPOCH_MS)
+            enabled = config.getBoolean(KEY_LAUNCH_PROMO_ENABLED),
+            endEpochMs = config.getLong(KEY_LAUNCH_PROMO_END_EPOCH_MS)
         )
     }
 }

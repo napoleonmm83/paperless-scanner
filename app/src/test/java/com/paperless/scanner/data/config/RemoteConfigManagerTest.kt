@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.gms.tasks.Task
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import dagger.Lazy
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
@@ -21,10 +22,11 @@ class RemoteConfigManagerTest {
         // android.util.Log is not functional in JVM unit tests: this module's test
         // classpath ships real Log code backed by native methods (observed:
         // UnsatisfiedLinkError from Log.println_native, not the mockable-jar
-        // "not mocked" RuntimeException). Mock it so the AppLogger.w call in the
-        // fetch-failure path does not throw.
+        // "not mocked" RuntimeException). Mock it so the AppLogger.w calls in the
+        // fetch-failure and Firebase-unavailable paths do not throw.
         mockkStatic(Log::class)
         every { Log.w(any<String>(), any<String>()) } returns 0
+        every { Log.w(any<String>(), any<String>(), any<Throwable>()) } returns 0
     }
 
     @After
@@ -51,14 +53,14 @@ class RemoteConfigManagerTest {
 
     @Test
     fun `before initialize the config is fail-closed`() {
-        val manager = RemoteConfigManager(mockk(relaxed = true))
+        val manager = RemoteConfigManager(Lazy { mockk(relaxed = true) })
         assertEquals(LaunchPromoConfig(enabled = false, endEpochMs = 0L), manager.launchPromoConfig.value)
     }
 
     @Test
     fun `successful fetch publishes remote values`() {
         val config = remoteConfig(fetchSucceeds = true, enabled = true, endEpochMs = 1_750_000_000_000)
-        val manager = RemoteConfigManager(config)
+        val manager = RemoteConfigManager(Lazy { config })
         manager.initialize()
         assertEquals(
             LaunchPromoConfig(enabled = true, endEpochMs = 1_750_000_000_000),
@@ -73,9 +75,18 @@ class RemoteConfigManagerTest {
         // Values differ from the StateFlow's initial fail-closed state, so this
         // assertion only passes if the listener actually published on the failure path.
         val manager = RemoteConfigManager(
-            remoteConfig(fetchSucceeds = false, enabled = true, endEpochMs = 123L)
+            Lazy { remoteConfig(fetchSucceeds = false, enabled = true, endEpochMs = 123L) }
         )
         manager.initialize()
         assertEquals(LaunchPromoConfig(enabled = true, endEpochMs = 123L), manager.launchPromoConfig.value)
+    }
+
+    @Test
+    fun `missing FirebaseApp keeps config fail-closed instead of crashing`() {
+        val manager = RemoteConfigManager(
+            Lazy { throw IllegalStateException("Default FirebaseApp is not initialized") }
+        )
+        manager.initialize()
+        assertEquals(LaunchPromoConfig(enabled = false, endEpochMs = 0L), manager.launchPromoConfig.value)
     }
 }
