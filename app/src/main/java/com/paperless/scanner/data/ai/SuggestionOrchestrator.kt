@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Log
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
+import com.paperless.scanner.data.ai.models.SuggestionError
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.ai.models.TagSuggestion
@@ -238,20 +239,21 @@ class SuggestionOrchestrator @Inject constructor(
             return@withContext SuggestionResult.WiFiRequired
         }
 
-        // If AI was attempted but failed, and no other source provided suggestions, return error
+        // If AI was attempted but failed, and no other source provided suggestions,
+        // classify the failure into a typed code (#364) — the UI layer resolves it to a
+        // localized message; raw SDK text stays in the logs only.
         if (mergedAnalysis.suggestedTags.isEmpty() && aiAttempted && aiError != null) {
-            val errorMessage = when {
-                aiError?.message?.contains("PERMISSION_DENIED") == true ->
-                    "Firebase AI not configured. Please enable Vertex AI in Firebase Console."
-                aiError?.message?.contains("timeout") == true ->
-                    "AI analysis timeout. Please try again."
-                aiError?.message?.contains("quota") == true ->
-                    "AI quota exhausted. Please try again later."
-                else ->
-                    "AI analysis failed: ${aiError?.message ?: "Unknown error"}"
+            // Offline is checked first: a connectionless AI failure may carry arbitrary
+            // SDK wording (including "timeout"), but no-connectivity is the actionable cause.
+            val error = when {
+                !networkMonitor.checkOnlineStatus() -> SuggestionError.OFFLINE
+                aiError?.message?.contains("PERMISSION_DENIED") == true -> SuggestionError.NOT_CONFIGURED
+                aiError?.message?.contains("timeout", ignoreCase = true) == true -> SuggestionError.TIMEOUT
+                aiError?.message?.contains("quota", ignoreCase = true) == true -> SuggestionError.QUOTA_EXHAUSTED
+                else -> SuggestionError.UNKNOWN
             }
-            Log.e(TAG, "All suggestion sources failed. AI error: ${aiError?.message}")
-            return@withContext SuggestionResult.Error(errorMessage, aiError)
+            Log.e(TAG, "All suggestion sources failed ($error). AI error: ${aiError?.message}")
+            return@withContext SuggestionResult.Error(error, aiError)
         }
 
         SuggestionResult.Success(

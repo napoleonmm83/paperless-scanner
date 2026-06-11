@@ -6,7 +6,9 @@ import android.net.Uri
 import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
+import com.paperless.scanner.data.ai.models.SuggestionError
 import com.paperless.scanner.data.ai.models.SuggestionResult
+import com.paperless.scanner.data.ai.models.getLocalizedMessage
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
@@ -45,6 +47,12 @@ class AnalyzeDocumentUseCase @Inject constructor(
         get() = context.getString(R.string.error_analyze_document)
 
     /**
+     * Resolves a [SuggestionError] to its localized user-facing message (#364).
+     * Lives here so `UploadViewModel` stays context-free (issue #47 resolution).
+     */
+    fun localizedMessage(error: SuggestionError): String = error.getLocalizedMessage(context)
+
+    /**
      * Whether AI suggestions are available (Debug build or Premium subscription).
      * In release builds without Premium, suggestions are only available AFTER upload
      * via the Paperless API in DocumentDetailScreen.
@@ -72,7 +80,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
 
             if (bitmap == null) {
                 Log.w(TAG, "Could not decode image for analysis")
-                return@withContext SuggestionResult.Error(context.getString(R.string.error_analyze_document))
+                return@withContext SuggestionResult.Error(SuggestionError.DOCUMENT_READ_FAILED)
             }
 
             // Use SuggestionOrchestrator for centralized suggestion logic
@@ -86,8 +94,9 @@ class AnalyzeDocumentUseCase @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // #364: never put e.message into the result — raw exception text stays in logs.
             Log.e(TAG, "Document analysis failed", e)
-            SuggestionResult.Error(e.message ?: context.getString(R.string.error_analyze_document))
+            SuggestionResult.Error(SuggestionError.DOCUMENT_READ_FAILED, e)
         }
     }
 

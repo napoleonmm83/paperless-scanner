@@ -618,6 +618,8 @@ class UploadViewModelTest {
         // Regression guard (#42 codex P2): the analyze flow must keep a try/catch so a
         // failure in checkUsageLimit / logFirebaseUsage becomes AnalysisState.Error
         // instead of cancelling the coroutine and leaving the UI stuck in Analyzing.
+        // #364: the state must carry the LOCALIZED fallback, never the raw e.message.
+        every { context.getString(R.string.error_analyze_document) } returns "analysis failed"
         val uri = mockk<Uri>()
         coEvery { aiUsageRepository.checkUsageLimit() } throws Exception("limit boom")
 
@@ -626,7 +628,7 @@ class UploadViewModelTest {
 
         val state = viewModel.analysisState.value
         assertTrue("Expected AnalysisState.Error but got ${state::class.simpleName}", state is AnalysisState.Error)
-        assertEquals("limit boom", (state as AnalysisState.Error).message)
+        assertEquals("analysis failed", (state as AnalysisState.Error).message)
     }
 
     // ==================== Initial State Tests ====================

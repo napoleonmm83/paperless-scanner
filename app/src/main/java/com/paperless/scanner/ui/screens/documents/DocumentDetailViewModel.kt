@@ -13,6 +13,7 @@ import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionResult
 import com.paperless.scanner.data.ai.models.SuggestionSource
+import com.paperless.scanner.data.ai.models.getLocalizedMessage
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.domain.model.Correspondent
@@ -767,8 +768,8 @@ class DocumentDetailViewModel @Inject constructor(
                         }
                     }
                     is SuggestionResult.Error -> {
-                        Log.e(TAG, "Suggestion orchestration failed: ${result.message}")
-                        _analysisState.update { AnalysisState.Error(result.message) }
+                        Log.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
+                        _analysisState.update { AnalysisState.Error(result.error.getLocalizedMessage(context)) }
                     }
                     is SuggestionResult.Loading -> {
                         _analysisState.update { AnalysisState.Analyzing }

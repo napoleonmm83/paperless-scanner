@@ -1,5 +1,9 @@
 package com.paperless.scanner.data.ai.models
 
+import android.content.Context
+import androidx.annotation.StringRes
+import com.paperless.scanner.R
+
 /**
  * Result of AI document analysis.
  */
@@ -49,7 +53,7 @@ sealed class SuggestionResult {
     ) : SuggestionResult()
 
     data class Error(
-        val message: String,
+        val error: SuggestionError,
         val exception: Throwable? = null
     ) : SuggestionResult()
 
@@ -61,3 +65,37 @@ sealed class SuggestionResult {
 
     data object Loading : SuggestionResult()
 }
+
+/**
+ * Typed causes for failed suggestion operations (#364).
+ *
+ * The data layer classifies failures into these codes; the UI layer resolves them
+ * to localized text via [getLocalizedMessage]. Raw SDK/exception messages must
+ * never reach the UI — keep them in logs only (see LogSanitizer conventions).
+ */
+enum class SuggestionError(@StringRes val messageResId: Int) {
+    /** Device has no internet connection — AI analysis is unavailable. */
+    OFFLINE(R.string.suggestion_error_offline),
+
+    /** The AI call timed out. */
+    TIMEOUT(R.string.suggestion_error_timeout),
+
+    /** The AI quota is exhausted. */
+    QUOTA_EXHAUSTED(R.string.suggestion_error_quota),
+
+    /** The AI backend rejected the call (e.g. Vertex AI not enabled). Detail belongs in logs. */
+    NOT_CONFIGURED(R.string.suggestion_error_not_configured),
+
+    /** The document image could not be decoded/read for analysis. */
+    DOCUMENT_READ_FAILED(R.string.error_analyze_document),
+
+    /** Any other failure. */
+    UNKNOWN(R.string.suggestion_error_unknown)
+}
+
+/**
+ * Resolves the localized user-facing message for this error.
+ * Mirrors [com.paperless.scanner.domain.error.getLocalizedMessage] for PaperlessException.
+ */
+fun SuggestionError.getLocalizedMessage(context: Context): String =
+    context.getString(messageResId)

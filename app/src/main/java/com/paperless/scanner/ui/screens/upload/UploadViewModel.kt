@@ -436,8 +436,10 @@ class UploadViewModel @Inject constructor(
                         }
                     }
                     is SuggestionResult.Error -> {
-                        Log.e(TAG, "Suggestion orchestration failed: ${result.message}")
-                        _analysisState.update { AnalysisState.Error(result.message) }
+                        Log.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
+                        _analysisState.update {
+                            AnalysisState.Error(analyzeDocumentUseCase.localizedMessage(result.error))
+                        }
                     }
                     is SuggestionResult.Loading -> {
                         // Should not happen in this context, but handle for exhaustiveness
@@ -447,9 +449,10 @@ class UploadViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                // #364: never surface e.message — raw exception text stays in the logs.
                 Log.e(TAG, "Document analysis failed", e)
                 _analysisState.update {
-                    AnalysisState.Error(e.message ?: analyzeDocumentUseCase.analysisErrorMessage)
+                    AnalysisState.Error(analyzeDocumentUseCase.analysisErrorMessage)
                 }
             }
         }
