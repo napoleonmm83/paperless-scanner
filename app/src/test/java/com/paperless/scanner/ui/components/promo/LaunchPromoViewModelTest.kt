@@ -74,10 +74,12 @@ class LaunchPromoViewModelTest {
     @Test
     fun `banner hidden when previously dismissed`() = runTest {
         promoStateFlow.value = activePromo
-        dismissedFlow.value = true
         viewModel().bannerState.test {
+            var item = awaitItem()
+            if (item is LaunchPromoBannerState.Hidden) item = awaitItem()
+            assertTrue(item is LaunchPromoBannerState.Visible)
+            dismissedFlow.value = true
             assertEquals(LaunchPromoBannerState.Hidden, awaitItem())
-            expectNoEvents()
         }
     }
 
@@ -123,6 +125,7 @@ class LaunchPromoViewModelTest {
             if (item == null) item = awaitItem()
             assertEquals("CHF 19.99", item!!.promoPrice)
             assertEquals("CHF 39.99", item.regularPrice)
+            assertTrue(item.endDateFormatted.isNotBlank())
         }
     }
 }

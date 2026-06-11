@@ -89,11 +89,16 @@ class LaunchPromoViewModel @Inject constructor(
     fun dismissBanner() {
         viewModelScope.launch {
             tokenManager.setLaunchPromoBannerDismissed()
+            // Log only after the flag is persisted: if the DataStore write fails, the
+            // banner reappears next start and an unconditional event would inflate
+            // the dismiss metric.
+            analyticsService.trackEvent(
+                AnalyticsEvent.PremiumPromptDismissed(trigger = LAUNCH_PROMO_TRIGGER)
+            )
         }
-        analyticsService.trackEvent(AnalyticsEvent.PremiumPromptDismissed(trigger = LAUNCH_PROMO_TRIGGER))
     }
 
-    /** Same dd.MM.yyyy format as SettingsViewModel.formatExpiryDate. */
+    /** dd.MM.yyyy, same display format as the premium expiry date in Settings. */
     private fun formatEndDate(endEpochMs: Long): String =
         SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date(endEpochMs))
 }

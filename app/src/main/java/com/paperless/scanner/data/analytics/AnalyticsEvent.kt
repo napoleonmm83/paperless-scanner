@@ -292,7 +292,7 @@ sealed class AnalyticsEvent(
 
     // ==================== Launch Promo Events ====================
 
-    /** Launch-promo banner impression on the Home screen (logged once per app process) */
+    /** Launch-promo banner impression on the Home screen (logged at most once per ViewModel instance). */
     data object LaunchPromoBannerShown : AnalyticsEvent("launch_promo_banner_shown")
 
     // ==================== Paperless-GPT OCR Events ====================
