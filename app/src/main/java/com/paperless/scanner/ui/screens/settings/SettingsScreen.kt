@@ -198,6 +198,10 @@ fun SettingsScreen(
                                 purchaseResultMessage = context.getString(R.string.premium_purchase_success)
                                 showPremiumUpgradeSheet = false
                             }
+                            is PurchaseResult.Pending -> {
+                                purchaseResultMessage = context.getString(R.string.premium_purchase_pending)
+                                showPremiumUpgradeSheet = false
+                            }
                             is PurchaseResult.Cancelled -> {
                                 showPremiumUpgradeSheet = false
                             }

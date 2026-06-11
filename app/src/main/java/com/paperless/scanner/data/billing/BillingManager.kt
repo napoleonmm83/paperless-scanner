@@ -150,10 +150,19 @@ class BillingManager @Inject constructor(
                     AppLogger.d(TAG, "  - Acknowledged: ${purchase.isAcknowledged}")
                     handlePurchase(purchase)
                 }
-                // Resume pending purchase flow with success
+                // PENDING (delayed payment) must not masquerade as Success: premium is not
+                // granted yet and analytics would count an unpaid transaction (#370).
+                val outcome = when {
+                    purchases?.any { it.purchaseState == Purchase.PurchaseState.PURCHASED } == true ->
+                        PurchaseResult.Success
+                    purchases?.any { it.purchaseState == Purchase.PurchaseState.PENDING } == true ->
+                        PurchaseResult.Pending
+                    else -> PurchaseResult.Success
+                }
+                // Resume pending purchase flow with the state-aware outcome
                 pendingPurchaseContinuation?.let {
-                    AppLogger.d(TAG, "Resuming continuation with SUCCESS")
-                    it.resume(PurchaseResult.Success)
+                    AppLogger.d(TAG, "Resuming continuation with ${outcome::class.simpleName}")
+                    it.resume(outcome)
                     pendingPurchaseContinuation = null
                 } ?: AppLogger.w(TAG, "⚠ No pending continuation to resume!")
             }
@@ -504,7 +513,7 @@ class BillingManager @Inject constructor(
      * @param offerToken Optional explicit offer token (promo path). When set, the offer
      *   must still exist in the current ProductDetails snapshot or the call fails with
      *   the no-offers error — it never silently falls back to the default offer.
-     * @return PurchaseResult indicating success, cancellation, or error
+     * @return PurchaseResult indicating success, pending payment, cancellation, or error
      */
     suspend fun launchPurchaseFlow(activity: Activity, productId: String, offerToken: String? = null): PurchaseResult {
         AppLogger.d(TAG, "════════════════════════════════════════════════")
@@ -1050,6 +1059,15 @@ fun SubscriptionStatus.analyticsName(): String = when (this) {
  */
 sealed class PurchaseResult {
     data object Success : PurchaseResult()
+
+    /**
+     * Google Play accepted the purchase but payment is still processing (delayed
+     * payment methods). Premium is NOT granted yet — handlePurchase keeps the user
+     * on FREE until a later query sees PURCHASED. Callers must not celebrate or
+     * log a subscription for this result.
+     */
+    data object Pending : PurchaseResult()
+
     data object Cancelled : PurchaseResult()
     data class Error(val message: String) : PurchaseResult()
 }

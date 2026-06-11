@@ -10,6 +10,8 @@ import javax.inject.Singleton
  * Single owner of the premium purchase routing: resolves the launch-promo offer token
  * (yearly + promo active → launch50, otherwise default offer) and logs
  * [AnalyticsEvent.PremiumSubscribed] on success (GDPR-gated inside AnalyticsService).
+ * Pending purchases are not logged — the conversion is only counted once Play
+ * confirms payment.
  * Used by both the Settings purchase path and the Home promo banner path — the
  * money-path logic lives here so the two entry points cannot drift.
  *

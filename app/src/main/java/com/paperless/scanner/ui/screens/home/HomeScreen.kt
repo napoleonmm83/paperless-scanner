@@ -481,6 +481,10 @@ fun HomeScreen(
                                 showPremiumUpgradeSheet = false
                                 snackbarHostState.showSnackbar(context.getString(R.string.premium_purchase_success))
                             }
+                            is PurchaseResult.Pending -> {
+                                showPremiumUpgradeSheet = false
+                                snackbarHostState.showSnackbar(context.getString(R.string.premium_purchase_pending))
+                            }
                             is PurchaseResult.Cancelled -> {
                                 showPremiumUpgradeSheet = false
                             }

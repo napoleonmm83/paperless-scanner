@@ -348,6 +348,50 @@ class BillingManagerTest {
     }
 
     @Test
+    fun `purchase resolving with PENDING state returns Pending`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Setup product with offer token
+        val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
+            every { subscriptionOfferDetails } returns listOf(mockOfferDetails)
+        }
+
+        val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_MONTHLY to mockProductDetails)
+        setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
+
+        // Mock launchBillingFlow to return OK (dialog launched)
+        val mockBillingResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // Trigger purchasesUpdatedListener with a PENDING purchase (delayed payment)
+            val mockPurchase = mockk<Purchase>(relaxed = true) {
+                every { purchaseState } returns Purchase.PurchaseState.PENDING
+                every { isAcknowledged } returns false
+                every { products } returns listOf(BillingManager.PRODUCT_ID_MONTHLY)
+            }
+            val pendingResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(pendingResult, listOf(mockPurchase))
+            mockBillingResult
+        }
+
+        val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_MONTHLY)
+
+        assertTrue(result is PurchaseResult.Pending)
+    }
+
+    @Test
     fun `launchPurchaseFlow returns Cancelled when user cancels`() = runTest {
         billingManager.initialize()
         setupBillingClientMocks()

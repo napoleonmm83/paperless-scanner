@@ -736,6 +736,7 @@
     <string name="premium_purchase_success">Premium activated successfully!</string>
     <string name="premium_purchase_cancelled">Purchase cancelled</string>
     <string name="premium_purchase_error">Purchase error: %1$s</string>
+    <string name="premium_purchase_pending">Payment pending — Premium activates once Google Play confirms it.</string>
     <string name="premium_restore_success">%1$d purchases restored</string>
     <string name="premium_restore_none">No purchases found</string>
     <string name="premium_restore_error">Restore error: %1$s</string>

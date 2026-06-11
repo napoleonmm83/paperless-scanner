@@ -51,7 +51,7 @@ Firebase Console → Remote Config → Parameter erstellen:
 3. [ ] App zeigt automatisch wieder Regulärpreise (kein Release nötig; Banner verschwindet spätestens beim nächsten App-Start).
 4. [ ] Conversion auswerten: Firebase Analytics `launch_promo_banner_shown` → `premium_prompt_shown{trigger=launch_promo_banner}` → `premium_subscribed{offer_tag=launch50}`.
 
-**Metrik-Caveat:** `premium_subscribed` feuert bei `PurchaseResult.Success`, der auch PENDING-Käufe (langsame Zahlungsmethoden) einschließt; ein nie abgeschlossener PENDING-Kauf wird gezählt, ein später abgeschlossener nicht erneut. Die Conversion-Zahl ist also approximativ — Play Console bleibt die autoritative Umsatzquelle. (Follow-up-Issue beim PR notiert.)
+**Metrik-Hinweis:** `premium_subscribed` feuert nur bei bestätigtem Kauf (`PURCHASED`); PENDING-Zahlungen (langsame Zahlungsmethoden) werden nicht gezählt und erscheinen erst nach Play-Bestätigung — ein später bestätigter PENDING-Kauf wird derzeit nicht nachgemeldet (bekannte Untererfassung, Play Console bleibt die autoritative Umsatzquelle).
 
 ## 5. Gerätetest (Pixel 8, License Tester)
 

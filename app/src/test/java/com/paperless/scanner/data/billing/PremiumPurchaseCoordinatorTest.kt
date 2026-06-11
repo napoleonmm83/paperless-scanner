@@ -8,6 +8,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PremiumPurchaseCoordinatorTest {
@@ -92,6 +93,20 @@ class PremiumPurchaseCoordinatorTest {
         val activity = mockk<android.app.Activity>(relaxed = true)
         coordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
 
+        verify(exactly = 0) { analyticsService.trackEvent(any<AnalyticsEvent.PremiumSubscribed>()) }
+    }
+
+    @Test
+    fun `pending purchase logs no subscription event`() = runTest {
+        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns null
+        coEvery {
+            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null)
+        } returns PurchaseResult.Pending
+
+        val activity = mockk<android.app.Activity>(relaxed = true)
+        val result = coordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
+
+        assertEquals(PurchaseResult.Pending, result)
         verify(exactly = 0) { analyticsService.trackEvent(any<AnalyticsEvent.PremiumSubscribed>()) }
     }
 }
