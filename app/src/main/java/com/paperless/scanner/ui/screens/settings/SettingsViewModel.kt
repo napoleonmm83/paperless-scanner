@@ -110,6 +110,7 @@ class SettingsViewModel @Inject constructor(
                 analyticsEnabled = analyticsConsent,
                 themeMode = themeMode,
                 isPremiumActive = isPremiumActive,
+                launchPromoActive = launchPromoManager.state.value is LaunchPromoState.Active,
                 premiumExpiryDate = null, // Will be updated by subscriptionStatus observer
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
                 aiNewTagsEnabled = aiNewTagsEnabled,

@@ -165,6 +165,27 @@ class SettingsViewModelTest {
         assertEquals("", viewModel.uiState.value.serverUrl)
     }
 
+    // ==================== Launch Promo Tests ====================
+
+    @Test
+    fun `launchPromoActive follows LaunchPromoManager state`() = runTest {
+        val promoFlow = MutableStateFlow<LaunchPromoState>(LaunchPromoState.Hidden)
+        every { launchPromoManager.state } returns promoFlow
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.launchPromoActive)
+
+        promoFlow.value = LaunchPromoState.Active(
+            promoPrice = "CHF 19.99",
+            regularPrice = "CHF 39.99",
+            endEpochMs = Long.MAX_VALUE,
+            offerToken = "promo-token"
+        )
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.launchPromoActive)
+    }
+
     // ==================== Upload Quality Tests ====================
 
     @Test

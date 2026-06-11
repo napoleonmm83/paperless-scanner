@@ -92,6 +92,8 @@ fun PremiumSection(
                             )
                         }
                     }
+                    // LaunchPromoManager already gates on !premium; this guards against
+                    // state-update races between the two observers and keeps the UI honest.
                     if (!isPremiumActive && launchPromoActive) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
