@@ -33,6 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.components.promo.LaunchPromoBanner
+import com.paperless.scanner.ui.components.promo.LaunchPromoBannerState
+import com.paperless.scanner.ui.components.promo.LaunchPromoViewModel
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.documentlist.DocumentListSnackbar
@@ -62,6 +65,7 @@ fun HomeScreen(
     tagSuggestionsViewModel: TagSuggestionsViewModel = hiltViewModel(),
     recentDocumentsViewModel: RecentDocumentsViewModel = hiltViewModel(),
     trashOverviewViewModel: TrashOverviewViewModel = hiltViewModel(),
+    launchPromoViewModel: LaunchPromoViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
@@ -73,6 +77,7 @@ fun HomeScreen(
     val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
     val serverUrl by recentDocumentsViewModel.serverUrl.collectAsState()
     val showThumbnails by recentDocumentsViewModel.showThumbnails.collectAsState()
+    val launchPromoBanner by launchPromoViewModel.bannerState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Auto-refresh dashboard on offline -> online transition. The three
@@ -342,6 +347,27 @@ fun HomeScreen(
                 // Spacer
                 item(key = "spacer-after-stats") {
                     Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // Launch promo banner (only for non-premium users while the promo is live)
+                (launchPromoBanner as? LaunchPromoBannerState.Visible)?.let { promo ->
+                    item(key = "launch-promo") {
+                        LaunchedEffect(Unit) { launchPromoViewModel.onBannerVisible() }
+                        LaunchPromoBanner(
+                            promoPrice = promo.promoPrice,
+                            regularPrice = promo.regularPrice,
+                            endDateFormatted = promo.endDateFormatted,
+                            onClick = {
+                                launchPromoViewModel.onBannerClicked()
+                                showPremiumUpgradeSheet = true
+                            },
+                            onDismiss = { launchPromoViewModel.dismissBanner() },
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                    }
+                    item(key = "spacer-after-promo") {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
                 }
 
                 // Processing Tasks Section (only show if there are tasks)
