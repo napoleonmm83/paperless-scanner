@@ -224,7 +224,7 @@ sealed class AnalyticsEvent(
      * User upgraded to Premium subscription
      *
      * @param plan Subscription plan: "monthly" or "yearly"
-     * @param offerTag Play Console offer tag used for the purchase (e.g. "launch50"), or "none"
+     * @param offerTag Play Console offer tag used for the purchase (e.g. "launch50"); pass "none" when the purchase was not initiated from a promotional offer
      */
     data class PremiumSubscribed(
         val plan: String,

@@ -24,4 +24,11 @@ class AnalyticsEventLaunchPromoTest {
         val event = AnalyticsEvent.PremiumSubscribed(plan = "monthly")
         assertEquals("none", event.params["offer_tag"])
     }
+
+    @Test
+    fun `PremiumPromptShown accepts the launch promo trigger`() {
+        val event = AnalyticsEvent.PremiumPromptShown(trigger = "launch_promo_banner")
+        assertEquals("premium_prompt_shown", event.name)
+        assertEquals("launch_promo_banner", event.params["trigger"])
+    }
 }
