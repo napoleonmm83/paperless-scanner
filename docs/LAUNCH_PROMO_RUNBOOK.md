@@ -61,7 +61,7 @@ Voraussetzung: Test-Konto ist in Play Console → Einstellungen → Lizenztests 
 2. RC-Werte gesetzt + Offer aktiv → App-Kaltstart.
 3. ERWARTET: Home zeigt Banner „LAUNCH OFFER … until <Datum>" mit echten lokalisierten Preisen.
 4. Banner-Tap → Sheet: Jahres-Plan vorselektiert, Streichpreis (regulär) + Promo-Preis in Neon-Gelb + „Launch offer"-Badge + „Offer ends <Datum>" + Transparenz-Hinweis.
-   **Hinweis:** „Upgrade" im Home-Sheet navigiert zunächst nach Settings (bestehendes Verhalten aller Nicht-Settings-Screens) — der eigentliche Kauf läuft dort über Premium-Zeile → Sheet → Upgrade. Erwartet, kein Bug (Follow-up-Issue für Direkt-Kauf existiert).
+   **Hinweis:** Der Kauf läuft direkt aus dem Home-Sheet (gleicher Routing-Pfad wie Settings, via PremiumPurchaseCoordinator). „Purchases wiederherstellen" navigiert weiterhin nach Settings. Upload-/SmartTagging-Sheets navigieren unverändert nach Settings (Follow-up-Issue).
 5. Settings → Premium-Zeile zeigt „LAUNCH OFFER"-Badge.
 6. Kauf im Test-Modus durchziehen → Google-Play-Dialog muss den **Promo-Preis** zeigen (das ist der eigentliche Routing-Test!); Erfolgsdialog; Banner und Badges verschwinden (Gate 4).
 7. Banner-Dismiss-Test (vor Kauf): X antippen → Banner weg, bleibt nach App-Neustart weg; Sheet zeigt Promo weiterhin.

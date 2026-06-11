@@ -1,6 +1,5 @@
 package com.paperless.scanner.ui.screens.settings
 
-import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.repository.ServerStatusRepository
@@ -10,13 +9,13 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.billing.PurchaseResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +41,7 @@ class SettingsViewModelTest {
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var launchPromoManager: LaunchPromoManager
+    private lateinit var premiumPurchaseCoordinator: PremiumPurchaseCoordinator
     private lateinit var authDebugService: AuthDebugService
 
     private val testDispatcher = StandardTestDispatcher()
@@ -57,6 +57,7 @@ class SettingsViewModelTest {
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
         launchPromoManager = mockk { every { state } returns MutableStateFlow(LaunchPromoState.Hidden) }
+        premiumPurchaseCoordinator = mockk(relaxed = true)
         authDebugService = mockk(relaxed = true)
 
         // Default mock responses
@@ -97,6 +98,7 @@ class SettingsViewModelTest {
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager,
             launchPromoManager = launchPromoManager,
+            premiumPurchaseCoordinator = premiumPurchaseCoordinator,
             authDebugService = authDebugService
         )
     }
@@ -190,70 +192,17 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `purchase routes yearly through promo offer token when promo active`() = runTest {
-        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns "promo-token"
+    fun `launchPurchaseFlow delegates to PremiumPurchaseCoordinator`() = runTest {
+        val activity = mockk<android.app.Activity>(relaxed = true)
         coEvery {
-            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, "promo-token")
+            premiumPurchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
         } returns PurchaseResult.Success
 
         val viewModel = createViewModel()
-        viewModel.launchPurchaseFlow(mockk(relaxed = true), BillingManager.PRODUCT_ID_YEARLY)
+        val result = viewModel.launchPurchaseFlow(activity, BillingManager.PRODUCT_ID_YEARLY)
 
-        coVerify { billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, "promo-token") }
-        verify {
-            analyticsService.trackEvent(
-                AnalyticsEvent.PremiumSubscribed(plan = "yearly", offerTag = BillingManager.LAUNCH_PROMO_OFFER_TAG)
-            )
-        }
-    }
-
-    @Test
-    fun `purchase without promo uses default offer and logs offerTag none`() = runTest {
-        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_MONTHLY) } returns null
-        coEvery {
-            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_MONTHLY, null)
-        } returns PurchaseResult.Success
-
-        val viewModel = createViewModel()
-        viewModel.launchPurchaseFlow(mockk(relaxed = true), BillingManager.PRODUCT_ID_MONTHLY)
-
-        coVerify { billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_MONTHLY, null) }
-        verify {
-            analyticsService.trackEvent(
-                AnalyticsEvent.PremiumSubscribed(plan = "monthly", offerTag = "none")
-            )
-        }
-    }
-
-    @Test
-    fun `yearly purchase without promo logs offerTag none`() = runTest {
-        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns null
-        coEvery {
-            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null)
-        } returns PurchaseResult.Success
-
-        val viewModel = createViewModel()
-        viewModel.launchPurchaseFlow(mockk(relaxed = true), BillingManager.PRODUCT_ID_YEARLY)
-
-        coVerify { billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null) }
-        verify {
-            analyticsService.trackEvent(
-                AnalyticsEvent.PremiumSubscribed(plan = "yearly", offerTag = "none")
-            )
-        }
-    }
-
-    @Test
-    fun `failed purchase logs no subscription event`() = runTest {
-        every { launchPromoManager.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY) } returns null
-        coEvery {
-            billingManager.launchPurchaseFlow(any(), BillingManager.PRODUCT_ID_YEARLY, null)
-        } returns PurchaseResult.Error("nope")
-
-        val viewModel = createViewModel()
-        viewModel.launchPurchaseFlow(mockk(relaxed = true), BillingManager.PRODUCT_ID_YEARLY)
-
-        verify(exactly = 0) { analyticsService.trackEvent(any<AnalyticsEvent.PremiumSubscribed>()) }
+        assertEquals(PurchaseResult.Success, result)
+        coVerify { premiumPurchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY) }
     }
 
     // ==================== Upload Quality Tests ====================

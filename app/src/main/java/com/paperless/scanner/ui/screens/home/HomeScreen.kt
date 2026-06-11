@@ -27,12 +27,15 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.app.Activity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.ui.components.promo.LaunchPromoBanner
 import com.paperless.scanner.ui.components.promo.LaunchPromoBannerState
 import com.paperless.scanner.ui.components.promo.LaunchPromoViewModel
@@ -79,6 +82,7 @@ fun HomeScreen(
     val showThumbnails by recentDocumentsViewModel.showThumbnails.collectAsState()
     val launchPromoBanner by launchPromoViewModel.bannerState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
 
     // Auto-refresh dashboard on offline -> online transition. The three
     // ViewModels share no direct reference; the screen layer is the wiring
@@ -463,17 +467,37 @@ fun HomeScreen(
         )
     }
 
-    // Premium Upgrade Sheet (shown when non-premium user clicks AI button)
+    // Premium Upgrade Sheet — purchases directly (promo-aware via PremiumPurchaseCoordinator);
+    // restore still lives in Settings.
     if (showPremiumUpgradeSheet) {
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
-            onSubscribe = { _ ->
-                // Navigate to Settings where purchase flow continues
-                showPremiumUpgradeSheet = false
-                onNavigateToSettings()
+            onSubscribe = { productId ->
+                val activity = context as? Activity
+                if (activity != null) {
+                    coroutineScope.launch {
+                        when (val result = launchPromoViewModel.purchase(activity, productId)) {
+                            is PurchaseResult.Success -> {
+                                showPremiumUpgradeSheet = false
+                                snackbarHostState.showSnackbar(context.getString(R.string.premium_purchase_success))
+                            }
+                            is PurchaseResult.Cancelled -> {
+                                showPremiumUpgradeSheet = false
+                            }
+                            is PurchaseResult.Error -> {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.premium_purchase_error, result.message)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    showPremiumUpgradeSheet = false
+                    onNavigateToSettings()
+                }
             },
             onRestore = {
-                // Navigate to Settings where restore continues
+                // Restore flow (dialog + result handling) lives in Settings
                 showPremiumUpgradeSheet = false
                 onNavigateToSettings()
             }

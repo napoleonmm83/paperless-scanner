@@ -12,6 +12,7 @@ import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.data.billing.SubscriptionStatus
@@ -72,6 +73,7 @@ class SettingsViewModel @Inject constructor(
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val launchPromoManager: LaunchPromoManager,
+    private val premiumPurchaseCoordinator: PremiumPurchaseCoordinator,
     private val authDebugService: AuthDebugService
 ) : ViewModel() {
 
@@ -265,25 +267,11 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Launches the Play purchase flow. While the launch promo is active and the user
-     * buys the yearly plan, the discounted launch50 offer is purchased instead of the
-     * default offer. Logs [AnalyticsEvent.PremiumSubscribed] on success (GDPR-gated
-     * inside AnalyticsService). Google Play's own purchase sheet remains the
-     * authoritative price display — a promo flip between render and tap can only
-     * surface there, never silently change the charge.
+     * Delegates to [PremiumPurchaseCoordinator] — the single owner of promo offer
+     * routing and subscription analytics. See its KDoc for the contract.
      */
     suspend fun launchPurchaseFlow(activity: android.app.Activity, productId: String): PurchaseResult {
-        val promoOfferToken = launchPromoManager.promoOfferTokenFor(productId)
-        val result = billingManager.launchPurchaseFlow(activity, productId, promoOfferToken)
-        if (result is PurchaseResult.Success) {
-            analyticsService.trackEvent(
-                AnalyticsEvent.PremiumSubscribed(
-                    plan = if (productId == BillingManager.PRODUCT_ID_MONTHLY) "monthly" else "yearly",
-                    offerTag = if (promoOfferToken != null) BillingManager.LAUNCH_PROMO_OFFER_TAG else "none"
-                )
-            )
-        }
-        return result
+        return premiumPurchaseCoordinator.purchase(activity, productId)
     }
 
     suspend fun restorePurchases(): RestoreResult {

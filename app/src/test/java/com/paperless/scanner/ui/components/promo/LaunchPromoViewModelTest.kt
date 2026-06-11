@@ -3,8 +3,11 @@ package com.paperless.scanner.ui.components.promo
 import app.cash.turbine.test
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
+import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -38,6 +41,7 @@ class LaunchPromoViewModelTest {
         coEvery { setLaunchPromoBannerDismissed() } answers { dismissedFlow.value = true }
     }
     private val analyticsService = mockk<AnalyticsService>(relaxed = true)
+    private val purchaseCoordinator = mockk<PremiumPurchaseCoordinator>(relaxed = true)
 
     private val activePromo = LaunchPromoState.Active(
         promoPrice = "CHF 19.99",
@@ -56,7 +60,7 @@ class LaunchPromoViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel() = LaunchPromoViewModel(launchPromoManager, tokenManager, analyticsService)
+    private fun viewModel() = LaunchPromoViewModel(launchPromoManager, tokenManager, analyticsService, purchaseCoordinator)
 
     @Test
     fun `banner visible with promo data when active and not dismissed`() = runTest {
@@ -127,5 +131,18 @@ class LaunchPromoViewModelTest {
             assertEquals("CHF 39.99", item.regularPrice)
             assertTrue(item.endDateFormatted.isNotBlank())
         }
+    }
+
+    @Test
+    fun `purchase delegates to PremiumPurchaseCoordinator`() = runTest {
+        val activity = mockk<android.app.Activity>(relaxed = true)
+        coEvery {
+            purchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
+        } returns PurchaseResult.Success
+
+        val result = viewModel().purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
+
+        assertEquals(PurchaseResult.Success, result)
+        coVerify { purchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY) }
     }
 }

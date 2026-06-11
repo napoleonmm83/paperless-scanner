@@ -1,11 +1,14 @@
 package com.paperless.scanner.ui.components.promo
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
+import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,7 +45,8 @@ data class LaunchPromoSheetUi(
 class LaunchPromoViewModel @Inject constructor(
     launchPromoManager: LaunchPromoManager,
     private val tokenManager: TokenManager,
-    private val analyticsService: AnalyticsService
+    private val analyticsService: AnalyticsService,
+    private val purchaseCoordinator: PremiumPurchaseCoordinator
 ) : ViewModel() {
 
     private var impressionLogged = false
@@ -100,6 +104,10 @@ class LaunchPromoViewModel @Inject constructor(
             )
         }
     }
+
+    /** Purchase entry point for the Home banner path — same routing as Settings. */
+    suspend fun purchase(activity: Activity, productId: String): PurchaseResult =
+        purchaseCoordinator.purchase(activity, productId)
 
     /** dd.MM.yyyy, same display format as the premium expiry date in Settings. */
     private fun formatEndDate(endEpochMs: Long): String =
