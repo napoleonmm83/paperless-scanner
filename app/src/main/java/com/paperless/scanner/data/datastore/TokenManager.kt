@@ -45,6 +45,7 @@ class TokenManager(
         private val AI_NEW_TAGS_ENABLED_KEY = booleanPreferencesKey("ai_new_tags_enabled")
         private val AI_WIFI_ONLY_KEY = booleanPreferencesKey("ai_wifi_only")
         private val AI_DEBUG_MODE_KEY = booleanPreferencesKey("ai_debug_mode")
+        private val LAUNCH_PROMO_BANNER_DISMISSED_KEY = booleanPreferencesKey("launch_promo_banner_dismissed")
 
         // Paperless-GPT Preferences
         private val PAPERLESS_GPT_URL_KEY = stringPreferencesKey("paperless_gpt_url")
@@ -220,6 +221,11 @@ class TokenManager(
     /** Whether AI can suggest new tags that don't exist yet */
     val aiNewTagsEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[AI_NEW_TAGS_ENABLED_KEY] ?: true // Default: enabled
+    }
+
+    /** Whether the user dismissed the launch-promo banner (persists for the whole promo window). */
+    val launchPromoBannerDismissed: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[LAUNCH_PROMO_BANNER_DISMISSED_KEY] ?: false
     }
 
     /** Whether AI features should only work on WiFi */
@@ -398,6 +404,12 @@ class TokenManager(
     suspend fun setAiNewTagsEnabled(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[AI_NEW_TAGS_ENABLED_KEY] = enabled
+        }
+    }
+
+    suspend fun setLaunchPromoBannerDismissed() {
+        context.dataStore.edit { preferences ->
+            preferences[LAUNCH_PROMO_BANNER_DISMISSED_KEY] = true
         }
     }
 
