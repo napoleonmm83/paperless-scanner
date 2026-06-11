@@ -1,0 +1,4 @@
+Version 1.5.217:
+
+🔧 Verbesserungen:
+- Interne Stabilitäts- und Qualitätsverbesserungen
