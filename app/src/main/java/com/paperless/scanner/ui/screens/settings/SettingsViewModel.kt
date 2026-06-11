@@ -264,8 +264,24 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Launches the Play purchase flow. While the launch promo is active and the user
+     * buys the yearly plan, the discounted launch50 offer is purchased instead of the
+     * default offer. Logs [AnalyticsEvent.PremiumSubscribed] on success (GDPR-gated
+     * inside AnalyticsService).
+     */
     suspend fun launchPurchaseFlow(activity: android.app.Activity, productId: String): PurchaseResult {
-        return billingManager.launchPurchaseFlow(activity, productId)
+        val promoOfferToken = launchPromoManager.promoOfferTokenFor(productId)
+        val result = billingManager.launchPurchaseFlow(activity, productId, promoOfferToken)
+        if (result is PurchaseResult.Success) {
+            analyticsService.trackEvent(
+                AnalyticsEvent.PremiumSubscribed(
+                    plan = if (productId == BillingManager.PRODUCT_ID_MONTHLY) "monthly" else "yearly",
+                    offerTag = if (promoOfferToken != null) BillingManager.LAUNCH_PROMO_OFFER_TAG else "none"
+                )
+            )
+        }
+        return result
     }
 
     suspend fun restorePurchases(): RestoreResult {
