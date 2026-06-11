@@ -83,6 +83,9 @@ class BillingManager @Inject constructor(
         const val PRODUCT_ID_MONTHLY = "paperless_ai_monthly"
         const val PRODUCT_ID_YEARLY = "paperless_ai_yearly"
 
+        /** Play Console offer tag that marks the time-limited launch promo on the yearly plan. */
+        const val LAUNCH_PROMO_OFFER_TAG = "launch50"
+
         // Reconnect backoff schedule for transient Disconnected state.
         // Cap at 16s, infinite retries — each retry is a cheap binder call;
         // failure stays in Disconnected and consumers can observe billingState.
@@ -107,6 +110,11 @@ class BillingManager @Inject constructor(
 
     private var billingClient: BillingClient? = null
     private var productDetailsCache: Map<String, ProductDetails> = emptyMap()
+
+    // Launch-promo offer on the yearly plan, re-extracted on every product query.
+    // null = Play does not currently serve a discounted launch50 offer (fail-closed).
+    private val _launchOffer = MutableStateFlow<LaunchOfferDetails?>(null)
+    val launchOffer: StateFlow<LaunchOfferDetails?> = _launchOffer.asStateFlow()
 
     // Tracks the in-flight Disconnected-state reconnect coroutine so destroy()
     // can cancel it. A new disconnect cancels the previous schedule.
@@ -331,6 +339,7 @@ class BillingManager @Inject constructor(
                     if (unfetchedProducts.isNotEmpty()) {
                         AppLogger.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
                     }
+                    _launchOffer.value = extractLaunchOffer(productDetailsCache[PRODUCT_ID_YEARLY])
                 } else {
                     AppLogger.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
 
@@ -347,6 +356,27 @@ class BillingManager @Inject constructor(
                 continuation.resume(Unit)
             }
         }
+    }
+
+    /**
+     * Extracts the launch-promo offer (tag [LAUNCH_PROMO_OFFER_TAG]) from the yearly
+     * product, if Play currently serves one. The intro price is the first paid pricing
+     * phase, the regular price the last one. A tagged offer whose intro price is not
+     * actually cheaper carries no real discount and is treated as "no promo" (fail-closed).
+     */
+    internal fun extractLaunchOffer(productDetails: ProductDetails?): LaunchOfferDetails? {
+        val offer = productDetails?.subscriptionOfferDetails
+            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG in it.offerTags }
+            ?: return null
+        val paidPhases = offer.pricingPhases.pricingPhaseList.filter { it.priceAmountMicros > 0 }
+        val intro = paidPhases.firstOrNull() ?: return null
+        val regular = paidPhases.last()
+        if (intro.priceAmountMicros >= regular.priceAmountMicros) return null
+        return LaunchOfferDetails(
+            offerToken = offer.offerToken,
+            introFormattedPrice = intro.formattedPrice,
+            regularFormattedPrice = regular.formattedPrice
+        )
     }
 
     /**
@@ -429,7 +459,7 @@ class BillingManager @Inject constructor(
      * @param productId Product ID from Play Console (e.g., "paperless_ai_monthly")
      * @return PurchaseResult indicating success, cancellation, or error
      */
-    suspend fun launchPurchaseFlow(activity: Activity, productId: String): PurchaseResult {
+    suspend fun launchPurchaseFlow(activity: Activity, productId: String, offerToken: String? = null): PurchaseResult {
         AppLogger.d(TAG, "════════════════════════════════════════════════")
         AppLogger.d(TAG, "launchPurchaseFlow called")
         AppLogger.d(TAG, "Product ID: $productId")
@@ -512,9 +542,15 @@ class BillingManager @Inject constructor(
 
         AppLogger.d(TAG, "✓ Product found: ${productDetails.name}")
 
-        // Get first offer token (trial offer if configured as default in Play Console)
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
-        if (offerToken == null) {
+        // Promo path: an explicitly requested offer must still be served by Play right now
+        // (it disappears when the Console offer is deactivated — the authoritative gate).
+        // Default path: first offer (trial offer when configured as default in Play Console).
+        val resolvedOfferToken = if (offerToken != null) {
+            productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }?.offerToken
+        } else {
+            productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+        }
+        if (resolvedOfferToken == null) {
             AppLogger.e(TAG, "✗ No subscription offers available!")
             return PurchaseResult.Error(context.getString(R.string.billing_error_no_offers))
         }
@@ -525,7 +561,7 @@ class BillingManager @Inject constructor(
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(productDetails)
-                .setOfferToken(offerToken)
+                .setOfferToken(resolvedOfferToken)
                 .build()
         )
 
@@ -966,6 +1002,18 @@ sealed class RestoreResult {
     data object NoPurchasesFound : RestoreResult()
     data class Error(val message: String) : RestoreResult()
 }
+
+/**
+ * Launch-promo offer details extracted from the yearly product.
+ *
+ * Prices are the localized formatted strings from Play Billing — never reformat
+ * or hardcode them; Play serves per-country prices.
+ */
+data class LaunchOfferDetails(
+    val offerToken: String,
+    val introFormattedPrice: String,
+    val regularFormattedPrice: String
+)
 
 /**
  * Detailed subscription information for UI display.
