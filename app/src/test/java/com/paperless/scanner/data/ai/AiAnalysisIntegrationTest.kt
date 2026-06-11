@@ -28,21 +28,18 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Integration tests for AI Analysis flow.
  *
- * These exercise the REAL [SuggestionOrchestrator] fallback-chain logic against
- * strict-mocked collaborators (no relaxed mocks — every exercised call is stubbed,
- * so a missing stub surfaces instead of being silently defaulted). Collaborators:
- * - AiAnalysisService (spyk'd per AI test; Firebase never actually invoked)
- * - PremiumFeatureManager (premium checks)
- * - TagMatchingEngine (local fallback)
- * - NetworkMonitor (online status)
- * - Repositories (data access)
- *
- * Focus areas:
- * 1. End-to-end suggestion flow
- * 2. Fallback chain (AI → Paperless → Local)
- * 3. Premium feature gating
- * 4. Network status handling
- * 5. Error recovery
+ * These exercise the REAL [SuggestionOrchestrator] fallback-chain logic. Test doubles
+ * follow a hybrid approach (#363):
+ * - [OcrTextExtractor] → recording FAKE (it is an interface seam): the premium-only OCR
+ *   contract pins are state assertions on recorded invocations, not mock verification.
+ * - [TagMatchingEngine] → REAL instance (pure keyword/fuzzy/synonym logic, no deps):
+ *   local-matching assertions check actual matching results against the test tags.
+ * - Remaining collaborators → STRICT mocks (#143): they are final `@Inject` classes
+ *   without contract seams (same constraint that deferred #202/#239). Every exercised
+ *   call must be stubbed, so an unexpected call — e.g. the Paperless API while offline —
+ *   fails the test with a MockKException. That property doubles as the negative-call
+ *   pin without `coVerify(exactly = 0)` interaction checks.
+ * - AiAnalysisService is real but spyk'd per AI test (Firebase never actually invoked).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -58,10 +55,12 @@ class AiAnalysisIntegrationTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var correspondentRepository: CorrespondentRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
-    private lateinit var ocrTextExtractor: OcrTextExtractor
+    private lateinit var ocrTextExtractor: RecordingOcrTextExtractor
     private lateinit var context: Context
 
-    // Test data
+    // Test data — the real TagMatchingEngine matches against these `match` keyword
+    // patterns: "invoice"/"rechnung" → Invoice, "vertrag" → Contract, etc. The English
+    // tag names deliberately don't collide with the engine's German-keyed synonym map.
     private val testTags = listOf(
         Tag(id = 1, name = "Invoice", color = "#FF0000", match = "invoice,bill,rechnung"),
         Tag(id = 2, name = "Receipt", color = "#00FF00", match = "receipt,quittung"),
@@ -83,8 +82,9 @@ class AiAnalysisIntegrationTest {
         // context stays relaxed: it backs the real AiAnalysisService(context) constructed below
         // (Firebase/Android calls), which is spyk'd with analyzeImage stubbed in the AI tests.
         context = mockk(relaxed = true)
-        // Collaborators are STRICT mocks (#143): every exercised call must be stubbed, so a
-        // missing behaviour surfaces as a MockKException instead of a silent relaxed default.
+        // Collaborators without seams are STRICT mocks (#143): every exercised call must be
+        // stubbed, so a missing behaviour surfaces as a MockKException instead of a silent
+        // relaxed default — and an unexpected call fails the test (negative-call pin).
         premiumFeatureManager = mockk()
         networkMonitor = mockk()
         tokenManager = mockk()
@@ -92,8 +92,9 @@ class AiAnalysisIntegrationTest {
         correspondentRepository = mockk()
         documentTypeRepository = mockk()
         paperlessSuggestionsService = mockk()
-        tagMatchingEngine = mockk()
-        ocrTextExtractor = mockk()
+        // #363: real pure matching engine + recording OCR fake (see class kdoc).
+        tagMatchingEngine = TagMatchingEngine()
+        ocrTextExtractor = RecordingOcrTextExtractor()
 
         // Setup repository flows
         every { tagRepository.observeTags() } returns flowOf(testTags)
@@ -104,19 +105,10 @@ class AiAnalysisIntegrationTest {
         every { tokenManager.aiWifiOnly } returns flowOf(false)
         every { tokenManager.aiNewTagsEnabled } returns flowOf(true)
 
-        // Default local-matching result; tests that assert specific local tags override this.
-        // Required now that tagMatchingEngine is a strict mock (no relaxed default).
-        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns emptyList()
-
-        // Default OCR result (#296): blank text reproduces the pre-OCR behavior. Tests
-        // that assert OCR-backed matching override this; AI-success tests verify the
-        // extractor is never invoked at all.
-        coEvery { ocrTextExtractor.extractText(any()) } returns ""
-
         // Create real AiAnalysisService (we'll mock Firebase via constructor)
         aiAnalysisService = AiAnalysisService(context)
 
-        // Create real SuggestionOrchestrator with mixed real/mock dependencies
+        // Create real SuggestionOrchestrator with mixed real/fake/mock dependencies
         suggestionOrchestrator = SuggestionOrchestrator(
             premiumFeatureManager = premiumFeatureManager,
             aiAnalysisService = aiAnalysisService,
@@ -146,10 +138,12 @@ class AiAnalysisIntegrationTest {
             extractedText = "This is an invoice from ACME Corp"
         )
 
-        // Then: Should use local matching only (no AI)
+        // Then: Should use local matching only (no AI) — the real engine matched the
+        // Invoice keyword pattern in the caller text.
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.LOCAL_MATCHING, success.source)
+        assertEquals(listOf("Invoice"), success.analysis.suggestedTags.map { it.tagName })
     }
 
     @Test
@@ -165,31 +159,14 @@ class AiAnalysisIntegrationTest {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.success(testSuggestions)
 
-        // Create orchestrator with mocked AI service
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
-
         // When: Request suggestions with bitmap
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(bitmap = bitmap)
+        val result = buildOrchestrator(aiService).getSuggestions(bitmap = bitmap)
 
-        // Then: Should use AI
+        // Then: Should use AI — FIREBASE_AI as source is only reachable via the AI call
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.FIREBASE_AI, success.source)
-
-        // Verify AI was called
-        coVerify(exactly = 1) { aiService.analyzeImage(any(), any(), any(), any()) }
     }
 
     // ==================== Fallback Chain Tests ====================
@@ -205,7 +182,8 @@ class AiAnalysisIntegrationTest {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.failure(Exception("Firebase AI error"))
 
-        // Mock Paperless API success with actual tags
+        // Mock Paperless API success with actual tags — stubbed for documentId 123 ONLY,
+        // so a call with any other id fails the strict mock (id-routing pin without verify).
         val paperlessSuggestions = createMockDocumentAnalysis(
             tags = listOf(
                 com.paperless.scanner.data.ai.models.TagSuggestion(
@@ -215,43 +193,31 @@ class AiAnalysisIntegrationTest {
             )
         )
         coEvery {
-            paperlessSuggestionsService.getSuggestions(any())
+            paperlessSuggestionsService.getSuggestions(123)
         } returns Result.success(paperlessSuggestions)
-
-        // Create orchestrator
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
 
         // When: Request suggestions with documentId
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(
+        val result = buildOrchestrator(aiService).getSuggestions(
             bitmap = bitmap,
             documentId = 123
         )
 
-        // Then: Should fallback to Paperless API
+        // Then: Should fallback to Paperless API via the (id-specific) stubbed call
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.PAPERLESS_API, success.source)
 
-        // Verify fallback chain
+        // The AI attempt leaves no observable state when Paperless answers afterwards,
+        // so this boundary verification IS the fallback-order contract (codex P3): without
+        // it, an orchestrator that skips AI entirely would pass this test.
         coVerify(exactly = 1) { aiService.analyzeImage(any(), any(), any(), any()) }
-        coVerify(exactly = 1) { paperlessSuggestionsService.getSuggestions(123) }
     }
 
     @Test
     fun `fallback chain reaches local matching when all services fail`() = runTest {
-        // Given: All services fail or unavailable
+        // Given: All services fail or unavailable. The Paperless mock is deliberately
+        // NOT stubbed — a call to it (we're offline) would fail the test.
         every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
         every { networkMonitor.checkOnlineStatus() } returns false // Offline
 
@@ -260,58 +226,32 @@ class AiAnalysisIntegrationTest {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.failure(Exception("Network error"))
 
-        // Mock local matching success
-        val localSuggestions = listOf(
-            com.paperless.scanner.data.ai.models.TagSuggestion(
-                tagId = 1,
-                tagName = "Invoice",
-                confidence = 0.8f,
-                reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_KEYWORD_MATCH
-            )
-        )
-        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns localSuggestions
-
-        // Create orchestrator
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
-
         // When: Request suggestions offline
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(
+        val result = buildOrchestrator(aiService).getSuggestions(
             bitmap = bitmap,
             extractedText = "Invoice from ACME Corp"
         )
 
-        // Then: Should fallback to local matching
+        // Then: Should fallback to local matching — the real engine matched Invoice.
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.LOCAL_MATCHING, success.source)
-        assertEquals(1, success.analysis.suggestedTags.size)
+        assertEquals(listOf("Invoice"), success.analysis.suggestedTags.map { it.tagName })
 
-        // Verify fallback chain
-        verify { tagMatchingEngine.findMatchingTags(any(), any()) }
-        coVerify(exactly = 0) { paperlessSuggestionsService.getSuggestions(any()) } // Skipped (offline)
+        // Same rationale as the Paperless fallback test: a failed AI attempt is not
+        // observable in the result, so the boundary verification pins the chain order.
+        coVerify(exactly = 1) { aiService.analyzeImage(any(), any(), any(), any()) }
     }
 
     // ==================== Network Status Tests ====================
 
     @Test
     fun `offline status skips Paperless API`() = runTest {
-        // Given: Offline
+        // Given: Offline. The Paperless mock is deliberately NOT stubbed — a call to it
+        // would fail the test (the offline-skip pin).
         every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns false
         every { networkMonitor.checkOnlineStatus() } returns false
-
-        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns emptyList()
 
         // When: Request suggestions with documentId (would normally use Paperless API)
         val result = suggestionOrchestrator.getSuggestions(
@@ -319,13 +259,11 @@ class AiAnalysisIntegrationTest {
             documentId = 123
         )
 
-        // Then: Should skip Paperless API and use local matching
+        // Then: Should skip Paperless API and use local matching (no match for this text)
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.LOCAL_MATCHING, success.source)
-
-        // Verify Paperless API was NOT called
-        coVerify(exactly = 0) { paperlessSuggestionsService.getSuggestions(any()) }
+        assertTrue(success.analysis.suggestedTags.isEmpty())
     }
 
     @Test
@@ -336,19 +274,16 @@ class AiAnalysisIntegrationTest {
 
         val paperlessSuggestions = createMockDocumentAnalysis()
         coEvery {
-            paperlessSuggestionsService.getSuggestions(any())
+            paperlessSuggestionsService.getSuggestions(123)
         } returns Result.success(paperlessSuggestions)
 
         // When: Request suggestions with documentId
         val result = suggestionOrchestrator.getSuggestions(documentId = 123)
 
-        // Then: Should use Paperless API
+        // Then: Should use Paperless API (id-specific stub — wrong id would throw)
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.PAPERLESS_API, success.source)
-
-        // Verify Paperless API was called
-        coVerify(exactly = 1) { paperlessSuggestionsService.getSuggestions(123) }
     }
 
     // ==================== Suggestion Merging Tests ====================
@@ -374,38 +309,13 @@ class AiAnalysisIntegrationTest {
         )
         coEvery { aiService.analyzeImage(any(), any(), any(), any()) } returns Result.success(aiSuggestions)
 
-        // Local matching would find additional tags - but should NOT be called when AI succeeds
-        val localSuggestions = listOf(
-            com.paperless.scanner.data.ai.models.TagSuggestion(
-                tagId = 1, tagName = "Invoice", confidence = 0.7f,
-                reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_KEYWORD_MATCH
-            ),
-            com.paperless.scanner.data.ai.models.TagSuggestion(
-                tagId = 3, tagName = "Contract", confidence = 0.6f,
-                reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_KEYWORD_MATCH
-            )
-        )
-        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns localSuggestions
-
-        // Create orchestrator
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
-
-        // When: Request suggestions with AI available
+        // When: Request suggestions with AI available. The caller text matches Contract
+        // (id=3) — a tag the AI deliberately does NOT return — so an accidental fallback
+        // run cannot hide behind tag-id deduplication (codex P3).
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(
+        val result = buildOrchestrator(aiService).getSuggestions(
             bitmap = bitmap,
-            extractedText = "Invoice document"
+            extractedText = "Vertrag mit Global Ltd"
         )
 
         // Then: Only AI suggestions returned (local matching skipped when AI succeeds)
@@ -413,15 +323,13 @@ class AiAnalysisIntegrationTest {
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.FIREBASE_AI, success.source)
 
-        // Should have only 2 AI tags (local matching was NOT run)
+        // Exactly the 2 AI tags and no Contract — had the fallback run, the real engine's
+        // Contract match would survive dedup and appear here (state proof of AI-only mode).
         assertEquals(2, success.analysis.suggestedTags.size)
+        assertNull(success.analysis.suggestedTags.find { it.tagId == 3 })
 
-        // Verify local matching was NOT called (AI-only mode)
-        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
-
-        // #296: no wasted OCR on the premium happy path — extraction is lazy and the
-        // fallback step never ran.
-        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+        // #296: no wasted OCR on the premium happy path — the recording fake saw no call.
+        assertEquals(0, ocrTextExtractor.invocations)
 
         // Invoice should have AI confidence
         val invoiceTag = success.analysis.suggestedTags.find { it.tagId == 1 }
@@ -446,12 +354,11 @@ class AiAnalysisIntegrationTest {
         val bitmap = mockk<Bitmap>(relaxed = true)
         val result = suggestionOrchestrator.getSuggestions(bitmap = bitmap)
 
-        // Then: OCR never runs, no local matching, empty success
+        // Then: OCR never runs (recorded zero invocations), empty success
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertTrue(success.analysis.suggestedTags.isEmpty())
-        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
-        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
+        assertEquals(0, ocrTextExtractor.invocations)
     }
 
     @Test
@@ -468,10 +375,11 @@ class AiAnalysisIntegrationTest {
             extractedText = "Invoice from ACME Corp"
         )
 
-        // Then: the provided text is matched, OCR never runs
+        // Then: the provided text was matched (real engine found Invoice), OCR never ran
         assertTrue(result is SuggestionResult.Success)
-        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
-        verify { tagMatchingEngine.findMatchingTags("Invoice from ACME Corp", any()) }
+        val success = result as SuggestionResult.Success
+        assertEquals(listOf("Invoice"), success.analysis.suggestedTags.map { it.tagName })
+        assertEquals(0, ocrTextExtractor.invocations)
     }
 
     @Test
@@ -485,37 +393,20 @@ class AiAnalysisIntegrationTest {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.failure(Exception("Firebase AI error"))
 
-        coEvery { ocrTextExtractor.extractText(any()) } returns "Vertrag mit Global Ltd"
-        every { tagMatchingEngine.findMatchingTags("Vertrag mit Global Ltd", any()) } returns listOf(
-            com.paperless.scanner.data.ai.models.TagSuggestion(
-                tagId = 3, tagName = "Contract", confidence = 0.7f,
-                reason = com.paperless.scanner.data.ai.models.TagSuggestion.REASON_KEYWORD_MATCH
-            )
-        )
-
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
+        ocrTextExtractor.text = "Vertrag mit Global Ltd"
 
         // When
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(bitmap = bitmap)
+        val result = buildOrchestrator(aiService).getSuggestions(bitmap = bitmap)
 
-        // Then: instead of a bare error, the user gets local suggestions
+        // Then: instead of a bare error, the user gets local suggestions — the real
+        // engine matched the Contract keyword pattern in the OCR text.
         assertTrue(result is SuggestionResult.Success)
         val success = result as SuggestionResult.Success
         assertEquals(SuggestionSource.LOCAL_MATCHING, success.source)
-        assertEquals(1, success.analysis.suggestedTags.size)
-        coVerify(exactly = 1) { ocrTextExtractor.extractText(bitmap) }
+        assertEquals(listOf("Contract"), success.analysis.suggestedTags.map { it.tagName })
+        assertEquals(1, ocrTextExtractor.invocations)
+        assertSame(bitmap, ocrTextExtractor.lastBitmap)
     }
 
     @Test
@@ -533,7 +424,7 @@ class AiAnalysisIntegrationTest {
 
         // Then: banner shown promptly, no OCR spent
         assertTrue(result is SuggestionResult.WiFiRequired)
-        coVerify(exactly = 0) { ocrTextExtractor.extractText(any()) }
+        assertEquals(0, ocrTextExtractor.invocations)
     }
 
     @Test
@@ -547,46 +438,19 @@ class AiAnalysisIntegrationTest {
         coEvery {
             aiService.analyzeImage(any(), any(), any(), any())
         } returns Result.failure(Exception("Firebase AI error"))
-        coEvery { ocrTextExtractor.extractText(any()) } returns ""
-
-        val orchestrator = SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
+        // ocrTextExtractor.text stays "" (the fake's default)
 
         // When
         val bitmap = mockk<Bitmap>(relaxed = true)
-        val result = orchestrator.getSuggestions(bitmap = bitmap)
+        val result = buildOrchestrator(aiService).getSuggestions(bitmap = bitmap)
 
-        // Then: no local matching attempted, AI error surfaced — byte-identical to before
+        // Then: OCR ran but produced nothing, so no suggestions exist and the AI error
+        // surfaces — byte-identical UX to before #296.
         assertTrue(result is SuggestionResult.Error)
-        verify(exactly = 0) { tagMatchingEngine.findMatchingTags(any(), any()) }
+        assertEquals(1, ocrTextExtractor.invocations)
     }
 
     // ==================== SuggestionError Classification Tests (#364) ====================
-
-    /** Builds an orchestrator around an [AiAnalysisService] spy with stubbed analyzeImage. */
-    private fun buildOrchestrator(aiService: AiAnalysisService): SuggestionOrchestrator =
-        SuggestionOrchestrator(
-            premiumFeatureManager = premiumFeatureManager,
-            aiAnalysisService = aiService,
-            tagMatchingEngine = tagMatchingEngine,
-            paperlessSuggestionsService = paperlessSuggestionsService,
-            networkMonitor = networkMonitor,
-            tokenManager = tokenManager,
-            tagRepository = tagRepository,
-            correspondentRepository = correspondentRepository,
-            documentTypeRepository = documentTypeRepository,
-            ocrTextExtractor = ocrTextExtractor
-        )
 
     /**
      * Runs the chain with premium active, a failing AI call carrying [sdkMessage], blank OCR
@@ -657,8 +521,6 @@ class AiAnalysisIntegrationTest {
         every { premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS) } returns true
         every { networkMonitor.checkOnlineStatus() } returns false
 
-        every { tagMatchingEngine.findMatchingTags(any(), any()) } returns emptyList()
-
         // When: No bitmap provided
         val result = suggestionOrchestrator.getSuggestions(
             bitmap = null,
@@ -688,6 +550,21 @@ class AiAnalysisIntegrationTest {
 
     // ==================== Helper Methods ====================
 
+    /** Builds an orchestrator around an [AiAnalysisService] spy with stubbed analyzeImage. */
+    private fun buildOrchestrator(aiService: AiAnalysisService): SuggestionOrchestrator =
+        SuggestionOrchestrator(
+            premiumFeatureManager = premiumFeatureManager,
+            aiAnalysisService = aiService,
+            tagMatchingEngine = tagMatchingEngine,
+            paperlessSuggestionsService = paperlessSuggestionsService,
+            networkMonitor = networkMonitor,
+            tokenManager = tokenManager,
+            tagRepository = tagRepository,
+            correspondentRepository = correspondentRepository,
+            documentTypeRepository = documentTypeRepository,
+            ocrTextExtractor = ocrTextExtractor
+        )
+
     private fun createMockDocumentAnalysis(
         tags: List<com.paperless.scanner.data.ai.models.TagSuggestion> = emptyList()
     ): com.paperless.scanner.data.ai.models.DocumentAnalysis {
@@ -699,5 +576,23 @@ class AiAnalysisIntegrationTest {
             suggestedDate = "2024-01-15",
             confidence = 0.9f
         )
+    }
+}
+
+/**
+ * Recording fake for the [OcrTextExtractor] seam (#363): returns scripted [text] and
+ * records invocations, so the premium-only OCR contract (#296) is pinned through state
+ * assertions (`invocations == 0` for free users / WiFi-skip) instead of mock verification.
+ */
+private class RecordingOcrTextExtractor(var text: String = "") : OcrTextExtractor {
+    var invocations = 0
+        private set
+    var lastBitmap: Bitmap? = null
+        private set
+
+    override suspend fun extractText(bitmap: Bitmap): String {
+        invocations++
+        lastBitmap = bitmap
+        return text
     }
 }
