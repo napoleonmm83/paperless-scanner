@@ -1,0 +1,9 @@
+Version 1.5.218:
+
+✨ New:
+- Launch offer: 50% off the first year of Premium AI
+- Offer banner on the home screen
+- Transparency note on AI & privacy
+
+🔧 Improvements:
+- Real localized subscription prices from Google Play

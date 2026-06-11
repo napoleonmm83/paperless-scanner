@@ -1,0 +1,9 @@
+Version 1.5.218:
+
+✨ Neu:
+- Launch-Angebot: 50% auf das erste Jahr Premium-KI
+- Angebots-Banner auf dem Startbildschirm
+- Transparenz-Hinweis zu KI & Datenschutz
+
+🔧 Verbesserungen:
+- Echte lokalisierte Abo-Preise aus Google Play
