@@ -1,0 +1,5 @@
+Version 1.5.220:
+
+🐛 Fehlerbehebungen:
+- Launch-Angebot wird jetzt zuverlässig erkannt
+- Promo-Banner erscheint auch ohne Angebots-Tag

@@ -312,7 +312,8 @@ class BillingManagerTest {
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
-            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            // Default path filters out promo offers, so it reads offerId (matched by id OR tag) and offerTags.
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -355,7 +356,8 @@ class BillingManagerTest {
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
-            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            // Default path filters out promo offers, so it reads offerId (matched by id OR tag) and offerTags.
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -399,7 +401,8 @@ class BillingManagerTest {
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
-            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            // Default path filters out promo offers, so it reads offerId (matched by id OR tag) and offerTags.
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -440,7 +443,8 @@ class BillingManagerTest {
 
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
-            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            // Default path filters out promo offers, so it reads offerId (matched by id OR tag) and offerTags.
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -603,10 +607,12 @@ class BillingManagerTest {
         // promo offer, NOT firstOrNull()'s base offer.
         val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "base-token"
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "promo-token"
+            every { offerId } returns "launch50"
             every { offerTags } returns listOf("launch50")
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -678,6 +684,7 @@ class BillingManagerTest {
         // deactivated) — only the base offer remains in the snapshot.
         val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "base-token"
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -713,10 +720,12 @@ class BillingManagerTest {
         // untagged offer instead (revenue bug otherwise: silent undercharge).
         val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "promo-token"
+            every { offerId } returns "launch50"
             every { offerTags } returns listOf("launch50")
         }
         val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "base-token"
+            every { offerId } returns null
             every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
@@ -786,6 +795,7 @@ class BillingManagerTest {
         // Yearly product serving a live launch50 promo (trial + discounted intro + regular).
         val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "promo-token"
+            every { offerId } returns "launch50"
             every { offerTags } returns listOf("launch50")
             every { pricingPhases } returns mockk {
                 every { pricingPhaseList } returns listOf(
