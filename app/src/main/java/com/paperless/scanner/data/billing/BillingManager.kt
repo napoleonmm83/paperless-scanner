@@ -86,6 +86,14 @@ class BillingManager @Inject constructor(
         /** Play Console offer tag that marks the time-limited launch promo on the yearly plan. */
         const val LAUNCH_PROMO_OFFER_TAG = "launch50"
 
+        /**
+         * Play Console offer ID of the launch promo. Offers are matched by ID *or* tag:
+         * the offer ID is the canonical, always-present identifier, while offer tags are
+         * optional metadata that are easy to forget when creating the Console offer
+         * (the 1.5.218 misconfig shipped with offerId "launch50" but empty offerTags).
+         */
+        const val LAUNCH_PROMO_OFFER_ID = "launch50"
+
         // Reconnect backoff schedule for transient Disconnected state.
         // Cap at 16s, infinite retries — each retry is a cheap binder call;
         // failure stays in Disconnected and consumers can observe billingState.
@@ -392,18 +400,27 @@ class BillingManager @Inject constructor(
     }
 
     /**
-     * Extracts the launch-promo offer (tag [LAUNCH_PROMO_OFFER_TAG]) from the yearly
-     * product, if Play currently serves one. The intro price is the first paid pricing
-     * phase, the regular price the last one. A tagged offer whose intro price is not
-     * actually cheaper carries no real discount and is treated as "no promo" (fail-closed).
+     * True when this offer is the launch promo, matched by offer ID ([LAUNCH_PROMO_OFFER_ID])
+     * OR tag ([LAUNCH_PROMO_OFFER_TAG]). The offer ID is the canonical, always-present
+     * identifier; tags are optional metadata. Matching either keeps the promo working even
+     * when the Console offer was created with the right ID but no tag (the 1.5.218 misconfig).
+     */
+    private fun ProductDetails.SubscriptionOfferDetails.isLaunchPromoOffer(): Boolean =
+        offerId == LAUNCH_PROMO_OFFER_ID || LAUNCH_PROMO_OFFER_TAG in offerTags
+
+    /**
+     * Extracts the launch-promo offer (id [LAUNCH_PROMO_OFFER_ID] or tag
+     * [LAUNCH_PROMO_OFFER_TAG]) from the yearly product, if Play currently serves one. The
+     * intro price is the first paid pricing phase, the regular price the last one. A matched
+     * offer whose intro price is not actually cheaper carries no real discount and is treated
+     * as "no promo" (fail-closed).
      *
      * Assumes intro and regular phases share the billing period (true for the launch50
-     * shape: trial + 1y intro + 1y renewal). If multiple offers carry the tag, the
-     * first one wins.
+     * shape: trial + 1y intro + 1y renewal). If multiple offers match, the first one wins.
      */
     internal fun extractLaunchOffer(productDetails: ProductDetails?): LaunchOfferDetails? {
         val offer = productDetails?.subscriptionOfferDetails
-            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG in it.offerTags }
+            ?.firstOrNull { it.isLaunchPromoOffer() }
             ?: return null
         val paidPhases = offer.pricingPhases.pricingPhaseList.filter { it.priceAmountMicros > 0 }
         val intro = paidPhases.firstOrNull() ?: return null
@@ -429,7 +446,7 @@ class BillingManager @Inject constructor(
 
     private fun baseRecurringPrice(productDetails: ProductDetails?): String? {
         val offer = productDetails?.subscriptionOfferDetails
-            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+            ?.firstOrNull { !it.isLaunchPromoOffer() }
             ?: return null
         return offer.pricingPhases.pricingPhaseList
             .lastOrNull { it.priceAmountMicros > 0 }
@@ -611,10 +628,11 @@ class BillingManager @Inject constructor(
         } else {
             // Default path must never pick the promo offer: when the Console offer is live
             // but the promo gates are closed (RC off/expired), a regular purchase would
-            // otherwise silently get the discount. All-tagged-offers (misconfig) → null →
-            // no-offers error, fail-closed.
+            // otherwise silently get the discount. Matched by id-or-tag so an untagged
+            // launch offer (1.5.218 shape) is still excluded here. All offers being the
+            // promo (misconfig) → null → no-offers error, fail-closed.
             productDetails.subscriptionOfferDetails
-                ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+                ?.firstOrNull { !it.isLaunchPromoOffer() }
                 ?.offerToken
         }
         if (resolvedOfferToken == null) {

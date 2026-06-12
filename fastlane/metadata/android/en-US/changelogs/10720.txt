@@ -1,0 +1,5 @@
+Version 1.5.220:
+
+🐛 Bug Fixes:
+- Launch offer is now detected reliably
+- Promo banner shows even without an offer tag
