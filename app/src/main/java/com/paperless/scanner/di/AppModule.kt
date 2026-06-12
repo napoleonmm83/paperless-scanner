@@ -76,6 +76,7 @@ import kotlinx.coroutines.SupervisorJob
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -667,6 +668,10 @@ object AppModule {
         tokenManager: TokenManager
     ): com.paperless.scanner.data.billing.PremiumFeatureManager =
         com.paperless.scanner.data.billing.PremiumFeatureManager(billingManager, tokenManager)
+
+    @Provides
+    @Singleton
+    fun provideFirebaseRemoteConfig(): FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()
 
     // Coil Image Loading
 

@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,10 +47,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.components.promo.LaunchPromoViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -61,10 +67,22 @@ import kotlinx.coroutines.launch
 fun PremiumUpgradeSheet(
     onDismiss: () -> Unit,
     onSubscribe: (productId: String) -> Unit,
-    onRestore: () -> Unit
+    onRestore: () -> Unit,
+    // Scoped to the calling screen's nav entry — a separate instance from Home's banner VM,
+    // reading the same singleton LaunchPromoManager. Do not try to share instances across screens.
+    promoViewModel: LaunchPromoViewModel = hiltViewModel()
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedPlan by remember { mutableStateOf("monthly") } // "monthly" or "yearly"
+
+    val promo by promoViewModel.sheetPromo.collectAsState()
+    val basePrices by promoViewModel.basePlanPrices.collectAsState()
+
+    // Freeze the default once per sheet instance: a promo emission AFTER opening must
+    // not flip the plan under the user's thumb (they could buy yearly unintentionally).
+    // Promo pricing/badge still appear reactively — only the pre-selection is frozen.
+    val promoActiveAtOpen = remember { promo != null }
+    var userSelectedPlan by remember { mutableStateOf<String?>(null) }
+    val selectedPlan = userSelectedPlan ?: if (promoActiveAtOpen) "yearly" else "monthly"
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -146,6 +164,16 @@ fun PremiumUpgradeSheet(
                 description = stringResource(R.string.premium_feature_unlimited_desc)
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Privacy transparency for the self-hosting audience: cloud AI is opt-in,
+            // local suggestions stay free, documents stay on the user's server.
+            Text(
+                text = stringResource(R.string.premium_transparency_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(modifier = Modifier.height(32.dp))
 
             // Subscription Options
@@ -153,23 +181,40 @@ fun PremiumUpgradeSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val placeholder = stringResource(R.string.premium_price_placeholder)
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_monthly),
-                    price = stringResource(R.string.premium_price_monthly, "3.99€"),
+                    price = stringResource(R.string.premium_price_monthly, basePrices?.monthlyFormatted ?: placeholder),
                     trial = stringResource(R.string.premium_trial_7_days),
                     selected = selectedPlan == "monthly",
-                    onClick = { selectedPlan = "monthly" },
+                    onClick = { userSelectedPlan = "monthly" },
                     modifier = Modifier.weight(1f)
                 )
 
                 SubscriptionOption(
                     title = stringResource(R.string.premium_option_yearly),
-                    price = stringResource(R.string.premium_price_yearly, "39.99€"),
-                    badge = stringResource(R.string.premium_price_yearly_savings),
+                    price = stringResource(R.string.premium_price_yearly, promo?.promoPrice ?: basePrices?.yearlyFormatted ?: placeholder),
+                    strikethroughPrice = promo?.let { stringResource(R.string.premium_price_yearly, it.regularPrice) },
+                    badge = if (promo != null) {
+                        stringResource(R.string.launch_promo_badge)
+                    } else {
+                        stringResource(R.string.premium_price_yearly_savings)
+                    },
                     trial = stringResource(R.string.premium_trial_14_days),
                     selected = selectedPlan == "yearly",
-                    onClick = { selectedPlan = "yearly" },
+                    onClick = { userSelectedPlan = "yearly" },
                     modifier = Modifier.weight(1f)
+                )
+            }
+
+            promo?.let {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.launch_promo_ends, it.endDateFormatted),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -264,6 +309,7 @@ private fun FeatureItem(
 private fun SubscriptionOption(
     title: String,
     price: String,
+    strikethroughPrice: String? = null,
     badge: String? = null,
     trial: String? = null,
     selected: Boolean,
@@ -303,11 +349,28 @@ private fun SubscriptionOption(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            if (strikethroughPrice != null) {
+                val regularPriceDescription = stringResource(R.string.cd_regular_price, strikethroughPrice)
+                Text(
+                    text = strikethroughPrice,
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    textDecoration = TextDecoration.LineThrough,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { contentDescription = regularPriceDescription }
+                )
+            }
+
             Text(
                 text = price,
                 style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (strikethroughPrice != null) FontWeight.SemiBold else null,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (strikethroughPrice != null) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
 
             if (trial != null) {

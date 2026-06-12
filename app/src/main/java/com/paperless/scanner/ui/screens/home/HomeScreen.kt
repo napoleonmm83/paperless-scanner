@@ -27,12 +27,18 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.app.Activity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.data.billing.PurchaseResult
+import com.paperless.scanner.ui.components.promo.LaunchPromoBanner
+import com.paperless.scanner.ui.components.promo.LaunchPromoBannerState
+import com.paperless.scanner.ui.components.promo.LaunchPromoViewModel
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.documentlist.DocumentListSnackbar
@@ -62,6 +68,7 @@ fun HomeScreen(
     tagSuggestionsViewModel: TagSuggestionsViewModel = hiltViewModel(),
     recentDocumentsViewModel: RecentDocumentsViewModel = hiltViewModel(),
     trashOverviewViewModel: TrashOverviewViewModel = hiltViewModel(),
+    launchPromoViewModel: LaunchPromoViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val serverHealthUiState by serverHealthViewModel.uiState.collectAsState()
@@ -73,7 +80,9 @@ fun HomeScreen(
     val pendingChanges by serverHealthViewModel.pendingChangesCount.collectAsState()
     val serverUrl by recentDocumentsViewModel.serverUrl.collectAsState()
     val showThumbnails by recentDocumentsViewModel.showThumbnails.collectAsState()
+    val launchPromoBanner by launchPromoViewModel.bannerState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
 
     // Auto-refresh dashboard on offline -> online transition. The three
     // ViewModels share no direct reference; the screen layer is the wiring
@@ -344,6 +353,29 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(24.dp))
                 }
 
+                // Launch promo banner (only for non-premium users while the promo is live)
+                (launchPromoBanner as? LaunchPromoBannerState.Visible)?.let { promo ->
+                    item(key = "launch-promo") {
+                        // Keyed on the promo price: re-fires only for a genuinely different
+                        // offer. The VM's once-per-instance guard is the second layer.
+                        LaunchedEffect(promo.promoPrice) { launchPromoViewModel.onBannerVisible() }
+                        LaunchPromoBanner(
+                            promoPrice = promo.promoPrice,
+                            regularPrice = promo.regularPrice,
+                            endDateFormatted = promo.endDateFormatted,
+                            onClick = {
+                                launchPromoViewModel.onBannerClicked()
+                                showPremiumUpgradeSheet = true
+                            },
+                            onDismiss = { launchPromoViewModel.dismissBanner() },
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                    }
+                    item(key = "spacer-after-promo") {
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
+
                 // Processing Tasks Section (only show if there are tasks)
                 if (processingTasksUiState.tasks.isNotEmpty()) {
                     item(key = "processing-tasks") {
@@ -435,17 +467,41 @@ fun HomeScreen(
         )
     }
 
-    // Premium Upgrade Sheet (shown when non-premium user clicks AI button)
+    // Premium Upgrade Sheet — purchases directly (promo-aware via PremiumPurchaseCoordinator);
+    // restore still lives in Settings.
     if (showPremiumUpgradeSheet) {
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
-            onSubscribe = { _ ->
-                // Navigate to Settings where purchase flow continues
-                showPremiumUpgradeSheet = false
-                onNavigateToSettings()
+            onSubscribe = { productId ->
+                val activity = context as? Activity
+                if (activity != null) {
+                    coroutineScope.launch {
+                        when (val result = launchPromoViewModel.purchase(activity, productId)) {
+                            is PurchaseResult.Success -> {
+                                showPremiumUpgradeSheet = false
+                                snackbarHostState.showSnackbar(context.getString(R.string.premium_purchase_success))
+                            }
+                            is PurchaseResult.Pending -> {
+                                showPremiumUpgradeSheet = false
+                                snackbarHostState.showSnackbar(context.getString(R.string.premium_purchase_pending))
+                            }
+                            is PurchaseResult.Cancelled -> {
+                                showPremiumUpgradeSheet = false
+                            }
+                            is PurchaseResult.Error -> {
+                                snackbarHostState.showSnackbar(
+                                    context.getString(R.string.premium_purchase_error, result.message)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    showPremiumUpgradeSheet = false
+                    onNavigateToSettings()
+                }
             },
             onRestore = {
-                // Navigate to Settings where restore continues
+                // Restore flow (dialog + result handling) lives in Settings
                 showPremiumUpgradeSheet = false
                 onNavigateToSettings()
             }

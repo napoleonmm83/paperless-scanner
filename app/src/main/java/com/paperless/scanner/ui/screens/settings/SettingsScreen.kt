@@ -79,6 +79,7 @@ fun SettingsScreen(
         PremiumSection(
             isPremiumActive = uiState.isPremiumActive,
             premiumExpiryDate = uiState.premiumExpiryDate,
+            launchPromoActive = uiState.launchPromoActive,
             aiSuggestionsEnabled = uiState.aiSuggestionsEnabled,
             aiWifiOnly = uiState.aiWifiOnly,
             aiNewTagsEnabled = uiState.aiNewTagsEnabled,
@@ -195,6 +196,10 @@ fun SettingsScreen(
                         when (val result = viewModel.launchPurchaseFlow(activity, productId)) {
                             is PurchaseResult.Success -> {
                                 purchaseResultMessage = context.getString(R.string.premium_purchase_success)
+                                showPremiumUpgradeSheet = false
+                            }
+                            is PurchaseResult.Pending -> {
+                                purchaseResultMessage = context.getString(R.string.premium_purchase_pending)
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Cancelled -> {

@@ -292,6 +292,9 @@ dependencies {
     // Firebase AI (Gemini)
     implementation(libs.firebase.ai)
 
+    // Firebase Remote Config (launch promo flags: end date + kill switch)
+    implementation(libs.firebase.config)
+
     // Google Play Billing
     implementation(libs.billing)
 

@@ -196,6 +196,28 @@ class BillingManagerTest {
     }
 
     @Test
+    fun `setup success queries purchases before product details`() {
+        // Cross-class invariant for LaunchPromoManager: the not-premium gate
+        // (queryPurchases → isSubscriptionActive) must be resolved before the
+        // launch-offer gate can open (queryProductDetails → launchOffer).
+        // Swapping the call order in onBillingSetupFinished would let a premium
+        // user briefly see the promo on cold start — this test fails on that swap.
+        billingManager.initialize()
+        transitionToReady()
+
+        verifyOrder {
+            mockBillingClient.queryPurchasesAsync(
+                any<QueryPurchasesParams>(),
+                any<PurchasesResponseListener>()
+            )
+            mockBillingClient.queryProductDetailsAsync(
+                any<QueryProductDetailsParams>(),
+                any<ProductDetailsResponseListener>()
+            )
+        }
+    }
+
+    @Test
     fun `disconnection transitions state to Disconnected with retry attempt`() {
         billingManager.initialize()
         transitionToReady()
@@ -290,6 +312,8 @@ class BillingManagerTest {
         // Setup product with offer token
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
             every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
@@ -324,12 +348,100 @@ class BillingManagerTest {
     }
 
     @Test
+    fun `purchase resolving with PENDING state returns Pending`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Setup product with offer token
+        val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
+            every { subscriptionOfferDetails } returns listOf(mockOfferDetails)
+        }
+
+        val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_MONTHLY to mockProductDetails)
+        setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
+
+        // Mock launchBillingFlow to return OK (dialog launched)
+        val mockBillingResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // Trigger purchasesUpdatedListener with a PENDING purchase (delayed payment)
+            val mockPurchase = mockk<Purchase>(relaxed = true) {
+                every { purchaseState } returns Purchase.PurchaseState.PENDING
+                every { isAcknowledged } returns false
+                every { products } returns listOf(BillingManager.PRODUCT_ID_MONTHLY)
+            }
+            val pendingResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(pendingResult, listOf(mockPurchase))
+            mockBillingResult
+        }
+
+        val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_MONTHLY)
+
+        assertTrue(result is PurchaseResult.Pending)
+    }
+
+    @Test
+    fun `purchase resolving with OK but no settled purchase returns Error`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Setup product with offer token
+        val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
+            every { subscriptionOfferDetails } returns listOf(mockOfferDetails)
+        }
+
+        val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_MONTHLY to mockProductDetails)
+        setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
+
+        // Mock launchBillingFlow to return OK (dialog launched)
+        val mockBillingResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // OK response but with NO settled purchase entry: nothing was granted,
+            // so the flow must surface an Error instead of a phantom Success.
+            val okResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(okResult, emptyList())
+            mockBillingResult
+        }
+
+        val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_MONTHLY)
+
+        assertTrue(result is PurchaseResult.Error)
+        // No premium state was granted by the unsettled OK response
+        assertFalse(billingManager.isSubscriptionActiveSync())
+    }
+
+    @Test
     fun `launchPurchaseFlow returns Cancelled when user cancels`() = runTest {
         billingManager.initialize()
         setupBillingClientMocks()
 
         val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
             every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
         }
         val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
             every { productId } returns BillingManager.PRODUCT_ID_YEARLY
@@ -477,6 +589,281 @@ class BillingManagerTest {
 
         verify { mockBillingClient.endConnection() }
         assertEquals(BillingState.Uninitialized, billingManager.billingState.value)
+    }
+
+    // ==================== Explicit Offer Token Tests ====================
+
+    @Test
+    fun `launchPurchaseFlow with explicit offer token purchases that offer`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Yearly product serving TWO offers: the default base offer first,
+        // the launch50 promo second. The explicit-token path must pick the
+        // promo offer, NOT firstOrNull()'s base offer.
+        val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "base-token"
+            every { offerTags } returns emptyList()
+        }
+        val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "promo-token"
+            every { offerTags } returns listOf("launch50")
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(baseOffer, promoOffer)
+        }
+        setPrivateField(
+            billingManager,
+            "productDetailsCache",
+            mapOf(BillingManager.PRODUCT_ID_YEARLY to mockProductDetails)
+        )
+
+        // Capture the token handed to setOfferToken by mocking both static
+        // builder entry points — the real builders validate mocked
+        // ProductDetails internals, so they must not run.
+        val offerTokenSlot = slot<String>()
+        mockkStatic(BillingFlowParams.ProductDetailsParams::class)
+        mockkStatic(BillingFlowParams::class)
+        try {
+            val mockParamsBuilder = mockk<BillingFlowParams.ProductDetailsParams.Builder>(relaxed = true)
+            every { BillingFlowParams.ProductDetailsParams.newBuilder() } returns mockParamsBuilder
+            every { mockParamsBuilder.setProductDetails(any()) } returns mockParamsBuilder
+            every { mockParamsBuilder.setOfferToken(capture(offerTokenSlot)) } returns mockParamsBuilder
+            every { mockParamsBuilder.build() } returns mockk(relaxed = true)
+
+            val mockFlowBuilder = mockk<BillingFlowParams.Builder>(relaxed = true)
+            every { BillingFlowParams.newBuilder() } returns mockFlowBuilder
+            every { mockFlowBuilder.setProductDetailsParamsList(any()) } returns mockFlowBuilder
+            every { mockFlowBuilder.build() } returns mockk(relaxed = true)
+
+            val launchOkResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+                val mockPurchase = mockk<Purchase>(relaxed = true) {
+                    every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                    every { isAcknowledged } returns true
+                    every { products } returns listOf(BillingManager.PRODUCT_ID_YEARLY)
+                }
+                val successResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.OK
+                    every { debugMessage } returns ""
+                }
+                capturedPurchasesUpdatedListener.onPurchasesUpdated(successResult, listOf(mockPurchase))
+                launchOkResult
+            }
+
+            val result = billingManager.launchPurchaseFlow(
+                mockActivity,
+                BillingManager.PRODUCT_ID_YEARLY,
+                "promo-token"
+            )
+
+            assertTrue(result is PurchaseResult.Success)
+            assertEquals("promo-token", offerTokenSlot.captured)
+        } finally {
+            unmockkStatic(BillingFlowParams.ProductDetailsParams::class)
+            unmockkStatic(BillingFlowParams::class)
+        }
+    }
+
+    @Test
+    fun `launchPurchaseFlow with stale promo token fails closed`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Play no longer serves the requested promo offer (Console offer
+        // deactivated) — only the base offer remains in the snapshot.
+        val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "base-token"
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(baseOffer)
+        }
+        setPrivateField(
+            billingManager,
+            "productDetailsCache",
+            mapOf(BillingManager.PRODUCT_ID_YEARLY to mockProductDetails)
+        )
+
+        val result = billingManager.launchPurchaseFlow(
+            mockActivity,
+            BillingManager.PRODUCT_ID_YEARLY,
+            "promo-token"
+        )
+
+        // Fail closed: no silent fallback to the base offer, no flow launch.
+        assertTrue(result is PurchaseResult.Error)
+        assertEquals("No subscription offers available", (result as PurchaseResult.Error).message)
+        verify(exactly = 0) { mockBillingClient.launchBillingFlow(any(), any()) }
+    }
+
+    @Test
+    fun `default purchase path skips promo-tagged offers`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Play serves the launch50 promo FIRST (offer ordering is not guaranteed).
+        // A regular purchase (no explicit token) must NOT land on the discounted
+        // promo token when the promo gates are closed — it must pick the first
+        // untagged offer instead (revenue bug otherwise: silent undercharge).
+        val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "promo-token"
+            every { offerTags } returns listOf("launch50")
+        }
+        val baseOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "base-token"
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(promoOffer, baseOffer)
+        }
+        setPrivateField(
+            billingManager,
+            "productDetailsCache",
+            mapOf(BillingManager.PRODUCT_ID_YEARLY to mockProductDetails)
+        )
+
+        // Capture the token handed to setOfferToken (same static-builder seam as
+        // the explicit-token test; real builders must not run on mocked details).
+        val offerTokenSlot = slot<String>()
+        mockkStatic(BillingFlowParams.ProductDetailsParams::class)
+        mockkStatic(BillingFlowParams::class)
+        try {
+            val mockParamsBuilder = mockk<BillingFlowParams.ProductDetailsParams.Builder>(relaxed = true)
+            every { BillingFlowParams.ProductDetailsParams.newBuilder() } returns mockParamsBuilder
+            every { mockParamsBuilder.setProductDetails(any()) } returns mockParamsBuilder
+            every { mockParamsBuilder.setOfferToken(capture(offerTokenSlot)) } returns mockParamsBuilder
+            every { mockParamsBuilder.build() } returns mockk(relaxed = true)
+
+            val mockFlowBuilder = mockk<BillingFlowParams.Builder>(relaxed = true)
+            every { BillingFlowParams.newBuilder() } returns mockFlowBuilder
+            every { mockFlowBuilder.setProductDetailsParamsList(any()) } returns mockFlowBuilder
+            every { mockFlowBuilder.build() } returns mockk(relaxed = true)
+
+            val launchOkResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+                val mockPurchase = mockk<Purchase>(relaxed = true) {
+                    every { purchaseState } returns Purchase.PurchaseState.PURCHASED
+                    every { isAcknowledged } returns true
+                    every { products } returns listOf(BillingManager.PRODUCT_ID_YEARLY)
+                }
+                val successResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.OK
+                    every { debugMessage } returns ""
+                }
+                capturedPurchasesUpdatedListener.onPurchasesUpdated(successResult, listOf(mockPurchase))
+                launchOkResult
+            }
+
+            val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_YEARLY)
+
+            assertTrue(result is PurchaseResult.Success)
+            assertEquals("base-token", offerTokenSlot.captured)
+        } finally {
+            unmockkStatic(BillingFlowParams.ProductDetailsParams::class)
+            unmockkStatic(BillingFlowParams::class)
+        }
+    }
+
+    // ==================== Launch Offer Lifecycle Tests ====================
+
+    @Test
+    fun `failed product details refresh clears previously extracted launch offer`() {
+        // Fail-closed contract: a promo extracted by an earlier successful query
+        // must NOT stay live after a later query fails — LaunchPromoManager would
+        // otherwise keep the offer gate open with data Play may no longer serve.
+        billingManager.initialize()
+
+        // Yearly product serving a live launch50 promo (trial + discounted intro + regular).
+        val promoOffer = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "promo-token"
+            every { offerTags } returns listOf("launch50")
+            every { pricingPhases } returns mockk {
+                every { pricingPhaseList } returns listOf(
+                    mockk {
+                        every { priceAmountMicros } returns 19_990_000L
+                        every { formattedPrice } returns "CHF 19.99"
+                    },
+                    mockk {
+                        every { priceAmountMicros } returns 39_990_000L
+                        every { formattedPrice } returns "CHF 39.99"
+                    }
+                )
+            }
+        }
+        val yearlyDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_YEARLY
+            every { subscriptionOfferDetails } returns listOf(promoOffer)
+        }
+
+        // First query succeeds with the promo; flipping the flag makes the
+        // next query fail (simulates Play refusing the refresh later on).
+        var failQuery = false
+        every {
+            mockBillingClient.queryProductDetailsAsync(
+                ofType<QueryProductDetailsParams>(),
+                ofType<ProductDetailsResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<ProductDetailsResponseListener>()
+            if (failQuery) {
+                val failResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+                    every { debugMessage } returns "Service unavailable"
+                }
+                val emptyQueryResult = mockk<QueryProductDetailsResult> {
+                    every { productDetailsList } returns emptyList()
+                    every { unfetchedProductList } returns emptyList()
+                }
+                callback.onProductDetailsResponse(failResult, emptyQueryResult)
+            } else {
+                val okResult = mockk<BillingResult> {
+                    every { responseCode } returns BillingClient.BillingResponseCode.OK
+                }
+                val queryResult = mockk<QueryProductDetailsResult> {
+                    every { productDetailsList } returns listOf(yearlyDetails)
+                    every { unfetchedProductList } returns emptyList()
+                }
+                callback.onProductDetailsResponse(okResult, queryResult)
+            }
+        }
+        every {
+            mockBillingClient.queryPurchasesAsync(
+                ofType<QueryPurchasesParams>(),
+                ofType<PurchasesResponseListener>()
+            )
+        } answers {
+            val callback = secondArg<PurchasesResponseListener>()
+            val okResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+            }
+            callback.onQueryPurchasesResponse(okResult, emptyList())
+        }
+
+        val setupOk = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+
+        // First Ready transition → successful query → promo extracted.
+        capturedBillingClientStateListener.onBillingSetupFinished(setupOk)
+        assertEquals("promo-token", billingManager.launchOffer.value?.offerToken)
+
+        // Re-drive the queries via the same state listener; this time the
+        // product query fails → offer must be cleared, not left stale.
+        failQuery = true
+        capturedBillingClientStateListener.onBillingSetupFinished(setupOk)
+
+        assertNull(billingManager.launchOffer.value)
     }
 
     // ==================== Helper Methods ====================

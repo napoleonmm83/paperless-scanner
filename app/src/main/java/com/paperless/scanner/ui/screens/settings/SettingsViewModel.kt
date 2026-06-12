@@ -9,7 +9,10 @@ import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.AuthDebugReport
 import com.paperless.scanner.data.analytics.AuthDebugService
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
+import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.data.billing.SubscriptionStatus
@@ -48,6 +51,7 @@ data class SettingsUiState(
     // Premium / Subscription
     val isPremiumActive: Boolean = false,
     val premiumExpiryDate: String? = null,
+    val launchPromoActive: Boolean = false,
     val aiSuggestionsEnabled: Boolean = true,
     val aiNewTagsEnabled: Boolean = true,
     val aiWifiOnly: Boolean = false,
@@ -68,6 +72,8 @@ class SettingsViewModel @Inject constructor(
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager,
+    private val launchPromoManager: LaunchPromoManager,
+    private val premiumPurchaseCoordinator: PremiumPurchaseCoordinator,
     private val authDebugService: AuthDebugService
 ) : ViewModel() {
 
@@ -106,6 +112,7 @@ class SettingsViewModel @Inject constructor(
                 analyticsEnabled = analyticsConsent,
                 themeMode = themeMode,
                 isPremiumActive = isPremiumActive,
+                launchPromoActive = launchPromoManager.state.value is LaunchPromoState.Active,
                 premiumExpiryDate = null, // Will be updated by subscriptionStatus observer
                 aiSuggestionsEnabled = aiSuggestionsEnabled,
                 aiNewTagsEnabled = aiNewTagsEnabled,
@@ -125,6 +132,13 @@ class SettingsViewModel @Inject constructor(
                         else -> null
                     }
                     _uiState.update { it.copy(isPremiumActive = isPremium, premiumExpiryDate = expiryDate) }
+                }
+            }
+
+            // Observe launch promo state for the PremiumSection badge
+            launch {
+                launchPromoManager.state.collect { promo ->
+                    _uiState.update { it.copy(launchPromoActive = promo is LaunchPromoState.Active) }
                 }
             }
 
@@ -252,8 +266,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Delegates to [PremiumPurchaseCoordinator] — the single owner of promo offer
+     * routing and subscription analytics. See its KDoc for the contract.
+     */
     suspend fun launchPurchaseFlow(activity: android.app.Activity, productId: String): PurchaseResult {
-        return billingManager.launchPurchaseFlow(activity, productId)
+        return premiumPurchaseCoordinator.purchase(activity, productId)
     }
 
     suspend fun restorePurchases(): RestoreResult {

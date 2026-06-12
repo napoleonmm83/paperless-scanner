@@ -6,14 +6,19 @@ import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.domain.model.ServerStatus
 import okhttp3.ResponseBody.Companion.toResponseBody
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
+import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumFeatureManager
+import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.billing.PurchaseResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -35,6 +40,8 @@ class SettingsViewModelTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
+    private lateinit var launchPromoManager: LaunchPromoManager
+    private lateinit var premiumPurchaseCoordinator: PremiumPurchaseCoordinator
     private lateinit var authDebugService: AuthDebugService
 
     private val testDispatcher = StandardTestDispatcher()
@@ -49,6 +56,8 @@ class SettingsViewModelTest {
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
+        launchPromoManager = mockk { every { state } returns MutableStateFlow(LaunchPromoState.Hidden) }
+        premiumPurchaseCoordinator = mockk(relaxed = true)
         authDebugService = mockk(relaxed = true)
 
         // Default mock responses
@@ -88,6 +97,8 @@ class SettingsViewModelTest {
             analyticsService = analyticsService,
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager,
+            launchPromoManager = launchPromoManager,
+            premiumPurchaseCoordinator = premiumPurchaseCoordinator,
             authDebugService = authDebugService
         )
     }
@@ -157,6 +168,41 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         assertEquals("", viewModel.uiState.value.serverUrl)
+    }
+
+    // ==================== Launch Promo Tests ====================
+
+    @Test
+    fun `launchPromoActive follows LaunchPromoManager state`() = runTest {
+        val promoFlow = MutableStateFlow<LaunchPromoState>(LaunchPromoState.Hidden)
+        every { launchPromoManager.state } returns promoFlow
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.launchPromoActive)
+
+        promoFlow.value = LaunchPromoState.Active(
+            promoPrice = "CHF 19.99",
+            regularPrice = "CHF 39.99",
+            endEpochMs = Long.MAX_VALUE,
+            offerToken = "promo-token"
+        )
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.launchPromoActive)
+    }
+
+    @Test
+    fun `launchPurchaseFlow delegates to PremiumPurchaseCoordinator`() = runTest {
+        val activity = mockk<android.app.Activity>(relaxed = true)
+        coEvery {
+            premiumPurchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY)
+        } returns PurchaseResult.Success
+
+        val viewModel = createViewModel()
+        val result = viewModel.launchPurchaseFlow(activity, BillingManager.PRODUCT_ID_YEARLY)
+
+        assertEquals(PurchaseResult.Success, result)
+        coVerify { premiumPurchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY) }
     }
 
     // ==================== Upload Quality Tests ====================

@@ -15,6 +15,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.paperless.scanner.data.analytics.SubscriptionAnalyticsSync
 import com.paperless.scanner.data.billing.BillingManager
+import com.paperless.scanner.data.billing.LaunchPromoManager
+import com.paperless.scanner.data.config.RemoteConfigManager
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
@@ -48,6 +50,12 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
     lateinit var billingManager: BillingManager
 
     @Inject
+    lateinit var remoteConfigManager: RemoteConfigManager
+
+    @Inject
+    lateinit var launchPromoManager: LaunchPromoManager
+
+    @Inject
     lateinit var subscriptionAnalyticsSync: SubscriptionAnalyticsSync
 
     @Inject
@@ -72,6 +80,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         // Initialize Google Play Billing
         billingManager.initialize()
 
+        // Fetch launch-promo flags (fail-closed defaults until the first successful fetch)
+        remoteConfigManager.initialize()
+
         // Mirror subscription status into Crashlytics/Analytics for the process
         // lifetime (#296). Torn down with appScope in onTerminate.
         subscriptionAnalyticsSync.start(appScope)
@@ -89,6 +100,7 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         networkMonitor.destroy()
         serverHealthMonitor.destroy()
         billingManager.destroy()
+        launchPromoManager.destroy()
         appScope.cancel()
         super.onTerminate()
     }

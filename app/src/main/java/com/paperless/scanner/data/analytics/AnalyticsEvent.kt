@@ -224,23 +224,23 @@ sealed class AnalyticsEvent(
      * User upgraded to Premium subscription
      *
      * @param plan Subscription plan: "monthly" or "yearly"
-     * @param priceUsd Price in USD
+     * @param offerTag Play Console offer tag used for the purchase (e.g. "launch50"); pass "none" when the purchase was not initiated from a promotional offer
      */
     data class PremiumSubscribed(
         val plan: String,
-        val priceUsd: Double
+        val offerTag: String = "none"
     ) : AnalyticsEvent(
         "premium_subscribed",
         mapOf(
             "plan" to plan,
-            "price_usd" to priceUsd
+            "offer_tag" to offerTag
         )
     )
 
     /**
      * Premium upgrade prompt shown to user
      *
-     * @param trigger What triggered the prompt: "ai_feature_locked", "settings", "upload_screen"
+     * @param trigger What triggered the prompt: "ai_feature_locked", "settings", "upload_screen", "launch_promo_banner"
      */
     data class PremiumPromptShown(
         val trigger: String
@@ -289,6 +289,11 @@ sealed class AnalyticsEvent(
         "ai_usage_limit_reached",
         mapOf("monthly_call_count" to monthlyCallCount)
     )
+
+    // ==================== Launch Promo Events ====================
+
+    /** Launch-promo banner impression on the Home screen (logged at most once per ViewModel instance). */
+    data object LaunchPromoBannerShown : AnalyticsEvent("launch_promo_banner_shown")
 
     // ==================== Paperless-GPT OCR Events ====================
 

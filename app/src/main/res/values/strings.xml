@@ -695,6 +695,17 @@
     <string name="premium_price_yearly_savings">Save 2 months</string>
     <string name="premium_trial_7_days">7 days free</string>
     <string name="premium_trial_14_days">14 days free</string>
+
+    <!-- Launch Promo -->
+    <string name="launch_promo_banner_headline">Launch offer</string>
+    <string name="launch_promo_banner_body">AI yearly plan %1$s instead of %2$s — until %3$s</string>
+    <string name="launch_promo_badge">Launch offer</string>
+    <string name="launch_promo_ends">Offer ends %1$s</string>
+    <string name="cd_dismiss_promo_banner">Dismiss launch offer banner</string>
+    <string name="cd_regular_price">Regular price: %1$s</string>
+    <string name="premium_price_placeholder">—</string>
+    <string name="premium_transparency_note">AI suggestions use cloud AI (Gemini); the subscription covers the API costs. Local rule-based suggestions stay free. Your documents go only to your own server unless you opt in to AI analysis.</string>
+
     <string name="premium_button_upgrade">Upgrade Now</string>
     <string name="premium_button_later">Later</string>
     <string name="premium_button_restore">Restore Purchases</string>
@@ -725,6 +736,7 @@
     <string name="premium_purchase_success">Premium activated successfully!</string>
     <string name="premium_purchase_cancelled">Purchase cancelled</string>
     <string name="premium_purchase_error">Purchase error: %1$s</string>
+    <string name="premium_purchase_pending">Payment pending — Premium activates once Google Play confirms it.</string>
     <string name="premium_restore_success">%1$d purchases restored</string>
     <string name="premium_restore_none">No purchases found</string>
     <string name="premium_restore_error">Restore error: %1$s</string>

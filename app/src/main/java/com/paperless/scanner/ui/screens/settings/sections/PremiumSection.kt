@@ -37,6 +37,7 @@ import com.paperless.scanner.ui.screens.settings.components.SettingsToggleItem
 fun PremiumSection(
     isPremiumActive: Boolean,
     premiumExpiryDate: String?,
+    launchPromoActive: Boolean = false,
     aiSuggestionsEnabled: Boolean,
     aiWifiOnly: Boolean,
     aiNewTagsEnabled: Boolean,
@@ -85,6 +86,26 @@ fun PremiumSection(
                         ) {
                             Text(
                                 text = stringResource(R.string.premium_badge),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+                    }
+                    // LaunchPromoManager already gates on !premium; this guards against
+                    // state-update races between the two observers and keeps the UI honest.
+                    if (!isPremiumActive && launchPromoActive) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.launch_promo_badge).uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimary
@@ -179,6 +200,7 @@ private fun PremiumSectionInactivePreview() {
         PremiumSection(
             isPremiumActive = false,
             premiumExpiryDate = null,
+            launchPromoActive = true,
             aiSuggestionsEnabled = false,
             aiWifiOnly = false,
             aiNewTagsEnabled = false,

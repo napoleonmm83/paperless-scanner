@@ -83,6 +83,9 @@ class BillingManager @Inject constructor(
         const val PRODUCT_ID_MONTHLY = "paperless_ai_monthly"
         const val PRODUCT_ID_YEARLY = "paperless_ai_yearly"
 
+        /** Play Console offer tag that marks the time-limited launch promo on the yearly plan. */
+        const val LAUNCH_PROMO_OFFER_TAG = "launch50"
+
         // Reconnect backoff schedule for transient Disconnected state.
         // Cap at 16s, infinite retries — each retry is a cheap binder call;
         // failure stays in Disconnected and consumers can observe billingState.
@@ -108,6 +111,21 @@ class BillingManager @Inject constructor(
     private var billingClient: BillingClient? = null
     private var productDetailsCache: Map<String, ProductDetails> = emptyMap()
 
+    // Launch-promo offer on the yearly plan, re-extracted on every product query.
+    // null = Play does not currently serve a discounted launch50 offer (fail-closed).
+    // Cleared on query failure and setup failure (fail-closed display); deliberately NOT
+    // cleared on transient Disconnected — purchases are already blocked by the not-Ready
+    // gate, the reconnect re-query repopulates it, and clearing would flicker the banner
+    // on every short blip.
+    private val _launchOffer = MutableStateFlow<LaunchOfferDetails?>(null)
+    val launchOffer: StateFlow<LaunchOfferDetails?> = _launchOffer.asStateFlow()
+
+    // Localized base-plan prices for the paywall (null until product details load).
+    // Extracted from the first NON-promo offer's last paid pricing phase — the
+    // recurring base price. Cleared alongside launchOffer (fail-closed display).
+    private val _basePlanPrices = MutableStateFlow<BasePlanPrices?>(null)
+    val basePlanPrices: StateFlow<BasePlanPrices?> = _basePlanPrices.asStateFlow()
+
     // Tracks the in-flight Disconnected-state reconnect coroutine so destroy()
     // can cancel it. A new disconnect cancels the previous schedule.
     private var reconnectJob: Job? = null
@@ -132,10 +150,23 @@ class BillingManager @Inject constructor(
                     AppLogger.d(TAG, "  - Acknowledged: ${purchase.isAcknowledged}")
                     handlePurchase(purchase)
                 }
-                // Resume pending purchase flow with success
+                // PENDING (delayed payment) must not masquerade as Success: premium is not
+                // granted yet and analytics would count an unpaid transaction (#370).
+                val outcome = when {
+                    purchases?.any { it.purchaseState == Purchase.PurchaseState.PURCHASED } == true ->
+                        PurchaseResult.Success
+                    purchases?.any { it.purchaseState == Purchase.PurchaseState.PENDING } == true ->
+                        PurchaseResult.Pending
+                    else -> PurchaseResult.Error(
+                        // OK response without any PURCHASED/PENDING entry: nothing was
+                        // granted — reporting Success would log a phantom subscription.
+                        context.getString(R.string.billing_error_launch_failed)
+                    )
+                }
+                // Resume pending purchase flow with the state-aware outcome
                 pendingPurchaseContinuation?.let {
-                    AppLogger.d(TAG, "Resuming continuation with SUCCESS")
-                    it.resume(PurchaseResult.Success)
+                    AppLogger.d(TAG, "Resuming continuation with ${outcome::class.simpleName}")
+                    it.resume(outcome)
                     pendingPurchaseContinuation = null
                 } ?: AppLogger.w(TAG, "⚠ No pending continuation to resume!")
             }
@@ -231,7 +262,10 @@ class BillingManager @Inject constructor(
                     // previous Disconnected episode (success after retry).
                     reconnectJob?.cancel()
                     reconnectJob = null
-                    // Query existing purchases
+                    // Order matters: purchases before product details — LaunchPromoManager's
+                    // not-premium gate must be resolved before the launch-offer gate can open
+                    // (prevents a premium user briefly seeing the promo). Pinned by
+                    // BillingManagerTest `setup success queries purchases before product details`.
                     scope.launch {
                         queryPurchases()
                         queryProductDetails()
@@ -243,6 +277,8 @@ class BillingManager @Inject constructor(
                     AppLogger.e(TAG, "Billing setup failed — state = Failed (no auto-retry)")
                     AppLogger.d(TAG, "Billing setup failure reason: $reason")
                     _billingState.value = BillingState.Failed(reason)
+                    _launchOffer.value = null
+                    _basePlanPrices.value = null
                     // No auto-retry on setup failure — wait for next explicit
                     // initialize() call (e.g., user opens Premium screen).
                 }
@@ -331,8 +367,14 @@ class BillingManager @Inject constructor(
                     if (unfetchedProducts.isNotEmpty()) {
                         AppLogger.w(TAG, "Unfetched products: ${unfetchedProducts.size}")
                     }
+                    _launchOffer.value = extractLaunchOffer(productDetailsCache[PRODUCT_ID_YEARLY])
+                    _basePlanPrices.value = extractBasePlanPrices(productDetailsCache)
                 } else {
                     AppLogger.e(TAG, "Failed to load product details: ${billingResult.debugMessage}")
+
+                    // Fail-closed: don't keep advertising an offer we can no longer verify.
+                    _launchOffer.value = null
+                    _basePlanPrices.value = null
 
                     // Log to Crashlytics
                     try {
@@ -347,6 +389,51 @@ class BillingManager @Inject constructor(
                 continuation.resume(Unit)
             }
         }
+    }
+
+    /**
+     * Extracts the launch-promo offer (tag [LAUNCH_PROMO_OFFER_TAG]) from the yearly
+     * product, if Play currently serves one. The intro price is the first paid pricing
+     * phase, the regular price the last one. A tagged offer whose intro price is not
+     * actually cheaper carries no real discount and is treated as "no promo" (fail-closed).
+     *
+     * Assumes intro and regular phases share the billing period (true for the launch50
+     * shape: trial + 1y intro + 1y renewal). If multiple offers carry the tag, the
+     * first one wins.
+     */
+    internal fun extractLaunchOffer(productDetails: ProductDetails?): LaunchOfferDetails? {
+        val offer = productDetails?.subscriptionOfferDetails
+            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG in it.offerTags }
+            ?: return null
+        val paidPhases = offer.pricingPhases.pricingPhaseList.filter { it.priceAmountMicros > 0 }
+        val intro = paidPhases.firstOrNull() ?: return null
+        val regular = paidPhases.last()
+        if (intro.priceAmountMicros >= regular.priceAmountMicros) return null
+        return LaunchOfferDetails(
+            offerToken = offer.offerToken,
+            introFormattedPrice = intro.formattedPrice,
+            regularFormattedPrice = regular.formattedPrice
+        )
+    }
+
+    /**
+     * Localized recurring base prices for both plans, from the first non-promo offer's
+     * last paid pricing phase. Null when either product is missing — the paywall then
+     * shows a neutral placeholder instead of inventing a price.
+     */
+    internal fun extractBasePlanPrices(cache: Map<String, ProductDetails>): BasePlanPrices? {
+        val monthly = baseRecurringPrice(cache[PRODUCT_ID_MONTHLY]) ?: return null
+        val yearly = baseRecurringPrice(cache[PRODUCT_ID_YEARLY]) ?: return null
+        return BasePlanPrices(monthlyFormatted = monthly, yearlyFormatted = yearly)
+    }
+
+    private fun baseRecurringPrice(productDetails: ProductDetails?): String? {
+        val offer = productDetails?.subscriptionOfferDetails
+            ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+            ?: return null
+        return offer.pricingPhases.pricingPhaseList
+            .lastOrNull { it.priceAmountMicros > 0 }
+            ?.formattedPrice
     }
 
     /**
@@ -427,9 +514,12 @@ class BillingManager @Inject constructor(
      *
      * @param activity Activity required for billing flow
      * @param productId Product ID from Play Console (e.g., "paperless_ai_monthly")
-     * @return PurchaseResult indicating success, cancellation, or error
+     * @param offerToken Optional explicit offer token (promo path). When set, the offer
+     *   must still exist in the current ProductDetails snapshot or the call fails with
+     *   the no-offers error — it never silently falls back to the default offer.
+     * @return PurchaseResult indicating success, pending payment, cancellation, or error
      */
-    suspend fun launchPurchaseFlow(activity: Activity, productId: String): PurchaseResult {
+    suspend fun launchPurchaseFlow(activity: Activity, productId: String, offerToken: String? = null): PurchaseResult {
         AppLogger.d(TAG, "════════════════════════════════════════════════")
         AppLogger.d(TAG, "launchPurchaseFlow called")
         AppLogger.d(TAG, "Product ID: $productId")
@@ -512,9 +602,26 @@ class BillingManager @Inject constructor(
 
         AppLogger.d(TAG, "✓ Product found: ${productDetails.name}")
 
-        // Get first offer token (trial offer if configured as default in Play Console)
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
-        if (offerToken == null) {
+        // Promo path: an explicitly requested offer must still be present in the latest
+        // ProductDetails snapshot (cache refreshes on connect/reconnect; Play remains the
+        // authoritative gate at purchase time).
+        // Default path: first non-promo offer (trial offer when configured as default in Play Console).
+        val resolvedOfferToken = if (offerToken != null) {
+            productDetails.subscriptionOfferDetails?.firstOrNull { it.offerToken == offerToken }?.offerToken
+        } else {
+            // Default path must never pick the promo offer: when the Console offer is live
+            // but the promo gates are closed (RC off/expired), a regular purchase would
+            // otherwise silently get the discount. All-tagged-offers (misconfig) → null →
+            // no-offers error, fail-closed.
+            productDetails.subscriptionOfferDetails
+                ?.firstOrNull { LAUNCH_PROMO_OFFER_TAG !in it.offerTags }
+                ?.offerToken
+        }
+        if (resolvedOfferToken == null) {
+            if (offerToken != null) {
+                // Debug-gated; never log the token value itself.
+                AppLogger.d(TAG, "Requested offer token not found among ${productDetails.subscriptionOfferDetails?.size ?: 0} offers")
+            }
             AppLogger.e(TAG, "✗ No subscription offers available!")
             return PurchaseResult.Error(context.getString(R.string.billing_error_no_offers))
         }
@@ -525,7 +632,7 @@ class BillingManager @Inject constructor(
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(productDetails)
-                .setOfferToken(offerToken)
+                .setOfferToken(resolvedOfferToken)
                 .build()
         )
 
@@ -872,6 +979,8 @@ class BillingManager @Inject constructor(
 
         billingClient = null
         _billingState.value = BillingState.Uninitialized
+        _launchOffer.value = null
+        _basePlanPrices.value = null
         // #142: cancel the manager's in-flight coroutines (reconnect/backoff, queryPurchases,
         // queryProductDetails) so they are torn down rather than leaked. cancelChildren() — NOT
         // scope.cancel() — keeps the singleton scope reusable: destroy() resets state to
@@ -954,6 +1063,15 @@ fun SubscriptionStatus.analyticsName(): String = when (this) {
  */
 sealed class PurchaseResult {
     data object Success : PurchaseResult()
+
+    /**
+     * Google Play accepted the purchase but payment is still processing (delayed
+     * payment methods). Premium is NOT granted yet — handlePurchase keeps the user
+     * on FREE until a later query sees PURCHASED. Callers must not celebrate or
+     * log a subscription for this result.
+     */
+    data object Pending : PurchaseResult()
+
     data object Cancelled : PurchaseResult()
     data class Error(val message: String) : PurchaseResult()
 }
@@ -966,6 +1084,24 @@ sealed class RestoreResult {
     data object NoPurchasesFound : RestoreResult()
     data class Error(val message: String) : RestoreResult()
 }
+
+/**
+ * Launch-promo offer details extracted from the yearly product.
+ *
+ * Prices are the localized formatted strings from Play Billing — never reformat
+ * or hardcode them; Play serves per-country prices.
+ */
+data class LaunchOfferDetails(
+    val offerToken: String,
+    val introFormattedPrice: String,
+    val regularFormattedPrice: String
+)
+
+/** Localized recurring base prices of both subscription plans (paywall display). */
+data class BasePlanPrices(
+    val monthlyFormatted: String,
+    val yearlyFormatted: String
+)
 
 /**
  * Detailed subscription information for UI display.
