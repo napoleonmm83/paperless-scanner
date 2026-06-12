@@ -1,0 +1,6 @@
+Version 1.5.219:
+
+🐛 Bug Fixes:
+- Light mode: fixed contrast in the analytics dialog
+- Dialog texts & buttons are readable again
+- Widget setup now follows light/dark theme
