@@ -34,9 +34,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.paperless.scanner.R
-import com.paperless.scanner.ui.theme.DarkTechOutline
-import com.paperless.scanner.ui.theme.DarkTechPrimary
-import com.paperless.scanner.ui.theme.DarkTechSurface
 
 /**
  * GDPR-compliant analytics consent dialog.
@@ -53,12 +50,12 @@ fun AnalyticsConsentDialog(
                 .fillMaxWidth()
                 .border(
                     width = 1.dp,
-                    color = DarkTechOutline,
+                    color = MaterialTheme.colorScheme.outline,
                     shape = RoundedCornerShape(20.dp)
                 ),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(
-                containerColor = DarkTechSurface
+                containerColor = MaterialTheme.colorScheme.surface
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
@@ -73,7 +70,7 @@ fun AnalyticsConsentDialog(
                     imageVector = Icons.Default.Analytics,
                     contentDescription = null,
                     modifier = Modifier.size(48.dp),
-                    tint = DarkTechPrimary
+                    tint = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -155,7 +152,7 @@ fun AnalyticsConsentDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = DarkTechPrimary,
+                            containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
@@ -195,7 +192,7 @@ private fun ConsentBulletPoint(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = DarkTechPrimary
+            tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(

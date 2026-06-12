@@ -1,0 +1,6 @@
+Version 1.5.219:
+
+🐛 Fehlerbehebungen:
+- Hell-Modus: Kontrast im Analyse-Dialog korrigiert
+- Texte & Buttons im Dialog wieder lesbar
+- Widget-Konfiguration folgt jetzt Hell-/Dunkel-Design

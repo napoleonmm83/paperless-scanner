@@ -40,10 +40,12 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,12 +59,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.paperless.scanner.R
-import com.paperless.scanner.ui.theme.DarkTechBackground
-import com.paperless.scanner.ui.theme.DarkTechOnSurface
-import com.paperless.scanner.ui.theme.DarkTechOnSurfaceMuted
-import com.paperless.scanner.ui.theme.DarkTechOutline
-import com.paperless.scanner.ui.theme.DarkTechPrimary
-import com.paperless.scanner.ui.theme.DarkTechSurface
+import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.ui.theme.PaperlessScannerTheme
+import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -71,6 +70,9 @@ class WidgetConfigActivity : ComponentActivity() {
 
     @Inject
     lateinit var widgetPreferences: WidgetPreferences
+
+    @Inject
+    lateinit var tokenManager: TokenManager
 
     private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
 
@@ -94,10 +96,15 @@ class WidgetConfigActivity : ComponentActivity() {
         }
 
         setContent {
-            WidgetConfigScreen(
-                onSave = { config -> saveConfigAndFinish(config) },
-                onCancel = { finish() }
-            )
+            val themeModeKey by tokenManager.themeMode.collectAsState(initial = "system")
+            val themeMode = ThemeMode.entries.find { it.key == themeModeKey } ?: ThemeMode.SYSTEM
+
+            PaperlessScannerTheme(themeMode = themeMode) {
+                WidgetConfigScreen(
+                    onSave = { config -> saveConfigAndFinish(config) },
+                    onCancel = { finish() }
+                )
+            }
         }
     }
 
@@ -184,7 +191,7 @@ private fun WidgetConfigScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkTechBackground)
+            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .verticalScroll(rememberScrollState())
             .padding(24.dp)
@@ -192,7 +199,7 @@ private fun WidgetConfigScreen(
         // Title
         Text(
             text = stringResource(R.string.widget_config_title).uppercase(),
-            color = DarkTechOnSurface,
+            color = MaterialTheme.colorScheme.onBackground,
             fontSize = 24.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.1.em
@@ -241,8 +248,8 @@ private fun WidgetConfigScreen(
                 .height(56.dp),
             shape = RoundedCornerShape(20.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = DarkTechPrimary,
-                contentColor = DarkTechBackground
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         ) {
             Text(
@@ -263,7 +270,7 @@ private fun WidgetTypeCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) DarkTechPrimary else DarkTechOutline
+    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
 
     Card(
         modifier = Modifier
@@ -271,7 +278,7 @@ private fun WidgetTypeCard(
             .clickable { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = DarkTechSurface
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         border = BorderStroke(1.dp, borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -286,8 +293,8 @@ private fun WidgetTypeCard(
                 selected = isSelected,
                 onClick = onClick,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = DarkTechPrimary,
-                    unselectedColor = DarkTechOnSurfaceMuted
+                    selectedColor = MaterialTheme.colorScheme.primary,
+                    unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             )
 
@@ -296,7 +303,7 @@ private fun WidgetTypeCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) DarkTechPrimary else DarkTechOnSurfaceMuted,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
 
@@ -304,7 +311,7 @@ private fun WidgetTypeCard(
 
             Text(
                 text = title,
-                color = if (isSelected) DarkTechOnSurface else DarkTechOnSurfaceMuted,
+                color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 16.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
             )
