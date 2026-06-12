@@ -77,9 +77,12 @@ fun PremiumUpgradeSheet(
     val promo by promoViewModel.sheetPromo.collectAsState()
     val basePrices by promoViewModel.basePlanPrices.collectAsState()
 
-    // Explicit user selection wins; before any tap a live promo pre-selects yearly.
+    // Freeze the default once per sheet instance: a promo emission AFTER opening must
+    // not flip the plan under the user's thumb (they could buy yearly unintentionally).
+    // Promo pricing/badge still appear reactively — only the pre-selection is frozen.
+    val promoActiveAtOpen = remember { promo != null }
     var userSelectedPlan by remember { mutableStateOf<String?>(null) }
-    val selectedPlan = userSelectedPlan ?: if (promo != null) "yearly" else "monthly"
+    val selectedPlan = userSelectedPlan ?: if (promoActiveAtOpen) "yearly" else "monthly"
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
