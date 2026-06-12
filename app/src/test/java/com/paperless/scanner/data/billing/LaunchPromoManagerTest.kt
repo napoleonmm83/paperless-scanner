@@ -9,7 +9,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -20,6 +22,11 @@ import org.junit.Test
 // bookkeeping. (Empirical note: the plain-runTest + advanceUntilIdle draft of this class
 // failed the two Active-asserting .value tests with coroutines-test 1.9.0 — Hidden was
 // observed — while the Turbine flip test passed; no mechanism claimed.)
+//
+// NOTE on virtual time: an Active emission schedules its own expiry (delay(remainingMs),
+// 1ms with these fixtures) on the test scheduler. Active-asserting tests therefore use
+// runCurrent() — advanceUntilIdle() would advance virtual time and fire the expiry,
+// flipping the state to Hidden. Hidden-asserting tests keep advanceUntilIdle().
 @OptIn(ExperimentalCoroutinesApi::class)
 class LaunchPromoManagerTest {
 
@@ -63,7 +70,7 @@ class LaunchPromoManagerTest {
     fun `all four gates open - state is Active with offer data`() = runTest(UnconfinedTestDispatcher()) {
         openAllGates()
         val m = manager()
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(expectedActive, m.state.value)
     }
 
@@ -136,14 +143,14 @@ class LaunchPromoManagerTest {
     fun `destroy cancels the scope - state freezes and ignores later source changes`() = runTest(UnconfinedTestDispatcher()) {
         openAllGates()
         val m = manager()
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(expectedActive, m.state.value)
 
         m.destroy()
 
-        // The combine collector is cancelled: a source mutation that would otherwise
-        // flip the state to Hidden (kill switch off propagates synchronously under
-        // UnconfinedTestDispatcher) must no longer propagate.
+        // The collector is cancelled: neither a source mutation that would flip the
+        // state to Hidden nor the scheduled self-expiry (advanceUntilIdle advances
+        // virtual time past it) may propagate after teardown.
         promoConfigFlow.value = promoConfigFlow.value.copy(enabled = false)
         advanceUntilIdle()
         assertEquals(expectedActive, m.state.value)
@@ -153,7 +160,7 @@ class LaunchPromoManagerTest {
     fun `promoOfferTokenFor yearly returns token when active`() = runTest(UnconfinedTestDispatcher()) {
         openAllGates()
         val m = manager()
-        advanceUntilIdle()
+        runCurrent()
         assertEquals("promo-token", m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
     }
 
@@ -161,7 +168,7 @@ class LaunchPromoManagerTest {
     fun `promoOfferTokenFor monthly returns null even when active`() = runTest(UnconfinedTestDispatcher()) {
         openAllGates()
         val m = manager()
-        advanceUntilIdle()
+        runCurrent() // keep state Active — the null must come from the product check, not Hidden
         assertNull(m.promoOfferTokenFor(BillingManager.PRODUCT_ID_MONTHLY))
     }
 
@@ -173,17 +180,37 @@ class LaunchPromoManagerTest {
     }
 
     @Test
-    fun `promoOfferTokenFor returns null after end time even while state is stale Active`() =
+    fun `promoOfferTokenFor returns null past end time even before the scheduled expiry fires`() =
         runTest(UnconfinedTestDispatcher()) {
             var nowMs = now
             openAllGates() // endEpochMs = now + 1
             val m = LaunchPromoManager(billingManager, remoteConfigManager, clock = { nowMs }, scope = backgroundScope)
-            advanceUntilIdle()
+            runCurrent()
             assertEquals("promo-token", m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
 
-            // Time passes with zero source emissions: state stays Active (documented), routing must not.
+            // Belt and suspenders: the wall clock passes the end date but virtual time is
+            // NOT advanced — the scheduled self-expiry (tested separately above) has not
+            // fired yet, so state still shows Active. The purchase guard must not route anyway.
             nowMs = now + 2
             assertEquals(expectedActive, m.state.value)
             assertNull(m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
+        }
+
+    @Test
+    fun `state expires to Hidden when the end date passes without source emissions`() =
+        runTest(UnconfinedTestDispatcher()) {
+            var nowMs = now
+            openAllGates() // endEpochMs = now + 1 → remainingMs = 1 at construction
+            val m = LaunchPromoManager(billingManager, remoteConfigManager, clock = { nowMs }, scope = backgroundScope)
+            runCurrent()
+            assertEquals(expectedActive, m.state.value)
+
+            // Wall clock passes the end date (realism); the expiry delay was computed
+            // with the construction-time clock (1ms), so advancing virtual time by ≥1ms
+            // fires it regardless — with ZERO further source emissions.
+            nowMs = now + 2
+            advanceTimeBy(2)
+            runCurrent()
+            assertEquals(LaunchPromoState.Hidden, m.state.value)
         }
 }

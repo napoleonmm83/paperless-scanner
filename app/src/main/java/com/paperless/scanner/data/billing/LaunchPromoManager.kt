@@ -3,11 +3,15 @@ package com.paperless.scanner.data.billing
 import com.paperless.scanner.data.config.RemoteConfigManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -36,10 +40,10 @@ sealed interface LaunchPromoState {
  * Eagerly shared: SettingsViewModel reads [promoOfferTokenFor] synchronously, so
  * `.value` must be fresh without a collector (WhileSubscribed would pin it).
  *
- * Known limitation: merely passing the end date does not re-emit by itself; the state
- * re-evaluates on the next source emission. Deactivating the Console offer and the
- * kill switch are the real off-switches. The purchase path is additionally guarded:
- * promoOfferTokenFor re-checks the clock on every call.
+ * An Active state schedules its own expiry: when the end date passes mid-session,
+ * Hidden is emitted on time even without further source emissions. promoOfferTokenFor
+ * additionally re-checks the clock on every call (belt and suspenders for the
+ * purchase path).
  */
 @Singleton
 class LaunchPromoManager internal constructor(
@@ -59,27 +63,40 @@ class LaunchPromoManager internal constructor(
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val state: StateFlow<LaunchPromoState> = combine(
         remoteConfigManager.launchPromoConfig,
         billingManager.launchOffer,
         billingManager.isSubscriptionActive
-    ) { config, offer, premiumActive ->
-        if (config.enabled && clock() < config.endEpochMs && offer != null && !premiumActive) {
-            LaunchPromoState.Active(
-                promoPrice = offer.introFormattedPrice,
-                regularPrice = offer.regularFormattedPrice,
-                endEpochMs = config.endEpochMs,
-                offerToken = offer.offerToken
-            )
-        } else {
-            LaunchPromoState.Hidden
+    ) { config, offer, premiumActive -> Triple(config, offer, premiumActive) }
+        .flatMapLatest { (config, offer, premiumActive) ->
+            flow {
+                val remainingMs = config.endEpochMs - clock()
+                if (config.enabled && remainingMs > 0 && offer != null && !premiumActive) {
+                    emit(
+                        LaunchPromoState.Active(
+                            promoPrice = offer.introFormattedPrice,
+                            regularPrice = offer.regularFormattedPrice,
+                            endEpochMs = config.endEpochMs,
+                            offerToken = offer.offerToken
+                        )
+                    )
+                    // Self-expiry: emit Hidden once the end date passes, even when no
+                    // source flow ever emits again (long-running session). Any source
+                    // emission cancels this via flatMapLatest and re-evaluates.
+                    delay(remainingMs)
+                    emit(LaunchPromoState.Hidden)
+                } else {
+                    emit(LaunchPromoState.Hidden)
+                }
+            }
         }
-    }.stateIn(scope, SharingStarted.Eagerly, LaunchPromoState.Hidden)
+        .stateIn(scope, SharingStarted.Eagerly, LaunchPromoState.Hidden)
 
     /**
      * Offer token to purchase [productId] with, or null when no promo applies to it.
-     * Re-checks the clock: in a zero-emission session [state] can lag past the end
-     * date (documented display limitation) — the purchase routing must not.
+     * Re-checks the clock even though [state] self-expires — belt and suspenders so a
+     * purchase tap racing the scheduled expiry can never route through a stale token.
      */
     fun promoOfferTokenFor(productId: String): String? {
         val active = state.value as? LaunchPromoState.Active ?: return null
