@@ -171,4 +171,19 @@ class LaunchPromoManagerTest {
         advanceUntilIdle()
         assertNull(m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
     }
+
+    @Test
+    fun `promoOfferTokenFor returns null after end time even while state is stale Active`() =
+        runTest(UnconfinedTestDispatcher()) {
+            var nowMs = now
+            openAllGates() // endEpochMs = now + 1
+            val m = LaunchPromoManager(billingManager, remoteConfigManager, clock = { nowMs }, scope = backgroundScope)
+            advanceUntilIdle()
+            assertEquals("promo-token", m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
+
+            // Time passes with zero source emissions: state stays Active (documented), routing must not.
+            nowMs = now + 2
+            assertEquals(expectedActive, m.state.value)
+            assertNull(m.promoOfferTokenFor(BillingManager.PRODUCT_ID_YEARLY))
+        }
 }

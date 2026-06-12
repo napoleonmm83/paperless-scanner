@@ -42,7 +42,7 @@ Firebase Console → Remote Config → Parameter erstellen:
 
 **Propagations-Hinweise:**
 - Die App fetcht Remote Config einmal beim App-Start (Mindestintervall 1h). Nutzer mit laufender App sehen die Promo erst nach App-Neustart.
-- In einer nie neu gestarteten Langzeit-Session kann der Banner über das Enddatum hinaus sichtbar bleiben (dokumentierte Limitation). Der Geld-Pfad ist davon unberührt: Kauf-Gate ist das Play-Offer selbst; ist es deaktiviert, schlägt der Promo-Kauf kontrolliert fehl bzw. zeigt Google Plays Kaufdialog den autoritativen Preis.
+- In einer nie neu gestarteten Langzeit-Session kann der Banner über das Enddatum hinaus sichtbar bleiben (dokumentierte Limitation). Der Geld-Pfad ist davon unberührt: `promoOfferTokenFor` prüft die Uhr bei jedem Kauf erneut (kein Routing über den abgelaufenen Token); zusätzlich gilt: Kauf-Gate ist das Play-Offer selbst; ist es deaktiviert, schlägt der Promo-Kauf kontrolliert fehl bzw. zeigt Google Plays Kaufdialog den autoritativen Preis.
 
 ## 4. Promo-Ende-Checkliste (nach 4 Wochen)
 

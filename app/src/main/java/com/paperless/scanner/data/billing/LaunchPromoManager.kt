@@ -38,7 +38,8 @@ sealed interface LaunchPromoState {
  *
  * Known limitation: merely passing the end date does not re-emit by itself; the state
  * re-evaluates on the next source emission. Deactivating the Console offer and the
- * kill switch are the real off-switches.
+ * kill switch are the real off-switches. The purchase path is additionally guarded:
+ * promoOfferTokenFor re-checks the clock on every call.
  */
 @Singleton
 class LaunchPromoManager internal constructor(
@@ -75,9 +76,14 @@ class LaunchPromoManager internal constructor(
         }
     }.stateIn(scope, SharingStarted.Eagerly, LaunchPromoState.Hidden)
 
-    /** Offer token to purchase [productId] with, or null when no promo applies to it. */
+    /**
+     * Offer token to purchase [productId] with, or null when no promo applies to it.
+     * Re-checks the clock: in a zero-emission session [state] can lag past the end
+     * date (documented display limitation) — the purchase routing must not.
+     */
     fun promoOfferTokenFor(productId: String): String? {
         val active = state.value as? LaunchPromoState.Active ?: return null
+        if (clock() >= active.endEpochMs) return null
         return if (productId == BillingManager.PRODUCT_ID_YEARLY) active.offerToken else null
     }
 
