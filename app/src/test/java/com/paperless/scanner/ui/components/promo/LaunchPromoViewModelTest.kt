@@ -155,6 +155,13 @@ class LaunchPromoViewModelTest {
     fun `basePlanPrices exposes billing manager flow value`() = runTest {
         val prices = BasePlanPrices(monthlyFormatted = "€3.99", yearlyFormatted = "€39.99")
         basePlanPricesFlow.value = prices
-        assertEquals(prices, viewModel().basePlanPrices.value)
+
+        viewModel().basePlanPrices.test {
+            // stateIn may emit the initial null before the upstream value arrives
+            var item = awaitItem()
+            if (item == null) item = awaitItem()
+            assertEquals(prices, item)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

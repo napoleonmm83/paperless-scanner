@@ -157,7 +157,11 @@ class BillingManager @Inject constructor(
                         PurchaseResult.Success
                     purchases?.any { it.purchaseState == Purchase.PurchaseState.PENDING } == true ->
                         PurchaseResult.Pending
-                    else -> PurchaseResult.Success
+                    else -> PurchaseResult.Error(
+                        // OK response without any PURCHASED/PENDING entry: nothing was
+                        // granted — reporting Success would log a phantom subscription.
+                        context.getString(R.string.billing_error_launch_failed)
+                    )
                 }
                 // Resume pending purchase flow with the state-aware outcome
                 pendingPurchaseContinuation?.let {

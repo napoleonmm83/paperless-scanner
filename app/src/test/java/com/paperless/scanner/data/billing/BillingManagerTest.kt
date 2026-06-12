@@ -392,6 +392,48 @@ class BillingManagerTest {
     }
 
     @Test
+    fun `purchase resolving with OK but no settled purchase returns Error`() = runTest {
+        billingManager.initialize()
+        setupBillingClientMocks()
+
+        // Setup product with offer token
+        val mockOfferDetails = mockk<ProductDetails.SubscriptionOfferDetails> {
+            every { offerToken } returns "test-offer-token"
+            // Default path now filters out promo-tagged offers, so it reads offerTags.
+            every { offerTags } returns emptyList()
+        }
+        val mockProductDetails = mockk<ProductDetails>(relaxed = true) {
+            every { productId } returns BillingManager.PRODUCT_ID_MONTHLY
+            every { subscriptionOfferDetails } returns listOf(mockOfferDetails)
+        }
+
+        val productDetailsCache = mapOf(BillingManager.PRODUCT_ID_MONTHLY to mockProductDetails)
+        setPrivateField(billingManager, "productDetailsCache", productDetailsCache)
+
+        // Mock launchBillingFlow to return OK (dialog launched)
+        val mockBillingResult = mockk<BillingResult> {
+            every { responseCode } returns BillingClient.BillingResponseCode.OK
+            every { debugMessage } returns ""
+        }
+        every { mockBillingClient.launchBillingFlow(any(), any()) } answers {
+            // OK response but with NO settled purchase entry: nothing was granted,
+            // so the flow must surface an Error instead of a phantom Success.
+            val okResult = mockk<BillingResult> {
+                every { responseCode } returns BillingClient.BillingResponseCode.OK
+                every { debugMessage } returns ""
+            }
+            capturedPurchasesUpdatedListener.onPurchasesUpdated(okResult, emptyList())
+            mockBillingResult
+        }
+
+        val result = billingManager.launchPurchaseFlow(mockActivity, BillingManager.PRODUCT_ID_MONTHLY)
+
+        assertTrue(result is PurchaseResult.Error)
+        // No premium state was granted by the unsettled OK response
+        assertFalse(billingManager.isSubscriptionActiveSync())
+    }
+
+    @Test
     fun `launchPurchaseFlow returns Cancelled when user cancels`() = runTest {
         billingManager.initialize()
         setupBillingClientMocks()

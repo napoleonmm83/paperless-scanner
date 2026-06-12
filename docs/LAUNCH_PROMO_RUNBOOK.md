@@ -35,13 +35,13 @@ Firebase Console → Remote Config → Parameter erstellen:
 1. [ ] `fastlane android promote` — Internal-Build mit Promo-Code nach Production.
 2. [ ] Play Console: Offer `launch50` **aktivieren**.
 3. [ ] Enddatum berechnen: Promote-Tag + 28 Tage, 23:59 lokale Zeit → epoch ms
-       (z. B. PowerShell: `[DateTimeOffset]::new(2026,7,9,23,59,0,[TimeSpan]::FromHours(2)).ToUnixTimeMilliseconds()`).
+       (z. B. PowerShell: `$end = [datetime]::new(2026,7,9,23,59,0); [DateTimeOffset]::new($end, [TimeZoneInfo]::Local.GetUtcOffset($end)).ToUnixTimeMilliseconds()` — lokale Zeitzone statt festem Offset, DST-sicher).
 4. [ ] Firebase RC: `launch_promo_end_epoch_ms` = berechneter Wert, `launch_promo_enabled` = `true` → veröffentlichen.
 5. [ ] Gerätetest (siehe §5).
 6. [ ] Community-Posts absetzen (§6) + Wiki-Listing-Request (§7).
 
 **Propagations-Hinweise:**
-- Die App fetcht Remote Config einmal beim App-Start (Mindestintervall 1h). Nutzer mit laufender App sehen die Promo erst nach App-Neustart.
+- Die App fetcht Remote Config einmal beim App-Start (Mindestintervall 1h). Nutzer mit laufender App sehen den Promo-START erst nach App-Neustart (RC-Fetch); das Promo-ENDE greift dagegen auch in laufenden Sessions (selbst-terminierender State).
 - Banner und Sheet blenden die Promo zum Enddatum auch in laufenden Sessions automatisch aus (selbst-terminierender State). Der Geld-Pfad ist davon unberührt: `promoOfferTokenFor` prüft die Uhr bei jedem Kauf erneut (kein Routing über den abgelaufenen Token); zusätzlich gilt: Kauf-Gate ist das Play-Offer selbst; ist es deaktiviert, schlägt der Promo-Kauf kontrolliert fehl bzw. zeigt Google Plays Kaufdialog den autoritativen Preis.
 
 ## 4. Promo-Ende-Checkliste (nach 4 Wochen)
