@@ -1,0 +1,4 @@
+Version 1.5.222:
+
+🐛 Bug Fixes:
+- Dark mode: icons on blue backgrounds (e.g. Gallery) are clearly visible again
