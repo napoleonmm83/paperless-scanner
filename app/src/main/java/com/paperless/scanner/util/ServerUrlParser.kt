@@ -246,6 +246,16 @@ object ServerUrlParser {
             input to null
         }
 
+        // Reject hosts that still contain a ':' after the host/port split — an
+        // embedded scheme remnant like "http:192.168.178.158" (from a mistyped
+        // "http:host:port" without the "//"). A valid hostname never contains a
+        // colon. Without this guard the colon-bearing host reaches ProtocolDetector,
+        // which builds "https://http:host:port" and makes OkHttp throw
+        // IllegalArgumentException: Invalid URL port -> app crash (Crashlytics f7caf99c).
+        if (domain.contains(':')) {
+            return ParseResult.Error(R.string.error_invalid_server_address)
+        }
+
         // Validate domain
         if (domain.isBlank() || domain.length < 1) {
             return ParseResult.Error(R.string.error_address_too_short)

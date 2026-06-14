@@ -125,6 +125,36 @@ class ServerUrlParserTest {
 
     // endregion
 
+    // region Embedded-scheme / colon-bearing host rejection (Crashlytics f7caf99c)
+
+    @Test
+    fun `embedded http scheme without slashes is rejected`() {
+        // "http:192.168.178.158:8010" — user typed "http:" without "//". Previously
+        // parsed as Success(host="http:192.168.178.158"), which made ProtocolDetector
+        // build "https://http:192.168.178.158:8010/api/" and crash OkHttp with
+        // "Invalid URL port". Must now be Error so the detect-gate holds.
+        val result = ServerUrlParser.parse("http:192.168.178.158:8010")
+        assertTrue(
+            "Expected Error for 'http:192.168.178.158:8010', got $result",
+            result is ServerUrlParser.ParseResult.Error
+        )
+        assertEquals(
+            R.string.error_invalid_server_address,
+            (result as ServerUrlParser.ParseResult.Error).messageResId
+        )
+    }
+
+    @Test
+    fun `embedded https scheme without slashes is rejected`() {
+        val result = ServerUrlParser.parse("https:host:8000")
+        assertTrue(
+            "Expected Error for 'https:host:8000', got $result",
+            result is ServerUrlParser.ParseResult.Error
+        )
+    }
+
+    // endregion
+
     // region Regression: existing valid inputs still parse (no behavior change)
 
     @Test

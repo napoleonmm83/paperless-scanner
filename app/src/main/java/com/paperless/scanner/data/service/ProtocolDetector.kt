@@ -164,6 +164,16 @@ class ProtocolDetector @Inject constructor(
             // instead of a generic "server unreachable" error during detection.
             Log.d(TAG, "$protocol - Certificate pin mismatch for host: ${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
+        } catch (e: IllegalArgumentException) {
+            // A malformed host (e.g. an embedded-scheme remnant like
+            // "http:192.168.178.158") makes OkHttp's Request.Builder.url() throw
+            // IllegalArgumentException ("Invalid URL port: ..."). This is NOT an
+            // IOException, so without this catch it escapes uncaught and crashes
+            // the app during server detection (Crashlytics f7caf99c). Fail soft.
+            Log.d(TAG, "$protocol - Malformed URL for host '$host': ${e.message}")
+            Result.failure(PaperlessException.NetworkError(
+                IOException(context.getString(R.string.error_invalid_address))
+            ))
         } catch (e: IOException) {
             Log.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
@@ -261,6 +271,14 @@ class ProtocolDetector @Inject constructor(
             // Issue #36: typed exception must precede IOException catch.
             Log.d(TAG, "$protocol - Certificate pin mismatch at documents endpoint: ${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
+        } catch (e: IllegalArgumentException) {
+            // See tryProtocol: OkHttp throws IllegalArgumentException for a malformed
+            // URL; it is not an IOException so it must be caught explicitly to avoid
+            // crashing detection (Crashlytics f7caf99c).
+            Log.d(TAG, "$protocol - Malformed URL at documents endpoint ($url): ${e.message}")
+            Result.failure(PaperlessException.NetworkError(
+                IOException(context.getString(R.string.error_invalid_address))
+            ))
         } catch (e: IOException) {
             Log.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(
