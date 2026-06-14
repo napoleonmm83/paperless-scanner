@@ -1,0 +1,4 @@
+Version 1.5.221:
+
+🐛 Fehlerbehebungen:
+- Absturz bei fehlerhafter Server-Adresse behoben
