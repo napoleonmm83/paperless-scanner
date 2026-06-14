@@ -1,0 +1,4 @@
+Version 1.5.222:
+
+🐛 Fehlerbehebungen:
+- Dark Mode: Symbole auf blauem Hintergrund (z.B. Galerie) wieder gut sichtbar

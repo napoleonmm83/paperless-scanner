@@ -70,7 +70,10 @@ val md_theme_dark_onSecondaryContainer = DarkTechOnSurface
 val md_theme_dark_tertiary = DarkTechAccentBlue
 val md_theme_dark_onTertiary = DarkTechOnSurface
 val md_theme_dark_tertiaryContainer = Color(0xFF1E293F)
-val md_theme_dark_onTertiaryContainer = DarkTechAccentBlue
+// White foreground on the navy container (mirrors the light theme's onTertiaryContainer).
+// Was DarkTechAccentBlue (#2E3A59), which is the same navy as the container above and
+// produced near-invisible navy-on-navy icons/text (e.g. the Gallery scan-mode card).
+val md_theme_dark_onTertiaryContainer = Color.White
 
 val md_theme_dark_error = DarkTechError
 val md_theme_dark_onError = Color.White
