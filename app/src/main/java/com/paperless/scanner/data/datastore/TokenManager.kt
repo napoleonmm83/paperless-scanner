@@ -37,6 +37,7 @@ class TokenManager(
         private val BIOMETRIC_ENABLED_KEY = booleanPreferencesKey("biometric_enabled")
         private val UPLOAD_NOTIFICATIONS_KEY = booleanPreferencesKey("upload_notifications")
         private val UPLOAD_QUALITY_KEY = stringPreferencesKey("upload_quality")
+        private val UPLOAD_UNMETERED_ONLY_KEY = booleanPreferencesKey("upload_unmetered_only")
         private val ANALYTICS_CONSENT_KEY = booleanPreferencesKey("analytics_consent")
         private val ANALYTICS_CONSENT_ASKED_KEY = booleanPreferencesKey("analytics_consent_asked")
 
@@ -191,6 +192,18 @@ class TokenManager(
     }
 
     /**
+     * Whether document uploads should only run on an unmetered network (typically Wi-Fi).
+     *
+     * Maps to the WorkManager [androidx.work.NetworkType.UNMETERED] constraint via
+     * [com.paperless.scanner.worker.UploadConstraintsProvider]; the queue holds uploads
+     * until an unmetered network is available rather than spending the user's mobile data.
+     * Default: false (upload on any validated connection).
+     */
+    val uploadUnmeteredOnly: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[UPLOAD_UNMETERED_ONLY_KEY] ?: false
+    }
+
+    /**
      * Whether to show document thumbnails in the documents list.
      * Enabled by default for better UX.
      * Users can disable to save data on metered connections.
@@ -321,6 +334,24 @@ class TokenManager(
         context.dataStore.edit { preferences ->
             preferences[UPLOAD_QUALITY_KEY] = quality
         }
+    }
+
+    /** Enable or disable the "upload only on unmetered networks" preference. */
+    suspend fun setUploadUnmeteredOnly(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[UPLOAD_UNMETERED_ONLY_KEY] = enabled
+        }
+    }
+
+    /**
+     * Read the "upload only on unmetered networks" preference synchronously.
+     *
+     * Used by [com.paperless.scanner.worker.UploadConstraintsProvider] when building
+     * WorkManager constraints off the main thread (upload-queue triggers are not suspend).
+     */
+    @WorkerThread
+    fun getUploadUnmeteredOnlySync(): Boolean = runBlocking {
+        context.dataStore.data.first()[UPLOAD_UNMETERED_ONLY_KEY] ?: false
     }
 
     /** Set analytics consent (also marks consent as asked) */

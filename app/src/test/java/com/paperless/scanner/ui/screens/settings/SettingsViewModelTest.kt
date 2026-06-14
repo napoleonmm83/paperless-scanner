@@ -12,6 +12,8 @@ import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.billing.PurchaseResult
+import com.paperless.scanner.util.CoroutineDispatchers
+import com.paperless.scanner.worker.UploadWorkManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -43,6 +45,7 @@ class SettingsViewModelTest {
     private lateinit var launchPromoManager: LaunchPromoManager
     private lateinit var premiumPurchaseCoordinator: PremiumPurchaseCoordinator
     private lateinit var authDebugService: AuthDebugService
+    private lateinit var uploadWorkManager: UploadWorkManager
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -59,12 +62,14 @@ class SettingsViewModelTest {
         launchPromoManager = mockk { every { state } returns MutableStateFlow(LaunchPromoState.Hidden) }
         premiumPurchaseCoordinator = mockk(relaxed = true)
         authDebugService = mockk(relaxed = true)
+        uploadWorkManager = mockk(relaxed = true)
 
         // Default mock responses
         coEvery { tokenManager.serverUrl } returns flowOf("https://paperless.example.com")
         coEvery { tokenManager.token } returns flowOf("test-token")
         coEvery { tokenManager.uploadNotificationsEnabled } returns flowOf(true)
         coEvery { tokenManager.uploadQuality } returns flowOf("auto")
+        coEvery { tokenManager.uploadUnmeteredOnly } returns flowOf(false)
         coEvery { tokenManager.analyticsConsent } returns flowOf(false)
         coEvery { tokenManager.themeMode } returns flowOf("system")
 
@@ -99,7 +104,9 @@ class SettingsViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             launchPromoManager = launchPromoManager,
             premiumPurchaseCoordinator = premiumPurchaseCoordinator,
-            authDebugService = authDebugService
+            authDebugService = authDebugService,
+            uploadWorkManager = uploadWorkManager,
+            dispatchers = CoroutineDispatchers(io = testDispatcher, default = testDispatcher, main = testDispatcher)
         )
     }
 
@@ -259,6 +266,40 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         coVerify { tokenManager.setUploadQuality("medium") }
+    }
+
+    // ==================== Upload Unmetered-Only Tests ====================
+
+    @Test
+    fun `loadSettings reflects uploadUnmeteredOnly preference`() = runTest {
+        coEvery { tokenManager.uploadUnmeteredOnly } returns flowOf(true)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.uploadUnmeteredOnly)
+    }
+
+    @Test
+    fun `uploadUnmeteredOnly defaults to false`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.uploadUnmeteredOnly)
+    }
+
+    @Test
+    fun `setUploadUnmeteredOnly updates state and persists`() = runTest {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.setUploadUnmeteredOnly(true)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.uploadUnmeteredOnly)
+        coVerify { tokenManager.setUploadUnmeteredOnly(true) }
+        // The queue must be re-constrained so the new preference applies to already-queued work.
+        coVerify { uploadWorkManager.rescheduleForConstraintChange() }
     }
 
     // ==================== Upload Notifications Tests ====================

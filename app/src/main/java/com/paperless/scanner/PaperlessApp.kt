@@ -8,9 +8,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.paperless.scanner.data.analytics.SubscriptionAnalyticsSync
@@ -22,6 +20,7 @@ import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.data.sync.SyncWorker
 import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
+import com.paperless.scanner.worker.UploadConstraintsProvider
 import com.paperless.scanner.worker.UploadWorker
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -31,6 +30,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -60,6 +60,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
 
     @Inject
     lateinit var imageLoader: ImageLoader
+
+    @Inject
+    lateinit var uploadConstraintsProvider: UploadConstraintsProvider
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -154,10 +157,13 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
             serverHealthMonitor.isServerReachable.collect { isReachable ->
                 Log.d(TAG, "Server reachability changed: wasReachable=$wasReachable, isReachable=$isReachable")
 
-                // Trigger upload queue when server transitions from offline to online
+                // Trigger upload queue when server transitions from offline to online.
+                // Off the main thread: this collector runs on appScope (Dispatchers.Main)
+                // and triggerUploadWorker() builds constraints via a runBlocking DataStore
+                // read in UploadConstraintsProvider.
                 if (!wasReachable && isReachable) {
                     Log.d(TAG, "Server became reachable - triggering upload queue worker")
-                    triggerUploadWorker()
+                    withContext(Dispatchers.IO) { triggerUploadWorker() }
                 }
 
                 wasReachable = isReachable
@@ -172,17 +178,11 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
     private fun triggerUploadWorker() {
         try {
             val workManager = WorkManager.getInstance(this)
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                // Match UploadWorkManager.scheduleImmediateUpload: defer below the
-                // OS low-battery / low-storage thresholds so a reconnect-triggered
-                // drain doesn't drain a nearly-empty battery / full disk (#134).
-                .setRequiresBatteryNotLow(true)
-                .setRequiresStorageNotLow(true)
-                .build()
-
+            // Shared constraints (network preference + #134 battery/storage deferral) so a
+            // server-reconnect drain honors the user's unmetered-only setting exactly like
+            // the in-app and network-reconnect triggers.
             val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
-                .setConstraints(constraints)
+                .setConstraints(uploadConstraintsProvider.build())
                 .build()
 
             workManager.enqueueUniqueWork(

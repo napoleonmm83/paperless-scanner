@@ -22,6 +22,7 @@ import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.health.ServerHealthMonitorContract
 import com.paperless.scanner.data.network.NetworkMonitorContract
 import com.paperless.scanner.data.repository.DocumentRepositoryContract
@@ -47,7 +48,8 @@ class UploadWorker @AssistedInject constructor(
     private val networkMonitor: NetworkMonitorContract,
     private val serverHealthMonitor: ServerHealthMonitorContract,
     private val syncHistoryRepository: SyncHistoryRepositoryContract,
-    private val crashlyticsHelper: CrashlyticsHelperContract
+    private val crashlyticsHelper: CrashlyticsHelperContract,
+    private val tokenManager: TokenManager
 ) : CoroutineWorker(context, workerParams) {
 
     private val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -69,6 +71,18 @@ class UploadWorker @AssistedInject constructor(
             Log.w(TAG, "No validated internet connection - aborting upload worker")
             crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - no internet")
             return Result.retry() // Retry later when internet is validated
+        }
+
+        // Pre-check: Enforce the "upload only on unmetered networks" preference at runtime.
+        // WorkManager bakes the network constraint at enqueue time, so a preference change
+        // after work was queued — or a stale CONNECTED request from a different trigger —
+        // could otherwise upload over mobile data. Re-checking here makes the live
+        // preference authoritative; the work retries until an unmetered network is available.
+        // Bails before the server-health call so a deferred run does no needless work.
+        if (shouldDeferForMeteredNetwork()) {
+            Log.w(TAG, "Unmetered-only upload preference active on a metered network - deferring")
+            crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - metered (unmetered-only)")
+            return Result.retry() // Retry later when on an unmetered network
         }
 
         // Pre-check: Ensure Paperless server is reachable before starting uploads
@@ -104,6 +118,17 @@ class UploadWorker @AssistedInject constructor(
         val maxIterations = totalUploads + MAX_RETRIES * totalUploads + 10 // Safety limit
 
         while (true) {
+            // Re-check each iteration so enabling the preference (or the network becoming
+            // metered) mid-drain stops further uploads — including a drain started by a
+            // reconnect trigger under a now-stale CONNECTED constraint, whose worker would
+            // otherwise keep uploading over mobile data after the startup check passed.
+            // Items already uploaded this run stay completed; the rest retry when unmetered.
+            if (shouldDeferForMeteredNetwork()) {
+                Log.w(TAG, "Unmetered-only preference active on a metered network mid-drain - deferring remaining uploads")
+                crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - metered mid-drain (unmetered-only)")
+                return Result.retry()
+            }
+
             val pendingUpload = uploadQueueRepository.getNextPendingUpload() ?: break
 
             // Safety check: bereits in diesem Run verarbeitet?
@@ -537,6 +562,14 @@ class UploadWorker @AssistedInject constructor(
     @VisibleForTesting
     internal fun isLongUpload(nowMs: Long): Boolean =
         workerStartTimeMs > 0 && (nowMs - workerStartTimeMs) > LONG_UPLOAD_WARNING_MS
+
+    /**
+     * True when the user requires unmetered uploads but the active network is metered, so the
+     * drain must defer. Re-evaluated per drain iteration so a live preference / network change
+     * stops further uploads regardless of the constraint baked into the running work request.
+     */
+    private fun shouldDeferForMeteredNetwork(): Boolean =
+        tokenManager.getUploadUnmeteredOnlySync() && !networkMonitor.isActiveNetworkUnmetered()
 
     private fun showCompletionNotification(successCount: Int, failCount: Int) {
         val (title, message, icon) = when {

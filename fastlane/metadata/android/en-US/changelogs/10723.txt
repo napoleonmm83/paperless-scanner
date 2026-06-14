@@ -1,0 +1,7 @@
+Version 1.5.223:
+
+✨ New Features:
+- New "Upload on Wi-Fi only" option: uploads wait for an unmetered network (usually Wi-Fi) to save your mobile data
+
+🔧 Improvements:
+- AI Assistant: clearer explanation of the Wi-Fi option (AI uploads document images to the cloud)

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.work.ListenableWorker
 import com.paperless.scanner.data.database.PendingUpload
 import com.paperless.scanner.data.database.UploadStatus
+import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.health.ServerStatus
 import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
@@ -70,6 +71,7 @@ class UploadWorkerTest {
     private lateinit var serverHealthMonitor: FakeServerHealthMonitor
     private lateinit var syncHistoryRepository: FakeSyncHistoryRepository
     private lateinit var crashlyticsHelper: FakeCrashlyticsHelper
+    private lateinit var tokenManager: TokenManager
 
     @Before
     fun setup() {
@@ -83,6 +85,9 @@ class UploadWorkerTest {
         serverHealthMonitor.status.value = ServerStatus.Online(System.currentTimeMillis())
         syncHistoryRepository = FakeSyncHistoryRepository()
         crashlyticsHelper = FakeCrashlyticsHelper()
+        // Default: unmetered-only preference OFF (no effect on existing tests).
+        tokenManager = mockk()
+        every { tokenManager.getUploadUnmeteredOnlySync() } returns false
 
         // Mock Android Log class to avoid "Method not mocked" errors
         mockkStatic(Log::class)
@@ -116,7 +121,8 @@ class UploadWorkerTest {
                 networkMonitor = networkMonitor,
                 serverHealthMonitor = serverHealthMonitor,
                 syncHistoryRepository = syncHistoryRepository,
-                crashlyticsHelper = crashlyticsHelper
+                crashlyticsHelper = crashlyticsHelper,
+                tokenManager = tokenManager
             )
         )
         // Mock suspend function setForeground to avoid WorkManager context issues
@@ -148,6 +154,37 @@ class UploadWorkerTest {
 
         // And: No uploads were attempted
         assertEquals(0, uploadQueueRepository.recordedCalls.count { it == "getNextPendingUpload" })
+    }
+
+    @Test
+    fun `doWork retries when unmetered-only preference is set on a metered network`() = runTest {
+        // Given: an upload is queued, the preference is ON, and the active network is metered
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        every { tokenManager.getUploadUnmeteredOnlySync() } returns true
+        networkMonitor.unmetered = false
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        // Then: the worker defers (retry) and attempts no upload
+        assertEquals(ListenableWorker.Result.retry(), result)
+        assertEquals(0, uploadQueueRepository.recordedCalls.count { it == "getNextPendingUpload" })
+    }
+
+    @Test
+    fun `doWork uploads when unmetered-only preference is set on an unmetered network`() = runTest {
+        // Given: the preference is ON but we ARE on an unmetered network
+        uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
+        documentRepository.defaultUploadResult = Result.success("task-123")
+        every { tokenManager.getUploadUnmeteredOnlySync() } returns true
+        networkMonitor.unmetered = true
+
+        val worker = createWorker()
+        val result = worker.doWork()
+
+        // Then: the upload proceeds normally (the gate only blocks metered networks)
+        assertEquals(ListenableWorker.Result.success(), result)
+        assertEquals(1, markCalls("markAsCompleted", 1))
     }
 
     // ==================== No Pending Uploads Tests ====================

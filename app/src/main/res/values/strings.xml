@@ -290,6 +290,8 @@
     <string name="settings_section_upload">Upload</string>
     <string name="settings_upload_notifications">Upload Notifications</string>
     <string name="settings_upload_notifications_subtitle">Show notification during upload</string>
+    <string name="settings_upload_wifi_only">Upload on Wi-Fi only</string>
+    <string name="settings_upload_wifi_only_subtitle">Hold uploads until you\'re on an unmetered network (usually Wi-Fi) to save mobile data</string>
     <string name="settings_upload_quality">Upload Quality</string>
     <string name="settings_section_about">About</string>
     <string name="settings_app_version">App Version</string>
@@ -661,7 +663,7 @@
     <string name="premium_settings_ai_suggestions">AI Suggestions</string>
     <string name="premium_settings_ai_suggestions_desc">Automatic tag suggestions with AI</string>
     <string name="premium_settings_wifi_only">WiFi Only</string>
-    <string name="premium_settings_wifi_only_desc">Use AI features only on WiFi connection</string>
+    <string name="premium_settings_wifi_only_desc">AI uploads document images to the cloud — limit it to WiFi to save mobile data</string>
     <string name="premium_settings_new_tags">Suggest New Tags</string>
     <string name="premium_settings_new_tags_desc">AI can suggest tags that don\'t exist yet</string>
 

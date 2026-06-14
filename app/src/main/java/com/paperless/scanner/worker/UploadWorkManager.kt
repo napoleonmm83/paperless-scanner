@@ -2,9 +2,7 @@ package com.paperless.scanner.worker
 
 import android.content.Context
 import android.util.Log
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -16,17 +14,18 @@ import javax.inject.Singleton
 
 @Singleton
 class UploadWorkManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val constraintsProvider: UploadConstraintsProvider
 ) {
     private val workManager = WorkManager.getInstance(context)
 
     /**
      * Schedule an immediate drain of the pending-upload queue.
      *
-     * The battery/storage constraints defer the transfer below the OS
-     * low-battery / low-storage thresholds rather than draining a nearly-empty
-     * battery or a full disk; the work stays enqueued and runs as soon as the
-     * constraint clears (mirrors SyncWorker). See issue #134.
+     * Constraints come from [UploadConstraintsProvider] so the network requirement
+     * (any connection vs. unmetered-only) and the battery/storage deferral (#134) stay
+     * identical across every upload-queue trigger. The work stays enqueued and runs as
+     * soon as the constraints clear (mirrors SyncWorker).
      *
      * Uses [ExistingWorkPolicy.APPEND_OR_REPLACE] (#130): a second call while a
      * drain is already in flight appends a follow-up worker behind the running
@@ -40,14 +39,8 @@ class UploadWorkManager @Inject constructor(
      */
     fun scheduleImmediateUpload() {
         Log.d(TAG, "scheduleImmediateUpload() called")
-        val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
-            .setRequiresBatteryNotLow(true)
-            .setRequiresStorageNotLow(true)
-            .build()
-
         val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
-            .setConstraints(constraints)
+            .setConstraints(constraintsProvider.build())
             .build()
 
         Log.d(TAG, "Enqueuing work with APPEND_OR_REPLACE policy, workId: ${uploadRequest.id}")
@@ -57,6 +50,33 @@ class UploadWorkManager @Inject constructor(
             uploadRequest
         )
         Log.d(TAG, "Work enqueued successfully")
+    }
+
+    /**
+     * Re-applies the current upload constraints to the pending-upload queue after the user
+     * changes the "upload only on unmetered networks" preference.
+     *
+     * WorkManager bakes constraints into a WorkRequest at enqueue time and never re-reads
+     * them, so toggling the preference would otherwise leave already-enqueued work on its old
+     * constraint: disabling the setting would leave uploads that were queued (and held) under
+     * [androidx.work.NetworkType.UNMETERED] stuck, and enabling it would not re-hold pending
+     * work. [ExistingWorkPolicy.REPLACE] swaps the constraint; the persistent upload queue
+     * (DB-backed) is untouched and a cancelled in-flight drain resets its row safely (#128).
+     *
+     * REPLACE is safe here — unlike [scheduleImmediateUpload] this fires only on a deliberate,
+     * infrequent preference change, not on every queued upload, so it cannot livelock a drain
+     * the way per-upload REPLACE did (#130).
+     */
+    fun rescheduleForConstraintChange() {
+        Log.d(TAG, "rescheduleForConstraintChange() called - re-applying upload constraints")
+        val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
+            .setConstraints(constraintsProvider.build())
+            .build()
+        workManager.enqueueUniqueWork(
+            UploadWorker.WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            uploadRequest
+        )
     }
 
     fun cancelUpload() {

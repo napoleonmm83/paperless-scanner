@@ -7,12 +7,11 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
 import android.util.Log
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.paperless.scanner.data.sync.SyncManager
+import com.paperless.scanner.worker.UploadConstraintsProvider
 import com.paperless.scanner.worker.UploadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +29,8 @@ import javax.inject.Singleton
 @Singleton
 class NetworkMonitor @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val uploadConstraintsProvider: UploadConstraintsProvider
 ) : NetworkMonitorContract {
     private val TAG = "NetworkMonitor"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -159,17 +159,11 @@ class NetworkMonitor @Inject constructor(
         try {
             Log.d(TAG, "Triggering UploadWorker for pending uploads")
 
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                // Match UploadWorkManager.scheduleImmediateUpload: defer below the
-                // OS low-battery / low-storage thresholds so a reconnect-triggered
-                // drain doesn't drain a nearly-empty battery / full disk (#134).
-                .setRequiresBatteryNotLow(true)
-                .setRequiresStorageNotLow(true)
-                .build()
-
+            // Shared constraints (network preference + #134 battery/storage deferral) so a
+            // reconnect-triggered drain honors the user's unmetered-only setting exactly like
+            // the in-app trigger.
             val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
-                .setConstraints(constraints)
+                .setConstraints(uploadConstraintsProvider.build())
                 .build()
 
             workManager.enqueueUniqueWork(
@@ -265,6 +259,20 @@ class NetworkMonitor @Inject constructor(
         // Require both WiFi transport AND validated internet connection
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /**
+     * True when the active network is unmetered (NET_CAPABILITY_NOT_METERED), i.e. uploading
+     * over it does not spend the user's mobile-data plan. Backs the runtime enforcement of the
+     * "upload only on unmetered networks" preference in [com.paperless.scanner.worker.UploadWorker].
+     *
+     * Uses the OS metered flag rather than the Wi-Fi transport so a metered hotspot is
+     * correctly excluded and an unmetered Ethernet/USB tether is correctly allowed.
+     */
+    override fun isActiveNetworkUnmetered(): Boolean {
+        val network = connectivityManager?.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
     companion object {

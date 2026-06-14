@@ -22,6 +22,8 @@ import java.util.Locale
 import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
+import com.paperless.scanner.util.CoroutineDispatchers
+import com.paperless.scanner.worker.UploadWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 enum class UploadQuality(val key: String, @StringRes val displayNameRes: Int) {
@@ -45,6 +48,7 @@ data class SettingsUiState(
     val isConnected: Boolean = false,
     val showUploadNotifications: Boolean = true,
     val uploadQuality: UploadQuality = UploadQuality.AUTO,
+    val uploadUnmeteredOnly: Boolean = false,
     val analyticsEnabled: Boolean = false,
     // Theme
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -74,7 +78,9 @@ class SettingsViewModel @Inject constructor(
     private val premiumFeatureManager: PremiumFeatureManager,
     private val launchPromoManager: LaunchPromoManager,
     private val premiumPurchaseCoordinator: PremiumPurchaseCoordinator,
-    private val authDebugService: AuthDebugService
+    private val authDebugService: AuthDebugService,
+    private val uploadWorkManager: UploadWorkManager,
+    private val dispatchers: CoroutineDispatchers
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -93,6 +99,7 @@ class SettingsViewModel @Inject constructor(
             val uploadNotifications = tokenManager.uploadNotificationsEnabled.first()
             val qualityKey = tokenManager.uploadQuality.first()
             val quality = UploadQuality.entries.find { it.key == qualityKey } ?: UploadQuality.AUTO
+            val uploadUnmeteredOnly = tokenManager.uploadUnmeteredOnly.first()
             val analyticsConsent = tokenManager.analyticsConsent.first() ?: false
             val themeModeKey = tokenManager.themeMode.first()
             val themeMode = ThemeMode.entries.find { it.key == themeModeKey } ?: ThemeMode.SYSTEM
@@ -109,6 +116,7 @@ class SettingsViewModel @Inject constructor(
                 isConnected = !token.isNullOrBlank(),
                 showUploadNotifications = uploadNotifications,
                 uploadQuality = quality,
+                uploadUnmeteredOnly = uploadUnmeteredOnly,
                 analyticsEnabled = analyticsConsent,
                 themeMode = themeMode,
                 isPremiumActive = isPremiumActive,
@@ -208,6 +216,21 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(uploadQuality = quality) }
         viewModelScope.launch {
             tokenManager.setUploadQuality(quality.key)
+        }
+    }
+
+    fun setUploadUnmeteredOnly(enabled: Boolean) {
+        _uiState.update { it.copy(uploadUnmeteredOnly = enabled) }
+        viewModelScope.launch {
+            tokenManager.setUploadUnmeteredOnly(enabled)
+            // Re-apply the network constraint to already-queued uploads. WorkManager bakes
+            // constraints at enqueue time, so without this, disabling the setting would leave
+            // uploads queued under UNMETERED stuck (and enabling it would not re-hold them).
+            // Off the main thread: rescheduleForConstraintChange() builds constraints via a
+            // runBlocking DataStore read.
+            withContext(dispatchers.io) {
+                uploadWorkManager.rescheduleForConstraintChange()
+            }
         }
     }
 

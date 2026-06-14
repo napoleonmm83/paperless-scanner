@@ -119,9 +119,11 @@ fun SettingsScreen(
         UploadSection(
             showUploadNotifications = uiState.showUploadNotifications,
             uploadQuality = uiState.uploadQuality,
+            uploadUnmeteredOnly = uiState.uploadUnmeteredOnly,
             analyticsEnabled = uiState.analyticsEnabled,
             themeMode = uiState.themeMode,
             onShowNotificationsChange = viewModel::setShowUploadNotifications,
+            onUploadUnmeteredOnlyChange = viewModel::setUploadUnmeteredOnly,
             onUploadQualityClick = { showQualityDialog = true },
             onAnalyticsEnabledChange = viewModel::setAnalyticsEnabled,
             onThemeClick = { showThemeDialog = true }
