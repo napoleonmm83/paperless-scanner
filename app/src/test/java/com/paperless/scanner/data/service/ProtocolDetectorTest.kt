@@ -134,4 +134,24 @@ class ProtocolDetectorTest {
             result.exceptionOrNull() is PaperlessException.NetworkError
         )
     }
+
+    @Test
+    fun `tryProtocol fails soft on malformed host instead of throwing`() = runTest {
+        // A colon-bearing host like "http:192.168.178.158" builds the URL
+        // "https://http:192.168.178.158/api/", which makes OkHttp's
+        // Request.Builder.url() throw IllegalArgumentException ("Invalid URL port").
+        // The probe must CATCH it and fail soft, NOT crash the app. The throw
+        // happens at URL-build time, so no network call is made. (Crashlytics f7caf99c)
+        val result = detector.tryProtocol("https", "http:192.168.178.158")
+
+        assertTrue("Malformed host must fail soft, not throw", result.isFailure)
+        assertTrue(
+            "Malformed URL should surface as a typed NetworkError",
+            result.exceptionOrNull() is PaperlessException.NetworkError
+        )
+        assertEquals(
+            "No network call should be made for a malformed URL",
+            0, mockWebServer.requestCount
+        )
+    }
 }
