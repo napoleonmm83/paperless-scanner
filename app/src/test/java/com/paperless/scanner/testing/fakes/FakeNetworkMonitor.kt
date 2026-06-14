@@ -11,7 +11,12 @@ import kotlinx.coroutines.flow.StateFlow
 class FakeNetworkMonitor(initiallyOnline: Boolean = true) : NetworkMonitorContract {
     val online = MutableStateFlow(initiallyOnline)
 
+    /** Drive this to simulate metered (false) vs unmetered (true) networks. */
+    var unmetered: Boolean = true
+
     override val isOnline: StateFlow<Boolean> = online
 
     override fun hasValidatedInternet(): Boolean = online.value
+
+    override fun isActiveNetworkUnmetered(): Boolean = unmetered
 }

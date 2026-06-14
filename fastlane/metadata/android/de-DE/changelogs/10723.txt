@@ -1,0 +1,7 @@
+Version 1.5.223:
+
+✨ Neue Features:
+- Neue Option "Nur über WLAN hochladen": Uploads warten auf ein ungetaktetes Netz (meist WLAN) und schonen dein Mobilvolumen
+
+🔧 Verbesserungen:
+- KI-Assistent: klarere Erklärung zur WLAN-Option (KI lädt Dokumentbilder in die Cloud)

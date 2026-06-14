@@ -625,8 +625,9 @@ object AppModule {
     @Singleton
     fun provideNetworkMonitor(
         @ApplicationContext context: Context,
-        syncManager: SyncManager
-    ): NetworkMonitor = NetworkMonitor(context, syncManager)
+        syncManager: SyncManager,
+        uploadConstraintsProvider: com.paperless.scanner.worker.UploadConstraintsProvider
+    ): NetworkMonitor = NetworkMonitor(context, syncManager, uploadConstraintsProvider)
 
     @Provides
     @Singleton

@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -24,9 +25,11 @@ import com.paperless.scanner.ui.theme.ThemeMode
 fun UploadSection(
     showUploadNotifications: Boolean,
     uploadQuality: UploadQuality,
+    uploadUnmeteredOnly: Boolean,
     analyticsEnabled: Boolean,
     themeMode: ThemeMode,
     onShowNotificationsChange: (Boolean) -> Unit,
+    onUploadUnmeteredOnlyChange: (Boolean) -> Unit,
     onUploadQualityClick: () -> Unit,
     onAnalyticsEnabledChange: (Boolean) -> Unit,
     onThemeClick: () -> Unit
@@ -38,6 +41,19 @@ fun UploadSection(
             subtitle = stringResource(R.string.settings_upload_notifications_subtitle),
             checked = showUploadNotifications,
             onCheckedChange = onShowNotificationsChange
+        )
+
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+
+        SettingsToggleItem(
+            icon = Icons.Filled.Wifi,
+            title = stringResource(R.string.settings_upload_wifi_only),
+            subtitle = stringResource(R.string.settings_upload_wifi_only_subtitle),
+            checked = uploadUnmeteredOnly,
+            onCheckedChange = onUploadUnmeteredOnlyChange
         )
 
         HorizontalDivider(
@@ -86,9 +102,11 @@ private fun UploadSectionPreview() {
         UploadSection(
             showUploadNotifications = true,
             uploadQuality = UploadQuality.AUTO,
+            uploadUnmeteredOnly = false,
             analyticsEnabled = false,
             themeMode = ThemeMode.SYSTEM,
             onShowNotificationsChange = {},
+            onUploadUnmeteredOnlyChange = {},
             onUploadQualityClick = {},
             onAnalyticsEnabledChange = {},
             onThemeClick = {}
