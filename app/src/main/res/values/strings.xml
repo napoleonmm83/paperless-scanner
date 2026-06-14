@@ -273,6 +273,12 @@
     <string name="sync_center_status_uploading">Uploading</string>
     <string name="sync_center_status_completed">Completed</string>
     <string name="sync_center_status_failed">Failed</string>
+    <!-- Sync Center: why the upload queue is waiting (status banner) -->
+    <string name="sync_center_waiting_offline">Offline — uploads resume automatically once you\'re back online</string>
+    <string name="sync_center_waiting_server">Waiting for your Paperless server — uploads resume once it\'s reachable</string>
+    <string name="sync_center_waiting_wifi">Waiting for Wi-Fi — uploading over mobile data is turned off in Settings</string>
+    <string name="sync_center_waiting_battery">Paused — uploads resume once the battery is no longer low</string>
+    <string name="sync_center_waiting_storage">Paused — free up some storage to continue uploading</string>
 
 
     <string name="settings_title">SETTINGS</string>

@@ -47,6 +47,9 @@ class NetworkMonitor @Inject constructor(
     private val _isWifiConnected = MutableStateFlow(checkInitialWifiStatus())
     val isWifiConnected: StateFlow<Boolean> = _isWifiConnected.asStateFlow()
 
+    private val _isUnmetered = MutableStateFlow(checkInitialUnmetered())
+    override val isUnmetered: StateFlow<Boolean> = _isUnmetered.asStateFlow()
+
     private fun checkInitialOnlineStatus(): Boolean {
         val network = connectivityManager?.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
@@ -63,6 +66,16 @@ class NetworkMonitor @Inject constructor(
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
+    private fun checkInitialUnmetered(): Boolean {
+        val network = connectivityManager?.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+    }
+
+    // Always reads the ACTIVE network (not the callback's network), so the upload gate is
+    // correct on multi-network devices (e.g. metered cellular default + unmetered Wi-Fi present).
+    override fun isActiveNetworkUnmetered(): Boolean = checkInitialUnmetered()
+
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             Log.d(TAG, "Network available")
@@ -78,9 +91,12 @@ class NetworkMonitor @Inject constructor(
         }
 
         override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
-            // Update online status - require validated internet with a real uplink
+            // Update online status from the ACTIVE network (the callback may fire for a
+            // non-active network), so the reactive state matches the active-network checks the
+            // UploadWorker uses (hasValidatedInternet / isActiveNetworkUnmetered) — otherwise the
+            // UI could show "online via WiFi" while the worker refuses on the metered default.
             val wasOnline = _isOnline.value
-            val isOnlineNow = hasUsableUplink(capabilities)
+            val isOnlineNow = checkOnlineStatus()
 
             if (_isOnline.value != isOnlineNow) {
                 Log.d(TAG, "Online status changed: $isOnlineNow (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
@@ -107,12 +123,18 @@ class NetworkMonitor @Inject constructor(
                 }
             }
 
-            // Update WiFi status - require both WiFi transport AND validated internet
-            val isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            // Update WiFi status from the ACTIVE network too (see online status above)
+            val isWifi = checkInitialWifiStatus()
             if (_isWifiConnected.value != isWifi) {
-                Log.d(TAG, "WiFi status changed: $isWifi (transport=${capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)}, validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
+                Log.d(TAG, "WiFi status changed: $isWifi")
                 _isWifiConnected.value = isWifi
+            }
+
+            // Update unmetered status from the ACTIVE network (the callback may fire for a
+            // non-active network), so the UI banner reflects the network uploads actually use.
+            val activeUnmetered = checkInitialUnmetered()
+            if (_isUnmetered.value != activeUnmetered) {
+                _isUnmetered.value = activeUnmetered
             }
         }
 
@@ -134,9 +156,16 @@ class NetworkMonitor @Inject constructor(
                     Log.d(TAG, "Debounce complete - confirming offline state")
                     _isOnline.value = false
                     _isWifiConnected.value = false
+                    _isUnmetered.value = false
                     Log.d(TAG, "NetworkMonitor state updated: isOnline=false, isWifi=false")
                 } else {
                     Log.d(TAG, "Debounce complete - network recovered, staying online")
+                    // The active network may have changed during the handoff (e.g. Wi-Fi
+                    // dropped and cellular took over), so refresh the transport-specific state
+                    // from the now-active network — otherwise the Sync Center banner would keep
+                    // hiding "Waiting for Wi-Fi" while uploads are actually deferred on metered data.
+                    _isWifiConnected.value = checkInitialWifiStatus()
+                    _isUnmetered.value = checkInitialUnmetered()
                 }
             }
             Log.d(TAG, "================================")
@@ -146,12 +175,12 @@ class NetworkMonitor @Inject constructor(
     private fun updateNetworkStatus(network: Network) {
         val capabilities = connectivityManager?.getNetworkCapabilities(network)
         if (capabilities != null) {
-            // Online status requires validated internet with a real uplink
-            _isOnline.value = hasUsableUplink(capabilities)
-            // WiFi status requires WiFi transport AND validated connection
-            _isWifiConnected.value = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
-                    capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            Log.d(TAG, "Network status: online=${_isOnline.value}, wifi=${_isWifiConnected.value} (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
+            // All derived from the ACTIVE network (not the passed one) so the reactive state
+            // matches the active-network checks the UploadWorker uses (see onCapabilitiesChanged).
+            _isOnline.value = checkOnlineStatus()
+            _isWifiConnected.value = checkInitialWifiStatus()
+            _isUnmetered.value = checkInitialUnmetered()
+            Log.d(TAG, "Network status: online=${_isOnline.value}, wifi=${_isWifiConnected.value}")
         }
     }
 
@@ -259,20 +288,6 @@ class NetworkMonitor @Inject constructor(
         // Require both WiFi transport AND validated internet connection
         return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
                 capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
-
-    /**
-     * True when the active network is unmetered (NET_CAPABILITY_NOT_METERED), i.e. uploading
-     * over it does not spend the user's mobile-data plan. Backs the runtime enforcement of the
-     * "upload only on unmetered networks" preference in [com.paperless.scanner.worker.UploadWorker].
-     *
-     * Uses the OS metered flag rather than the Wi-Fi transport so a metered hotspot is
-     * correctly excluded and an unmetered Ethernet/USB tether is correctly allowed.
-     */
-    override fun isActiveNetworkUnmetered(): Boolean {
-        val network = connectivityManager?.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
     companion object {

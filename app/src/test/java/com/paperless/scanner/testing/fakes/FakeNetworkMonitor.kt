@@ -12,11 +12,13 @@ class FakeNetworkMonitor(initiallyOnline: Boolean = true) : NetworkMonitorContra
     val online = MutableStateFlow(initiallyOnline)
 
     /** Drive this to simulate metered (false) vs unmetered (true) networks. */
-    var unmetered: Boolean = true
+    val unmetered = MutableStateFlow(true)
 
     override val isOnline: StateFlow<Boolean> = online
 
+    override val isUnmetered: StateFlow<Boolean> = unmetered
+
     override fun hasValidatedInternet(): Boolean = online.value
 
-    override fun isActiveNetworkUnmetered(): Boolean = unmetered
+    override fun isActiveNetworkUnmetered(): Boolean = unmetered.value
 }

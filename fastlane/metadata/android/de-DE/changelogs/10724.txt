@@ -1,0 +1,4 @@
+Version 1.5.224:
+
+🔧 Verbesserungen:
+- Sync-Center zeigt jetzt genau, worauf ein Upload wartet: Offline, Server nicht erreichbar, WLAN, oder Akku/Speicher zu niedrig

@@ -161,7 +161,7 @@ class UploadWorkerTest {
         // Given: an upload is queued, the preference is ON, and the active network is metered
         uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
         every { tokenManager.getUploadUnmeteredOnlySync() } returns true
-        networkMonitor.unmetered = false
+        networkMonitor.unmetered.value = false
 
         val worker = createWorker()
         val result = worker.doWork()
@@ -177,7 +177,7 @@ class UploadWorkerTest {
         uploadQueueRepository.enqueue(createPendingUpload(id = 1, uri = "content://test/doc1.pdf"))
         documentRepository.defaultUploadResult = Result.success("task-123")
         every { tokenManager.getUploadUnmeteredOnlySync() } returns true
-        networkMonitor.unmetered = true
+        networkMonitor.unmetered.value = true
 
         val worker = createWorker()
         val result = worker.doWork()
