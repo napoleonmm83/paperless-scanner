@@ -1,0 +1,4 @@
+Version 1.5.226:
+
+🐛 Bug Fixes:
+- Fixed a crash in the Sync Center on Android 14 and newer (when showing why uploads are waiting)
