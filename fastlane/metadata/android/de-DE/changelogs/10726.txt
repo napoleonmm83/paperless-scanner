@@ -1,0 +1,4 @@
+Version 1.5.226:
+
+🐛 Fehlerbehebungen:
+- Absturz im Sync-Center auf Android 14 und neuer behoben (beim Anzeigen, worauf Uploads warten)

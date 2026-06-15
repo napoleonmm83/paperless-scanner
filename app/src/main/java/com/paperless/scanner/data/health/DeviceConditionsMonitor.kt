@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +48,10 @@ class DeviceConditionsMonitor @Inject constructor(
             addAction(Intent.ACTION_BATTERY_LOW)
             addAction(Intent.ACTION_BATTERY_OKAY)
         }
-        context.registerReceiver(receiver, filter)
+        // RECEIVER_NOT_EXPORTED: these are protected system broadcasts (only the OS can send them),
+        // so we never accept them from other apps — and Android 14+ (targetSdk 34+) requires an
+        // explicit export flag or registration throws. Mirrors WorkManager's own constraint trackers.
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         awaitClose { runCatching { context.unregisterReceiver(receiver) } }
     }.distinctUntilChanged()
 
@@ -74,7 +78,10 @@ class DeviceConditionsMonitor @Inject constructor(
             addAction(Intent.ACTION_DEVICE_STORAGE_LOW)
             addAction(Intent.ACTION_DEVICE_STORAGE_OK)
         }
-        context.registerReceiver(receiver, filter)
+        // RECEIVER_NOT_EXPORTED: these are protected system broadcasts (only the OS can send them),
+        // so we never accept them from other apps — and Android 14+ (targetSdk 34+) requires an
+        // explicit export flag or registration throws. Mirrors WorkManager's own constraint trackers.
+        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         awaitClose { runCatching { context.unregisterReceiver(receiver) } }
     }.distinctUntilChanged()
 
