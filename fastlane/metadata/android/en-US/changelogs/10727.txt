@@ -1,0 +1,4 @@
+Version 1.5.227:
+
+🔧 Improvements:
+- Maintenance: updated internal libraries (stability & security)

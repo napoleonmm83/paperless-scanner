@@ -1,0 +1,4 @@
+Version 1.5.227:
+
+🔧 Verbesserungen:
+- Wartung: interne Bibliotheken aktualisiert (Stabilität & Sicherheit)
