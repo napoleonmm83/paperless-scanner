@@ -1,0 +1,4 @@
+Version 1.5.230:
+
+🔧 Improvements:
+- Maintenance: navigation library updated (stability)
