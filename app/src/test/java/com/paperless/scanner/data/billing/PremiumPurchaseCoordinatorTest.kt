@@ -109,4 +109,23 @@ class PremiumPurchaseCoordinatorTest {
         assertEquals(PurchaseResult.Pending, result)
         verify(exactly = 0) { analyticsService.trackEvent(any<AnalyticsEvent.PremiumSubscribed>()) }
     }
+
+    @Test
+    fun `restorePurchases delegates to billingManager and returns its result`() = runTest {
+        coEvery { billingManager.restorePurchases() } returns RestoreResult.Success(restoredCount = 2)
+
+        val result = coordinator.restorePurchases()
+
+        assertEquals(RestoreResult.Success(restoredCount = 2), result)
+        coVerify { billingManager.restorePurchases() }
+    }
+
+    @Test
+    fun `restorePurchases is not a conversion and logs no PremiumSubscribed event`() = runTest {
+        coEvery { billingManager.restorePurchases() } returns RestoreResult.Success(restoredCount = 1)
+
+        coordinator.restorePurchases()
+
+        verify(exactly = 0) { analyticsService.trackEvent(any<AnalyticsEvent.PremiumSubscribed>()) }
+    }
 }

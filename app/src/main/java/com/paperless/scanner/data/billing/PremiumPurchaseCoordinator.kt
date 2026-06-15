@@ -11,9 +11,9 @@ import javax.inject.Singleton
  * (yearly + promo active → launch50, otherwise default offer) and logs
  * [AnalyticsEvent.PremiumSubscribed] on success (GDPR-gated inside AnalyticsService).
  * Pending purchases are not logged — the conversion is only counted once Play
- * confirms payment.
- * Used by both the Settings purchase path and the Home promo banner path — the
- * money-path logic lives here so the two entry points cannot drift.
+ * confirms payment. Restore is also funnelled through here so every premium money path
+ * (purchase + restore) has a single owner and the entry points cannot drift.
+ * Used by the Settings path and every PremiumUpgradeSheet host (Home/Upload/MultiPage/SmartTagging).
  *
  * Google Play's own purchase sheet remains the authoritative price display — a promo
  * flip between render and tap can only surface there, never silently change the charge.
@@ -37,4 +37,10 @@ class PremiumPurchaseCoordinator @Inject constructor(
         }
         return result
     }
+
+    /**
+     * Restore previously bought subscriptions. No offer-token routing or analytics applies —
+     * restore re-grants an existing entitlement, it is not a new conversion.
+     */
+    suspend fun restorePurchases(): RestoreResult = billingManager.restorePurchases()
 }

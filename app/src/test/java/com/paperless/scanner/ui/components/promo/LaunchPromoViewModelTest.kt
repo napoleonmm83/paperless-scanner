@@ -9,6 +9,7 @@ import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.billing.PurchaseResult
+import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -149,6 +150,16 @@ class LaunchPromoViewModelTest {
 
         assertEquals(PurchaseResult.Success, result)
         coVerify { purchaseCoordinator.purchase(activity, BillingManager.PRODUCT_ID_YEARLY) }
+    }
+
+    @Test
+    fun `restorePurchases delegates to PremiumPurchaseCoordinator`() = runTest {
+        coEvery { purchaseCoordinator.restorePurchases() } returns RestoreResult.Success(restoredCount = 1)
+
+        val result = viewModel().restorePurchases()
+
+        assertEquals(RestoreResult.Success(restoredCount = 1), result)
+        coVerify { purchaseCoordinator.restorePurchases() }
     }
 
     @Test

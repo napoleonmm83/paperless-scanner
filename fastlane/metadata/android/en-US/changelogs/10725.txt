@@ -1,0 +1,8 @@
+Version 1.5.225:
+
+🐛 Bug Fixes:
+- Premium upgrade button on Upload & Multi-Page Upload now works (it previously did nothing)
+- Smart Tagging: buy Premium right in the dialog instead of being sent to Settings
+
+🔧 Improvements:
+- "Restore purchases" now works directly in the upgrade dialog on every screen
