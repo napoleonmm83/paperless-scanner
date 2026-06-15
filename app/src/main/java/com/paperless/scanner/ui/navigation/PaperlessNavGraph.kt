@@ -345,9 +345,6 @@ fun PaperlessNavGraph(
             SmartTaggingScreen(
                 onNavigateBack = {
                     navController.popBackStack()
-                },
-                onNavigateToSettings = {
-                    navController.navigate(Screen.Settings.route)
                 }
             )
         }
@@ -392,9 +389,6 @@ fun PaperlessNavGraph(
                     },
                     onNavigateBack = {
                         navController.popBackStack()
-                    },
-                    onNavigateToSettings = {
-                        navController.navigate(Screen.Settings.route)
                     }
                 )
             }

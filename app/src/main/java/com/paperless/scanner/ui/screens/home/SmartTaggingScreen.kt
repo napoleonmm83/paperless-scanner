@@ -43,6 +43,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
@@ -69,6 +70,8 @@ import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.ui.components.CustomSnackbarHost
+import com.paperless.scanner.ui.components.promo.rememberPremiumPurchaseActions
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -81,7 +84,6 @@ import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
 @Composable
 fun SmartTaggingScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToSettings: () -> Unit,
     viewModel: TagSuggestionsViewModel = hiltViewModel(),
 ) {
     val tagSuggestionsState by viewModel.tagSuggestionsState.collectAsState()
@@ -91,6 +93,8 @@ fun SmartTaggingScreen(
 
     // Premium Upgrade Sheet state
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val premiumPurchaseActions = rememberPremiumPurchaseActions(snackbarHostState)
 
     // Create Tag Dialog state
     var showCreateTagDialog by remember { mutableStateOf(false) }
@@ -118,6 +122,7 @@ fun SmartTaggingScreen(
     val processedDocs = tagSuggestionsState.documents.count { it.isTagged || it.isSkipped }
 
     Scaffold(
+        snackbarHost = { CustomSnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -206,17 +211,15 @@ fun SmartTaggingScreen(
         }
     }
 
-    // Premium Upgrade Sheet
+    // Premium Upgrade Sheet — purchase and restore run in place with snackbar feedback.
     if (showPremiumUpgradeSheet) {
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
-            onSubscribe = { _ ->
-                showPremiumUpgradeSheet = false
-                onNavigateToSettings()
+            onSubscribe = { productId ->
+                premiumPurchaseActions.subscribe(productId) { showPremiumUpgradeSheet = false }
             },
             onRestore = {
-                showPremiumUpgradeSheet = false
-                onNavigateToSettings()
+                premiumPurchaseActions.restore { showPremiumUpgradeSheet = false }
             }
         )
     }

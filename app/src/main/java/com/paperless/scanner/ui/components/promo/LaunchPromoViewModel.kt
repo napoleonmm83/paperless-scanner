@@ -11,6 +11,7 @@ import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
 import com.paperless.scanner.data.billing.PremiumPurchaseCoordinator
 import com.paperless.scanner.data.billing.PurchaseResult
+import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.data.datastore.TokenManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -114,6 +115,10 @@ class LaunchPromoViewModel @Inject constructor(
     /** Purchase entry point for the Home banner path — same routing as Settings. */
     suspend fun purchase(activity: Activity, productId: String): PurchaseResult =
         purchaseCoordinator.purchase(activity, productId)
+
+    /** Restore entry point for the sheet hosts — same routing as Settings. */
+    suspend fun restorePurchases(): RestoreResult =
+        purchaseCoordinator.restorePurchases()
 
     /** dd.MM.yyyy, same display format as the premium expiry date in Settings. */
     private fun formatEndDate(endEpochMs: Long): String =

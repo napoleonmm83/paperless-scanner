@@ -1,0 +1,8 @@
+Version 1.5.225:
+
+🐛 Fehlerbehebungen:
+- Premium-Button beim Hochladen & Multi-Seiten-Upload funktioniert jetzt (vorher ohne Funktion)
+- Smart-Tagging: Premium-Kauf direkt im Dialog statt Umweg über die Einstellungen
+
+🔧 Verbesserungen:
+- "Käufe wiederherstellen" klappt jetzt direkt im Upgrade-Dialog auf allen Bildschirmen

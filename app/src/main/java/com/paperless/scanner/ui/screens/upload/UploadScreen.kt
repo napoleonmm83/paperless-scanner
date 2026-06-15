@@ -61,6 +61,7 @@ import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.launch
+import com.paperless.scanner.ui.components.promo.rememberPremiumPurchaseActions
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.CustomFieldsSection
@@ -78,7 +79,6 @@ fun UploadScreen(
     preCorrespondentId: Int? = null,
     onUploadSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
-    onNavigateToSettings: () -> Unit = {},
     viewModel: UploadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -106,6 +106,7 @@ fun UploadScreen(
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    val premiumPurchaseActions = rememberPremiumPurchaseActions(snackbarHostState)
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
     // Auto-populate title with filename if no preTitle is provided
@@ -180,17 +181,15 @@ fun UploadScreen(
         )
     }
 
-    // Premium Upgrade Sheet
+    // Premium Upgrade Sheet — purchase and restore run in place with snackbar feedback.
     if (showPremiumUpgradeSheet) {
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
             onSubscribe = { productId ->
-                // Handle subscription - implementation would need Activity context
-                showPremiumUpgradeSheet = false
+                premiumPurchaseActions.subscribe(productId) { showPremiumUpgradeSheet = false }
             },
             onRestore = {
-                // Handle restore - implementation would need coroutine scope
-                showPremiumUpgradeSheet = false
+                premiumPurchaseActions.restore { showPremiumUpgradeSheet = false }
             }
         )
     }

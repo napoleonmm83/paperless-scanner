@@ -298,7 +298,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     suspend fun restorePurchases(): RestoreResult {
-        return billingManager.restorePurchases()
+        return premiumPurchaseCoordinator.restorePurchases()
     }
 
     /**

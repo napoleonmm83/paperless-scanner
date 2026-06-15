@@ -66,6 +66,7 @@ import coil3.compose.AsyncImage
 import com.paperless.scanner.R
 import com.paperless.scanner.util.FileUtils
 import kotlinx.coroutines.launch
+import com.paperless.scanner.ui.components.promo.rememberPremiumPurchaseActions
 import com.paperless.scanner.ui.screens.settings.PremiumUpgradeSheet
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.CustomFieldsSection
@@ -112,6 +113,7 @@ fun MultiPageUploadScreen(
     val isOnline by viewModel.isOnline.collectAsState()
     val isServerReachable by viewModel.isServerReachable.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val premiumPurchaseActions = rememberPremiumPurchaseActions(snackbarHostState)
     var showCreateTagDialog by remember { mutableStateOf(false) }
 
     // Premium state
@@ -580,15 +582,15 @@ fun MultiPageUploadScreen(
         )
     }
 
-    // Premium Upgrade Sheet
+    // Premium Upgrade Sheet — purchase and restore run in place with snackbar feedback.
     if (showPremiumUpgradeSheet) {
         PremiumUpgradeSheet(
             onDismiss = { showPremiumUpgradeSheet = false },
             onSubscribe = { productId ->
-                showPremiumUpgradeSheet = false
+                premiumPurchaseActions.subscribe(productId) { showPremiumUpgradeSheet = false }
             },
             onRestore = {
-                showPremiumUpgradeSheet = false
+                premiumPurchaseActions.restore { showPremiumUpgradeSheet = false }
             }
         )
     }
