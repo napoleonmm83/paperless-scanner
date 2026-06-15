@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
@@ -35,8 +36,12 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestoreFromTrash
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -101,6 +106,14 @@ fun SyncCenterScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // ==================== WAITING BANNER ====================
+                // Explains why the queue is not draining (offline / server / Wi-Fi / battery / storage).
+                if (uiState.waitReason.isBlocking()) {
+                    item(key = "wait-banner") {
+                        SyncWaitingBanner(reason = uiState.waitReason)
+                    }
+                }
+
                 // ==================== ACTIVE SECTION ====================
                 val hasActive = uiState.activeUploads.isNotEmpty() || uiState.pendingChanges.isNotEmpty()
                 if (hasActive) {
@@ -621,6 +634,65 @@ private fun StatusBadge(status: UploadStatus) {
             fontWeight = FontWeight.Bold,
             color = color
         )
+    }
+}
+
+/** Whether this reason represents a blocked queue worth surfacing in the banner. */
+private fun SyncWaitReason.isBlocking(): Boolean = when (this) {
+    SyncWaitReason.OFFLINE,
+    SyncWaitReason.SERVER_UNREACHABLE,
+    SyncWaitReason.WAITING_FOR_WIFI,
+    SyncWaitReason.BATTERY_LOW,
+    SyncWaitReason.STORAGE_LOW -> true
+    SyncWaitReason.NONE,
+    SyncWaitReason.UPLOADING -> false
+}
+
+/**
+ * Status banner explaining why the upload queue is currently waiting (Dark Tech Precision Pro
+ * style — outline, no elevation). Shown only for [SyncWaitReason.isBlocking] reasons.
+ */
+@Composable
+private fun SyncWaitingBanner(reason: SyncWaitReason) {
+    val (icon, messageRes) = when (reason) {
+        SyncWaitReason.OFFLINE -> Icons.Default.WifiOff to R.string.sync_center_waiting_offline
+        SyncWaitReason.SERVER_UNREACHABLE -> Icons.Default.CloudOff to R.string.sync_center_waiting_server
+        SyncWaitReason.WAITING_FOR_WIFI -> Icons.Default.Wifi to R.string.sync_center_waiting_wifi
+        SyncWaitReason.BATTERY_LOW -> Icons.Default.Warning to R.string.sync_center_waiting_battery
+        SyncWaitReason.STORAGE_LOW -> Icons.Default.Storage to R.string.sync_center_waiting_storage
+        SyncWaitReason.NONE, SyncWaitReason.UPLOADING -> return
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Text(
+                text = stringResource(messageRes),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

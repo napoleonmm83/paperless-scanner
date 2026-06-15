@@ -5,9 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.database.PendingUpload
+import com.paperless.scanner.data.database.UploadStatus
 import com.paperless.scanner.data.database.dao.PendingChangeDao
 import com.paperless.scanner.data.database.entities.PendingChange
 import com.paperless.scanner.data.database.entities.SyncHistoryEntry
+import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.data.health.DeviceConditionsMonitor
+import com.paperless.scanner.data.health.ServerHealthMonitorContract
+import com.paperless.scanner.data.network.NetworkMonitorContract
 import com.paperless.scanner.data.repository.SyncHistoryRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,6 +39,9 @@ data class SyncCenterUiState(
     // History
     val recentHistory: List<SyncHistoryEntry> = emptyList(),
     val failedItems: List<SyncHistoryEntry> = emptyList(),
+
+    // Why the queue is not draining (drives the status banner)
+    val waitReason: SyncWaitReason = SyncWaitReason.NONE,
 
     // UI State
     val isLoading: Boolean = true,
@@ -74,7 +82,11 @@ class SyncCenterViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val uploadQueueRepository: UploadQueueRepository,
     private val pendingChangeDao: PendingChangeDao,
-    private val syncHistoryRepository: SyncHistoryRepository
+    private val syncHistoryRepository: SyncHistoryRepository,
+    private val networkMonitor: NetworkMonitorContract,
+    private val serverHealthMonitor: ServerHealthMonitorContract,
+    private val tokenManager: TokenManager,
+    private val deviceConditionsMonitor: DeviceConditionsMonitor
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SyncCenterUiState())
@@ -89,7 +101,7 @@ class SyncCenterViewModel @Inject constructor(
      */
     private fun observeAllData() {
         viewModelScope.launch {
-            combine(
+            val listsFlow = combine(
                 uploadQueueRepository.allPendingUploads,
                 pendingChangeDao.observePendingChanges(),
                 syncHistoryRepository.observeRecentHistory(limit = 50),
@@ -101,6 +113,34 @@ class SyncCenterViewModel @Inject constructor(
                     recentHistory = history,
                     failedItems = failed,
                     isLoading = false
+                )
+            }
+
+            // All Boolean → use the same-type vararg combine.
+            // Order: [online, unmetered, serverReachable, unmeteredOnly, batteryLow, storageLow]
+            val conditionsFlow = combine(
+                networkMonitor.isOnline,
+                networkMonitor.isUnmetered,
+                serverHealthMonitor.isServerReachable,
+                tokenManager.uploadUnmeteredOnly,
+                deviceConditionsMonitor.isBatteryLow,
+                deviceConditionsMonitor.isStorageLow
+            ) { c -> c }
+
+            combine(listsFlow, conditionsFlow) { state, c ->
+                val hasWaitingWork = state.activeUploads.any {
+                    it.status == UploadStatus.PENDING || it.status == UploadStatus.UPLOADING
+                }
+                state.copy(
+                    waitReason = computeWaitReason(
+                        hasWaitingWork = hasWaitingWork,
+                        online = c[0],
+                        unmetered = c[1],
+                        serverReachable = c[2],
+                        unmeteredOnly = c[3],
+                        batteryLow = c[4],
+                        storageLow = c[5]
+                    )
                 )
             }.collect { state ->
                 _uiState.value = state

@@ -1,0 +1,4 @@
+Version 1.5.224:
+
+🔧 Improvements:
+- Sync Center now shows exactly what an upload is waiting for: offline, server unreachable, Wi-Fi, or low battery/storage
