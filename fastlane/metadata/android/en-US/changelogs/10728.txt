@@ -1,0 +1,4 @@
+Version 1.5.228:
+
+🔧 Improvements:
+- Maintenance: updated camera library (stability)
