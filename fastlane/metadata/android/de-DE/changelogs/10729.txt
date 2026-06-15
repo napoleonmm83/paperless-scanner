@@ -1,0 +1,4 @@
+Version 1.5.229:
+
+🔧 Verbesserungen:
+- Wartung: Hintergrund-Verarbeitung aktualisiert (Stabilität)
