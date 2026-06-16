@@ -1,0 +1,4 @@
+Version 1.5.232:
+
+🔧 Verbesserungen:
+- Wartung: Dependency-Injection-Bibliothek aktualisiert (Stabilität)
