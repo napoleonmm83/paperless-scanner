@@ -49,7 +49,7 @@ val canSign = signingKeystoreFile != null && signingKeystorePassword != null && 
 
 android {
     namespace = "com.paperless.scanner"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.paperless.scanner"

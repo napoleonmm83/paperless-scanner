@@ -1,0 +1,4 @@
+Version 1.5.233:
+
+🔧 Verbesserungen:
+- Wartung: Build auf Android 16 SDK aktualisiert (Kompatibilität)
