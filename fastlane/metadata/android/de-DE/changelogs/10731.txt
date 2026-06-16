@@ -1,0 +1,4 @@
+Version 1.5.231:
+
+🔧 Verbesserungen:
+- Wartung: Bildlade-Bibliothek aktualisiert (Stabilität)
