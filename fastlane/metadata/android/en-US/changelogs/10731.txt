@@ -1,0 +1,4 @@
+Version 1.5.231:
+
+🔧 Improvements:
+- Maintenance: image-loading library updated (stability)
