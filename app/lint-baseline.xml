@@ -410,17 +410,6 @@
 
     <issue
         id="NewerVersionAvailable"
-        message="A newer version of app.cash.paparazzi than 1.3.4 is available: 1.3.5"
-        errorLine1="paparazzi = &quot;1.3.4&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="6"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
         message="A newer version of com.github.ben-manes.versions than 0.51.0 is available: 0.54.0"
         errorLine1="gradleVersions = &quot;0.51.0&quot;"
         errorLine2="                 ~~~~~~~~">

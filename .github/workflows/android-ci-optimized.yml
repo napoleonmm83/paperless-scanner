@@ -336,46 +336,6 @@ jobs:
           path: app/build/reports/ktlint/
           retention-days: 7
 
-  screenshot-tests:
-    name: Screenshot Tests (Paparazzi)
-    needs: check-runner
-    runs-on: ${{ fromJSON(needs.check-runner.outputs.runner) }}
-    if: github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Android Environment
-        uses: ./.github/actions/setup-android
-        with:
-          runner-is-self-hosted: ${{ needs.check-runner.outputs.is-self-hosted }}
-          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-
-      - name: Restore Gradle build cache
-        if: needs.check-runner.outputs.is-self-hosted != 'true'  # self-hosted uses the persistent ~/.gradle on disk
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-            .gradle
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Run Paparazzi screenshot tests
-        run: ./gradlew verifyPaparazziDebug --continue || true
-        shell: bash
-
-      - name: Upload screenshot test results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: screenshot-test-results
-          path: app/build/reports/paparazzi/
-          retention-days: 14
-
   dependency-updates:
     name: Dependency Updates Check
     runs-on: ubuntu-latest

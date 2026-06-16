@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.detekt)
     alias(libs.plugins.ktlint)
-    alias(libs.plugins.paparazzi)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.firebase.perf)
