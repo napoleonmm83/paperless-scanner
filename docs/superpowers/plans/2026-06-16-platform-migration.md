@@ -23,6 +23,7 @@ Die ursprüngliche Annahme war „alle drei brauchen eine koordinierte Plattform
 **Konsequenz:** Coil (#382) + Kotlin (#383) shippen **komplett auf AGP 8.13.2 / Gradle 8.13**. Nur Hilt 2.59.2 braucht AGP 9 — und Hilt kann bis dahin gefahrlos auf **2.58** (letztes AGP-8-kompatibles Dagger-Release) vorrücken. Damit wird das riskanteste Stück (AGP 9 + Gradle 9.1 + R8-Default-Flips + built-in-Kotlin-DSL) aus dem kritischen Pfad herausgelöst.
 
 ### Wichtige Verifikations-Korrekturen (was die Erst-Recherche falsch hatte)
+
 1. **Coil-3.5.0-Floor war UNTERSCHÄTZT:** Coil 3.5.0 pinnt laut offiziellem Changelog auf **Kotlin 2.4.0 + compileSdk 36**, nicht „nur 2.1.20+". Es gibt **keine** stabile-detekt-kompatible Kotlin-Version, die auch Coil 3.5.0 erfüllt.
 2. **mockk-Versionen waren falsch:** 1.14.4 zielt nur auf Kotlin 2.1.20 (zu niedrig). Für Kotlin 2.4 → höchstes 1.14.x (**1.14.11**).
 3. **detekt-Zahlen leicht daneben:** stabiles detekt = 1.23.8 (auf Kotlin 2.0.x, liest Metadaten nur bis ~2.1). detekt 2.0 existiert nur als **2.0.0-alpha.4**.
@@ -51,17 +52,20 @@ Das ist NICHT AGP und NICHT Kotlin selbst — es ist **detekt**:
 > Jede Stage = ein shippbarer PR, einzeln durch `validate-ci.sh` gegated. Staffeln trennt Compiler-Lockstep-Fehler von Coil/Hilt-Fehlern → bisektierbar (genau die dokumentierte Failure-Mode).
 
 ### Stage 0 — *(optional)* Coil 3.0.4 → 3.1.0 (Null-Toolchain-Drop-in)
+
 - **Ziel:** Coil-Call-Site-Risiko aus dem großen PR herausziehen.
 - **Änderung:** `coil = 3.1.0` in `libs.versions.toml`. 3.1.0 ist das höchste Coil, dessen stdlib-Floor exakt das Projekt-Kotlin 2.1.10 ist. compileSdk bleibt 35. Keine Code-Edits (App nutzt nur `AsyncImagePainter.State.Error`, eigenen Hilt-`ImageLoader`, `ImageRequest.Builder/crossfade` — alle unverändert).
 - **Risiko:** niedrig. **14 Coil-Files** bleiben unberührt.
 
 ### Stage 1 — Hilt 2.53.1 → 2.58 (AGP-8-Decke)
+
 - **Ziel:** Den Großteil von #384 als Drop-in auf der aktuellen Toolchain liefern.
 - **Änderung:** `hilt = 2.58` (deckt hilt-android, hilt-compiler, hilt-android-testing + das `com.google.dagger.hilt.android`-Plugin via version.ref). **`androidx.hilt`-Artefakte (hilt-navigation-compose, hilt-work, hilt-work-compiler) BLEIBEN auf 1.2.0** — eigenständig versioniert, NICHT auf die Dagger-Version aligned.
 - **Achtung:** 2.58 schaltet `dagger.useBindingGraphFix` per Default ein → ein bisher tolerierter Duplicate/Ambiguous-Binding würde erst beim Compile auffallen. Graph ist konventionell (nur 2 @InstallIn/@EntryPoint-Sites) → erwarteter Impact nil, aber beweisen.
 - **Risiko:** niedrig. Eigener kleiner PR, unabhängig, kann zuerst landen.
 
 ### Stage 2 — compileSdk 35 → 36 (targetSdk BLEIBT 35)
+
 - **Ziel:** Die SDK-Hälfte von Coils Wand auf AGP 8.13.2 räumen, ohne Runtime-Verhaltensänderung.
 - **Änderung:** `compileSdk = 36` (eine Zeile in `app/build.gradle.kts`). **`targetSdk` bleibt 35.** Ggf. `lint-baseline.xml` neu generieren, falls API-36-Stubs neue Deprecation-Warnungen bringen (`lintRelease` hat `abortOnError=true`).
 - **Warum targetSdk 35 bleibt:** Alle Android-16-Verhaltensänderungen (Edge-to-Edge-Enforcement, Predictive-Back-Default, Large-Screen-Orientation-Enforcement) sind **targetSdk-36-gegated**. `AndroidManifest.xml` deklariert `screenOrientation`, es gibt `BackHandler`-Nutzung → der targetSdk-36-Audit ist eine **separate spätere Session mit Geräte-Test**, hier explizit out-of-scope.
@@ -69,6 +73,7 @@ Das ist NICHT AGP und NICHT Kotlin selbst — es ist **detekt**:
 - **Risiko:** niedrig.
 
 ### Stage 3 — **KEYSTONE:** Kotlin 2.4.0 + KSP2 + Tooling + Coil 3.5.0
+
 - **Ziel:** Die gesamte Compiler-Toolchain auf Kotlin 2.4.0, KSP1→KSP2-Migration, Kotlin-gekoppeltes Test/Lint-Tooling refreshen, Coil 3.5.0 landen — **alles OHNE AGP 9.** Schließt **#382 + #383 vollständig.**
 - **Änderungen (alle im selben Commit, weil compiler-version-locked):**
   - `kotlin = 2.4.0` (compose-compiler-Plugin trackt automatisch via `version.ref=kotlin` — kein Extra-Edit)
@@ -87,6 +92,7 @@ Das ist NICHT AGP und NICHT Kotlin selbst — es ist **detekt**:
 - **Risiko:** **hoch.** Das ist der echte Plattform-Sprung. Jeder Sub-Bump MUSS einzeln grün durch `validate-ci.sh` bewiesen werden. **AGP bleibt 8.13.2 / Gradle 8.13. Hilt bleibt 2.58.**
 
 ### Stage 4 — *(OPTIONAL, höchstes Risiko, deferrable)* AGP 9 + Gradle 9.1 → Hilt 2.59.2
+
 - **Ziel:** Die AGP-9/Gradle-9-Wand allein für den finalen Hilt-Schritt 2.58→2.59.2 (#384 wie eingereicht) überqueren.
 - **Änderungen:**
   - `AGP 8.13.2 → 9.0.1` (Einstieg) oder `9.2.0` (latest); Gradle-Wrapper `8.13 → 9.1.0` (für AGP 9.0) bzw. `9.4.1` (für AGP 9.2)
@@ -153,7 +159,7 @@ Das ist NICHT AGP und NICHT Kotlin selbst — es ist **detekt**:
 
 ## 7. Empfohlene Reihenfolge
 
-```
+```text
 (Stage 0 coil 3.1.0)  →  Stage 1 hilt 2.58  →  Stage 2 compileSdk 36
    →  Stage 3 KEYSTONE (Kotlin 2.4 + KSP2 + Tooling + coil 3.5.0)   [schließt #382 + #383]
    →  (Stage 4 OPTIONAL: AGP 9 + Gradle 9.1 + hilt 2.59.2)          [schließt #384]
