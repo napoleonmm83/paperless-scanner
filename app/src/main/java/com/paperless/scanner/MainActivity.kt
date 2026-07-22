@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +25,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
 import androidx.navigation.compose.rememberNavController
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -84,6 +86,9 @@ class MainActivity : FragmentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { /* Permission result handled silently */ }
 
+    /** Survives config changes, dies with the process — see [ProcessDeathDetector]. */
+    private val processDeathDetector: ProcessDeathDetector by viewModels()
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -93,10 +98,23 @@ class MainActivity : FragmentActivity() {
 
         requestNotificationPermission()
 
-        val sharedUris = handleShareIntent(intent)
+        // Launch-intent actions (share imports, widget deep links) must not re-run on
+        // config-change recreation: the original intent is re-delivered, and with
+        // targetSdk 36 Android 16 ignores the portrait lock on >=600dp displays, so
+        // every tablet rotation would otherwise re-import the shared files / re-fire
+        // the widget deep link. Process-death restore keeps the old re-parse
+        // semantics so a backgrounded share/widget session still resumes on phones.
+        val isFirstLaunch = savedInstanceState == null
+        val isProcessDeathRestore = !isFirstLaunch && !processDeathDetector.retained
+        processDeathDetector.retained = true
+        val parseLaunchIntent = isFirstLaunch || isProcessDeathRestore
 
-        // Parse deep link from launch intent (widget taps)
-        _pendingDeepLink.value = DeepLinkHandler.parseIntent(intent)
+        val sharedUris = if (parseLaunchIntent) handleShareIntent(intent) else emptyList()
+
+        // Parse deep link from launch intent (widget taps); one-shot per above
+        if (parseLaunchIntent) {
+            _pendingDeepLink.value = DeepLinkHandler.parseIntent(intent)
+        }
 
         // Initialize analytics based on stored consent.
         // Intentional one-time synchronous read on the main thread during startup,
@@ -176,11 +194,14 @@ class MainActivity : FragmentActivity() {
                     val navController = rememberNavController()
                     val coroutineScope = rememberCoroutineScope()
 
-                    // Reset navigation to startDestination after process death to avoid invalid state
-                    // When savedInstanceState != null, Android tried to restore the back stack but
-                    // navigation args may be lost, causing issues like documentId=0
-                    LaunchedEffect(savedInstanceState) {
-                        if (savedInstanceState != null) {
+                    // Reset navigation to startDestination after process death to avoid invalid
+                    // state: the restored back stack may have lost navigation args, causing
+                    // issues like documentId=0. Config-change recreations keep nav args and
+                    // ViewModels and must NOT reset — with targetSdk 36, Android 16 large-screen
+                    // rotation recreates the activity, and resetting there would wipe the back
+                    // stack (and the scan session) on every rotation.
+                    LaunchedEffect(Unit) {
+                        if (isProcessDeathRestore) {
                             navController.navigate(startDestination) {
                                 popUpTo(0) { inclusive = true }
                             }
@@ -289,4 +310,15 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+}
+
+/**
+ * Distinguishes config-change recreation from process-death restore: a ViewModel
+ * survives configuration changes but not process death, so when [retained] is
+ * already true in a recreated [MainActivity]'s onCreate, the previous instance
+ * lived in this same process (config change); a fresh instance with
+ * savedInstanceState present means the process was killed and restored.
+ */
+class ProcessDeathDetector : ViewModel() {
+    var retained = false
 }

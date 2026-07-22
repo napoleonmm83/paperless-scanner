@@ -1,0 +1,6 @@
+Version 1.5.236:
+
+🔧 Improvements:
+- App now targets Android 16 (API 36)
+- Modern predictive back gesture animations
+- Tablets: rotating the device no longer loses scans
