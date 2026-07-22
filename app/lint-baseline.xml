@@ -24,17 +24,6 @@
     </issue>
 
     <issue
-        id="OldTargetApi"
-        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
-        errorLine1="        targetSdk = 35"
-        errorLine2="        ~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="57"
-            column="9"/>
-    </issue>
-
-    <issue
         id="UnusedAttribute"
         message="Attribute `targetCellWidth` is only used in API level 31 and higher (current min is 26)"
         errorLine1="    android:targetCellWidth=&quot;3&quot;"
@@ -626,17 +615,6 @@
             file="../gradle/libs.versions.toml"
             line="39"
             column="11"/>
-    </issue>
-
-    <issue
-        id="NewerVersionAvailable"
-        message="A newer version of org.robolectric:robolectric than 4.14.1 is available: 4.16.1"
-        errorLine1="robolectric = &quot;4.14.1&quot;"
-        errorLine2="              ~~~~~~~~">
-        <location
-            file="../gradle/libs.versions.toml"
-            line="40"
-            column="15"/>
     </issue>
 
     <issue

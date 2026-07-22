@@ -53,7 +53,7 @@ android {
     defaultConfig {
         applicationId = "com.paperless.scanner"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
 

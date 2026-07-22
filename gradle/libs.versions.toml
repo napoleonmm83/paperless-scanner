@@ -37,7 +37,7 @@ espresso = "3.6.1"
 mockk = "1.13.13"
 coroutinesTest = "1.10.2"
 turbine = "1.2.0"
-robolectric = "4.14.1"
+robolectric = "4.16.1"
 reorderable = "3.0.0"
 billing = "8.3.0"
 

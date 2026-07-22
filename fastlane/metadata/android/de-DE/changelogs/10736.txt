@@ -1,0 +1,6 @@
+Version 1.5.236:
+
+🔧 Verbesserungen:
+- App zielt jetzt auf Android 16 (API 36)
+- Moderne Zurück-Gesten-Animationen (Predictive Back)
+- Tablets: Drehen des Geräts verliert keine Scans mehr
