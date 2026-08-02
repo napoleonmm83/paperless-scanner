@@ -5,9 +5,11 @@ import com.paperless.scanner.data.api.models.PaginatedResponse
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 
@@ -78,6 +80,36 @@ class ApiPaginationTest {
         // Capped: only 3 pages fetched, results gathered so far returned (never unbounded).
         assertEquals(3, calls)
         assertEquals(listOf(1, 2, 3), result)
+    }
+
+    @Test
+    fun `fetchAllPages fails at the cap when failOnCap is set`() = runTest {
+        // Callers that write the walk through to a cache must not persist a
+        // truncated list as the complete truth — a missing in-flight task would
+        // be indistinguishable from "the server has none".
+        var calls = 0
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                fetchAllPages(maxPages = 3, failOnCap = true) { page ->
+                    calls++
+                    FakePage(next = "https://x/?page=${page + 1}", results = listOf(page))
+                }
+            }
+        }
+
+        // Still bounded by the cap — failing must not mean walking forever.
+        assertEquals(3, calls)
+    }
+
+    @Test
+    fun `fetchAllPages with failOnCap returns normally when the walk completes`() = runTest {
+        // The flag must only bite on truncation, never on an ordinary short walk.
+        val result = fetchAllPages(maxPages = 3, failOnCap = true) { page ->
+            FakePage(next = if (page < 2) "https://x/?page=2" else null, results = listOf(page))
+        }
+
+        assertEquals(listOf(1, 2), result)
     }
 
     @Test

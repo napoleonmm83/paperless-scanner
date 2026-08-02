@@ -37,11 +37,15 @@ class TaskRepository @Inject constructor(
      * API v9 answers with a single unpaginated array — `next` is null, so the
      * walk stops after one request and this costs exactly what the old direct
      * call did. API v10 paginates; [fetchAllPages] then walks the pages instead
-     * of silently dropping everything past the first one, and logs if it hits
-     * its page cap.
+     * of silently dropping everything past the first one.
+     *
+     * `failOnCap` because every caller below writes the result through to the
+     * Room cache: a truncated walk returned as success would be persisted as the
+     * complete task list, and a missing in-flight task is indistinguishable from
+     * "the server has none". Failing instead surfaces on the existing error path.
      */
     private suspend fun fetchAllTasks(): List<ApiPaperlessTask> =
-        fetchAllPages { page ->
+        fetchAllPages(failOnCap = true) { page ->
             api.getTasks(page = page, pageSize = NetworkConfig.TASKS_PAGE_SIZE)
         }
 
