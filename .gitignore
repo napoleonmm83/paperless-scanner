@@ -167,3 +167,5 @@ logs-*.txt
 
 # Generated DEX/R8 diagnostic dumps (#325)
 /dex.txt
+# Added by code-review-graph
+.code-review-graph/
