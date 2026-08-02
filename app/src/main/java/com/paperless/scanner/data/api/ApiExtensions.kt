@@ -63,10 +63,17 @@ suspend fun <T> safeApiCall(
  * unbounded loop. If the cap is reached, the results gathered so far are returned
  * and a warning is logged — the truncation is explicit, never silent.
  *
+ * [failOnCap] turns that truncation into a failure instead. Use it wherever a
+ * short list is indistinguishable from a complete one *and* gets written through
+ * to a cache: reporting a partial walk as success would persist it as the whole
+ * truth. The reference-data callers (tags, correspondents, document types) keep
+ * the default, where a truncated lookup list degrades gracefully.
+ *
  * [CancellationException] propagates unchanged (thrown from within [withRetry]).
  */
 suspend fun <T> fetchAllPages(
     maxPages: Int = NetworkConfig.MAX_PAGINATED_PAGES,
+    failOnCap: Boolean = false,
     fetchPage: suspend (page: Int) -> PaginatedResponse<T>
 ): List<T> {
     val all = mutableListOf<T>()
@@ -79,11 +86,12 @@ suspend fun <T> fetchAllPages(
         }
         page++
     }
-    Log.w(
-        "Pagination",
-        "Reached maxPages=$maxPages cap while the server still reported more pages; " +
-            "returning ${all.size} items."
-    )
+    val message = "Reached maxPages=$maxPages cap while the server still reported more pages; " +
+        "collected ${all.size} items."
+    if (failOnCap) {
+        throw IllegalStateException("$message Refusing to report a truncated walk as complete.")
+    }
+    Log.w("Pagination", "$message Returning the partial list.")
     return all
 }
 

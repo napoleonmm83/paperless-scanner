@@ -21,6 +21,7 @@ import com.paperless.scanner.data.api.models.ServerStatusResponse
 import com.paperless.scanner.data.api.models.SuggestionsResponse
 import com.paperless.scanner.data.api.models.Tag
 import com.paperless.scanner.data.api.models.TagsResponse
+import com.paperless.scanner.data.api.models.TasksResponse
 import com.paperless.scanner.data.api.models.TokenResponse
 import com.paperless.scanner.data.api.models.TrashBulkActionRequest
 import com.paperless.scanner.data.api.models.UpdateCorrespondentRequest
@@ -579,14 +580,25 @@ interface PaperlessApi {
      * Returns list of all background tasks (uploads, processing, etc.)
      * that are pending, in progress, or recently completed.
      *
-     * @return List of [PaperlessTask] objects
+     * **VERSION NOTE:** API v9 serves this as a bare array and ignores the
+     * paging parameters; v10 serves a paginated page object. [TasksResponse]
+     * normalises both, so callers must walk pages via
+     * [com.paperless.scanner.data.api.fetchAllPages] — on v9 `next` is always
+     * null and the walk stops after one request.
+     *
+     * @param page Page number (1-indexed, ignored by API v9)
+     * @param pageSize Number of results per page (ignored by API v9)
+     * @return [TasksResponse] wrapping the [PaperlessTask] list
      * @see UploadQueueRepository For upload task management
      */
     // Real-time processing status — bypass the OkHttp cache so a freshly
     // uploaded document's task is never hidden behind a stale cached response.
     @Headers("Cache-Control: no-cache")
     @GET("api/tasks/")
-    suspend fun getTasks(): List<PaperlessTask>
+    suspend fun getTasks(
+        @Query("page") page: Int = 1,
+        @Query("page_size") pageSize: Int = 1000
+    ): TasksResponse
 
     /**
      * Get a specific task by ID.
@@ -597,12 +609,12 @@ interface PaperlessApi {
      * Task status values: PENDING, STARTED, SUCCESS, FAILURE.
      *
      * @param taskId Task UUID returned from upload endpoint
-     * @return List containing the matching task (or empty if not found)
+     * @return [TasksResponse] whose results hold the matching task (empty if not found)
      * @see uploadDocument For initiating uploads
      */
     @Headers("Cache-Control: no-cache")
     @GET("api/tasks/")
-    suspend fun getTask(@Query("task_id") taskId: String): List<PaperlessTask>
+    suspend fun getTask(@Query("task_id") taskId: String): TasksResponse
 
     /**
      * Acknowledge (dismiss) completed tasks.

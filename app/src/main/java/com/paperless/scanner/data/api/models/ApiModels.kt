@@ -286,7 +286,11 @@ data class PaperlessTask(
     val dateCreated: String,
     @SerializedName("date_done")
     val dateDone: String? = null,
-    @SerializedName("type")
+    // API v10 renamed this field to `trigger_source`. The pin in
+    // [com.paperless.scanner.data.api.ApiVersionInterceptor] normally keeps us on
+    // v9, where it is still `type`; the alternate keeps deserialization working
+    // if we ever fall back to a server default of v10 or newer.
+    @SerializedName("type", alternate = ["trigger_source"])
     val type: String,
     @SerializedName("status")
     val status: String,
@@ -313,6 +317,28 @@ data class PaperlessTask(
     val isPending: Boolean
         get() = status == STATUS_PENDING || status == STATUS_STARTED
 }
+
+/**
+ * Task list response, tolerant of both Paperless-ngx task-list shapes.
+ *
+ * API v9 and older serve `/api/tasks/` as a bare JSON array; v10 redesigned the
+ * task system and serves a standard DRF page object. Retrofit is given this one
+ * type for both, and [TasksResponseDeserializer] normalises the wire format —
+ * so the pagination-aware call sites work unchanged whichever version answers.
+ *
+ * On the v9 shape [next] is always null, which makes
+ * [com.paperless.scanner.data.api.fetchAllPages] stop after a single request.
+ */
+data class TasksResponse(
+    @SerializedName("count")
+    val count: Int = 0,
+    @SerializedName("next")
+    override val next: String? = null,
+    @SerializedName("previous")
+    val previous: String? = null,
+    @SerializedName("results")
+    override val results: List<PaperlessTask> = emptyList()
+) : PaginatedResponse<PaperlessTask>
 
 // Request body for acknowledging tasks
 data class AcknowledgeTasksRequest(

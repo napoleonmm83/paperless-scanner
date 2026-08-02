@@ -1,0 +1,12 @@
+Version 1.5.239:
+
+✨ New Features:
+- Support for Paperless-ngx 3.0
+
+🐛 Bug Fixes:
+- Processing status stayed empty on Paperless-ngx 3.0 servers
+- Uploaded documents are tracked correctly again
+
+🔧 Improvements:
+- The app now pins the API version instead of letting the server pick it
+- Older servers (before 2.16) keep working unchanged

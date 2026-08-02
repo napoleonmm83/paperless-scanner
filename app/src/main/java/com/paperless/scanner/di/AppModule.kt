@@ -6,6 +6,7 @@ import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
+import com.paperless.scanner.data.api.ApiVersionInterceptor
 import com.paperless.scanner.data.api.CacheControlInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
@@ -282,6 +283,7 @@ object AppModule {
         tokenManager: TokenManager,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
+        apiVersionInterceptor: ApiVersionInterceptor,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor,
         cacheControlInterceptor: CacheControlInterceptor,
@@ -308,6 +310,14 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            // Pins the negotiated API version. Runs AFTER the token interceptor so
+            // its 406 fallback re-sends an already-authenticated request instead of
+            // recomputing the token; see the ApiVersionInterceptor KDoc for the
+            // full rationale. Moving it above the token interceptor is not a
+            // correctness bug (the token interceptor would simply run twice on the
+            // 406 path), which is why this placement is documented rather than
+            // pinned by a test.
+            .addInterceptor(apiVersionInterceptor)
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
             // TOFU pin enforcement first among network interceptors: it aborts on a
