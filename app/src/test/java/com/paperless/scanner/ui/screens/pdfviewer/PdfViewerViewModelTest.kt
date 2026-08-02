@@ -9,11 +9,13 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.ServerOfflineReason
+import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -81,18 +83,50 @@ class PdfViewerViewModelTest {
         context = context
     )
 
+    /**
+     * Fails the download after a virtual-time delay, modelling a real (suspending)
+     * network call.
+     *
+     * The delay is not strictly required: an instantly-returning stub was measured to
+     * still surface the intermediate Downloading state, because [PdfViewerViewModel.uiState]
+     * only conflates when the collector cannot keep up, which it can here. But then
+     * the ordering rests on dispatcher scheduling details rather than on anything this
+     * test states, so an unrelated scheduling change could quietly turn the transition
+     * assertion into a no-op. The delay makes it deterministic under virtual time.
+     */
     private fun stubDownloadFailure(error: Throwable) {
-        coEvery { documentRepository.downloadDocument(any(), any()) } returns Result.failure(error)
+        coEvery { documentRepository.downloadDocument(any(), any()) } coAnswers {
+            delay(DOWNLOAD_DELAY_MS)
+            Result.failure(error)
+        }
+    }
+
+    /** Drives Idle -> Downloading -> Error and hands back the terminal error state. */
+    private suspend fun PdfViewerViewModel.awaitErrorState(): PdfViewerUiState.Error {
+        lateinit var error: PdfViewerUiState.Error
+        uiState.test {
+            assertEquals(PdfViewerUiState.Idle, awaitItem())
+            assertTrue(
+                "Downloading state was skipped - the progress indicator never shows",
+                awaitItem() is PdfViewerUiState.Downloading
+            )
+            error = awaitItem() as PdfViewerUiState.Error
+            cancelAndIgnoreRemainingEvents()
+        }
+        return error
+    }
+
+    private companion object {
+        const val DOWNLOAD_DELAY_MS = 10L
     }
 
     @Test
     fun `unreachable server surfaces the localized message, not the enum name`() = runTest(testDispatcher) {
         stubDownloadFailure(PaperlessException.ServerUnreachable(ServerOfflineReason.DNS_FAILURE))
 
-        val state = viewModel().let { vm -> advanceUntilIdle(); vm.uiState.value }
+        val state = viewModel().awaitErrorState()
 
-        val expected = context.getString(R.string.error_dns_failure)
-        assertEquals(expected, (state as PdfViewerUiState.Error).message)
+        assertEquals(context.getString(R.string.error_dns_failure), state.message)
         // The raw message of ServerUnreachable is the enum name - it must never reach the UI.
         assertTrue("Raw enum name leaked to the user", !state.message.contains("DNS_FAILURE"))
     }
@@ -103,12 +137,9 @@ class PdfViewerViewModelTest {
         // untranslated literal "Unknown error" in the old code path.
         stubDownloadFailure(PaperlessException.UnknownError(RuntimeException()))
 
-        val state = viewModel().let { vm -> advanceUntilIdle(); vm.uiState.value }
+        val state = viewModel().awaitErrorState()
 
-        assertEquals(
-            context.getString(R.string.error_unknown),
-            (state as PdfViewerUiState.Error).message
-        )
+        assertEquals(context.getString(R.string.error_unknown), state.message)
     }
 
     @Test
@@ -148,11 +179,8 @@ class PdfViewerViewModelTest {
     fun `non-Paperless throwable falls back to the generic download error string`() = runTest(testDispatcher) {
         stubDownloadFailure(IllegalStateException("boom"))
 
-        val state = viewModel().let { vm -> advanceUntilIdle(); vm.uiState.value }
+        val state = viewModel().awaitErrorState()
 
-        assertEquals(
-            context.getString(R.string.error_download),
-            (state as PdfViewerUiState.Error).message
-        )
+        assertEquals(context.getString(R.string.error_download), state.message)
     }
 }
