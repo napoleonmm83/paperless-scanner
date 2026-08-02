@@ -1,0 +1,6 @@
+Version 1.5.237:
+
+🔧 Verbesserungen:
+- Internes Wartungs-Release
+- Keine funktionalen Änderungen
+- Stabilere Build- und Test-Umgebung
