@@ -7,7 +7,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
+import com.paperless.scanner.data.analytics.AnalyticsEvent
+import com.paperless.scanner.data.analytics.AnalyticsServiceContract
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.repository.DocumentRepository
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.getLocalizedMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +34,8 @@ sealed class PdfViewerUiState {
 class PdfViewerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val documentRepository: DocumentRepository,
+    private val analyticsService: AnalyticsServiceContract,
+    private val crashlyticsHelper: CrashlyticsHelperContract,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -39,6 +46,7 @@ class PdfViewerViewModel @Inject constructor(
     val uiState: StateFlow<PdfViewerUiState> = _uiState.asStateFlow()
 
     init {
+        analyticsService.trackEvent(AnalyticsEvent.PdfViewerOpened)
         downloadDocument()
     }
 
@@ -56,9 +64,19 @@ class PdfViewerViewModel @Inject constructor(
                 val isPdf = file.extension.lowercase() == "pdf" || isPdfFile(file)
                 _uiState.update { PdfViewerUiState.Viewing(file, isPdf = isPdf) }
             }.onFailure { error ->
+                // Without this the failure was invisible: the raw throwable message
+                // went straight to the UI (untranslated, often just an enum name) and
+                // nothing was reported, so real-world causes never reached us.
+                crashlyticsHelper.recordException(error)
+                analyticsService.trackEvent(
+                    AnalyticsEvent.PdfViewerDownloadFailed(
+                        error::class.simpleName ?: "Unknown"
+                    )
+                )
                 _uiState.update {
                     PdfViewerUiState.Error(
-                        error.message ?: context.getString(R.string.error_download)
+                        (error as? PaperlessException)?.getLocalizedMessage(context)
+                            ?: context.getString(R.string.error_download)
                     )
                 }
             }

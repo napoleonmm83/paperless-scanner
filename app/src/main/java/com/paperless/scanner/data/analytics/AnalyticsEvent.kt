@@ -120,6 +120,20 @@ sealed class AnalyticsEvent(
     /** PDF viewer opened */
     data object PdfViewerOpened : AnalyticsEvent("pdf_viewer_opened")
 
+    /**
+     * Document download for the in-app viewer failed.
+     *
+     * [errorType] is the [com.paperless.scanner.domain.error.PaperlessException]
+     * subtype name (e.g. "ServerUnreachable", "AuthError") - a fixed, low-cardinality
+     * set that carries no user or server data. Full detail goes to Crashlytics via
+     * recordException; this event only provides the rate, paired with
+     * [PdfViewerOpened] as the denominator.
+     */
+    data class PdfViewerDownloadFailed(val errorType: String) : AnalyticsEvent(
+        "pdf_viewer_download_failed",
+        mapOf("error_type" to errorType)
+    )
+
     /** Tag created */
     data object TagCreated : AnalyticsEvent("tag_created")
 
