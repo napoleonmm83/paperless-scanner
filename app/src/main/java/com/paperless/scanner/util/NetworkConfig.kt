@@ -97,4 +97,16 @@ object NetworkConfig {
      * clears its `next` link. 100 pages x [DEFAULT_PAGE_SIZE] = 10,000 items.
      */
     const val MAX_PAGINATED_PAGES = 100
+
+    /**
+     * Page size for `/api/tasks/`, deliberately larger than [DEFAULT_PAGE_SIZE].
+     *
+     * API v9 serves the task list unpaginated and ignores this; API v10 paginates
+     * it. The processing screen polls that endpoint every 3 seconds while an
+     * upload is in flight, so on v10 a small page size would turn one request
+     * into one-per-100-historical-tasks, every tick, uncached (`no-cache`). A
+     * larger page collapses the realistic case back to a single request.
+     * Paperless-ngx allows up to `max_page_size = 100000`.
+     */
+    const val TASKS_PAGE_SIZE = 1000
 }

@@ -1,8 +1,10 @@
 package com.paperless.scanner.data.api.models
 
+import com.google.gson.JsonParseException
 import com.paperless.scanner.di.GsonProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -97,7 +99,9 @@ class TasksResponseDeserializerTest {
     }
 
     @Test
-    fun `treats a page object without results as empty rather than failing`() {
+    fun `treats a recognisable page object without results as empty`() {
+        // `count` identifies this as a DRF page envelope, so an omitted `results`
+        // is a genuinely empty page rather than an unknown payload.
         val response = gson.fromJson("""{"count": 0, "next": null, "previous": null}""", TasksResponse::class.java)
 
         assertTrue(response.results.isEmpty())
@@ -105,11 +109,45 @@ class TasksResponseDeserializerTest {
     }
 
     @Test
-    fun `treats an unexpected payload as empty rather than throwing`() {
-        // A reverse proxy or error page must degrade to "no tasks", never crash
-        // the processing-status refresh.
-        val response = gson.fromJson(""""unexpected"""", TasksResponse::class.java)
+    fun `tolerates a null results member instead of throwing ClassCastException`() {
+        // Gson's getAsJsonArray is an unchecked cast: a JSON null member yields
+        // JsonNull, and casting that to JsonArray blows up past any elvis operator.
+        val response = gson.fromJson(
+            """{"count": 0, "next": null, "previous": null, "results": null}""",
+            TasksResponse::class.java
+        )
 
         assertTrue(response.results.isEmpty())
+    }
+
+    @Test
+    fun `tolerates a non-primitive next member`() {
+        // `asString` throws on an object; the envelope should still parse.
+        val response = gson.fromJson(
+            """{"count": 0, "next": {"unexpected": true}, "results": []}""",
+            TasksResponse::class.java
+        )
+
+        assertNull(response.next)
+        assertTrue(response.results.isEmpty())
+    }
+
+    @Test
+    fun `rejects an unrecognised payload instead of reporting zero tasks`() {
+        // Reporting "no tasks" for a payload we do not understand would leave the
+        // processing list silently empty AND stop the poll, with no error anywhere
+        // — the exact failure mode PR #403 was filed to remove. Failing loudly puts
+        // it on the existing error path instead.
+        assertThrows(JsonParseException::class.java) {
+            gson.fromJson(""""unexpected"""", TasksResponse::class.java)
+        }
+    }
+
+    @Test
+    fun `rejects a JSON object that is not a task page`() {
+        // No `results`, no `count` — not a task page. Must not become "0 tasks".
+        assertThrows(JsonParseException::class.java) {
+            gson.fromJson("""{"detail": "something else entirely"}""", TasksResponse::class.java)
+        }
     }
 }

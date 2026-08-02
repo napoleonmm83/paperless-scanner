@@ -597,7 +597,7 @@ interface PaperlessApi {
     @GET("api/tasks/")
     suspend fun getTasks(
         @Query("page") page: Int = 1,
-        @Query("page_size") pageSize: Int = 100
+        @Query("page_size") pageSize: Int = 1000
     ): TasksResponse
 
     /**

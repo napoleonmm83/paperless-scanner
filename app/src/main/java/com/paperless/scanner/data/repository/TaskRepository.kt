@@ -42,7 +42,7 @@ class TaskRepository @Inject constructor(
      */
     private suspend fun fetchAllTasks(): List<ApiPaperlessTask> =
         fetchAllPages { page ->
-            api.getTasks(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+            api.getTasks(page = page, pageSize = NetworkConfig.TASKS_PAGE_SIZE)
         }
 
     /**

@@ -3,6 +3,7 @@ package com.paperless.scanner.data.api.models
 import com.google.gson.JsonDeserializationContext
 import com.google.gson.JsonDeserializer
 import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
 import java.lang.reflect.Type
 
 /**
@@ -43,10 +44,24 @@ class TasksResponseDeserializer : JsonDeserializer<TasksResponse> {
 
         // v10 and newer: DRF page object.
         if (!json.isJsonObject) {
-            return TasksResponse()
+            throw unrecognised(json)
         }
         val obj = json.asJsonObject
-        val tasks = obj.getAsJsonArray("results")?.toTasks(context) ?: emptyList()
+        val results = obj.get("results")
+        val tasks = when {
+            // `getAsJsonArray` is an unchecked cast, so a JSON `null` or a
+            // non-array member would throw ClassCastException past any `?:`.
+            results != null && results.isJsonArray -> results.asJsonArray.toTasks(context)
+            // A page envelope that merely omits `results` still identifies
+            // itself via `count`; treat that as a genuinely empty page.
+            (results == null || results.isJsonNull) && obj.has("count") -> emptyList()
+            // Anything else is not a task page. Failing loudly puts this on the
+            // existing error path (JsonParseException -> PaperlessException
+            // .ParseError -> Result.failure) instead of reporting "no tasks",
+            // which would leave the processing list silently empty and stop the
+            // poll — the exact failure mode PR #403 was filed to remove.
+            else -> throw unrecognised(json)
+        }
         return TasksResponse(
             count = obj.optInt("count", tasks.size),
             next = obj.optString("next"),
@@ -61,9 +76,16 @@ class TasksResponseDeserializer : JsonDeserializer<TasksResponse> {
         context.deserialize<PaperlessTask>(element, PaperlessTask::class.java)
     }
 
+    private fun unrecognised(json: JsonElement): JsonParseException = JsonParseException(
+        "Unrecognised /api/tasks/ payload: expected the API v9 array or a v10 page " +
+            "object with `results`, got ${json.javaClass.simpleName}"
+    )
+
+    // `asString`/`asInt` throw if the member is an object or array, so both
+    // accessors insist on a primitive rather than trusting the shape.
     private fun com.google.gson.JsonObject.optString(name: String): String? =
-        get(name)?.takeIf { !it.isJsonNull }?.asString
+        get(name)?.takeIf { it.isJsonPrimitive }?.asString
 
     private fun com.google.gson.JsonObject.optInt(name: String, fallback: Int): Int =
-        get(name)?.takeIf { !it.isJsonNull }?.asInt ?: fallback
+        get(name)?.takeIf { it.isJsonPrimitive }?.asInt ?: fallback
 }

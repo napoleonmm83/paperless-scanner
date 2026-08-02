@@ -312,8 +312,11 @@ object AppModule {
             }
             // Pins the negotiated API version. Runs AFTER the token interceptor so
             // its 406 fallback re-sends an already-authenticated request instead of
-            // recomputing the token; see ApiVersionInterceptor for the full
-            // rationale. Ordering contract pinned by AppModuleInterceptorOrderTest.
+            // recomputing the token; see the ApiVersionInterceptor KDoc for the
+            // full rationale. Moving it above the token interceptor is not a
+            // correctness bug (the token interceptor would simply run twice on the
+            // 406 path), which is why this placement is documented rather than
+            // pinned by a test.
             .addInterceptor(apiVersionInterceptor)
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
