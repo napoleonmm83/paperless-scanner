@@ -5,11 +5,10 @@ import com.paperless.scanner.data.api.models.PaginatedResponse
 import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkStatic
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 
@@ -88,16 +87,18 @@ class ApiPaginationTest {
         // truncated list as the complete truth — a missing in-flight task would
         // be indistinguishable from "the server has none".
         var calls = 0
+        var thrown: Throwable? = null
 
-        assertThrows(IllegalStateException::class.java) {
-            runBlocking {
-                fetchAllPages(maxPages = 3, failOnCap = true) { page ->
-                    calls++
-                    FakePage(next = "https://x/?page=${page + 1}", results = listOf(page))
-                }
+        try {
+            fetchAllPages(maxPages = 3, failOnCap = true) { page ->
+                calls++
+                FakePage(next = "https://x/?page=${page + 1}", results = listOf(page))
             }
+        } catch (e: IllegalStateException) {
+            thrown = e
         }
 
+        assertNotNull("the capped walk must fail instead of returning a partial list", thrown)
         // Still bounded by the cap — failing must not mean walking forever.
         assertEquals(3, calls)
     }
