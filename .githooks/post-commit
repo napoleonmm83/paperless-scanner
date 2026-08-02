@@ -1,0 +1,30 @@
+#!/bin/sh
+# =============================================================================
+# Post-Commit Hook: regelmäßiger voller Refresh des Code-Review-Graphen.
+# =============================================================================
+#
+# Nach JEDEM Commit läuft ein volles `code-review-graph update`:
+#   - re-parst die im Commit geänderten Dateien (Diff gegen HEAD~1) und
+#   - führt den vollen Postprocess aus (Community-Detection + FTS-Index).
+#
+# Warum nötig: Der In-Session-Hook (.claude/settings.json, PostToolUse) ruft
+# `update --skip-flows` auf — schnell, aber OHNE Communities/Postprocess. Dieser
+# Hook schließt die Lücke an der Commit-Grenze und hält die schwereren Analysen
+# regelmäßig frisch. Laufzeit: < 1s (nur die geänderten Dateien werden geparst).
+#
+# Sicherheit: Ein post-commit-Hook kann den Commit nicht mehr rückgängig machen,
+# deshalb ist er bewusst NICHT-fatal (`|| true`) und ein No-op, wo das Binary
+# fehlt — er darf den Workflow niemals stören.
+#
+# Deaktivieren: diese Datei entfernen (bzw. in .githooks/ löschen). `--no-verify`
+# greift hier NICHT — Git führt post-commit-Hooks immer aus.
+#
+# Hinweis: Ein gelegentliches `code-review-graph build` (voller Re-Parse) bleibt
+# sinnvoll, um über die Zeit angesammelte verwaiste Knoten komplett zu prunen.
+# =============================================================================
+
+if command -v code-review-graph >/dev/null 2>&1; then
+    code-review-graph update || true
+fi
+
+exit 0
