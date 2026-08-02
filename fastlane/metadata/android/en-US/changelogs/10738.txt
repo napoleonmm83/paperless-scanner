@@ -1,0 +1,8 @@
+Version 1.5.238:
+
+🐛 Bug fixes:
+- PDF view: clear error message instead of "Unknown error"
+- The message now names the cause, e.g. server unreachable
+
+🔧 Improvements:
+- Document open failures are reported so we can fix them

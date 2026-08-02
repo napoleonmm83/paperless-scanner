@@ -1,0 +1,8 @@
+Version 1.5.238:
+
+🐛 Fehlerbehebungen:
+- PDF-Ansicht: verständliche Fehlermeldung statt "Unbekannter Fehler"
+- Meldung nennt jetzt die Ursache, z.B. Server nicht erreichbar
+
+🔧 Verbesserungen:
+- Fehler beim Öffnen von Dokumenten werden erfasst, damit wir sie beheben können
