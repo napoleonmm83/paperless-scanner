@@ -4,13 +4,14 @@ import android.util.Log
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
-import com.paperless.scanner.data.api.safeApiCall
+import com.paperless.scanner.data.api.fetchAllPages
 import com.paperless.scanner.data.api.models.PaperlessTask as ApiPaperlessTask
 import com.paperless.scanner.data.database.dao.CachedTaskDao
 import com.paperless.scanner.data.database.mappers.toCachedEntity
 import com.paperless.scanner.data.database.mappers.toDomain as cachedTaskToDomain
 import com.paperless.scanner.data.network.NetworkMonitor
 import com.paperless.scanner.util.LogSanitizer
+import com.paperless.scanner.util.NetworkConfig
 import com.paperless.scanner.domain.mapper.toDomain as apiTaskToDomain
 import com.paperless.scanner.domain.model.PaperlessTask
 import com.paperless.scanner.util.withResponseRetry
@@ -29,6 +30,20 @@ class TaskRepository @Inject constructor(
     companion object {
         private const val TAG = "TaskRepository"
     }
+
+    /**
+     * Fetches every page of `/api/tasks/`.
+     *
+     * API v9 answers with a single unpaginated array — `next` is null, so the
+     * walk stops after one request and this costs exactly what the old direct
+     * call did. API v10 paginates; [fetchAllPages] then walks the pages instead
+     * of silently dropping everything past the first one, and logs if it hits
+     * its page cap.
+     */
+    private suspend fun fetchAllTasks(): List<ApiPaperlessTask> =
+        fetchAllPages { page ->
+            api.getTasks(page = page, pageSize = NetworkConfig.DEFAULT_PAGE_SIZE)
+        }
 
     /**
      * BEST PRACTICE: Reactive Flow for automatic UI updates.
@@ -104,7 +119,7 @@ class TaskRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTasks() }
+                val response = fetchAllTasks()
                 // Update cache - triggers reactive Flow update automatically
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
@@ -130,7 +145,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTask(taskId) }.firstOrNull()
+                val response = withRetry { api.getTask(taskId) }.results.firstOrNull()
                 response?.let {
                     cachedTaskDao.insert(it.toCachedEntity())
                 }
@@ -155,7 +170,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTasks() }.filter { it.isPending }
+                val response = fetchAllTasks().filter { it.isPending }
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
                 Result.success(response.map { it.apiTaskToDomain() })
@@ -179,7 +194,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTasks() }.filter { !it.acknowledged }
+                val response = fetchAllTasks().filter { !it.acknowledged }
                 val cachedEntities = response.map { it.toCachedEntity() }
                 cachedTaskDao.insertAll(cachedEntities)
                 Result.success(response.map { it.apiTaskToDomain() })
@@ -191,18 +206,6 @@ class TaskRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(PaperlessException.from(e))
         }
-    }
-
-    suspend fun getRecentTasks(limit: Int = 10): Result<List<PaperlessTask>> = safeApiCall {
-        val response = api.getTasks()
-            .sortedByDescending { it.dateCreated }
-            .take(limit)
-
-        // Update cache
-        val cachedEntities = response.map { it.toCachedEntity() }
-        cachedTaskDao.insertAll(cachedEntities)
-
-        response.map { it.apiTaskToDomain() }
     }
 
     suspend fun acknowledgeTasks(taskIds: List<Int>): Result<Unit> {

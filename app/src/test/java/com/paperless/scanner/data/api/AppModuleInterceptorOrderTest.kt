@@ -78,6 +78,7 @@ class AppModuleInterceptorOrderTest {
                 tokenManager = tokenManager,
                 dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
                 httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
+                apiVersionInterceptor = ApiVersionInterceptor(),
                 cloudflareDetectionInterceptor = cloudflare,
                 adaptiveWriteTimeoutInterceptor = adaptive,
                 cacheControlInterceptor = cacheControl,

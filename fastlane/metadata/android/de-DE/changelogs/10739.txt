@@ -1,0 +1,12 @@
+Version 1.5.239:
+
+✨ Neue Features:
+- Unterstützung für Paperless-ngx 3.0
+
+🐛 Fehlerbehebungen:
+- Verarbeitungsstatus blieb auf Servern mit Paperless-ngx 3.0 leer
+- Hochgeladene Dokumente werden wieder korrekt verfolgt
+
+🔧 Verbesserungen:
+- App legt die genutzte API-Version jetzt fest, statt sie vom Server bestimmen zu lassen
+- Ältere Server (vor 2.16) funktionieren unverändert weiter

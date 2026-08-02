@@ -6,6 +6,7 @@ import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptApi
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
+import com.paperless.scanner.data.api.ApiVersionInterceptor
 import com.paperless.scanner.data.api.CacheControlInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
@@ -282,6 +283,7 @@ object AppModule {
         tokenManager: TokenManager,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
+        apiVersionInterceptor: ApiVersionInterceptor,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         adaptiveWriteTimeoutInterceptor: AdaptiveWriteTimeoutInterceptor,
         cacheControlInterceptor: CacheControlInterceptor,
@@ -308,6 +310,11 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            // Pins the negotiated API version. Runs AFTER the token interceptor so
+            // its 406 fallback re-sends an already-authenticated request instead of
+            // recomputing the token; see ApiVersionInterceptor for the full
+            // rationale. Ordering contract pinned by AppModuleInterceptorOrderTest.
+            .addInterceptor(apiVersionInterceptor)
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
             // TOFU pin enforcement first among network interceptors: it aborts on a
