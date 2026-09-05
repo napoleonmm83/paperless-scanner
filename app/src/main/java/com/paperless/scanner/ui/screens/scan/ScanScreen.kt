@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -205,6 +206,19 @@ fun ScanScreen(
         }
     }
 
+    // A page could not be read/decoded while preparing the upload (#402): tell the user, keep the pages.
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { message ->
+            snackbarHostState.showTypedSnackbar(
+                message = message,
+                icon = SnackbarIcon.ERROR,
+                duration = SnackbarDuration.Long, // the message asks the user to act
+                withDismissAction = true
+            )
+            viewModel.clearError()
+        }
+    }
+
     fun startScanner() {
         scanner.getStartScanIntent(context as Activity)
             .addOnSuccessListener { intentSender ->
@@ -278,7 +292,7 @@ fun ScanScreen(
                     onContinue = {
                         // Get rotated URIs in coroutine scope
                         scope.launch {
-                            val uris = viewModel.getRotatedPageUris()
+                            val uris = viewModel.getRotatedPageUris().getOrElse { return@launch }
                             // DO NOT clear pages here - pages should persist until upload succeeds
                             // This allows user to navigate back and add more pages or make changes
                             if (uris.size == 1) {
@@ -395,7 +409,7 @@ fun ScanScreen(
                     // If user selected "Als separate Dokumente", this will be false
                     // If user selected "Als einzelnes Dokument", this will be true
                     scope.launch {
-                        val uris = viewModel.getRotatedPageUris()
+                        val uris = viewModel.getRotatedPageUris().getOrElse { return@launch }
                         onMultipleDocumentsScanned(uris, uploadAsSingleDocument)
                     }
                 },
@@ -403,7 +417,7 @@ fun ScanScreen(
                     showMetadataChoiceDialog = false
                     // Navigate to StepByStepMetadataScreen for per-page metadata editing
                     scope.launch {
-                        val uris = viewModel.getRotatedPageUris()
+                        val uris = viewModel.getRotatedPageUris().getOrElse { return@launch }
                         onStepByStepMetadata(uris)
                     }
                 }

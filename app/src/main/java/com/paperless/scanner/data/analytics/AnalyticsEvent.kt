@@ -83,6 +83,19 @@ sealed class AnalyticsEvent(
     /** Page rotated */
     data object ScanPageRotated : AnalyticsEvent("scan_page_rotated")
 
+    /**
+     * A scanned page could not be read or decoded while preparing the upload (#402).
+     *
+     * [errorType] is the exception class simple name (e.g. "IllegalStateException",
+     * "FileNotFoundException", "OutOfMemoryError") - a fixed, low-cardinality set that
+     * carries no user data. Full detail goes to Crashlytics via recordException; this
+     * event only provides the rate, paired with [ScanCompleted] as the denominator.
+     */
+    data class ScanPageProcessFailed(val errorType: String) : AnalyticsEvent(
+        "scan_page_process_failed",
+        mapOf("error_type" to errorType)
+    )
+
     /** Page removed */
     data object ScanPageRemoved : AnalyticsEvent("scan_page_removed")
 

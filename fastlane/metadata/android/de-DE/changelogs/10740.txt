@@ -1,0 +1,5 @@
+Version 1.5.240:
+
+🐛 Fehlerbehebungen:
+- Absturz beim Weiterleiten gedrehter Scan-Seiten behoben
+- Unlesbare Seite: Meldung mit Seitennummer statt Absturz

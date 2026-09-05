@@ -3,7 +3,9 @@ package com.paperless.scanner.ui.screens.scan
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.google.gson.Gson
+import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -15,11 +17,13 @@ import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
 import com.paperless.scanner.util.AppLockManager
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,12 +39,17 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowBitmapFactory
+import java.io.ByteArrayInputStream
+import java.io.FileNotFoundException
 
 /**
  * Unit tests for [ScanViewModel].
@@ -59,7 +68,8 @@ import org.robolectric.annotation.Config
  *   not drive Default)
  *
  * Out of scope (file I/O / AI heavy paths):
- * - rotatePage, cropPage, getRotatedPageUris (Bitmap I/O)
+ * - rotatePage, cropPage (Bitmap I/O) — the getRotatedPageUris failure paths ARE
+ *   covered below (#402), the successful rotation itself still needs a real decoder
  * - analyzeFirstPage, createTag (network + AI orchestrator coupling)
  *
  * Workaround for the addPages limitation: tests that need pre-populated
@@ -88,6 +98,7 @@ class ScanViewModelTest {
     private lateinit var appLockManager: AppLockManager
     private lateinit var gson: Gson
     private lateinit var routeArgsHolder: AppLockRouteArgsHolder
+    private lateinit var crashlyticsHelper: FakeCrashlyticsHelper
 
     @Before
     fun setUp() {
@@ -107,6 +118,7 @@ class ScanViewModelTest {
         appLockManager = mockk(relaxed = true)
         gson = Gson()
         routeArgsHolder = AppLockRouteArgsHolder()
+        crashlyticsHelper = FakeCrashlyticsHelper()
 
         // Default flow stubs — init block in the VM subscribes to these.
         every { tagRepository.observeTags() } returns flowOf(emptyList())
@@ -121,6 +133,7 @@ class ScanViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        ShadowBitmapFactory.setAllowInvalidImageData(true)
     }
 
     private fun createViewModel(): ScanViewModel = ScanViewModel(
@@ -128,6 +141,7 @@ class ScanViewModelTest {
         routeArgsHolder = routeArgsHolder,
         authRepository = authRepository,
         analyticsService = analyticsService,
+        crashlyticsHelper = crashlyticsHelper,
         tagRepository = tagRepository,
         documentTypeRepository = documentTypeRepository,
         correspondentRepository = correspondentRepository,
@@ -150,6 +164,16 @@ class ScanViewModelTest {
             uris.joinToString("|") { "file:///tmp/$it.jpg" }
         savedStateHandle["pageIds"] = uris.indices.joinToString("|") { "id-$it" }
         return createViewModel()
+    }
+
+    /**
+     * Like [viewModelWithPages] but with a rotation per page. The rotation map is
+     * pipe-joined "id:degrees" pairs — the format `restorePagesFromSavedState` parses.
+     */
+    private fun viewModelWithRotatedPages(rotations: List<Int>): ScanViewModel {
+        savedStateHandle["pageRotations"] =
+            rotations.indices.joinToString("|") { "id-$it:${rotations[it]}" }
+        return viewModelWithPages(rotations.indices.map { "p$it" })
     }
 
     // ==================== Initial State ====================
@@ -504,5 +528,157 @@ class ScanViewModelTest {
         advanceUntilIdle()
 
         assertEquals(viewModel.uiState.value.pages, viewModel.getPages())
+    }
+
+    // ==================== getRotatedPageUris (#402) ====================
+
+    @Test
+    fun `getRotatedPageUris fails with a message instead of crashing when a page cannot be decoded`() = runTest {
+        // Real Android returns null (no exception) for undecodable data; the legacy shadow
+        // only does the same once invalid image data is disallowed.
+        ShadowBitmapFactory.setAllowInvalidImageData(false)
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val pageUri = viewModel.uiState.value.pages.single().uri
+        shadowOf(context.contentResolver)
+            .registerInputStream(pageUri, ByteArrayInputStream(byteArrayOf(1, 2, 3)))
+
+        viewModel.uiState.test {
+            assertNull(awaitItem().error)
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertTrue(result.isFailure)
+            assertEquals(context.getString(R.string.scan_page_process_failed, 1), awaitItem().error)
+
+            viewModel.clearError() // the Screen clears it once the snackbar has been shown
+
+            assertNull(awaitItem().error)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, crashlyticsHelper.recordedExceptions.size)
+        verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed("IllegalStateException")) }
+        assertEquals(1, viewModel.uiState.value.pageCount) // the page stays so the user can replace it
+    }
+
+    @Test
+    fun `getRotatedPageUris fails with a message when the source file is gone`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val pageUri = viewModel.uiState.value.pages.single().uri
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(pageUri) { throw FileNotFoundException(pageUri.toString()) }
+
+        viewModel.uiState.test {
+            assertNull(awaitItem().error)
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertTrue(result.exceptionOrNull() is FileNotFoundException)
+            assertEquals(context.getString(R.string.scan_page_process_failed, 1), awaitItem().error)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, crashlyticsHelper.recordedExceptions.size)
+        verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed("FileNotFoundException")) }
+    }
+
+    @Test
+    fun `getRotatedPageUris fails instead of silently returning the unrotated page when the stream cannot be opened`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val pageUri = viewModel.uiState.value.pages.single().uri
+        // A provider that no longer serves the page returns null here instead of throwing.
+        shadowOf(context.contentResolver).registerInputStreamSupplier(pageUri) { null }
+
+        viewModel.uiState.test {
+            assertNull(awaitItem().error)
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertTrue(result.exceptionOrNull() is FileNotFoundException)
+            assertEquals(context.getString(R.string.scan_page_process_failed, 1), awaitItem().error)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, crashlyticsHelper.recordedExceptions.size)
+    }
+
+    @Test
+    fun `getRotatedPageUris names the failing page and does not return a partial list`() = runTest {
+        ShadowBitmapFactory.setAllowInvalidImageData(false)
+        val viewModel = viewModelWithRotatedPages(listOf(0, 90)) // page 1 needs no decoding
+        advanceUntilIdle()
+        val secondPageUri = viewModel.uiState.value.pages[1].uri
+        shadowOf(context.contentResolver)
+            .registerInputStream(secondPageUri, ByteArrayInputStream(byteArrayOf(1, 2, 3)))
+
+        viewModel.uiState.test {
+            assertNull(awaitItem().error)
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertTrue(result.isFailure)
+            assertEquals(context.getString(R.string.scan_page_process_failed, 2), awaitItem().error)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(
+            "SCAN_PAGE_PROCESS_FAILED" to "page=2 scheme=file",
+            crashlyticsHelper.actionBreadcrumbs.single()
+        )
+    }
+
+    @Test
+    fun `getRotatedPageUris turns an OutOfMemoryError into a page error instead of a crash`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val pageUri = viewModel.uiState.value.pages.single().uri
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(pageUri) { throw OutOfMemoryError("test") }
+
+        viewModel.uiState.test {
+            assertNull(awaitItem().error)
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertTrue(result.exceptionOrNull() is OutOfMemoryError)
+            assertEquals(context.getString(R.string.scan_page_process_failed, 1), awaitItem().error)
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(1, crashlyticsHelper.recordedExceptions.size)
+    }
+
+    @Test
+    fun `getRotatedPageUris lets cancellation through untouched`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val pageUri = viewModel.uiState.value.pages.single().uri
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(pageUri) { throw CancellationException("test") }
+
+        try {
+            viewModel.getRotatedPageUris()
+            fail("CancellationException must propagate, not become a Result.failure")
+        } catch (e: CancellationException) {
+            // expected: cancellation is not a page error
+        }
+        assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
+        assertNull(viewModel.uiState.value.error)
+    }
+
+    @Test
+    fun `getRotatedPageUris returns the original uris untouched when no page is rotated`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(0, 0))
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val before = awaitItem()
+
+            val result = viewModel.getRotatedPageUris()
+
+            assertEquals(before.pages.map { it.uri }, result.getOrThrow())
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
+        verify { analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = 2)) }
     }
 }

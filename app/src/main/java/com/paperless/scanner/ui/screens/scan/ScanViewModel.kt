@@ -19,6 +19,7 @@ import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.ai.models.getLocalizedMessage
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.billing.PremiumFeature
 import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.repository.AiUsageRepository
@@ -36,6 +37,7 @@ import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +49,7 @@ import kotlinx.coroutines.flow.updateAndGet
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import javax.inject.Inject
 
@@ -89,7 +92,9 @@ data class ScanUiState(
     val isProcessing: Boolean = false,
     val lastRemovedPage: RemovedPageInfo? = null,
     val tags: List<Tag> = emptyList(),
-    val selectedTagIds: List<Int> = emptyList()
+    val selectedTagIds: List<Int> = emptyList(),
+    /** One-shot user-facing error (e.g. a page that could not be processed, #402); cleared via [ScanViewModel.clearError]. */
+    val error: String? = null
 ) {
     val pageCount: Int get() = pages.size
     val hasPages: Boolean get() = pages.isNotEmpty()
@@ -108,6 +113,7 @@ class ScanViewModel @Inject constructor(
     private val routeArgsHolder: AppLockRouteArgsHolder,
     private val authRepository: AuthRepository,
     private val analyticsService: AnalyticsService,
+    private val crashlyticsHelper: CrashlyticsHelperContract,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
     private val correspondentRepository: CorrespondentRepository,
@@ -626,6 +632,10 @@ class ScanViewModel @Inject constructor(
         _uiState.update { it.copy(lastRemovedPage = null) }
     }
 
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+
     fun movePage(fromIndex: Int, toIndex: Int) {
         // Safe: both reads and the CAS happen on Main (no other dispatcher can interleave).
         val pagesBefore = _uiState.value.pages
@@ -761,26 +771,57 @@ class ScanViewModel @Inject constructor(
     fun getPages(): List<ScannedPage> = _uiState.value.pages
 
     /**
-     * Returns URIs with rotation applied. Creates rotated copies for pages with rotation != 0.
+     * Returns the page URIs with rotation applied, creating rotated copies for pages with
+     * rotation != 0.
+     *
+     * #402: a page that cannot be read or decoded fails the call instead of crashing the
+     * process. The failure is published to [ScanUiState.error] for the Screen to show, so
+     * callers only need to abort their navigation.
      */
-    suspend fun getRotatedPageUris(): List<Uri> = withContext(Dispatchers.IO) {
-        val pageCount = _uiState.value.pageCount
-        analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pageCount))
-        _uiState.value.pages.map { page ->
-            if (page.rotation == 0) {
-                page.uri
-            } else {
-                rotateAndSaveImage(page.uri, page.rotation)
+    suspend fun getRotatedPageUris(): Result<List<Uri>> = withContext(Dispatchers.IO) {
+        val pages = _uiState.value.pages
+        analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pages.size))
+        val uris = ArrayList<Uri>(pages.size)
+        for (page in pages) {
+            uris += try {
+                if (page.rotation == 0) page.uri else rotateAndSaveImage(page.uri, page.rotation)
+            } catch (e: CancellationException) {
+                throw e // must stay ahead of every other catch: cancellation is not a page error
+            } catch (e: Exception) {
+                return@withContext pageProcessingFailed(page, e)
+            } catch (e: OutOfMemoryError) {
+                // Decode + rotation hold two full-resolution bitmaps; on a large scan the
+                // allocation can fail. Same user-facing outcome as an undecodable page.
+                return@withContext pageProcessingFailed(page, e)
             }
         }
+        Result.success(uris)
+    }
+
+    /** Records a page that could not be read, decoded or rotated (#402) and turns it into a [Result.failure]. */
+    private fun pageProcessingFailed(page: ScannedPage, cause: Throwable): Result<List<Uri>> {
+        Log.e(TAG, "Page ${page.pageNumber} could not be processed", cause)
+        crashlyticsHelper.logActionBreadcrumb(
+            "SCAN_PAGE_PROCESS_FAILED",
+            "page=${page.pageNumber} scheme=${page.uri.scheme}"
+        )
+        crashlyticsHelper.recordException(cause)
+        analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed(cause::class.java.simpleName))
+        _uiState.update {
+            it.copy(error = context.getString(R.string.scan_page_process_failed, page.pageNumber))
+        }
+        return Result.failure(cause)
     }
 
     private fun rotateAndSaveImage(uri: Uri, rotation: Int): Uri {
-        // Load bitmap
+        // Load bitmap. A null stream means the provider no longer serves the page; decodeStream
+        // returns null (no exception) for unreadable, corrupt or unsupported data and when native
+        // pixel allocation fails — #402 crashed on exactly that. Distinct exceptions keep the two
+        // causes apart in Crashlytics.
         val inputStream = context.contentResolver.openInputStream(uri)
-            ?: return uri
-        val originalBitmap = BitmapFactory.decodeStream(inputStream)
-        inputStream.close()
+            ?: throw FileNotFoundException(context.getString(R.string.error_open_input_stream))
+        val originalBitmap = inputStream.use { BitmapFactory.decodeStream(it) }
+            ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
 
         // Rotate bitmap
         val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
@@ -792,8 +833,14 @@ class ScanViewModel @Inject constructor(
 
         // Save to cache — #241: scoped subdir exposed by the FileProvider.
         val rotatedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "rotated_${System.currentTimeMillis()}.jpg")
-        FileOutputStream(rotatedFile).use { out ->
+        // compress reports an encoder or I/O failure (e.g. disk full) as false, not as an exception;
+        // a half-written file must not become the page that gets uploaded.
+        val encoded = FileOutputStream(rotatedFile).use { out ->
             rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+        }
+        if (!encoded) {
+            rotatedFile.delete()
+            throw IllegalStateException(context.getString(R.string.error_image_process_failed))
         }
 
         // Cleanup
