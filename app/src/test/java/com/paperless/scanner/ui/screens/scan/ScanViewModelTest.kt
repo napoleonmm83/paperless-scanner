@@ -559,6 +559,7 @@ class ScanViewModelTest {
         }
         assertEquals(1, crashlyticsHelper.recordedExceptions.size)
         verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed("IllegalStateException")) }
+        verify(exactly = 0) { analyticsService.trackEvent(ofType<AnalyticsEvent.ScanCompleted>()) }
         assertEquals(1, viewModel.uiState.value.pageCount) // the page stays so the user can replace it
     }
 

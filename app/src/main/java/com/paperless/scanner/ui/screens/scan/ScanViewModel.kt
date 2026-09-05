@@ -790,7 +790,6 @@ class ScanViewModel @Inject constructor(
         // away before its snackbar finished (navigation cancels the effect ahead of clearError)
         // would re-show the old message on return although the page was long since replaced.
         _uiState.update { it.copy(error = null) }
-        analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pages.size))
         val uris = ArrayList<Uri>(pages.size)
         for (page in pages) {
             uris += try {
@@ -805,6 +804,9 @@ class ScanViewModel @Inject constructor(
                 return@withContext pageProcessingFailed(page, e)
             }
         }
+        // Only a fully processed set counts as a completed scan; a failed attempt is tracked
+        // as ScanPageProcessFailed instead.
+        analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pages.size))
         Result.success(uris)
     }
 
