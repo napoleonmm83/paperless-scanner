@@ -69,7 +69,8 @@ import java.io.FileNotFoundException
  *
  * Out of scope (file I/O / AI heavy paths):
  * - rotatePage, cropPage (Bitmap I/O) — the getRotatedPageUris failure paths ARE
- *   covered below (#402), the successful rotation itself still needs a real decoder
+ *   covered below (#402); the successful rotation ends in FileProvider.getUriForFile,
+ *   which Robolectric cannot serve here
  * - analyzeFirstPage, createTag (network + AI orchestrator coupling)
  *
  * Workaround for the addPages limitation: tests that need pre-populated
@@ -680,5 +681,21 @@ class ScanViewModelTest {
         }
         assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
         verify { analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = 2)) }
+    }
+
+    @Test
+    fun `getRotatedPageUris clears a stale error when the next attempt starts`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val page = viewModel.uiState.value.pages.single()
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(page.uri) { throw FileNotFoundException(page.uri.toString()) }
+        assertTrue(viewModel.getRotatedPageUris().isFailure)
+        assertNotNull(viewModel.uiState.value.error)
+
+        repeat(3) { viewModel.rotatePage(page.id) } // 90 -> 0: nothing left to decode
+
+        assertTrue(viewModel.getRotatedPageUris().isSuccess)
+        assertNull(viewModel.uiState.value.error)
     }
 }

@@ -93,7 +93,10 @@ data class ScanUiState(
     val lastRemovedPage: RemovedPageInfo? = null,
     val tags: List<Tag> = emptyList(),
     val selectedTagIds: List<Int> = emptyList(),
-    /** One-shot user-facing error (e.g. a page that could not be processed, #402); cleared via [ScanViewModel.clearError]. */
+    /**
+     * User-facing error (e.g. a page that could not be processed, #402). Cleared via
+     * [ScanViewModel.clearError] once shown, and reset when the next attempt starts.
+     */
     val error: String? = null
 ) {
     val pageCount: Int get() = pages.size
@@ -780,6 +783,10 @@ class ScanViewModel @Inject constructor(
      */
     suspend fun getRotatedPageUris(): Result<List<Uri>> = withContext(Dispatchers.IO) {
         val pages = _uiState.value.pages
+        // A previous attempt's error is stale now. Without this reset, a Screen that navigated
+        // away before its snackbar finished (navigation cancels the effect ahead of clearError)
+        // would re-show the old message on return although the page was long since replaced.
+        _uiState.update { it.copy(error = null) }
         analyticsService.trackEvent(AnalyticsEvent.ScanCompleted(pageCount = pages.size))
         val uris = ArrayList<Uri>(pages.size)
         for (page in pages) {
@@ -823,37 +830,40 @@ class ScanViewModel @Inject constructor(
         val originalBitmap = inputStream.use { BitmapFactory.decodeStream(it) }
             ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
 
-        // Rotate bitmap
-        val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
-        val rotatedBitmap = Bitmap.createBitmap(
-            originalBitmap, 0, 0,
-            originalBitmap.width, originalBitmap.height,
-            matrix, true
-        )
-
-        // Save to cache — #241: scoped subdir exposed by the FileProvider.
-        val rotatedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "rotated_${System.currentTimeMillis()}.jpg")
-        // compress reports an encoder or I/O failure (e.g. disk full) as false, not as an exception;
-        // a half-written file must not become the page that gets uploaded.
-        val encoded = FileOutputStream(rotatedFile).use { out ->
-            rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-        }
-        if (!encoded) {
-            rotatedFile.delete()
-            throw IllegalStateException(context.getString(R.string.error_image_process_failed))
-        }
-
-        // Cleanup
-        if (rotatedBitmap != originalBitmap) {
+        // Rotate, encode, recycle. The finally blocks matter on the failure paths #402 opened up:
+        // an exception between decode and cleanup used to kill the process; now it must not leave
+        // two full-resolution bitmaps waiting for the GC under the very memory pressure that can
+        // cause it.
+        try {
+            val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
+            val rotatedBitmap = Bitmap.createBitmap(
+                originalBitmap, 0, 0,
+                originalBitmap.width, originalBitmap.height,
+                matrix, true
+            )
+            try {
+                // Save to cache — #241: scoped subdir exposed by the FileProvider.
+                val rotatedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "rotated_${System.currentTimeMillis()}.jpg")
+                // compress reports an encoder or I/O failure (e.g. disk full) as false, not as an
+                // exception; a half-written file must not become the page that gets uploaded.
+                val encoded = FileOutputStream(rotatedFile).use { out ->
+                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+                }
+                if (!encoded) {
+                    rotatedFile.delete()
+                    throw IllegalStateException(context.getString(R.string.error_image_process_failed))
+                }
+                return FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    rotatedFile
+                )
+            } finally {
+                if (rotatedBitmap != originalBitmap) rotatedBitmap.recycle()
+            }
+        } finally {
             originalBitmap.recycle()
         }
-        rotatedBitmap.recycle()
-
-        return FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            rotatedFile
-        )
     }
 
     fun logout() {

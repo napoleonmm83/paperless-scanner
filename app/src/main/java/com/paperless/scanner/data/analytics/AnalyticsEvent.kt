@@ -89,7 +89,8 @@ sealed class AnalyticsEvent(
      * [errorType] is the exception class simple name (e.g. "IllegalStateException",
      * "FileNotFoundException", "OutOfMemoryError") - a fixed, low-cardinality set that
      * carries no user data. Full detail goes to Crashlytics via recordException; this
-     * event only provides the rate, paired with [ScanCompleted] as the denominator.
+     * event only provides the rate. [ScanCompleted] fires once per attempt and is the
+     * denominator.
      */
     data class ScanPageProcessFailed(val errorType: String) : AnalyticsEvent(
         "scan_page_process_failed",
