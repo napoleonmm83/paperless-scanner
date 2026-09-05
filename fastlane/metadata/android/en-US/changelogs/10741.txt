@@ -1,0 +1,5 @@
+Version 1.5.241:
+
+🔧 Improvements:
+- Maintenance update to the build and release pipeline
+- No changes to features or how the app works
