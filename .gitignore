@@ -159,7 +159,6 @@ functions/.runtimeconfig.json
 
 # Scratch / refactor backup artifacts
 /s/
-/nul
 logs-*.txt
 
 # Auto Claude data directory
