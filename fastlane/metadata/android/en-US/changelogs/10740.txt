@@ -1,0 +1,5 @@
+Version 1.5.240:
+
+🐛 Bug Fixes:
+- Fixed crash when continuing with a rotated scan page
+- Unreadable pages show a message instead of crashing
