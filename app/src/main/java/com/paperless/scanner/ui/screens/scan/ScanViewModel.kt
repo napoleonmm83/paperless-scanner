@@ -609,7 +609,10 @@ class ScanViewModel @Inject constructor(
             syncPagesToSavedState(renumberedPages)
             state.copy(
                 pages = renumberedPages,
-                lastRemovedPage = RemovedPageInfo(removedPage, removedIndex)
+                lastRemovedPage = RemovedPageInfo(removedPage, removedIndex),
+                // Removing a page is what the page error asks for; dropping the error here
+                // dismisses its snackbar so the undo snackbar is not queued behind it (#402).
+                error = null
             )
         }
     }

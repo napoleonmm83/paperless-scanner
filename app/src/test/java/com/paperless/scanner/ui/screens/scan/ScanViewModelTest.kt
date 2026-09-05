@@ -698,4 +698,22 @@ class ScanViewModelTest {
         assertTrue(viewModel.getRotatedPageUris().isSuccess)
         assertNull(viewModel.uiState.value.error)
     }
+
+    @Test
+    fun `removePage clears a pending page error so the undo snackbar is not queued behind it`() = runTest {
+        val viewModel = viewModelWithRotatedPages(listOf(90))
+        advanceUntilIdle()
+        val page = viewModel.uiState.value.pages.single()
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(page.uri) { throw FileNotFoundException(page.uri.toString()) }
+        assertTrue(viewModel.getRotatedPageUris().isFailure)
+        assertNotNull(viewModel.uiState.value.error)
+
+        viewModel.removePage(page.id) // what the error message asks the user to do
+
+        val state = viewModel.uiState.value
+        assertNull(state.error)
+        assertNotNull(state.lastRemovedPage)
+        assertEquals(0, state.pageCount)
+    }
 }
