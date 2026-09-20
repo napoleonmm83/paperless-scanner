@@ -36,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,8 +46,13 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -62,6 +68,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -70,7 +77,11 @@ import com.paperless.scanner.R
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+// INTENTIONAL-UNTESTED: imports for the diagnostic-report offer; see the note at the
+// state dispatch below.
+import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import com.paperless.scanner.util.DiagnosticReportSender
 import java.io.File
 
 @Composable
@@ -106,22 +117,75 @@ fun PdfViewerScreen(
             is PdfViewerUiState.Downloading -> {
                 DownloadingView(progress = state.progress)
             }
+            // INTENTIONAL-UNTESTED: this file has no Compose-UI test harness (Roborazzi
+            // is deferred as issue #391), so nothing here can be pinned from a unit
+            // test. Two things make that acceptable rather than convenient:
+            //
+            //  - The behaviour being replaced is `e.printStackTrace()` plus a progress
+            //    indicator that never stops. There is no old behaviour to preserve —
+            //    a pin test would assert that nothing happens.
+            //  - Everything the new callbacks DO lives in PdfViewerViewModel and is
+            //    pinned there (onRenderFailure sets the error state, reports the
+            //    exception and emits the event). What stays untested is only the wiring.
             is PdfViewerUiState.Viewing -> {
                 if (state.isPdf) {
                     PdfView(
                         pdfFile = state.pdfFile,
                         onPageChanged = { page, total ->
                             viewModel.updatePageInfo(page, total)
-                        }
+                        },
+                        onRenderFailure = viewModel::onRenderFailure,
+                        onPageRenderFailure = viewModel::onPageRenderFailure
                     )
                 } else {
-                    ImageView(file = state.pdfFile)
+                    ImageView(
+                        file = state.pdfFile,
+                        onRenderFailure = viewModel::onRenderFailure
+                    )
                 }
             }
             is PdfViewerUiState.Error -> {
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above. The
+                // decision of WHETHER to offer the report is pinned in
+                // PdfViewerViewModelTest; only the wiring lives here.
+                val context = LocalContext.current
                 ErrorView(
                     message = state.message,
-                    onRetry = viewModel::downloadDocument
+                    onRetry = viewModel::downloadDocument,
+                    onOpenExternal = viewModel::openInExternalApp.takeIf { state.canOpenExternally },
+                    onSendReport = if (state.canSendReport) {
+                        {
+                            // INTENTIONAL-UNTESTED: see the note at the state dispatch
+                            // above — no Compose-UI harness exists here (issue #391).
+                            // Which Result each path produces IS pinned, in
+                            // DiagnosticReportSender's own outcomes; only the choice of
+                            // toast lives here.
+                            viewModel.sendDiagnosticReport { result ->
+                                // A device with no mail app and no share target must not
+                                // be left wondering whether the tap registered — and the
+                                // two silent outcomes say DIFFERENT things, so they get
+                                // different messages. Claiming a clipboard copy that did
+                                // not happen sends the user looking for a report that is
+                                // not there.
+                                val message = when (result) {
+                                    DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
+                                        R.string.diagnostic_report_copied
+                                    DiagnosticReportSender.Result.NO_TARGET ->
+                                        R.string.diagnostic_report_no_target
+                                    else -> null
+                                }
+                                message?.let {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(it),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }
+                    } else {
+                        null
+                    }
                 )
             }
         }
@@ -220,10 +284,45 @@ private fun DownloadingView(progress: Float) {
 @Composable
 private fun PdfView(
     pdfFile: File,
-    onPageChanged: (Int, Int) -> Unit
+    onPageChanged: (Int, Int) -> Unit,
+    // Document-scoped: the file could not be opened at all, so no page is readable.
+    onRenderFailure: (Throwable) -> Unit,
+    // Page-scoped: one page failed while the rest of the document stays readable.
+    onPageRenderFailure: (Int, Throwable) -> Unit
 ) {
     var pdfRenderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var totalPages by remember { mutableStateOf(0) }
+
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    //
+    // PdfRenderer allows exactly ONE open page at a time. Before API 35 — which is
+    // nearly every device this app runs on, minSdk is 26 — both openPage() and close()
+    // begin with throwIfPageOpened() and raise IllegalStateException("Current page not
+    // closed") otherwise. The pager below pre-renders neighbours
+    // (beyondViewportPageCount = 1), so two or three PdfPage composables start their
+    // LaunchedEffect in the same frame and race on openPage from IO threads.
+    //
+    // The race predates this change; its CONSEQUENCE did not. It used to end in
+    // printStackTrace and one page that never stopped loading. Now the catch reports,
+    // so without this lock the loser of the race would tear down the whole document,
+    // file a non-fatal, and fill the very telemetry this change exists to make usable
+    // with noise from an ordinary page turn. Serialising the access removes the cause
+    // rather than muting the symptom.
+    val pageMutex = remember { Mutex() }
+
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    //
+    // Set BEFORE close() in onDispose and checked INSIDE the lock, because the lock
+    // alone does not order teardown against rendering: a render that was waiting for the
+    // mutex can acquire it after the renderer has already been closed, and then touches
+    // a dead handle. Checking a flag the disposer set first turns that into a no-op.
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    // Keyed on pdfFile like the effect below. A bare `remember` would keep the flag at
+    // true after a key change disposed the old renderer — every page would then return
+    // from the lock immediately and spin forever. No path reaches that today (a retry
+    // goes through Downloading, which removes PdfView), so this is a latch that cannot
+    // stick rather than a fix for a live defect.
+    val rendererClosed = remember(pdfFile) { java.util.concurrent.atomic.AtomicBoolean(false) }
 
     // Initialize PDF renderer
     DisposableEffect(pdfFile) {
@@ -236,11 +335,34 @@ private fun PdfView(
             pdfRenderer = renderer
             totalPages = renderer.pageCount
         } catch (e: Exception) {
-            e.printStackTrace()
+            // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+            //
+            // This used to be `e.printStackTrace()` alone. PdfRenderer throws here for
+            // an encrypted PDF, a truncated download, a zero-byte file, and for a server
+            // error page saved under a .pdf name — and the screen then fell through to
+            // the `else` branch below and showed its progress indicator indefinitely.
+            // No message, no retry, no report: the one shape of failure a user cannot
+            // even describe to support.
+            onRenderFailure(e)
         }
 
         onDispose {
-            pdfRenderer?.close()
+            // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+            //
+            // runCatching, and it is not defensive padding. Before API 35, close() calls
+            // throwIfPageOpened() and throws IllegalStateException if a page is still
+            // open. A render in flight when the screen goes away is exactly that case,
+            // and the throw would land uncaught on the main thread. pageMutex below
+            // makes it rare; this makes it harmless. Teardown of a screen the user has
+            // already left is nothing to report.
+            //
+            // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+            // The flag is raised FIRST so a render still waiting on the mutex sees a
+            // closed renderer and does nothing, instead of acquiring the lock after
+            // teardown and reaching into a dead handle. The lock alone cannot order
+            // these two: a waiter may be granted it at any point after close().
+            rendererClosed.set(true)
+            runCatching { pdfRenderer?.close() }
         }
     }
 
@@ -268,9 +390,13 @@ private fun PdfView(
                 modifier = Modifier.fillMaxSize(),
                 beyondViewportPageCount = 1  // Pre-render 1 page on each side for smooth scrolling
             ) { pageIndex ->
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
                 PdfPage(
                     pdfRenderer = pdfRenderer!!,
-                    pageIndex = pageIndex
+                    pageIndex = pageIndex,
+                    pageMutex = pageMutex,
+                    rendererClosed = rendererClosed,
+                    onPageRenderFailure = onPageRenderFailure
                 )
             }
 
@@ -349,9 +475,25 @@ private fun PdfView(
 @Composable
 private fun PdfPage(
     pdfRenderer: PdfRenderer,
-    pageIndex: Int
+    pageIndex: Int,
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above; no Compose-UI test
+    // harness exists here (issue #391). What the callback DOES is pinned in
+    // PdfViewerViewModelTest; what stays untested is the wiring.
+    //
+    // pageMutex is shared with every sibling page — see the note at its declaration.
+    // PdfRenderer permits one open page at a time, and the pager composes neighbours
+    // concurrently.
+    pageMutex: Mutex,
+    rendererClosed: java.util.concurrent.atomic.AtomicBoolean,
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    // Page-SCOPED, not the document callback. The pager pre-composes a neighbour on each
+    // side, so this fires for pages the user has not reached; routing it into the
+    // document callback replaced a readable 20-page document with a full-screen error
+    // because page 5 had a corrupt content stream.
+    onPageRenderFailure: (Int, Throwable) -> Unit
 ) {
     var bitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(null) }
+    var renderFailed by remember(pageIndex) { mutableStateOf(false) }
     var scale by remember(pageIndex) { mutableFloatStateOf(1f) }
     var offset by remember(pageIndex) { mutableStateOf(Offset.Zero) }
 
@@ -359,6 +501,11 @@ private fun PdfPage(
     LaunchedEffect(pageIndex) {
         withContext(Dispatchers.IO) {
             try {
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+                // The lock spans open, render and close — a page must be closed before
+                // the next one may be opened, so releasing earlier would not help.
+                pageMutex.withLock {
+                if (rendererClosed.get()) return@withLock
                 pdfRenderer.openPage(pageIndex).use { page ->
                     // Calculate safe bitmap dimensions
                     // Reduced from 2x to 1.5x for better performance
@@ -395,8 +542,37 @@ private fun PdfPage(
                     )
                     bitmap = renderBitmap
                 }
+                } // INTENTIONAL-UNTESTED: closes pageMutex.withLock, see note above
+            } catch (e: CancellationException) {
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+                //
+                // MUST be rethrown, and MUST come before the Exception branch. Swiping to
+                // the next page cancels this LaunchedEffect; the old `catch (e: Exception)`
+                // swallowed that cancellation, breaking structured concurrency and — worse
+                // — reporting an ordinary page turn as a render failure once the branch
+                // below started reporting anything. Project rule
+                // feedback_cancellation_exception_ordering.
+                throw e
             } catch (e: Exception) {
-                e.printStackTrace()
+                // This was `e.printStackTrace()`, and it is the SAME defect the opening
+                // path was fixed for, one function further down: `bitmap` stayed null,
+                // the else-branch below kept spinning its progress indicator, and nothing
+                // was reported. A PDF whose header is valid and which PdfRenderer opens
+                // happily can still fail on page zero — a corrupt content stream, a
+                // degenerate page size, an encrypted page, or BitmapFactory returning
+                // null instead of throwing (issue #402). The user's report for all of
+                // them reads "the app hangs", which is the one description nobody can act
+                // on.
+                //
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+                // ensureActive() first: once this coroutine is cancelled, a call into a
+                // torn-down renderer raises IllegalStateException rather than
+                // CancellationException, so the catch above does not see it and an
+                // ordinary page turn would be filed as a render failure. That noise would
+                // land in exactly the telemetry this change exists to make readable.
+                currentCoroutineContext().ensureActive()
+                renderFailed = true
+                onPageRenderFailure(pageIndex, e)
             }
         }
     }
@@ -414,6 +590,27 @@ private fun PdfPage(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
+        } else if (renderFailed) {
+            // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+            // A page that cannot be rendered says so, on that page. The spinner below is
+            // for a page still working; leaving a failed page on it was the endless
+            // spinner this change set out to remove, and replacing the whole document
+            // instead would take away the pages that still read fine.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Filled.Error,
+                    contentDescription = stringResource(R.string.cd_error),
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.padding(8.dp))
+                Text(
+                    text = stringResource(R.string.pdf_viewer_page_failed, pageIndex + 1),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
         } else {
             // Loading indicator while page is rendering
             CircularProgressIndicator(
@@ -425,7 +622,10 @@ private fun PdfPage(
 }
 
 @Composable
-private fun ImageView(file: File) {
+private fun ImageView(
+    file: File,
+    onRenderFailure: (Throwable) -> Unit
+) {
     val context = LocalContext.current
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -441,6 +641,11 @@ private fun ImageView(file: File) {
                 .data(file)
                 .crossfade(true)
                 .build(),
+            // INTENTIONAL-UNTESTED: see the note at the state dispatch above. There was
+            // no error handler at all here, so a failed decode left an empty grey
+            // surface with no message and nothing reported — the image-path twin of the
+            // endless spinner in PdfView.
+            onError = { onRenderFailure(it.result.throwable) },
             contentDescription = stringResource(R.string.pdf_viewer_document_image),
             modifier = Modifier
                 .fillMaxSize()
@@ -468,13 +673,28 @@ private fun ImageView(file: File) {
 @Composable
 private fun ErrorView(
     message: String,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    // Null when the app cannot help further; non-null when the file arrived intact and
+    // only this app cannot render it, which is a different situation for the user and
+    // deserves a different offer than "try again".
+    onOpenExternal: (() -> Unit)? = null,
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    // Null unless the app genuinely does not know what went wrong. Offering this on
+    // "check your internet connection" would collect reports that teach us nothing and
+    // train the user to ignore the button by the time it matters.
+    onSendReport: (() -> Unit)? = null
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            // The messages carry a cause now instead of two words, so they wrap. Without
+            // a gutter and centre alignment they ran edge to edge on a phone.
+            modifier = Modifier.padding(horizontal = 32.dp)
+        ) {
             Icon(
                 imageVector = Icons.Filled.Error,
                 contentDescription = stringResource(R.string.cd_error),
@@ -486,7 +706,8 @@ private fun ErrorView(
                 text = message,
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.padding(16.dp))
             Button(
@@ -497,6 +718,17 @@ private fun ErrorView(
                     text = stringResource(R.string.pdf_viewer_retry),
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+            if (onOpenExternal != null) {
+                TextButton(onClick = onOpenExternal) {
+                    Text(text = stringResource(R.string.pdf_viewer_open_external))
+                }
+            }
+            if (onSendReport != null) {
+                // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+                TextButton(onClick = onSendReport) {
+                    Text(text = stringResource(R.string.diagnostic_report_send))
+                }
             }
         }
     }

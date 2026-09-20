@@ -86,10 +86,19 @@ class AiAnalysisService @Inject constructor(
                 val response = generativeModel.generateContent(content)
                 val responseText = response.text ?: throw IllegalStateException(context.getString(R.string.ai_error_empty_response))
 
-                android.util.Log.d(TAG, "AI Response received: $responseText")
+                // INTENTIONAL-UNTESTED: a log-line change; there is no behaviour to pin
+                // and a test asserting a log string would pin the wrong thing.
+                //
+                // Length only, never the text. The model's answer is derived from the
+                // user's document — title, correspondent, tags — and neither line is
+                // gated in release. Since the diagnostic report now exports a logcat
+                // tail, whatever is logged here can leave the device; the report's own
+                // explanation promises it carries no documents, and that promise is only
+                // as good as the lines behind it.
+                android.util.Log.d(TAG, "AI response received: ${responseText.length} chars")
 
                 val analysis = parseResponse(responseText, availableTags, allowNewTags)
-                android.util.Log.d(TAG, "Parsed analysis: ${analysis.suggestedTags.size} tags, title=${analysis.suggestedTitle}")
+                android.util.Log.d(TAG, "Parsed analysis: ${analysis.suggestedTags.size} tags")
                 analysis
             }
         }

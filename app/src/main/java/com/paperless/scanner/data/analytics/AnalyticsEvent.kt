@@ -142,10 +142,45 @@ sealed class AnalyticsEvent(
      * set that carries no user or server data. Full detail goes to Crashlytics via
      * recordException; this event only provides the rate, paired with
      * [PdfViewerOpened] as the denominator.
+     *
+     * [diagnosticTag] was added because [errorType] alone could not answer the question
+     * the event was created for. Every unclassifiable failure reports "UnknownError",
+     * which is precisely the set we needed to tell apart - the tag splits it into
+     * "HTTP 304", "JsonSyntaxException" and so on. Same property, same guarantees: a
+     * bounded vocabulary, never a host name, never a response body.
+     *
+     * Read it from [com.paperless.scanner.domain.error.PaperlessException.diagnosticTag]
+     * rather than rebuilding it here - it is overridden per subtype.
      */
-    data class PdfViewerDownloadFailed(val errorType: String) : AnalyticsEvent(
+    data class PdfViewerDownloadFailed(
+        val errorType: String,
+        val diagnosticTag: String = errorType
+    ) : AnalyticsEvent(
         "pdf_viewer_download_failed",
-        mapOf("error_type" to errorType)
+        mapOf(
+            "error_type" to errorType,
+            "diagnostic_tag" to diagnosticTag
+        )
+    )
+
+    /**
+     * The diagnostic report was OFFERED to the user.
+     *
+     * The denominator. Without it, a count of sent reports cannot distinguish "nobody
+     * needs it" from "nobody finds it" — and #403 already shipped an event
+     * ([PdfViewerOpened]) that existed but was never fired, which made its failure
+     * counterpart uninterpretable for seven weeks.
+     */
+    data object DiagnosticReportOffered : AnalyticsEvent("diagnostic_report_offered")
+
+    /**
+     * The user acted on the offer. [outcome] is the sender's result — mail app, generic
+     * chooser, or nothing available — so a device class that cannot send is visible
+     * rather than looking like disinterest.
+     */
+    data class DiagnosticReportShared(val outcome: String) : AnalyticsEvent(
+        "diagnostic_report_shared",
+        mapOf("outcome" to outcome)
     )
 
     /** Tag created */

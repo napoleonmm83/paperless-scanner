@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.analytics
 
 import android.os.Build
+import com.paperless.scanner.util.LogSanitizer
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -17,12 +18,12 @@ import java.util.UUID
  * **Usage:**
  * Created when auth fails, optionally sent to Firestore for analysis.
  */
-data class AuthDebugReport(
+data class DiagnosticReport(
     val reportId: String = UUID.randomUUID().toString(),
     val timestamp: Long = System.currentTimeMillis(),
 
     // Auth attempt info (anonymized)
-    val authType: AuthType,
+    val authType: Source,
     val serverUrlHash: String,
     val httpStatusCode: Int?,
     val errorType: String?,
@@ -41,11 +42,18 @@ data class AuthDebugReport(
     // Server detection results
     val serverDetection: ServerDetectionInfo? = null
 ) {
-    enum class AuthType {
+    enum class Source {
         PASSWORD_LOGIN,
         TOKEN_LOGIN,
         TOKEN_VALIDATION,
-        SERVER_DETECTION
+        SERVER_DETECTION,
+
+        // Added when this report stopped being auth-only. The class was called
+        // AuthDebugReport and carried an AuthType; keeping those names while it
+        // reported PDF download failures would have been a name that lies, and the
+        // next reader would have had to discover that by reading the call sites.
+        DOCUMENT_DOWNLOAD,
+        DOCUMENT_RENDER
     }
 
     data class DeviceInfo(
@@ -128,16 +136,14 @@ data class AuthDebugReport(
         /**
          * Sanitize response body - remove potential PII, limit length.
          */
-        fun sanitizeResponseBody(body: String?): String? {
-            if (body.isNullOrBlank()) return null
-
-            // Remove potential tokens/passwords from JSON
-            val sanitized = body
-                .replace(Regex("\"(token|password|secret|key)\"\\s*:\\s*\"[^\"]*\""), "\"$1\":\"[REDACTED]\"")
-                .replace(Regex("\"(username|user|email)\"\\s*:\\s*\"[^\"]*\""), "\"$1\":\"[REDACTED]\"")
-
-            return sanitized.take(200)
-        }
+        fun sanitizeResponseBody(body: String?): String? =
+            // Delegated rather than duplicated. The two regexes that stood here used the
+            // naive value matcher `[^"]*`, which LogSanitizer's own comment describes as a
+            // leak: an escaped quote inside the value ends the match early and the rest of
+            // the secret runs on into the report. They also knew neither `api_key` nor
+            // `authorization` nor `passwd`, so the class doc's "response bodies are
+            // sanitized" held for half the list.
+            LogSanitizer.sanitizeErrorBody(body)
 
         /**
          * Extract safe headers for logging (exclude sensitive ones).

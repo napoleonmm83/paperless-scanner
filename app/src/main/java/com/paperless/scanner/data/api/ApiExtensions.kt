@@ -163,11 +163,19 @@ suspend fun <T> safeApiResponse(
     } catch (e: CancellationException) {
         throw e
     } catch (e: retrofit2.HttpException) {
+        // Kept, and NOT delegated to from(): this branch reads the error BODY, while
+        // from() would too — but only after re-entering the when. Reading it here keeps
+        // the body available at the one place that already holds the response.
         val errorBody = e.response()?.errorBody()?.string()
         Result.failure(PaperlessException.fromHttpCode(e.code(), errorBody))
-    } catch (e: IOException) {
-        Result.failure(PaperlessException.NetworkError(e))
     } catch (e: Exception) {
+        // INTENTIONAL-UNTESTED: an IOException branch used to sit ahead of this one and
+        // flattened every IOException subclass to NetworkError. That shadowed the typed
+        // cases from() knows — DNS failure, refused connection, timeout, blocked
+        // cleartext, certificate-pin mismatch and TLS errors — so a pinning mismatch,
+        // which this app raises deliberately to warn about a swapped certificate,
+        // reached the user as "check your internet connection". from() ends in the same
+        // NetworkError for a plain IOException, so nothing is lost by removing it.
         Result.failure(PaperlessException.from(e))
     }
 }

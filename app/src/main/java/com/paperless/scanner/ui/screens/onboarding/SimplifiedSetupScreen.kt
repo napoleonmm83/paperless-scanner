@@ -125,7 +125,7 @@ fun SimplifiedSetupScreen(
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
     val serverStatus by viewModel.serverStatus.collectAsState()
-    val authDebugReport by viewModel.hasAuthDebugReport.collectAsState()
+    val authDebugReport by viewModel.hasDiagnosticReport.collectAsState()
     val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
 
     val isServerValid = serverStatus is ServerStatus.Success
@@ -623,7 +623,7 @@ fun SimplifiedSetupScreen(
 
                             Button(
                                 onClick = {
-                                    val shareableReport = viewModel.getShareableAuthDebugReport()
+                                    val shareableReport = viewModel.getShareableDiagnosticReport()
                                     val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     val clip = ClipData.newPlainText("Auth Debug Report", shareableReport)
                                     clipboardManager.setPrimaryClip(clip)
@@ -632,7 +632,7 @@ fun SimplifiedSetupScreen(
                                         context.getString(R.string.auth_debug_report_copied),
                                         Toast.LENGTH_LONG
                                     ).show()
-                                    viewModel.clearAuthDebugReport()
+                                    viewModel.clearDiagnosticReport()
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()

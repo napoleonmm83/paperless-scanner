@@ -19,8 +19,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
 import javax.inject.Inject
-import com.paperless.scanner.data.analytics.AuthDebugReport
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticReport
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 
 /**
@@ -71,7 +71,7 @@ class AuthRepository @Inject constructor(
     private val client: OkHttpClient,
     private val cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
     private val crashlyticsHelper: CrashlyticsHelperContract,
-    private val authDebugService: AuthDebugService,
+    private val diagnosticsReportService: DiagnosticsReportService,
     private val httpCache: Cache,
     private val protocolDetector: ProtocolDetector,
 ) {
@@ -119,12 +119,12 @@ class AuthRepository @Inject constructor(
             }
             val httpError: Throwable = httpResult.exceptionOrNull()
                 ?: IOException("HTTP detection failed without exception")
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.SERVER_DETECTION,
                 serverUrl = cleanHost,
                 errorType = "SERVER_DETECT_FAILED_HTTP_ONLY",
                 errorMessage = "HTTP: ${httpError.message}",
-                serverDetection = AuthDebugReport.ServerDetectionInfo(
+                serverDetection = DiagnosticReport.ServerDetectionInfo(
                     httpsAttempted = false,
                     httpsResult = null,
                     httpAttempted = true,
@@ -144,12 +144,12 @@ class AuthRepository @Inject constructor(
             }
             val httpsError: Throwable = httpsResult.exceptionOrNull()
                 ?: IOException("HTTPS detection failed without exception")
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.SERVER_DETECTION,
                 serverUrl = cleanHost,
                 errorType = "SERVER_DETECT_FAILED_HTTPS_ONLY",
                 errorMessage = "HTTPS: ${httpsError.message}",
-                serverDetection = AuthDebugReport.ServerDetectionInfo(
+                serverDetection = DiagnosticReport.ServerDetectionInfo(
                     httpsAttempted = true,
                     httpsResult = httpsError.message,
                     httpAttempted = false,
@@ -185,12 +185,12 @@ class AuthRepository @Inject constructor(
         Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
 
         // Log server detection failure to auth debug service
-        authDebugService.logAuthFailure(
-            authType = AuthDebugReport.AuthType.SERVER_DETECTION,
+        diagnosticsReportService.logFailure(
+            authType = DiagnosticReport.Source.SERVER_DETECTION,
             serverUrl = cleanHost,
             errorType = "SERVER_DETECT_FAILED",
             errorMessage = "HTTPS: ${httpsError.message}, HTTP: ${httpError.message}",
-            serverDetection = AuthDebugReport.ServerDetectionInfo(
+            serverDetection = DiagnosticReport.ServerDetectionInfo(
                 httpsAttempted = true,
                 httpsResult = httpsError.message,
                 httpAttempted = true,
@@ -311,8 +311,8 @@ class AuthRepository @Inject constructor(
                 Log.d(TAG, "Login error - Code: ${response.code}, Body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
 
                 // Log to auth debug service with full context
-                authDebugService.logAuthFailure(
-                    authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+                diagnosticsReportService.logFailure(
+                    authType = DiagnosticReport.Source.PASSWORD_LOGIN,
                     serverUrl = normalizedUrl,
                     httpStatusCode = response.code,
                     errorType = "HTTP_${response.code}",
@@ -361,8 +361,8 @@ class AuthRepository @Inject constructor(
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
             // Log network errors to auth debug service
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.PASSWORD_LOGIN,
                 serverUrl = serverUrl,
                 errorType = e.javaClass.simpleName,
                 errorMessage = e.message
@@ -371,8 +371,8 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             // Log unexpected errors to auth debug service
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.PASSWORD_LOGIN,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.PASSWORD_LOGIN,
                 serverUrl = serverUrl,
                 errorType = e.javaClass.simpleName,
                 errorMessage = e.message
@@ -542,8 +542,8 @@ class AuthRepository @Inject constructor(
                 val errorBody = response.body?.string() ?: ""
 
                 // Log to auth debug service with full context
-                authDebugService.logAuthFailure(
-                    authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+                diagnosticsReportService.logFailure(
+                    authType = DiagnosticReport.Source.TOKEN_VALIDATION,
                     serverUrl = normalizedUrl,
                     httpStatusCode = response.code,
                     errorType = "HTTP_${response.code}",
@@ -579,8 +579,8 @@ class AuthRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             Log.e(TAG, "Token validation network error", e)
             // Log network errors to auth debug service
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.TOKEN_VALIDATION,
                 serverUrl = serverUrl,
                 errorType = e.javaClass.simpleName,
                 errorMessage = e.message
@@ -590,8 +590,8 @@ class AuthRepository @Inject constructor(
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
             Log.e(TAG, "Token validation error", e)
             // Log unexpected errors to auth debug service
-            authDebugService.logAuthFailure(
-                authType = AuthDebugReport.AuthType.TOKEN_VALIDATION,
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.TOKEN_VALIDATION,
                 serverUrl = serverUrl,
                 errorType = e.javaClass.simpleName,
                 errorMessage = e.message

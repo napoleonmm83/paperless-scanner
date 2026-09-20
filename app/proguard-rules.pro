@@ -83,6 +83,24 @@
 # Preserve line numbers for better crash reports
 -keepattributes SourceFile,LineNumberTable
 
+# Keep exception class NAMES readable.
+#
+# PaperlessException.diagnosticTag is derived from the throwable's simple name and is
+# shown to the user ("Unknown error (SocketException)"), sent as an analytics dimension,
+# and carried in the diagnostic report a user can mail us. All three exist so that an
+# unclassifiable failure can still be told apart from another one — that is the entire
+# point of the property.
+#
+# Without this rule the value is obfuscated in exactly the build users run: a screenshot
+# would read "Unknown error (a)", and the report would be no more useful than the bare
+# "Unknown error" it replaced. That failure already cost this project one round trip —
+# a Play review in July was answered with a fix whose user-visible effect was nil, and
+# the same complaint came back in September.
+#
+# -keepnames, not -keep: R8 may still SHRINK unreachable exception classes, it may only
+# not RENAME what survives. Same distinction the iText rule above relies on.
+-keepnames class * extends java.lang.Throwable
+
 # Google Play Billing Library
 # Prevent obfuscation of billing classes that may cause ProxyBillingActivity crashes
 -keep class com.android.billingclient.** { *; }

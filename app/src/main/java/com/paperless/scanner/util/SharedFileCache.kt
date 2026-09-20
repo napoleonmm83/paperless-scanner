@@ -23,11 +23,23 @@ object SharedFileCache {
     /** Subdirectory for cropped/rotated scan images handed to the upload flow. */
     const val SHARED_IMAGES_DIR = "shared_images"
 
+    /** Subdirectory for diagnostic reports a user chooses to send us. */
+    const val SHARED_REPORTS_DIR = "shared_reports"
+
+    /**
+     * The FileProvider authority, built from the application id.
+     *
+     * Was assembled inline at four call sites (two in the PDF viewer, two in the scan
+     * flow). One of them getting out of step with `AndroidManifest.xml` is the kind of
+     * defect that only shows up as a crash on a user's device.
+     */
+    fun authority(packageName: String): String = "$packageName.fileprovider"
+
     /**
      * All FileProvider-exposed subdirectory names. Must match the `<cache-path>`
      * entries in `res/xml/file_paths.xml` (asserted by FileProviderScopingTest).
      */
-    val sharedDirNames: List<String> = listOf(SHARED_PDFS_DIR, SHARED_IMAGES_DIR)
+    val sharedDirNames: List<String> = listOf(SHARED_PDFS_DIR, SHARED_IMAGES_DIR, SHARED_REPORTS_DIR)
 
     /**
      * Returns the shared-PDFs cache subdirectory, creating it if necessary.
@@ -42,6 +54,13 @@ object SharedFileCache {
      * @param cacheDir the app cache root (`context.cacheDir`).
      */
     fun sharedImagesDir(cacheDir: File): File = File(cacheDir, SHARED_IMAGES_DIR).apply { mkdirs() }
+
+    /**
+     * Returns the diagnostic-reports cache subdirectory, creating it if necessary.
+     *
+     * @param cacheDir the app cache root (`context.cacheDir`).
+     */
+    fun sharedReportsDir(cacheDir: File): File = File(cacheDir, SHARED_REPORTS_DIR).apply { mkdirs() }
 
     /**
      * Result of a single [cleanupAgedUnprotected] sweep.

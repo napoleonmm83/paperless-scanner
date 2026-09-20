@@ -28,7 +28,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.billing.PurchaseResult
 import com.paperless.scanner.data.billing.RestoreResult
 import com.paperless.scanner.ui.screens.settings.dialogs.AppLockTimeoutDialog
-import com.paperless.scanner.ui.screens.settings.dialogs.AuthDebugReportDialog
+import com.paperless.scanner.ui.screens.settings.dialogs.DiagnosticReportDialog
 import com.paperless.scanner.ui.screens.settings.dialogs.LicensesDialog
 import com.paperless.scanner.ui.screens.settings.dialogs.LogoutConfirmationDialog
 import com.paperless.scanner.ui.screens.settings.dialogs.PurchaseResultDialog
@@ -54,7 +54,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val authDebugReport by viewModel.hasAuthDebugReport.collectAsState()
+    val authDebugReport by viewModel.hasDiagnosticReport.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
@@ -64,7 +64,7 @@ fun SettingsScreen(
     var showPremiumUpgradeSheet by remember { mutableStateOf(false) }
     var showSubscriptionManagementSheet by remember { mutableStateOf(false) }
     var purchaseResultMessage by remember { mutableStateOf<String?>(null) }
-    var showAuthDebugReportDialog by remember { mutableStateOf(false) }
+    var showDiagnosticReportDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -135,11 +135,11 @@ fun SettingsScreen(
             } else {
                 BuildConfig.VERSION_NAME
             },
-            hasAuthDebugReport = authDebugReport != null,
+            hasDiagnosticReport = authDebugReport != null,
             // 7-tap Easter egg DISABLED in production — no backdoor to Premium features.
             onVersionClick = { },
             onLicensesClick = { showLicensesDialog = true },
-            onAuthDebugReportClick = { showAuthDebugReportDialog = true }
+            onDiagnosticReportClick = { showDiagnosticReportDialog = true }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -270,10 +270,10 @@ fun SettingsScreen(
         )
     }
 
-    if (showAuthDebugReportDialog) {
-        AuthDebugReportDialog(
+    if (showDiagnosticReportDialog) {
+        DiagnosticReportDialog(
             onCopy = {
-                val shareableReport = viewModel.getShareableAuthDebugReport()
+                val shareableReport = viewModel.getShareableDiagnosticReport()
                 val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Auth Debug Report", shareableReport)
                 clipboardManager.setPrimaryClip(clip)
@@ -282,10 +282,10 @@ fun SettingsScreen(
                     context.getString(R.string.auth_debug_report_copied),
                     Toast.LENGTH_SHORT
                 ).show()
-                viewModel.clearAuthDebugReport()
-                showAuthDebugReportDialog = false
+                viewModel.clearDiagnosticReport()
+                showDiagnosticReportDialog = false
             },
-            onDismiss = { showAuthDebugReportDialog = false }
+            onDismiss = { showDiagnosticReportDialog = false }
         )
     }
 }

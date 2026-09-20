@@ -1,0 +1,11 @@
+Version 1.5.242:
+
+🐛 Fehlerbehebungen:
+- PDF-Ansicht: die Meldung nennt jetzt die Ursache statt "Unbekannter Fehler"
+- Endlos drehender Ladekreis bei unlesbaren Dateien behoben
+- Zertifikatsprobleme nicht mehr als Netzwerkfehler gemeldet
+
+✨ Neue Features:
+- Fehlerbericht per Mail: Gerät, Netzwerkart, Fehlercode, kurzes Protokoll
+- Keine Dokumente, kein Passwort, Serveradresse nur als Prüfsumme
+- Liefert der Server eine Anmeldeseite, sagt die App das jetzt

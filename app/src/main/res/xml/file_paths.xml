@@ -6,4 +6,10 @@
     -->
     <cache-path name="shared_pdfs" path="shared_pdfs/" />
     <cache-path name="shared_images" path="shared_images/" />
+    <!--
+      Diagnostic reports a user chooses to mail us. Its own subdirectory rather than
+      reusing shared_pdfs: a report is not a document, and the sweep that ages out
+      downloaded PDFs should not be reasoning about both.
+    -->
+    <cache-path name="shared_reports" path="shared_reports/" />
 </paths>
