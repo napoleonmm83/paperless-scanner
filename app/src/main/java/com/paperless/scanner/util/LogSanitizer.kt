@@ -57,15 +57,29 @@ object LogSanitizer {
     // and hand-written log lines both write `Token abc123` or `Bearer abc123` as plain
     // text, and a diagnostic report a user mails us would carry it verbatim.
     //
-    // The lookahead requires at least one DIGIT in the value, and that is load-bearing:
-    // without it every long word after "Token" or "Basic" was a secret, so
-    // "Token validation network error" became "Token [REDACTED] network error" and
-    // "Basic authentication required" became "Basic [REDACTED] required" — shredding
-    // exactly the auth diagnosis this report exists to carry. Real credentials clear it:
-    // a Paperless token is 40 hex characters, a JWT and a base64 Basic value both carry
-    // digits.
+    // Two rules, because one cannot separate a credential from a sentence.
+    //
+    // Behind an `Authorization:` header the scheme word is never prose, so ANY value goes
+    // — that is where OkHttp's logging interceptor puts the real thing.
+    private val AUTH_HEADER_VALUE = Regex(
+        "\\b(Authorization\\s*:\\s*)(Token|Bearer|Basic)\\s+\\S{6,}",
+        RegexOption.IGNORE_CASE,
+    )
+
+    // Standing bare in a sentence, the same word usually IS prose: an earlier version
+    // redacted any long word after it, so "Token validation network error" became
+    // "Token [REDACTED] network error" and "Basic authentication required" became
+    // "Basic [REDACTED] required" — shredding exactly the auth diagnosis this report
+    // exists to carry.
+    //
+    // The version after THAT required a digit, and a reviewer caught the hole it opened:
+    // a letter-only `Bearer abcdefghijkl` walked straight through. So the branches are
+    // structural instead. Either the value carries something no English word does — a
+    // digit or one of `._~+/=` — at 8 characters, or it is letter-only and then needs 16,
+    // which no word that follows these three in practice reaches ("authentication" is 14,
+    // "validation" 10) and every real credential exceeds (a Paperless token is 40 hex).
     private val AUTH_SCHEME_VALUE = Regex(
-        "\\b(Token|Bearer|Basic)\\s+(?=[A-Za-z0-9._~+/=-]*\\d)[A-Za-z0-9._~+/=-]{8,}",
+        "\\b(Token|Bearer|Basic)\\s+(?:(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=])[A-Za-z0-9._~+/=-]{8,}|[A-Za-z]{16,})",
         RegexOption.IGNORE_CASE,
     )
 
@@ -192,6 +206,12 @@ object LogSanitizer {
      */
     fun sanitizeText(raw: String): String =
         raw
+            // Header rule first: it is the unconditional one, and running it before the
+            // bare rule means a short letter-only header value is caught rather than
+            // falling through to the rule that would let it pass.
+            .replace(AUTH_HEADER_VALUE) { match ->
+                "${match.groupValues[1]}${match.groupValues[2]} [REDACTED]"
+            }
             .replace(AUTH_SCHEME_VALUE) { match -> "${match.groupValues[1]} [REDACTED]" }
             .replace(SENSITIVE_JSON_FIELD) { match -> "\"${match.groupValues[1]}\":\"[REDACTED]\"" }
             .replace(URL_AUTHORITY) { match -> "${match.groupValues[1]}<server>" }

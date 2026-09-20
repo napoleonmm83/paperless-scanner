@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.analytics
 
 import android.content.Context
+import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.every
 import kotlinx.coroutines.flow.flowOf
@@ -37,6 +38,7 @@ class DiagnosticsReportServiceTest {
     private lateinit var analyticsService: AnalyticsService
     private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var tokenManager: TokenManager
+    private lateinit var serverUrlHolder: ServerUrlHolder
     private lateinit var service: DiagnosticsReportService
 
     @Before
@@ -51,7 +53,13 @@ class DiagnosticsReportServiceTest {
         every { tokenManager.serverUrl } returns flowOf(null)
         every { tokenManager.paperlessGptUrl } returns flowOf(null)
         every { tokenManager.acceptedHttpHostsFlow } returns flowOf(emptyList())
-        service = DiagnosticsReportService(context, analyticsService, crashlyticsHelper, tokenManager)
+        // Also empty: during setup the interceptor holder has no URL either, so the only
+        // thing the service can know is the host of the attempt it is told about.
+        serverUrlHolder = mockk(relaxed = true)
+        every { serverUrlHolder.current() } returns null
+        service = DiagnosticsReportService(
+            context, analyticsService, crashlyticsHelper, tokenManager, serverUrlHolder
+        )
     }
 
     private fun logOnce(errorMessage: String = "HTTP 406") = service.logFailure(
@@ -143,6 +151,28 @@ class DiagnosticsReportServiceTest {
 
         assertFalse("the resolved address reached the report", text.contains("93.184.216.34"))
         assertTrue("the failure itself was lost", text.contains("Failed to connect"))
+    }
+
+    @Test
+    fun `a caller that cannot name a URL still gets a real server hash`() {
+        // The PDF viewer passes serverUrl = null because it does not hold one, and
+        // hashServerUrl(null) is the literal "none" — so every report from every server
+        // shared one grouping value. That is the undifferentiated "Unknown error" this
+        // whole change set started from, one layer down. The holder is the same atomic
+        // read DynamicBaseUrlInterceptor uses, so it costs nothing and blocks nothing.
+        every { analyticsService.isAnalyticsEnabled() } returns false
+        every { serverUrlHolder.current() } returns SERVER_URL
+
+        service.logFailure(
+            authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
+            serverUrl = null,
+            errorType = "ContentError",
+        )
+
+        val hash = service.lastReport.value?.serverUrlHash
+        assertNotNull(hash)
+        assertFalse("the report fell back to the ungrouped literal", hash == "none")
+        assertEquals(DiagnosticReport.hashServerUrl(SERVER_URL), hash)
     }
 
     @Test

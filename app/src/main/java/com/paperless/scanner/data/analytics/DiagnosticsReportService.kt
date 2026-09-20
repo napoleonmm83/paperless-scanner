@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
+import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.util.DiagnosticsLog
 import com.paperless.scanner.util.LogSanitizer
@@ -49,7 +50,10 @@ class DiagnosticsReportService @Inject constructor(
     // Only ever read, and only for the server URL: the report promises that the address
     // appears as a checksum and nowhere in readable form, and keeping that promise means
     // knowing the value so it can be removed. See [withoutKnownHost].
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    // The URL the current request would use, as a single non-blocking atomic read. Same
+    // source DynamicBaseUrlInterceptor uses, so it is the URL that was actually tried.
+    private val serverUrlHolder: ServerUrlHolder
 ) {
     companion object {
         private const val TAG = "DiagnosticsReportService"
@@ -118,13 +122,20 @@ class DiagnosticsReportService @Inject constructor(
         responseBody: String? = null,
         serverDetection: DiagnosticReport.ServerDetectionInfo? = null
     ) {
+        // Callers that cannot name a URL — the PDF viewer, which does not hold one — used
+        // to pass null, and hashServerUrl(null) is the literal "none". Every report from
+        // every server then carried the same grouping value, which is the same defect as
+        // the undifferentiated "Unknown error" this work started from, one layer down.
+        // The holder is an atomic read, so this costs nothing and blocks nothing.
+        val effectiveServerUrl = serverUrl ?: serverUrlHolder.current()
+
         // Before anything is built: the attempted host is the only one that exists during
         // setup, and the report about to be created is full of it.
-        rememberHost(serverUrl)
+        rememberHost(effectiveServerUrl)
 
         val report = DiagnosticReport(
             authType = authType,
-            serverUrlHash = DiagnosticReport.hashServerUrl(serverUrl),
+            serverUrlHash = DiagnosticReport.hashServerUrl(effectiveServerUrl),
             httpStatusCode = httpStatusCode,
             errorType = errorType,
             errorMessage = errorMessage,

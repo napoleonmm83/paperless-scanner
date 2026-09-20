@@ -110,6 +110,23 @@ class DiagnosticsLogTest {
     }
 
     @Test
+    fun `a letter-only credential is caught too`() {
+        // The hole a reviewer found in the fix for the test above: requiring a digit made
+        // "Token validation network error" survive, and let `Bearer abcdefghijkl` through
+        // with it. Two structural branches now — a short value with something no English
+        // word carries, or a long letter-only one.
+        DiagnosticsLog.append("Http", "--> GET /api/ Authorization: Bearer abcdefgh")
+        DiagnosticsLog.append("Auth", "sending bearer abcdefghijklmnopqrst")
+
+        val stored = DiagnosticsLog.snapshot()
+
+        assertFalse("a short header credential survived", stored[0].contains("abcdefgh"))
+        assertFalse("a long letter-only credential survived", stored[1].contains("abcdefghijklmnopqrst"))
+        assertTrue(stored[0].contains("[REDACTED]"))
+        assertTrue(stored[1].contains("[REDACTED]"))
+    }
+
+    @Test
     fun `a single-label host does not shred the app's own package name`() {
         // http://paperless:8000 is ordinary on a home network — Tailscale MagicDNS, a
         // Docker service name. Redacting it without word boundaries rewrote every stack
