@@ -29,11 +29,11 @@ class DiagnosticsLogTest {
         // Token <value>` on every request, and OkHttp's logging interceptor prints
         // headers. This is not JSON, so the existing sanitizeErrorBody regex never
         // matched it.
-        DiagnosticsLog.append("Http", "--> GET /api/documents/ Authorization: Token abc123def456ghi789")
+        DiagnosticsLog.append("Http", "--> GET /api/documents/ Authorization: Token PLACEHOLDER-NOT-A-REAL-TOKEN")
 
         val stored = DiagnosticsLog.snapshot().single()
 
-        assertFalse("the token was stored verbatim", stored.contains("abc123def456ghi789"))
+        assertFalse("the token was stored verbatim", stored.contains("PLACEHOLDER-NOT-A-REAL-TOKEN"))
         assertTrue("the redaction is not visible", stored.contains("[REDACTED]"))
         // The request still has to be identifiable, or the buffer is useless.
         assertTrue(stored.contains("/api/documents/"))
@@ -105,9 +105,9 @@ class DiagnosticsLogTest {
 
     @Test
     fun `a bearer token in any casing is caught`() {
-        DiagnosticsLog.append("Auth", "retry with bearer eyJhbGciOiJIUzI1NiJ9payload")
+        DiagnosticsLog.append("Auth", "retry with bearer PLACEHOLDER-NOT-A-REAL-BEARER")
 
-        assertFalse(DiagnosticsLog.snapshot().single().contains("eyJhbGciOiJIUzI1NiJ9payload"))
+        assertFalse(DiagnosticsLog.snapshot().single().contains("PLACEHOLDER-NOT-A-REAL-BEARER"))
     }
 
     @Test
