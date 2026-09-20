@@ -8,6 +8,7 @@ import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.analytics.UploadMetricsTracker
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
@@ -33,6 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
+import java.net.UnknownHostException
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -269,6 +271,47 @@ class DocumentRepositoryTest {
 
         assertNotNull("CancellationException must propagate, not be wrapped in Result.failure", thrown)
         assertEquals("scope cancelled", thrown!!.message)
+    }
+
+    @Test
+    fun `a DNS failure keeps its identity through the repository`() = runTest {
+        // downloadDocument used to catch IOException ahead of the generic branch and map
+        // it straight to NetworkError. Because UnknownHostException, ConnectException,
+        // SocketTimeoutException, CleartextNotAllowlistedException,
+        // CertificatePinMismatchException and the TLS trust exceptions are ALL
+        // IOException subclasses, that single catch erased every distinction
+        // PaperlessException.from() can make: a wrong certificate and a server that does
+        // not resolve both reached the user as "check your internet connection".
+        //
+        // The catch is gone and from() does the work. This is the pin for that, and it
+        // was missing: a cold review put the old catch back and the entire suite stayed
+        // green, which is what absent coverage looks like from the inside.
+        // PaperlessExceptionTest exercises from() directly but cannot see what this
+        // repository does with it, and PdfViewerViewModelTest mocks the repository away.
+        coEvery { api.downloadDocument(any()) } throws UnknownHostException("paperless.example")
+
+        val error = documentRepository.downloadDocument(123).exceptionOrNull()
+
+        assertTrue(
+            "the typed failure was flattened back to NetworkError: $error",
+            error is PaperlessException.ServerUnreachable
+        )
+        assertEquals(
+            ServerOfflineReason.DNS_FAILURE,
+            (error as PaperlessException.ServerUnreachable).reason
+        )
+    }
+
+    @Test
+    fun `a plain IO failure through the repository is still a network error`() = runTest {
+        // The counterpart. Without it the test above would pass just as well if every
+        // IOException had been rerouted somewhere new, and the ordinary case — the common
+        // one — would have changed unnoticed.
+        coEvery { api.downloadDocument(any()) } throws IOException("socket closed")
+
+        val error = documentRepository.downloadDocument(123).exceptionOrNull()
+
+        assertTrue("the ordinary IO case changed: $error", error is PaperlessException.NetworkError)
     }
 
     @Test

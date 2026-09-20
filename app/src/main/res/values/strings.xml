@@ -1109,6 +1109,57 @@
     <!-- Other Error Messages -->
     <string name="error_unexpected_response">Unexpected server response</string>
 
+    <!--
+      Diagnostic fallback. error_unknown alone reads identically in every language to
+      what the user saw before the message was localised, so it identifies nothing and a
+      screenshot of it is worthless for support. %1$s carries a short, low-cardinality
+      discriminator - an exception class name, or "HTTP <code>" - which is what turns a
+      user's screenshot into a usable bug report. It must never carry server data.
+    -->
+    <string name="error_unknown_with_detail">Unknown error (%1$s)</string>
+
+    <!--
+      A 3xx reaching the app means the HTTP client did NOT follow it - it follows
+      300/301/302/303/307/308 by itself. So this is never an ordinary redirect and must
+      NOT blame a login portal, which cannot produce this branch. What is left (305, 306,
+      a missing Location header, an abandoned redirect chain) is rare and has no single
+      cause we can name, so the text says only what is true: the code, and that it was
+      unexpected. Naming a remedy we have not established would be the same mistake as
+      the "Unknown error" this file is full of comments about.
+    -->
+    <string name="error_unexpected_redirect">The server answered with an unexpected redirect (HTTP %1$d) instead of the document.</string>
+
+    <!--
+      406 is content negotiation. It is NOT an API-version mismatch: ApiVersionInterceptor
+      does not send a version header on downloads at all, and on the endpoints where it
+      does, it already retries without one. A 406 that survives that came from something
+      between the app and Paperless - a proxy, a WAF, a captive portal.
+    -->
+    <string name="error_not_acceptable">The server refused the requested format (HTTP %1$d). A proxy or firewall in front of Paperless may be altering the request.</string>
+
+    <!-- The download returned something that is neither a PDF nor an image. Two very
+         different causes, so two very different messages. -->
+    <string name="error_server_sent_webpage">The server returned a web page instead of the document. Is there a login page in front of your server?</string>
+    <!--
+      Deliberately does not name a format. This branch is the fall-through of the content
+      check, so it also catches a download whose first bytes were lost. Telling that user
+      "this is probably a Word document" would assert a cause nobody measured - the same
+      habit that produced the message this whole change exists to replace. The format
+      signature goes to telemetry, where guessing costs nothing; the user gets the one
+      thing that is certainly true plus a way forward.
+    -->
+    <string name="error_unsupported_document_type">The app cannot display this file. You can try opening it with another app.</string>
+    <string name="error_document_unreadable">The document could not be opened. It may be damaged or password-protected.</string>
+
+    <!--
+      Distinct from error_no_app_found on purpose. That one is only true for
+      ActivityNotFoundException; the other ways handing a file to another app can fail -
+      a FileProvider path we configured wrongly, a denied permission - are our problem,
+      and telling the user to install an app would send them shopping for a fix that
+      cannot work.
+    -->
+    <string name="error_open_external_failed">The file could not be handed to another app.</string>
+
     <!-- Server URL Parser Error Messages -->
     <string name="error_server_address_missing">Server address is missing</string>
     <string name="error_invalid_server_address">Invalid server address</string>

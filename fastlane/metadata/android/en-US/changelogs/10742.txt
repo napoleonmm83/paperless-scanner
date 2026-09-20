@@ -1,0 +1,10 @@
+Version 1.5.242:
+
+🐛 Bug fixes:
+- PDF view: the message now names the cause instead of just "Unknown error"
+- Fixed an endless loading spinner on unreadable files
+- Certificate and connection problems are no longer reported as network errors
+
+🔧 Improvements:
+- If the server returns a login page instead of the document, the app now says so
+- Word and spreadsheet files can be opened in another app

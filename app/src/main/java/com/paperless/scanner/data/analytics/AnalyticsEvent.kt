@@ -142,10 +142,25 @@ sealed class AnalyticsEvent(
      * set that carries no user or server data. Full detail goes to Crashlytics via
      * recordException; this event only provides the rate, paired with
      * [PdfViewerOpened] as the denominator.
+     *
+     * [diagnosticTag] was added because [errorType] alone could not answer the question
+     * the event was created for. Every unclassifiable failure reports "UnknownError",
+     * which is precisely the set we needed to tell apart - the tag splits it into
+     * "HTTP 304", "JsonSyntaxException" and so on. Same property, same guarantees: a
+     * bounded vocabulary, never a host name, never a response body.
+     *
+     * Read it from [com.paperless.scanner.domain.error.PaperlessException.diagnosticTag]
+     * rather than rebuilding it here - it is overridden per subtype.
      */
-    data class PdfViewerDownloadFailed(val errorType: String) : AnalyticsEvent(
+    data class PdfViewerDownloadFailed(
+        val errorType: String,
+        val diagnosticTag: String = errorType
+    ) : AnalyticsEvent(
         "pdf_viewer_download_failed",
-        mapOf("error_type" to errorType)
+        mapOf(
+            "error_type" to errorType,
+            "diagnostic_tag" to diagnosticTag
+        )
     )
 
     /** Tag created */

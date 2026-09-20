@@ -1,0 +1,10 @@
+Version 1.5.242:
+
+🐛 Fehlerbehebungen:
+- PDF-Ansicht: die Meldung nennt jetzt die Ursache statt nur "Unbekannter Fehler"
+- Endlos drehender Ladekreis bei unlesbaren Dateien behoben
+- Zertifikats- und Verbindungsprobleme werden nicht mehr als Netzwerkfehler gemeldet
+
+🔧 Verbesserungen:
+- Liefert der Server eine Anmeldeseite statt des Dokuments, sagt die App das jetzt
+- Word- und Tabellendateien lassen sich in einer anderen App öffnen

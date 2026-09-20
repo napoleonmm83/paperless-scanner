@@ -248,13 +248,42 @@ class DocumentRepository @Inject constructor(
             }
 
             Result.success(pdfFile)
-        } catch (e: IOException) {
-            Result.failure(PaperlessException.NetworkError(e))
-        } catch (e: retrofit2.HttpException) {
-            Result.failure(PaperlessException.fromHttpCode(e.code(), e.message()))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            // Pinned by DocumentRepositoryTest ("a DNS failure keeps its identity
+            // through the repository"). An earlier version of this comment cited that
+            // test before it was written — a cold review caught it, and re-inserting the
+            // deleted catch left every test green, which is what "no coverage" looks
+            // like from the inside.
+            //
+            // This used to carry two extra catches ahead of the generic one — an
+            // IOException branch and an HttpException branch — and both were lossy.
+            // PaperlessException.from() already classifies every case they handled, and
+            // it distinguishes six more that the IOException branch flattened, because
+            // UnknownHostException, ConnectException, SocketTimeoutException,
+            // CleartextNotAllowlistedException, CertificatePinMismatchException and
+            // SSLException are all IOException subclasses. Catching the supertype first
+            // shadowed every one of them: a wrong certificate and a blocked cleartext
+            // host both arrived as "Network error: please check your internet connection".
+            //
+            // What this does NOT recover: a *generic* IOException — a full disk during
+            // the write loop above, say — still maps to NetworkError, because that is
+            // from()'s own fallback. The gain is the six typed cases, not every case.
+            //
+            // Deleting the two catches is the fix; from() is strictly more specific and
+            // ends with the same NetworkError for a plain IOException. It also maps
+            // HttpException through fromHttpCode with the response body rather than
+            // e.message(), which for retrofit is the status line, not the server's text.
+            //
+            // What this does NOT change, contrary to an earlier version of this comment:
+            // retry behaviour. withRetry (line 224) wraps the call INSIDE this try, so it
+            // only ever sees the raw throwable and never the mapped type; isRetryable is
+            // read by TrashDeleteWorker, not here. CertificatePinMismatchException was
+            // already rethrown without backoff by NetworkRetry.kt:36 — since issue #36,
+            // not since this change — and CleartextNotAllowlistedException still burns the
+            // full ladder as a plain IOException. Claiming otherwise took credit for
+            // someone else's fix and was false about the one case it named.
             Result.failure(PaperlessException.from(e))
         }
     }
