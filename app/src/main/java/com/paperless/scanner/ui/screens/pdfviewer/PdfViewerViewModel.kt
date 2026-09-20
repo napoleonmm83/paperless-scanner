@@ -109,6 +109,19 @@ class PdfViewerViewModel @Inject constructor(
     private var lastDownload: File? = null
     private var lastMimeType: String = MIME_PDF
 
+    /**
+     * Pages already reported for this document, so a pre-rendered neighbour reports once.
+     *
+     * Declared HERE, above [init], and that position is load-bearing rather than tidy.
+     * Kotlin runs property initialisers and init blocks in declaration order; [init]
+     * calls [downloadDocument], whose first statement clears this set. Sitting 170 lines
+     * further down — next to its other user, which is where it read better — left the
+     * backing field null at that moment, and `viewModelScope` is
+     * `Dispatchers.Main.immediate` on a device, so the launched body runs SYNCHRONOUSLY
+     * inside the constructor and got there first. Opening any PDF killed the app.
+     */
+    private val reportedPageFailures = mutableSetOf<Int>()
+
     init {
         analyticsService.trackEvent(AnalyticsEvent.PdfViewerOpened)
         downloadDocument()
@@ -281,9 +294,6 @@ class PdfViewerViewModel @Inject constructor(
      * wait. An encrypted PDF, a truncated download and a server error page saved under a
      * .pdf name all landed there.
      */
-    /** Pages already reported this document, so a pre-rendered neighbour reports once. */
-    private val reportedPageFailures = mutableSetOf<Int>()
-
     /**
      * ONE page could not be rendered. Deliberately does not touch [uiState].
      *
