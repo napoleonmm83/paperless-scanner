@@ -316,7 +316,13 @@ private fun PdfView(
     // alone does not order teardown against rendering: a render that was waiting for the
     // mutex can acquire it after the renderer has already been closed, and then touches
     // a dead handle. Checking a flag the disposer set first turns that into a no-op.
-    val rendererClosed = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    // INTENTIONAL-UNTESTED: see the note at the state dispatch above.
+    // Keyed on pdfFile like the effect below. A bare `remember` would keep the flag at
+    // true after a key change disposed the old renderer — every page would then return
+    // from the lock immediately and spin forever. No path reaches that today (a retry
+    // goes through Downloading, which removes PdfView), so this is a latch that cannot
+    // stick rather than a fix for a live defect.
+    val rendererClosed = remember(pdfFile) { java.util.concurrent.atomic.AtomicBoolean(false) }
 
     // Initialize PDF renderer
     DisposableEffect(pdfFile) {

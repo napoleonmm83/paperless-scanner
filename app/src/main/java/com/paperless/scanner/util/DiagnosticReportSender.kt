@@ -87,7 +87,15 @@ object DiagnosticReportSender {
             context.startActivity(mailOnly.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             Result.SENT_TO_MAIL
         } catch (e: ActivityNotFoundException) {
-            try {
+            // Asked BEFORE the chooser, not caught after it. `Intent.createChooser` targets
+            // the system chooser activity, which always resolves — so the catch below could
+            // never fire, the user saw "No apps can perform this action", and this method
+            // reported SENT_TO_CHOOSER while the clipboard fallback the KDoc promises was
+            // unreachable from the mail path. The `<queries>` entry for ACTION_SEND is what
+            // makes this question answerable at all on Android 11+.
+            if (context.packageManager.queryIntentActivities(base, 0).isEmpty()) {
+                copyToClipboard(context, reportText)
+            } else try {
                 context.startActivity(
                     Intent.createChooser(base, context.getString(R.string.diagnostic_report_share_via))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

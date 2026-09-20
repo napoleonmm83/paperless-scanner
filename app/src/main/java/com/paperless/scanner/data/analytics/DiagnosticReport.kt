@@ -1,6 +1,7 @@
 package com.paperless.scanner.data.analytics
 
 import android.os.Build
+import com.paperless.scanner.util.LogSanitizer
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -135,16 +136,14 @@ data class DiagnosticReport(
         /**
          * Sanitize response body - remove potential PII, limit length.
          */
-        fun sanitizeResponseBody(body: String?): String? {
-            if (body.isNullOrBlank()) return null
-
-            // Remove potential tokens/passwords from JSON
-            val sanitized = body
-                .replace(Regex("\"(token|password|secret|key)\"\\s*:\\s*\"[^\"]*\""), "\"$1\":\"[REDACTED]\"")
-                .replace(Regex("\"(username|user|email)\"\\s*:\\s*\"[^\"]*\""), "\"$1\":\"[REDACTED]\"")
-
-            return sanitized.take(200)
-        }
+        fun sanitizeResponseBody(body: String?): String? =
+            // Delegated rather than duplicated. The two regexes that stood here used the
+            // naive value matcher `[^"]*`, which LogSanitizer's own comment describes as a
+            // leak: an escaped quote inside the value ends the match early and the rest of
+            // the secret runs on into the report. They also knew neither `api_key` nor
+            // `authorization` nor `passwd`, so the class doc's "response bodies are
+            // sanitized" held for half the list.
+            LogSanitizer.sanitizeErrorBody(body)
 
         /**
          * Extract safe headers for logging (exclude sensitive ones).

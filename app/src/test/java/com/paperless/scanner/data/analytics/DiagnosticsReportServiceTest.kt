@@ -3,6 +3,7 @@ package com.paperless.scanner.data.analytics
 import android.content.Context
 import com.paperless.scanner.data.datastore.TokenManager
 import io.mockk.every
+import kotlinx.coroutines.flow.flowOf
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Assert.assertEquals
@@ -43,10 +44,13 @@ class DiagnosticsReportServiceTest {
         context = RuntimeEnvironment.getApplication()
         analyticsService = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
-        // The stored server URL is what the host redaction works from — mocked rather
-        // than written to DataStore so the test states the precondition it depends on.
+        // NOTHING is stored. That is the production state during setup — the server URL is
+        // written only after a successful login — and the previous version of this test
+        // handed back the attempted host here, which is why it passed over a real leak.
         tokenManager = mockk(relaxed = true)
-        every { tokenManager.getServerUrlSync() } returns SERVER_URL
+        every { tokenManager.serverUrl } returns flowOf(null)
+        every { tokenManager.paperlessGptUrl } returns flowOf(null)
+        every { tokenManager.acceptedHttpHostsFlow } returns flowOf(emptyList())
         service = DiagnosticsReportService(context, analyticsService, crashlyticsHelper, tokenManager)
     }
 
@@ -105,12 +109,19 @@ class DiagnosticsReportServiceTest {
     }
 
     @Test
-    fun `an exception message carrying the host is redacted too`() {
-        // The test above fed the host ONLY through `serverUrl`, which the report hashes
-        // by construction — so it passed while a second, wider door stood open:
-        // `errorMessage` is printed verbatim, and AuthRepository fills it with raw
-        // `e.message`, which for a DNS or connect failure names the host. Found by a cold
-        // reader, not by the suite.
+    fun `an exception message carrying the host is redacted with NOTHING stored yet`() {
+        // The load-bearing case, and the one two earlier versions of this file got wrong.
+        //
+        // The first fed the host only through `serverUrl`, which the report hashes by
+        // construction, so it proved nothing about `errorMessage` — which IS printed
+        // verbatim and which AuthRepository fills with raw `e.message`, naming the host on
+        // any DNS or connect failure. The second fixed that but mocked the STORED url to
+        // return the same host, so it passed while production leaked: the url is written
+        // only after a successful login, and this report's original purpose is the login
+        // that did NOT succeed.
+        //
+        // Here nothing is stored (see setup). The only thing the service can know is the
+        // host of the attempt it was just told about.
         every { analyticsService.isAnalyticsEnabled() } returns false
 
         logOnce(errorMessage = """java.net.UnknownHostException: Unable to resolve host "$HOST"""")
@@ -118,6 +129,20 @@ class DiagnosticsReportServiceTest {
 
         assertFalse("the host reached the report through errorMessage", text.contains(HOST))
         assertTrue("the diagnosis was thrown away with the host", text.contains("UnknownHostException"))
+    }
+
+    @Test
+    fun `a resolved IP in an exception message is redacted in the structured part too`() {
+        // The structured half used to get no shape rules at all: the same connect failure
+        // was reduced to <ip> in the log tail while the server's public address stood two
+        // sections above it, in "Error Message".
+        every { analyticsService.isAnalyticsEnabled() } returns false
+
+        logOnce(errorMessage = "Failed to connect to $HOST/93.184.216.34:443")
+        val text = service.createShareableReport()
+
+        assertFalse("the resolved address reached the report", text.contains("93.184.216.34"))
+        assertTrue("the failure itself was lost", text.contains("Failed to connect"))
     }
 
     @Test

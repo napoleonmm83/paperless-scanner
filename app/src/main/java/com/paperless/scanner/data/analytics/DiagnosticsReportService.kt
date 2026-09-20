@@ -11,9 +11,13 @@ import com.paperless.scanner.util.DiagnosticsLog
 import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.SharedFileCache
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,6 +60,44 @@ class DiagnosticsReportService @Inject constructor(
     val lastReport: StateFlow<DiagnosticReport?> = _lastReport.asStateFlow()
 
     /**
+     * Every host that must never appear in the report in readable form.
+     *
+     * Held in memory and fed from two directions, because either one alone leaks:
+     *
+     * - **Observed** from the stored settings. A `getServerUrlSync()` here was the first
+     *   attempt and it was wrong twice over: it blocks on DataStore, and two of the three
+     *   callers reach this class from a Compose click lambda on the main thread — the
+     *   report used to do no IO at all, so that was a regression, not an inherited cost.
+     * - **Recorded at the attempt**, from the `serverUrl` that [logFailure] already
+     *   receives. The stored URL is written only AFTER a successful login
+     *   (`AuthRepository.saveCredentials`), so during setup — a new install, a new server,
+     *   a failed login — there is nothing stored to redact against. That is precisely the
+     *   path this report was built for, and the version before this one handed the
+     *   attempted hostname out in the clear while promising it did not.
+     *
+     * A set rather than one value because a user can have several: the Paperless server,
+     * a Paperless-GPT instance, and whatever sits in the cleartext allowlist.
+     */
+    @Volatile
+    private var knownHosts: Set<String> = emptySet()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    init {
+        // Collected rather than read on demand: a report is often built from the main
+        // thread, and a settings read must not happen there.
+        scope.launch { tokenManager.serverUrl.collect { rememberHost(it) } }
+        scope.launch { tokenManager.paperlessGptUrl.collect { rememberHost(it) } }
+        scope.launch { tokenManager.acceptedHttpHostsFlow.collect { it.forEach(::rememberHost) } }
+    }
+
+    @Synchronized
+    private fun rememberHost(url: String?) {
+        if (url.isNullOrBlank()) return
+        knownHosts = knownHosts + url
+    }
+
+    /**
      * Create and log a debug report for a failed auth attempt.
      *
      * @param authType Type of authentication attempted
@@ -76,6 +118,10 @@ class DiagnosticsReportService @Inject constructor(
         responseBody: String? = null,
         serverDetection: DiagnosticReport.ServerDetectionInfo? = null
     ) {
+        // Before anything is built: the attempted host is the only one that exists during
+        // setup, and the report about to be created is full of it.
+        rememberHost(serverUrl)
+
         val report = DiagnosticReport(
             authType = authType,
             serverUrlHash = DiagnosticReport.hashServerUrl(serverUrl),
@@ -120,21 +166,18 @@ class DiagnosticsReportService @Inject constructor(
      * protocol-detection results carry raw exception text. Redacting the KNOWN value
      * needs no guessing.
      *
-     * Blocking (reads DataStore); every caller is already on a background dispatcher.
-     * A failure here must never cost the report, but it must also never silently ship an
-     * unredacted one — so the throw is recorded rather than swallowed, and the text is
-     * returned as-is only because a report with the host in it is still better than no
-     * report at all when the user has explicitly asked to send one.
+     * Two passes, and both are needed. [LogSanitizer.sanitizeText] applies the shape rules
+     * — credentials, sensitive JSON fields, URL authorities, IPv4 — which the STRUCTURED
+     * half of the report never saw: `errorMessage` and the protocol-detection results are
+     * printed verbatim and are filled with raw `e.message`, so the same connect failure
+     * was reduced to `<ip>` in the log tail while the server's public address stood two
+     * sections above it. [LogSanitizer.redactKnownHosts] then removes what no shape rule
+     * can find, by value.
+     *
+     * Non-blocking: [knownHosts] is kept in memory, so this is safe from the main thread.
      */
-    private fun withoutKnownHost(text: String): String {
-        val serverUrl = try {
-            tokenManager.getServerUrlSync()
-        } catch (e: Exception) {
-            crashlyticsHelper.recordException(e)
-            null
-        }
-        return LogSanitizer.redactKnownHost(text, serverUrl)
-    }
+    private fun withoutKnownHost(text: String): String =
+        LogSanitizer.redactKnownHosts(LogSanitizer.sanitizeText(text), knownHosts)
 
     /** A shareable report string for manual sharing (mail, clipboard, a GitHub issue). */
     fun createShareableReport(): String = withoutKnownHost(buildShareableReport())
@@ -236,11 +279,15 @@ class DiagnosticsReportService @Inject constructor(
      * A file rather than only text in the mail body because a mail client will silently
      * truncate a long body, and the log is the part that gets truncated.
      */
-    fun writeReportFile(cacheDir: java.io.File): java.io.File? = try {
+    fun writeReportFile(cacheDir: java.io.File, text: String = createFullReport()): java.io.File? = try {
         val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
             .format(java.util.Date())
         java.io.File(SharedFileCache.sharedReportsDir(cacheDir), "paperless-report-$stamp.txt")
-            .apply { writeText(createFullReport()) }
+            // The caller's text, not a second build: [createFullReport] spawns logcat, so
+            // building it twice for one tap produced two processes AND two different
+            // reports — the mailed attachment and the clipboard copy disagreed about the
+            // lines written between them, while carrying the same report id.
+            .apply { writeText(text) }
     } catch (e: Exception) {
         crashlyticsHelper.recordException(e)
         null

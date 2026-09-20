@@ -24,6 +24,16 @@
             <action android:name="android.intent.action.SENDTO" />
             <data android:scheme="mailto" />
         </intent>
+        <!--
+          Needed to ASK whether any share target exists before opening the chooser.
+          Without it queryIntentActivities returns empty on Android 11+ regardless of
+          what is installed, and the report would land on the clipboard even where a
+          mail app was available.
+        -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
     </queries>
 
     <uses-feature

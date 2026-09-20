@@ -56,8 +56,16 @@ object LogSanitizer {
     // Not JSON, so [SENSITIVE_JSON_FIELD] never sees it: OkHttp's logging interceptor
     // and hand-written log lines both write `Token abc123` or `Bearer abc123` as plain
     // text, and a diagnostic report a user mails us would carry it verbatim.
+    //
+    // The lookahead requires at least one DIGIT in the value, and that is load-bearing:
+    // without it every long word after "Token" or "Basic" was a secret, so
+    // "Token validation network error" became "Token [REDACTED] network error" and
+    // "Basic authentication required" became "Basic [REDACTED] required" — shredding
+    // exactly the auth diagnosis this report exists to carry. Real credentials clear it:
+    // a Paperless token is 40 hex characters, a JWT and a base64 Basic value both carry
+    // digits.
     private val AUTH_SCHEME_VALUE = Regex(
-        "\\b(Token|Bearer|Basic)\\s+[A-Za-z0-9._~+/=-]{8,}",
+        "\\b(Token|Bearer|Basic)\\s+(?=[A-Za-z0-9._~+/=-]*\\d)[A-Za-z0-9._~+/=-]{8,}",
         RegexOption.IGNORE_CASE,
     )
 
@@ -71,8 +79,14 @@ object LogSanitizer {
     // "Failed to connect to host/192.168.178.20:443", this app's own cleartext-allowlist
     // line, a resolver error. Those survived the sanitizer untouched and reached the
     // report a user mails us, which contradicts what the report's own explanation text
-    // promises. Four octets are specific enough not to swallow a version number, which
-    // has three parts.
+    // promises.
+    //
+    // Known and accepted false positive: a FOUR-part build number is indistinguishable
+    // from an address by shape ("Google Play services 24.31.35.100" becomes "<ip>"). An
+    // earlier version of this comment claimed the four octets were specific enough
+    // because a version has three parts — that is true of this app's own version and not
+    // of a library's. The trade is deliberate: a redacted build number costs a line of
+    // context, a leaked address costs the promise.
     private val IPV4_ADDRESS = Regex("\\b\\d{1,3}(?:\\.\\d{1,3}){3}(?::\\d{1,5})?\\b")
 
     /**
@@ -93,20 +107,61 @@ object LogSanitizer {
      *   without scheme, port or path). Null, blank or too short: nothing is redacted and
      *   [text] comes back unchanged.
      */
-    fun redactKnownHost(text: String, serverUrl: String?): String {
-        val host = hostOf(serverUrl) ?: return text
-        return text.replace(Regex(Regex.escape(host), RegexOption.IGNORE_CASE), "<server>")
+    fun redactKnownHost(text: String, serverUrl: String?): String =
+        redactKnownHosts(text, listOfNotNull(serverUrl))
+
+    /**
+     * The same, for every host the app knows about.
+     *
+     * A single URL is not enough, and the gap was not theoretical: the STORED server URL
+     * is written only after a successful login, so during setup — new install, new
+     * server, failed login — there is nothing to redact against, and that is exactly the
+     * path this report was built for. A user also has a second host whenever
+     * Paperless-GPT is configured, plus whatever sits in the cleartext and certificate
+     * allowlists.
+     */
+    fun redactKnownHosts(text: String, serverUrls: Collection<String?>): String {
+        val hosts = serverUrls.mapNotNull { hostOf(it) }.distinct()
+        if (hosts.isEmpty()) return text
+        // Longest first: with "paperless.example.com" and "example.com" both known,
+        // replacing the short one first would leave "paperless.<server>".
+        return hosts.sortedByDescending { it.length }.fold(text) { acc, host ->
+            acc.replace(boundedHost(host), "<server>")
+        }
     }
 
-    private fun hostOf(serverUrl: String?): String? = serverUrl
-        ?.trim()
-        ?.substringAfter("://")
-        ?.substringBefore('/')
-        ?.substringAfterLast('@')
-        ?.substringBeforeLast(':')
-        // A single short label would match half the report; "localhost" and any real
-        // hostname clear this, a stray fragment does not.
-        ?.takeIf { it.length >= 4 }
+    // Bounded on both sides, and that is not tidiness. A single-label host is ordinary on
+    // a home network — Tailscale MagicDNS, a Docker service name, plain `http://paperless:8000`
+    // — and an unbounded replacement then rewrites the app's OWN package name: every stack
+    // frame `com.paperless.scanner` became `com.<server>.scanner`, which destroys the
+    // report while claiming to protect it. A real host is preceded by a space, a quote or
+    // a slash; inside a package name it is preceded by a dot.
+    private fun boundedHost(host: String) = Regex(
+        "(?<![A-Za-z0-9.\\-])" + Regex.escape(host) + "(?![A-Za-z0-9\\-])",
+        RegexOption.IGNORE_CASE,
+    )
+
+    private fun hostOf(serverUrl: String?): String? {
+        val authority = serverUrl
+            ?.trim()
+            ?.substringAfter("://")
+            ?.substringBefore('/')
+            ?.substringAfterLast('@')
+            ?: return null
+
+        val host = if (authority.startsWith("[")) {
+            // IPv6 in brackets. Cutting at the last colon — which is what the port strip
+            // below does — lands INSIDE the address: `[2001:db8::1]` became `[2001:db8:`,
+            // and the report then showed `<server>:1]`.
+            authority.substringBefore(']', missingDelimiterValue = authority) + "]"
+        } else {
+            authority.substringBeforeLast(':')
+        }
+
+        // Two characters is enough BECAUSE of the boundaries above: `nas`, `pi` and `srv`
+        // are ordinary LAN names, and the previous threshold of four left them standing.
+        return host.takeIf { it.length >= 2 }
+    }
 
     /**
      * Sanitizes ONE log line for the diagnostic report a user can send us.
@@ -122,14 +177,25 @@ object LogSanitizer {
      * server runs on.
      */
     fun sanitizeLogLine(raw: String, limit: Int = LOG_LINE_LIMIT): String =
+        sanitizeText(raw)
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .take(limit)
+
+    /**
+     * The shape-based rules alone, without the one-line formatting or the cap.
+     *
+     * Split out because the STRUCTURED half of the report never ran through any of them:
+     * `errorMessage` and the protocol-detection results are printed verbatim, and they are
+     * filled with raw `e.message`. The same connect failure was redacted to `<ip>` in the
+     * log tail and left the server's public address standing two sections above it.
+     */
+    fun sanitizeText(raw: String): String =
         raw
             .replace(AUTH_SCHEME_VALUE) { match -> "${match.groupValues[1]} [REDACTED]" }
             .replace(SENSITIVE_JSON_FIELD) { match -> "\"${match.groupValues[1]}\":\"[REDACTED]\"" }
             .replace(URL_AUTHORITY) { match -> "${match.groupValues[1]}<server>" }
             .replace(IPV4_ADDRESS, "<ip>")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .take(limit)
 
     /** Max characters kept per buffered log line. Long stack frames get truncated. */
     const val LOG_LINE_LIMIT = 400

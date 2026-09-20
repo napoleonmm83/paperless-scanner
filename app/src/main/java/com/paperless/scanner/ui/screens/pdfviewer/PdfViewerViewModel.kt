@@ -204,7 +204,13 @@ class PdfViewerViewModel @Inject constructor(
                 // appears, and the feature is dead on exactly the path it was built for.
                 diagnosticsReportService.logFailure(
                     authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
-                    serverUrl = null, // hashed by the service; the VM does not hold it
+                    // Null, and the consequence is worth naming rather than glossing:
+                    // hashServerUrl(null) is the literal "none", so a report from this
+                    // screen cannot be grouped by server. The ViewModel does not hold the
+                    // URL, and reaching for it here would mean a settings read on a path
+                    // that must not block. Redaction is unaffected — the service knows the
+                    // host from the stored settings.
+                    serverUrl = null,
                     errorType = error::class.simpleName,
                     errorMessage = paperlessError?.diagnosticTag ?: error::class.simpleName
                 )
@@ -344,7 +350,7 @@ class PdfViewerViewModel @Inject constructor(
                 val text = diagnosticsReportService.createFullReport()
                 DiagnosticReportSender.send(
                     context = context,
-                    reportFile = diagnosticsReportService.writeReportFile(context.cacheDir),
+                    reportFile = diagnosticsReportService.writeReportFile(context.cacheDir, text),
                     reportText = text,
                     subjectTag = (uiState.value as? PdfViewerUiState.Error)?.message.orEmpty()
                         .take(40)

@@ -26,7 +26,8 @@ import java.util.ArrayDeque
  * remember it.
  *
  * Thread-safe because it is written from anywhere — IO threads, the main thread, worker
- * coroutines — and read on the main thread when a report is built.
+ * coroutines. Read only from a background dispatcher: the buffer feeds the FULL report
+ * (which also spawns logcat), never the shareable one, so nothing here runs on main.
  */
 object DiagnosticsLog {
 
