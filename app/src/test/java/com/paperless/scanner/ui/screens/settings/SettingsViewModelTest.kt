@@ -1,7 +1,7 @@
 package com.paperless.scanner.ui.screens.settings
 
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.domain.model.ServerStatus
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -44,7 +44,7 @@ class SettingsViewModelTest {
     private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var launchPromoManager: LaunchPromoManager
     private lateinit var premiumPurchaseCoordinator: PremiumPurchaseCoordinator
-    private lateinit var authDebugService: AuthDebugService
+    private lateinit var diagnosticsReportService: DiagnosticsReportService
     private lateinit var uploadWorkManager: UploadWorkManager
 
     private val testDispatcher = StandardTestDispatcher()
@@ -61,7 +61,7 @@ class SettingsViewModelTest {
         premiumFeatureManager = mockk(relaxed = true)
         launchPromoManager = mockk { every { state } returns MutableStateFlow(LaunchPromoState.Hidden) }
         premiumPurchaseCoordinator = mockk(relaxed = true)
-        authDebugService = mockk(relaxed = true)
+        diagnosticsReportService = mockk(relaxed = true)
         uploadWorkManager = mockk(relaxed = true)
 
         // Default mock responses
@@ -104,7 +104,7 @@ class SettingsViewModelTest {
             premiumFeatureManager = premiumFeatureManager,
             launchPromoManager = launchPromoManager,
             premiumPurchaseCoordinator = premiumPurchaseCoordinator,
-            authDebugService = authDebugService,
+            diagnosticsReportService = diagnosticsReportService,
             uploadWorkManager = uploadWorkManager,
             dispatchers = CoroutineDispatchers(io = testDispatcher, default = testDispatcher, main = testDispatcher)
         )

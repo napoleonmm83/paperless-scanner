@@ -383,6 +383,7 @@
     <string name="pdf_viewer_pdf_page">PDF Page %1$d</string>
     <string name="pdf_viewer_document_image">Document Image</string>
     <string name="pdf_viewer_retry">Retry</string>
+    <string name="pdf_viewer_page_failed">Page %1$d could not be displayed</string>
 
 
     <string name="upload_error_generic">Upload failed</string>
@@ -1159,6 +1160,27 @@
       cannot work.
     -->
     <string name="error_open_external_failed">The file could not be handed to another app.</string>
+
+    <!-- Diagnostic report a user can send us. -->
+    <!--
+      Deliberately NOT translated by placeholder: this is an address, not prose. It is
+      the developer address already published next to the app on Google Play, so it adds
+      no exposure; keeping it in one string means it can be changed in one place.
+    -->
+    <string name="support_email" translatable="false">marcusmartini83@gmail.com</string>
+    <string name="diagnostic_report_subject">Paperless Scanner %1$s — error report (%2$s)</string>
+    <string name="diagnostic_report_body">The diagnostic report is attached. Anything you can add about what you were doing helps.</string>
+    <string name="diagnostic_report_share_via">Send report via</string>
+    <string name="diagnostic_report_send">Send error report</string>
+    <string name="diagnostic_report_title">Error report</string>
+    <string name="diagnostic_report_subtitle">Help us find what went wrong</string>
+    <!--
+      Shown above the report preview. Says what is included AND what is not, because the
+      user is about to hand us a log file and deserves to know that before, not after.
+    -->
+    <string name="diagnostic_report_explain">This report contains your device model, network type, error codes and recent app log lines. It does not contain your documents, your password, or your server address in readable form.</string>
+    <string name="diagnostic_report_copied">Report copied to clipboard</string>
+    <string name="diagnostic_report_no_target">The report could not be sent or copied. Please try again.</string>
 
     <!-- Server URL Parser Error Messages -->
     <string name="error_server_address_missing">Server address is missing</string>

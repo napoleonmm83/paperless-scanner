@@ -52,7 +52,7 @@ import com.paperless.scanner.data.repository.TaskRepository
 import com.paperless.scanner.data.repository.UploadQueueRepository
 import com.paperless.scanner.data.health.ServerHealthMonitor
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import com.paperless.scanner.data.analytics.UploadMetricsTracker
@@ -419,10 +419,10 @@ object AppModule {
         @AuthClient client: OkHttpClient,
         cloudflareDetectionInterceptor: CloudflareDetectionInterceptor,
         crashlyticsHelper: CrashlyticsHelperContract,
-        authDebugService: AuthDebugService,
+        diagnosticsReportService: DiagnosticsReportService,
         httpCache: Cache,
         protocolDetector: ProtocolDetector,
-    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, authDebugService, httpCache, protocolDetector)
+    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, diagnosticsReportService, httpCache, protocolDetector)
 
     @Provides
     @Singleton

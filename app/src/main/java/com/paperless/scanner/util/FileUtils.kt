@@ -203,7 +203,10 @@ object FileUtils {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract filename from URI: $uri", e)
+            // INTENTIONAL-UNTESTED: a log-line change with no behaviour attached.
+            // Scheme and authority only: a SAF URI carries the document's display name
+            // in its path, and the diagnostic report now exports a logcat tail.
+            Log.e(TAG, "Failed to extract filename from URI (${uri.scheme}://${uri.authority})", e)
             null
         }
     }

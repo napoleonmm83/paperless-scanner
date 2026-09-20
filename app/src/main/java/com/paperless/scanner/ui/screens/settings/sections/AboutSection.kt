@@ -34,10 +34,10 @@ import com.paperless.scanner.ui.screens.settings.components.SettingsSection
 @Composable
 fun AboutSection(
     appVersionLabel: String,
-    hasAuthDebugReport: Boolean,
+    hasDiagnosticReport: Boolean,
     onVersionClick: () -> Unit,
     onLicensesClick: () -> Unit,
-    onAuthDebugReportClick: () -> Unit
+    onDiagnosticReportClick: () -> Unit
 ) {
     SettingsSection(title = stringResource(R.string.settings_section_about)) {
         SettingsClickableItem(
@@ -59,7 +59,7 @@ fun AboutSection(
             onClick = onLicensesClick
         )
 
-        if (hasAuthDebugReport) {
+        if (hasDiagnosticReport) {
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -67,9 +67,17 @@ fun AboutSection(
 
             SettingsClickableItem(
                 icon = Icons.Filled.BugReport,
-                title = stringResource(R.string.auth_debug_report_title),
-                value = stringResource(R.string.auth_debug_report_available),
-                onClick = onAuthDebugReportClick
+                // INTENTIONAL-UNTESTED: no Compose-UI test harness exists in this project
+                // (Roborazzi is deferred as issue #391), so a string swap in a settings
+                // row cannot be pinned from a unit test. What changes is which resource
+                // id is read; the row's behaviour is untouched.
+                //
+                // Not "Login Debug Report" any more: a failed document download or a
+                // render failure fills the same slot, and the login wording named a cause
+                // the user may never have been near.
+                title = stringResource(R.string.diagnostic_report_title),
+                value = stringResource(R.string.diagnostic_report_subtitle),
+                onClick = onDiagnosticReportClick
             )
         }
     }
@@ -119,10 +127,10 @@ private fun AboutSectionWithDebugPreview() {
     MaterialTheme {
         AboutSection(
             appVersionLabel = "1.5.138",
-            hasAuthDebugReport = true,
+            hasDiagnosticReport = true,
             onVersionClick = {},
             onLicensesClick = {},
-            onAuthDebugReportClick = {}
+            onDiagnosticReportClick = {}
         )
     }
 }
@@ -133,10 +141,10 @@ private fun AboutSectionNoDebugPreview() {
     MaterialTheme {
         AboutSection(
             appVersionLabel = "1.5.138 (AI Debug)",
-            hasAuthDebugReport = false,
+            hasDiagnosticReport = false,
             onVersionClick = {},
             onLicensesClick = {},
-            onAuthDebugReportClick = {}
+            onDiagnosticReportClick = {}
         )
     }
 }

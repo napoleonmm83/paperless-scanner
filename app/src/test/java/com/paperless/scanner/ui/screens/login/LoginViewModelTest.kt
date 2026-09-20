@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertPinStorage
@@ -46,7 +46,7 @@ class LoginViewModelTest {
     private lateinit var biometricHelper: BiometricHelper
     private lateinit var analyticsService: AnalyticsService
     private lateinit var loginRateLimiter: LoginRateLimiter
-    private lateinit var authDebugService: AuthDebugService
+    private lateinit var diagnosticsReportService: DiagnosticsReportService
     private lateinit var certificatePinStore: CertificatePinStore
     private lateinit var observedCertHolder: ObservedCertHolder
 
@@ -92,7 +92,7 @@ class LoginViewModelTest {
         biometricHelper = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
         loginRateLimiter = mockk(relaxed = true)
-        authDebugService = mockk(relaxed = true)
+        diagnosticsReportService = mockk(relaxed = true)
         certificatePinStore = CertificatePinStore(FakeCertPinStorage())
         observedCertHolder = ObservedCertHolder()
 
@@ -124,7 +124,7 @@ class LoginViewModelTest {
             analyticsService = analyticsService,
             loginRateLimiter = loginRateLimiter,
             biometricHelper = biometricHelper,
-            authDebugService = authDebugService,
+            diagnosticsReportService = diagnosticsReportService,
             certificatePinStore = certificatePinStore,
             observedCertHolder = observedCertHolder,
             ioDispatcher = testDispatcher

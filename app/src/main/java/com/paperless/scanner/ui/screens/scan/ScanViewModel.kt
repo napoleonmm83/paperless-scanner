@@ -754,7 +754,7 @@ class ScanViewModel @Inject constructor(
 
             FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                SharedFileCache.authority(context.packageName),
                 croppedFile
             )
         } catch (e: Exception) {
@@ -860,7 +860,7 @@ class ScanViewModel @Inject constructor(
                 }
                 return FileProvider.getUriForFile(
                     context,
-                    "${context.packageName}.fileprovider",
+                    SharedFileCache.authority(context.packageName),
                     rotatedFile
                 )
             } finally {

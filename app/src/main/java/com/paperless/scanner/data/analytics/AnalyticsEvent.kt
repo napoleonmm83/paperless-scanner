@@ -163,6 +163,26 @@ sealed class AnalyticsEvent(
         )
     )
 
+    /**
+     * The diagnostic report was OFFERED to the user.
+     *
+     * The denominator. Without it, a count of sent reports cannot distinguish "nobody
+     * needs it" from "nobody finds it" — and #403 already shipped an event
+     * ([PdfViewerOpened]) that existed but was never fired, which made its failure
+     * counterpart uninterpretable for seven weeks.
+     */
+    data object DiagnosticReportOffered : AnalyticsEvent("diagnostic_report_offered")
+
+    /**
+     * The user acted on the offer. [outcome] is the sender's result — mail app, generic
+     * chooser, or nothing available — so a device class that cannot send is visible
+     * rather than looking like disinterest.
+     */
+    data class DiagnosticReportShared(val outcome: String) : AnalyticsEvent(
+        "diagnostic_report_shared",
+        mapOf("outcome" to outcome)
+    )
+
     /** Tag created */
     data object TagCreated : AnalyticsEvent("tag_created")
 

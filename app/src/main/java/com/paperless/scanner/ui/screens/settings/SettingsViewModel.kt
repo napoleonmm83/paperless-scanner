@@ -6,8 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.analytics.AuthDebugReport
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticReport
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
@@ -78,7 +78,7 @@ class SettingsViewModel @Inject constructor(
     private val premiumFeatureManager: PremiumFeatureManager,
     private val launchPromoManager: LaunchPromoManager,
     private val premiumPurchaseCoordinator: PremiumPurchaseCoordinator,
-    private val authDebugService: AuthDebugService,
+    private val diagnosticsReportService: DiagnosticsReportService,
     private val uploadWorkManager: UploadWorkManager,
     private val dispatchers: CoroutineDispatchers
 ) : ViewModel() {
@@ -389,19 +389,19 @@ class SettingsViewModel @Inject constructor(
     /**
      * Observe if there's a last auth debug report available.
      */
-    val hasAuthDebugReport = authDebugService.lastReport
+    val hasDiagnosticReport = diagnosticsReportService.lastReport
 
     /**
      * Get a shareable debug report string for GitHub issues.
      */
-    fun getShareableAuthDebugReport(): String {
-        return authDebugService.createShareableReport()
+    fun getShareableDiagnosticReport(): String {
+        return diagnosticsReportService.createShareableReport()
     }
 
     /**
      * Clear the last auth debug report.
      */
-    fun clearAuthDebugReport() {
-        authDebugService.clearLastReport()
+    fun clearDiagnosticReport() {
+        diagnosticsReportService.clearLastReport()
     }
 }

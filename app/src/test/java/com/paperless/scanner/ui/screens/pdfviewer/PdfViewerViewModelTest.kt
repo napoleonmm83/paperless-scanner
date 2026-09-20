@@ -6,6 +6,8 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsServiceContract
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
+import com.paperless.scanner.data.analytics.DiagnosticReport
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.ServerOfflineReason
@@ -61,6 +63,7 @@ class PdfViewerViewModelTest {
     private lateinit var documentRepository: DocumentRepository
     private lateinit var analyticsService: AnalyticsServiceContract
     private lateinit var crashlyticsHelper: CrashlyticsHelperContract
+    private lateinit var diagnosticsReportService: DiagnosticsReportService
 
     @Before
     fun setup() {
@@ -69,6 +72,7 @@ class PdfViewerViewModelTest {
         documentRepository = mockk(relaxed = true)
         analyticsService = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
+        diagnosticsReportService = mockk(relaxed = true)
     }
 
     @After
@@ -81,6 +85,7 @@ class PdfViewerViewModelTest {
         documentRepository = documentRepository,
         analyticsService = analyticsService,
         crashlyticsHelper = crashlyticsHelper,
+        diagnosticsReportService = diagnosticsReportService,
         context = context
     )
 
@@ -266,6 +271,62 @@ class PdfViewerViewModelTest {
         val state = viewModel().awaitErrorState()
 
         assertEquals(context.getString(R.string.error_download), state.message)
+    }
+
+    // --------------------------------------------------- when the report is offered
+
+    @Test
+    fun `an unclassified failure offers the report`() = runTest(testDispatcher) {
+        stubDownloadFailure(PaperlessException.UnknownError(RuntimeException()))
+
+        val state = viewModel().awaitErrorState()
+
+        assertTrue("the one case we cannot diagnose did not offer a report", state.canSendReport)
+    }
+
+    @Test
+    fun `a classified failure does NOT offer the report`() = runTest(testDispatcher) {
+        // The counterpart, and the more important half. A report about a DNS failure
+        // tells us nothing the message does not already say — and a button that appears
+        // on every error is one the user has learned to ignore by the time it matters.
+        stubDownloadFailure(PaperlessException.ServerUnreachable(ServerOfflineReason.DNS_FAILURE))
+
+        val state = viewModel().awaitErrorState()
+
+        assertTrue("the report was offered for a fully classified error", !state.canSendReport)
+    }
+
+    @Test
+    fun `the report is filled before the button can be pressed`() = runTest(testDispatcher) {
+        // Without this call lastReport stays null, the report is empty, and the feature
+        // is dead on exactly the path it was built for. The button being visible is not
+        // the same as the button having something to send.
+        stubDownloadFailure(PaperlessException.UnknownError(RuntimeException()))
+
+        viewModel()
+        advanceUntilIdle()
+
+        verify {
+            diagnosticsReportService.logFailure(
+                authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
+                serverUrl = null,
+                errorType = any(),
+                errorMessage = any()
+            )
+        }
+    }
+
+    @Test
+    fun `the offer is counted so a low send rate can be read`() = runTest(testDispatcher) {
+        // #403 shipped an event that existed and was never fired, which left its failure
+        // counterpart uninterpretable for seven weeks. Without this denominator, "few
+        // reports arrive" cannot be told from "nobody finds the button".
+        stubDownloadFailure(PaperlessException.UnknownError(RuntimeException()))
+
+        viewModel()
+        advanceUntilIdle()
+
+        verify { analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportOffered) }
     }
 
     // ------------------------------------------------- what actually came down the wire

@@ -234,6 +234,14 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                 // (the pre-#241 root-only "document_" sweep already handled these).
                 sweep(File(cacheDir, SharedFileCache.SHARED_PDFS_DIR))
 
+                // Diagnostic reports a user generated. They are handed to a mail app and
+                // then have no further purpose; without this they would accumulate,
+                // because unlike a document nothing else ever deletes them. Adding the
+                // directory to sharedDirNames is NOT enough — cleanupAgedUnprotected
+                // takes its directory as a parameter and this is its only production
+                // caller.
+                sweep(File(cacheDir, SharedFileCache.SHARED_REPORTS_DIR))
+
                 // #307: sweep aged scan images too, but EXCLUDE files referenced by a
                 // persisted in-progress scan draft. ScanViewModel mirrors its draft's
                 // shared_images backing file names into ScanDraftCache (App-readable

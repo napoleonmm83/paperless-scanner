@@ -91,6 +91,7 @@ object AppLogger {
      */
     fun i(tag: String, message: String) {
         Log.i(formatTag(tag), message)
+        DiagnosticsLog.append(tag, message)
     }
 
     // ==================== Warning Logging ====================
@@ -109,6 +110,7 @@ object AppLogger {
         } else {
             Log.w(formatTag(tag), message)
         }
+        DiagnosticsLog.append(tag, throwable?.let { "$message | ${it::class.java.simpleName}: ${it.message}" } ?: message)
     }
 
     // ==================== Error Logging ====================
@@ -127,6 +129,10 @@ object AppLogger {
         } else {
             Log.e(formatTag(tag), message)
         }
+        // Mirrored into DiagnosticsLog so a user-sent report carries the context a
+        // failure happened in, not just the failure. i/w/e only — d and v are already
+        // BuildConfig.DEBUG-gated and would be empty in the build users run anyway.
+        DiagnosticsLog.append(tag, throwable?.let { "$message | ${it::class.java.simpleName}: ${it.message}" } ?: message)
     }
 
     // ==================== Verbose Logging (rarely used) ====================

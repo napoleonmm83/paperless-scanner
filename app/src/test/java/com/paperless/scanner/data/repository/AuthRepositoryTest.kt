@@ -3,7 +3,7 @@ package com.paperless.scanner.data.repository
 import android.content.Context
 import androidx.test.filters.SmallTest
 import com.paperless.scanner.R
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.domain.error.PaperlessException
@@ -46,7 +46,7 @@ class AuthRepositoryTest {
     private lateinit var tokenManager: TokenManager
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var crashlyticsHelper: CrashlyticsHelper
-    private lateinit var authDebugService: AuthDebugService
+    private lateinit var diagnosticsReportService: DiagnosticsReportService
     private lateinit var httpCache: Cache
     private lateinit var authRepository: AuthRepository
     private lateinit var client: OkHttpClient
@@ -62,12 +62,12 @@ class AuthRepositoryTest {
         tokenManager = mockk(relaxed = true)
         cloudflareDetectionInterceptor = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
-        authDebugService = mockk(relaxed = true)
+        diagnosticsReportService = mockk(relaxed = true)
         httpCache = mockk(relaxed = true)
         client = OkHttpClient.Builder().build()
         authRepository = AuthRepository(
             context, tokenManager, client, cloudflareDetectionInterceptor,
-            crashlyticsHelper, authDebugService, httpCache, ProtocolDetector(context, client)
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client)
         )
     }
 
@@ -473,7 +473,7 @@ class AuthRepositoryTest {
         // We can't use mockWebServer.requestCount as the assertion: depending
         // on the host OS, MockWebServer's TCP listener may count the failed
         // TLS ClientHello bytes as 0 or 1 connections. Instead we verify via
-        // the AuthDebugService breadcrumb — the https-only path logs
+        // the DiagnosticsReportService breadcrumb — the https-only path logs
         // SERVER_DETECT_FAILED_HTTPS_ONLY, the dual-probe path logs
         // SERVER_DETECT_FAILED with both attempts populated.
         val host = "${mockWebServer.hostName}:${mockWebServer.port}"
@@ -481,7 +481,7 @@ class AuthRepositoryTest {
 
         assertTrue("HTTPS-only probe must fail when server is plain HTTP", result.isFailure)
         verify {
-            authDebugService.logAuthFailure(
+            diagnosticsReportService.logFailure(
                 authType = any(),
                 serverUrl = any(),
                 errorType = "SERVER_DETECT_FAILED_HTTPS_ONLY",
@@ -503,7 +503,7 @@ class AuthRepositoryTest {
         val wiredClient = OkHttpClient.Builder().addInterceptor(interceptor).build()
         val wiredRepo = AuthRepository(
             context, tokenManager, wiredClient, cloudflareDetectionInterceptor,
-            crashlyticsHelper, authDebugService, httpCache, ProtocolDetector(context, wiredClient)
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, wiredClient)
         )
 
         // Non-loopback host that the interceptor will refuse. We pass with

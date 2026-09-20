@@ -190,14 +190,19 @@ fun PurchaseResultDialog(
 }
 
 @Composable
-fun AuthDebugReportDialog(
+fun DiagnosticReportDialog(
     onCopy: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.auth_debug_report_dialog_title)) },
-        text = { Text(stringResource(R.string.auth_debug_report_dialog_message)) },
+        // Generic, not login-specific: the same report is now created for a failed
+        // document download or a render failure, and the old text claimed "your recent
+        // login attempt" for someone who had not logged in. The explain string says what
+        // the report contains and what it does not — the one thing a user needs before
+        // handing it over.
+        title = { Text(stringResource(R.string.diagnostic_report_title)) },
+        text = { Text(stringResource(R.string.diagnostic_report_explain)) },
         confirmButton = {
             TextButton(onClick = onCopy) {
                 Text(stringResource(R.string.auth_debug_report_copy))

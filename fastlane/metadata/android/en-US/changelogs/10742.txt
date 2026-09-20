@@ -1,10 +1,11 @@
 Version 1.5.242:
 
 🐛 Bug fixes:
-- PDF view: the message now names the cause instead of just "Unknown error"
+- PDF view: the message now names the cause instead of "Unknown error"
 - Fixed an endless loading spinner on unreadable files
-- Certificate and connection problems are no longer reported as network errors
+- Certificate problems are no longer reported as network errors
 
-🔧 Improvements:
-- If the server returns a login page instead of the document, the app now says so
-- Word and spreadsheet files can be opened in another app
+✨ New features:
+- Error report by email: device, network type, error code, short log
+- No documents, no password, server address only as a checksum
+- If the server returns a login page, the app now says so

@@ -11,16 +11,22 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsServiceContract
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
+import com.paperless.scanner.data.analytics.DiagnosticReport
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.repository.DocumentRepository
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.getLocalizedMessage
+import com.paperless.scanner.util.DiagnosticReportSender
+import com.paperless.scanner.util.SharedFileCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -37,9 +43,17 @@ sealed class PdfViewerUiState {
      *   a text or CSV document — rather than the DOCX one would first guess. Unverified
      *   against a live server; the branch does not depend on which it is.
      */
+    /**
+     * @param canSendReport offer the diagnostic report. True only where the app does NOT
+     *   know what went wrong — an unclassified mapper result, unusable content, a render
+     *   failure. Deliberately false for "check your internet connection" and an expired
+     *   session: a report about those teaches us nothing, and a button that appears on
+     *   every error is a button nobody reads.
+     */
     data class Error(
         val message: String,
-        val canOpenExternally: Boolean = false
+        val canOpenExternally: Boolean = false,
+        val canSendReport: Boolean = false
     ) : PdfViewerUiState()
 }
 
@@ -72,6 +86,7 @@ class PdfViewerViewModel @Inject constructor(
     private val documentRepository: DocumentRepository,
     private val analyticsService: AnalyticsServiceContract,
     private val crashlyticsHelper: CrashlyticsHelperContract,
+    private val diagnosticsReportService: DiagnosticsReportService,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -101,6 +116,9 @@ class PdfViewerViewModel @Inject constructor(
 
     fun downloadDocument() {
         viewModelScope.launch {
+            // A new attempt is a new document: page failures from the previous one must
+            // not suppress reporting for this one.
+            reportedPageFailures.clear()
             _uiState.update { PdfViewerUiState.Downloading(0f) }
 
             documentRepository.downloadDocument(
@@ -181,10 +199,30 @@ class PdfViewerViewModel @Inject constructor(
                             ?: error::class.simpleName ?: "Unknown"
                     )
                 )
+                // Fill the report so the button on the error screen has something to
+                // send. Without this call lastReport stays null, the button never
+                // appears, and the feature is dead on exactly the path it was built for.
+                diagnosticsReportService.logFailure(
+                    authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
+                    serverUrl = null, // hashed by the service; the VM does not hold it
+                    errorType = error::class.simpleName,
+                    errorMessage = paperlessError?.diagnosticTag ?: error::class.simpleName
+                )
+
+                // Only where the mapper could not classify. A report about a DNS failure
+                // or an expired session tells us nothing we do not already read off the
+                // message, and a button that appears on every error is one nobody reads.
+                val unclassified = paperlessError is PaperlessException.UnknownError ||
+                    paperlessError == null
+                if (unclassified) {
+                    analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportOffered)
+                }
+
                 _uiState.update {
                     PdfViewerUiState.Error(
-                        (error as? PaperlessException)?.getLocalizedMessage(context)
-                            ?: context.getString(R.string.error_download)
+                        message = (error as? PaperlessException)?.getLocalizedMessage(context)
+                            ?: context.getString(R.string.error_download),
+                        canSendReport = unclassified
                     )
                 }
             }
@@ -215,7 +253,18 @@ class PdfViewerViewModel @Inject constructor(
                 diagnosticTag = "${probe.kind.name}/${probe.signature}"
             )
         )
-        _uiState.update { PdfViewerUiState.Error(message, canOpenExternally) }
+        diagnosticsReportService.logFailure(
+            authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
+            serverUrl = null,
+            errorType = "UnusableContent",
+            errorMessage = "${probe.kind.name}/${probe.signature}"
+        )
+        // The file arrived and we cannot use it — that is precisely the case nobody can
+        // diagnose from a screenshot, so the report is offered here too.
+        analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportOffered)
+        _uiState.update {
+            PdfViewerUiState.Error(message, canOpenExternally, canSendReport = true)
+        }
     }
 
     /**
@@ -226,6 +275,34 @@ class PdfViewerViewModel @Inject constructor(
      * wait. An encrypted PDF, a truncated download and a server error page saved under a
      * .pdf name all landed there.
      */
+    /** Pages already reported this document, so a pre-rendered neighbour reports once. */
+    private val reportedPageFailures = mutableSetOf<Int>()
+
+    /**
+     * ONE page could not be rendered. Deliberately does not touch [uiState].
+     *
+     * The pager pre-composes a neighbour on each side, so this fires for pages the user
+     * has not even reached. Routing it into [onRenderFailure] — as an earlier version
+     * did — replaced the whole document with an error screen because page 5 of 20 had a
+     * corrupt content stream, while pages 1-4 and 6-20 were perfectly readable. That is
+     * worse than the endless spinner it was meant to fix: it takes away something that
+     * works to report something that does not.
+     *
+     * The page shows its own failure instead, and the report is deduplicated per page so
+     * paging back and forth does not file the same non-fatal repeatedly.
+     */
+    fun onPageRenderFailure(pageIndex: Int, cause: Throwable) {
+        if (!reportedPageFailures.add(pageIndex)) return
+
+        crashlyticsHelper.recordException(cause)
+        analyticsService.trackEvent(
+            AnalyticsEvent.PdfViewerDownloadFailed(
+                errorType = "PageRenderFailure",
+                diagnosticTag = cause::class.java.simpleName.ifEmpty { "Unknown" }
+            )
+        )
+    }
+
     fun onRenderFailure(cause: Throwable) {
         crashlyticsHelper.recordException(cause)
         analyticsService.trackEvent(
@@ -234,11 +311,47 @@ class PdfViewerViewModel @Inject constructor(
                 diagnosticTag = cause::class.simpleName ?: "Unknown"
             )
         )
+        diagnosticsReportService.logFailure(
+            authType = DiagnosticReport.Source.DOCUMENT_RENDER,
+            serverUrl = null,
+            errorType = "RenderFailure",
+            errorMessage = cause::class.simpleName
+        )
+        analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportOffered)
         _uiState.update {
             PdfViewerUiState.Error(
                 context.getString(R.string.error_document_unreadable),
-                canOpenExternally = true
+                canOpenExternally = true,
+                canSendReport = true
             )
+        }
+    }
+
+    /**
+     * Builds the report and hands it to the user's mail app.
+     *
+     * On IO because it spawns logcat and writes a file. The result is surfaced so the
+     * screen can say something true rather than appearing to have done nothing — a
+     * device without a mail app gets the report on the clipboard instead of silence.
+     */
+    fun sendDiagnosticReport(onResult: (DiagnosticReportSender.Result) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                // The text is built regardless of whether the file could be written: a
+                // failed write used to be reported as "no app available", which sent the
+                // user looking for a mail app they already had. With the text in hand the
+                // sender can still put it on the clipboard.
+                val text = diagnosticsReportService.createFullReport()
+                DiagnosticReportSender.send(
+                    context = context,
+                    reportFile = diagnosticsReportService.writeReportFile(context.cacheDir),
+                    reportText = text,
+                    subjectTag = (uiState.value as? PdfViewerUiState.Error)?.message.orEmpty()
+                        .take(40)
+                )
+            }
+            analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportShared(result.name))
+            onResult(result)
         }
     }
 
@@ -395,7 +508,7 @@ class PdfViewerViewModel @Inject constructor(
         try {
             val uri = FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                SharedFileCache.authority(context.packageName),
                 state.pdfFile
             )
 
@@ -434,7 +547,7 @@ class PdfViewerViewModel @Inject constructor(
         try {
             val uri = FileProvider.getUriForFile(
                 context,
-                "${context.packageName}.fileprovider",
+                SharedFileCache.authority(context.packageName),
                 file
             )
 

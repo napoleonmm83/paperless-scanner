@@ -20,6 +20,11 @@ import javax.inject.Singleton
  * Behavior per connection:
  * - **Cleartext / no handshake** → pass through (pinning only applies to TLS;
  *   cleartext is gated separately by [com.paperless.scanner.data.api.HttpAllowlistInterceptor]).
+ * - **TLS but empty peer-certificate list** → also passes through. This branch is
+ *   REACHABLE in production — it is not dead code, and it is not the cleartext
+ *   case above. Do NOT "harden" it into a `throw`: doing so breaks login, server
+ *   discovery and thumbnail loading. The cause sits in the trust layer, not in
+ *   this class, and is tracked separately.
  * - **No pin yet** → TOFU: capture the presented SPKI pin and pass through. First
  *   contact still relies on normal CA validation done by the TLS layer.
  * - **Pin matches** → pass through.

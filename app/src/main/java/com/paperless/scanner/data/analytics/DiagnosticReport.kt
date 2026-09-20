@@ -17,12 +17,12 @@ import java.util.UUID
  * **Usage:**
  * Created when auth fails, optionally sent to Firestore for analysis.
  */
-data class AuthDebugReport(
+data class DiagnosticReport(
     val reportId: String = UUID.randomUUID().toString(),
     val timestamp: Long = System.currentTimeMillis(),
 
     // Auth attempt info (anonymized)
-    val authType: AuthType,
+    val authType: Source,
     val serverUrlHash: String,
     val httpStatusCode: Int?,
     val errorType: String?,
@@ -41,11 +41,18 @@ data class AuthDebugReport(
     // Server detection results
     val serverDetection: ServerDetectionInfo? = null
 ) {
-    enum class AuthType {
+    enum class Source {
         PASSWORD_LOGIN,
         TOKEN_LOGIN,
         TOKEN_VALIDATION,
-        SERVER_DETECTION
+        SERVER_DETECTION,
+
+        // Added when this report stopped being auth-only. The class was called
+        // AuthDebugReport and carried an AuthType; keeping those names while it
+        // reported PDF download failures would have been a name that lies, and the
+        // next reader would have had to discover that by reading the call sites.
+        DOCUMENT_DOWNLOAD,
+        DOCUMENT_RENDER
     }
 
     data class DeviceInfo(

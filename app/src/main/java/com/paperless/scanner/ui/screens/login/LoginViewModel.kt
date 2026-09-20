@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.analytics.AuthDebugService
+import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.api.HttpAllowlistInterceptor
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.getLocalizedMessage
@@ -41,7 +41,7 @@ class LoginViewModel @Inject constructor(
     private val analyticsService: AnalyticsService,
     private val loginRateLimiter: LoginRateLimiter,
     val biometricHelper: BiometricHelper,
-    private val authDebugService: AuthDebugService,
+    private val diagnosticsReportService: DiagnosticsReportService,
     private val certificatePinStore: CertificatePinStore,
     private val observedCertHolder: ObservedCertHolder,
     private val ioDispatcher: CoroutineDispatcher
@@ -575,20 +575,20 @@ class LoginViewModel @Inject constructor(
     /**
      * Observe if there's a debug report available (for showing debug button on error).
      */
-    val hasAuthDebugReport = authDebugService.lastReport
+    val hasDiagnosticReport = diagnosticsReportService.lastReport
 
     /**
      * Get a shareable debug report string for GitHub issues.
      */
-    fun getShareableAuthDebugReport(): String {
-        return authDebugService.createShareableReport()
+    fun getShareableDiagnosticReport(): String {
+        return diagnosticsReportService.createShareableReport()
     }
 
     /**
      * Clear the auth debug report after copying.
      */
-    fun clearAuthDebugReport() {
-        authDebugService.clearLastReport()
+    fun clearDiagnosticReport() {
+        diagnosticsReportService.clearLastReport()
     }
 }
 

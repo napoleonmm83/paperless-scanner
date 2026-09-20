@@ -40,10 +40,19 @@ class CertificatePinningInterceptorTest {
         pinStore = CertificatePinStore(FakeCertPinStorage())
         observed = ObservedCertHolder()
 
-        val localhost = InetAddress.getByName("localhost").canonicalHostName
-        serverCert = HeldCertificate.Builder()
-            .addSubjectAlternativeName(localhost)
-            .build()
+        // MockWebServer 5.x reports the plain host name for server.url(), while 4.x
+        // reported the CANONICAL one. On a machine whose hosts file maps 127.0.0.1 to
+        // something else — a Docker Desktop entry does exactly that — the canonical
+        // name is not "localhost", the SAN then misses the URL host, and hostname
+        // verification fails. Cover both names so the fixture does not depend on the
+        // developer's hosts file.
+        val canonical = InetAddress.getByName("localhost").canonicalHostName
+        val certBuilder = HeldCertificate.Builder()
+            .addSubjectAlternativeName("localhost")
+        if (canonical != "localhost") {
+            certBuilder.addSubjectAlternativeName(canonical)
+        }
+        serverCert = certBuilder.build()
         val serverCertificates = HandshakeCertificates.Builder()
             .heldCertificate(serverCert)
             .build()
@@ -106,6 +115,13 @@ class CertificatePinningInterceptorTest {
             assertNotNull("expected a CertificatePinMismatchException in the cause chain", mismatch)
             assertEquals(host, mismatch!!.host)
         }
+
+        // THE security contract, and the part the throw alone does not prove:
+        // the call aborts BEFORE the request is written, so the Authorization
+        // header never reaches a man-in-the-middle. Asserting only that it
+        // throws would stay green if the request were ever written before the
+        // network-interceptor chain runs.
+        assertEquals("request must never reach the server on a pin mismatch", 0, server.requestCount)
 
         val recorded = observed.peek(host)
         assertNotNull("mismatch must be recorded for the re-trust dialog", recorded)
