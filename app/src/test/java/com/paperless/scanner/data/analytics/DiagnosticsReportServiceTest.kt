@@ -3,8 +3,10 @@ package com.paperless.scanner.data.analytics
 import android.content.Context
 import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
+import app.cash.turbine.test
 import io.mockk.every
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Assert.assertEquals
@@ -163,16 +165,27 @@ class DiagnosticsReportServiceTest {
         every { analyticsService.isAnalyticsEnabled() } returns false
         every { serverUrlHolder.current() } returns SERVER_URL
 
-        service.logFailure(
-            authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
-            serverUrl = null,
-            errorType = "ContentError",
-        )
+        runTest {
+            service.lastReport.test {
+                // The transition, not a snapshot: asserting only the final value would
+                // pass just as well against a service that had the report all along, and
+                // the settings entry decides its visibility on exactly this null-to-report
+                // step. Project rule via .coderabbit.yaml path instructions.
+                assertNull("a report existed before anything failed", awaitItem())
 
-        val hash = service.lastReport.value?.serverUrlHash
-        assertNotNull(hash)
-        assertFalse("the report fell back to the ungrouped literal", hash == "none")
-        assertEquals(DiagnosticReport.hashServerUrl(SERVER_URL), hash)
+                service.logFailure(
+                    authType = DiagnosticReport.Source.DOCUMENT_DOWNLOAD,
+                    serverUrl = null,
+                    errorType = "ContentError",
+                )
+
+                val hash = awaitItem()?.serverUrlHash
+                assertNotNull(hash)
+                assertFalse("the report fell back to the ungrouped literal", hash == "none")
+                assertEquals(DiagnosticReport.hashServerUrl(SERVER_URL), hash)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
     }
 
     @Test
