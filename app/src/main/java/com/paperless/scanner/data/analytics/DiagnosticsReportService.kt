@@ -46,7 +46,11 @@ import javax.inject.Singleton
 class DiagnosticsReportService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val analyticsService: AnalyticsService,
-    private val crashlyticsHelper: CrashlyticsHelper,
+    // The contract, not the concrete class: this service uses only logStateBreadcrumb and
+    // recordException, both of which it declares — so the test can use the project's
+    // FakeCrashlyticsHelper and assert the breadcrumb it RECORDED instead of verifying
+    // that a method was called. A verify passes against a method that does nothing.
+    private val crashlyticsHelper: CrashlyticsHelperContract,
     // Only ever read, and only for the server URL: the report promises that the address
     // appears as a checksum and nowhere in readable form, and keeping that promise means
     // knowing the value so it can be removed. See [withoutKnownHost].

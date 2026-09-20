@@ -4,11 +4,11 @@ import android.content.Context
 import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import app.cash.turbine.test
+import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
 import io.mockk.every
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import io.mockk.mockk
-import io.mockk.verify
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -38,7 +38,7 @@ class DiagnosticsReportServiceTest {
 
     private lateinit var context: Context
     private lateinit var analyticsService: AnalyticsService
-    private lateinit var crashlyticsHelper: CrashlyticsHelper
+    private val crashlyticsHelper = FakeCrashlyticsHelper()
     private lateinit var tokenManager: TokenManager
     private lateinit var serverUrlHolder: ServerUrlHolder
     private lateinit var service: DiagnosticsReportService
@@ -47,7 +47,6 @@ class DiagnosticsReportServiceTest {
     fun setup() {
         context = RuntimeEnvironment.getApplication()
         analyticsService = mockk(relaxed = true)
-        crashlyticsHelper = mockk(relaxed = true)
         // NOTHING is stored. That is the production state during setup — the server URL is
         // written only after a successful login — and the previous version of this test
         // handed back the attempted host here, which is why it passed over a real leak.
@@ -92,7 +91,10 @@ class DiagnosticsReportServiceTest {
 
         logOnce()
 
-        verify(exactly = 0) { crashlyticsHelper.logStateBreadcrumb(any(), any()) }
+        assertTrue(
+            "a breadcrumb was forwarded despite the user declining",
+            crashlyticsHelper.stateBreadcrumbs.isEmpty()
+        )
     }
 
     @Test
@@ -104,7 +106,9 @@ class DiagnosticsReportServiceTest {
         logOnce()
 
         assertNotNull(service.lastReport.value)
-        verify { crashlyticsHelper.logStateBreadcrumb(any(), any()) }
+        // The recorded breadcrumb, not the fact that a method was called: a verify
+        // passes just as well against a method that does nothing with its arguments.
+        assertEquals("DIAGNOSTIC_REPORT", crashlyticsHelper.stateBreadcrumbs.single().first)
     }
 
     @Test
