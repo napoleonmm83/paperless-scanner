@@ -1,0 +1,7 @@
+Version 1.5.243:
+
+🐛 Fehlerbehebungen:
+- Absturz beim Öffnen eines PDFs behoben (betraf 1.5.242)
+- Die PDF-Ansicht startet wieder normal
+
+Bitte auf diese Version aktualisieren, wenn du 1.5.242 installiert hast.

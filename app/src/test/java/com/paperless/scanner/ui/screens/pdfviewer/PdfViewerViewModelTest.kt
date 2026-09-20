@@ -19,12 +19,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -88,6 +90,46 @@ class PdfViewerViewModelTest {
         diagnosticsReportService = diagnosticsReportService,
         context = context
     )
+
+    @Test
+    fun `constructing the ViewModel does not touch a property declared after init`() = runTest {
+        // Regression pin for a crash that shipped: opening any PDF killed the app with
+        // `NullPointerException: … 'void java.util.Set.clear()' on a null object
+        // reference`, thrown from the ViewModel's own constructor.
+        //
+        // Kotlin runs property initialisers and init blocks in DECLARATION order. The
+        // init block calls downloadDocument(), whose first statement clears
+        // reportedPageFailures — and that property was declared 170 lines further down,
+        // so its backing field was still null. On a device `viewModelScope` is
+        // `Dispatchers.Main.immediate`, so the launched body runs SYNCHRONOUSLY inside
+        // the constructor and reaches the null field before anything can suspend.
+        //
+        // The rest of this class uses StandardTestDispatcher, which QUEUES the coroutine
+        // instead of running it — by the time a test advances the clock the constructor
+        // has long finished and every property exists. That is precisely why 24 green
+        // tests said nothing about a crash that happened on the very first tap.
+        // This test therefore sets an eager dispatcher on purpose; it is the only one
+        // here that does.
+        //
+        // It also runs inside `runTest`, and that is not decoration. The failure happens
+        // inside a coroutine of `viewModelScope`, which is NOT a child of this test — so
+        // the NullPointerException never propagates out of the constructor. It goes to
+        // the uncaught handler, and the first version of this test therefore PASSED while
+        // failing the NEXT test in the class with `UncaughtExceptionsBeforeTest` (this
+        // project already knows that shape: the named test is the victim, not the
+        // culprit). Inside runTest the exception is attributed here, where it belongs.
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+
+        // Stubbed, and with an eager dispatcher that matters: the body really runs, so a
+        // relaxed mock would hand `onSuccess` a bare Object and fail with a
+        // ClassCastException that says nothing about this test's subject. The delay
+        // inside the helper suspends at the network call — which is exactly where a real
+        // device suspends, right after the synchronous prefix this test is about.
+        stubDownloadFailure(RuntimeException("irrelevant to this test"))
+
+        // No assertion beyond "it returns": construction either completes or it does not.
+        assertNotNull(viewModel())
+    }
 
     /**
      * Fails the download after a virtual-time delay, modelling a real (suspending)

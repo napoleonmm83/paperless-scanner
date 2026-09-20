@@ -1,0 +1,7 @@
+Version 1.5.243:
+
+🐛 Bug fixes:
+- Fixed a crash when opening a PDF (affected 1.5.242)
+- The PDF view starts normally again
+
+Please update to this version if you have 1.5.242 installed.
