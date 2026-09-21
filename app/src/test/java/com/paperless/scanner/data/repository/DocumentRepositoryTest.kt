@@ -12,6 +12,7 @@ import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -398,6 +399,36 @@ class DocumentRepositoryTest {
         assertTrue(
             "the loop kept reading after cancellation: ${reads.get()} reads",
             reads.get() < 4
+        )
+        // Stopping the read is only half of it: outputStream() has already created the
+        // file, so an abort leaves a zero-byte or half-written PDF that nobody learns
+        // about — the Result is discarded, so lastDownload is never set and onCleared has
+        // nothing to delete.
+        assertEquals(
+            "a partial download was left behind in the shared cache",
+            emptyList<String>(),
+            SharedFileCache.sharedPdfsDir(cacheDir).list()?.toList() ?: emptyList<String>()
+        )
+    }
+
+    @Test
+    fun `downloadDocument leaves no partial file behind when the stream dies`() = runTest {
+        // The counterpart for the ordinary failure. Cancellation and a dropped connection
+        // exit through different catches, and only one of them was covered.
+        val dyingStream = object : ByteArrayInputStream(ByteArray(32 * 1024)) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int =
+                throw IOException("connection reset")
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            dyingStream.source().buffer().asResponseBody(null, 32L * 1024)
+
+        val result = documentRepository.downloadDocument(123)
+
+        assertTrue("the failure was swallowed: $result", result.isFailure)
+        assertEquals(
+            "a partial download was left behind in the shared cache",
+            emptyList<String>(),
+            SharedFileCache.sharedPdfsDir(cacheDir).list()?.toList() ?: emptyList<String>()
         )
     }
 

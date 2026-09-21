@@ -244,6 +244,13 @@ class DocumentRepository @Inject constructor(
         // RuntimeException and PaperlessException.from() has no case for it — nothing in
         // the message pointed at a thread. The fix belongs HERE and not in the ViewModel:
         // this is the only place every caller passes through.
+        // Held outside the try so every failure exit can clean up after itself. The file
+        // exists from the moment outputStream() opens it, so an abort — cancelled caller,
+        // dropped connection, full disk — leaves a zero-byte or half-written PDF behind
+        // that no caller ever learns about: the Result is discarded or failed, so
+        // lastDownload is never set and onCleared has nothing to delete. It would sit in
+        // the shared cache until the age sweep.
+        var partialFile: File? = null
         try {
             val response = withRetry { api.downloadDocument(documentId) }
 
@@ -251,6 +258,7 @@ class DocumentRepository @Inject constructor(
             // #241: write into the FileProvider-scoped subdir so the downloaded PDF
             // can be shared/opened without exposing the entire cache root.
             val pdfFile = File(SharedFileCache.sharedPdfsDir(cacheDir), fileName)
+            partialFile = pdfFile
 
             val contentLength = response.contentLength()
 
@@ -280,8 +288,12 @@ class DocumentRepository @Inject constructor(
                 }
             }
 
+            // Handed over: from here the caller owns the file, so the cleanup below must
+            // not fire for it.
+            partialFile = null
             Result.success(pdfFile)
         } catch (e: CancellationException) {
+            partialFile?.delete()
             throw e
         } catch (e: Exception) {
             // Pinned by DocumentRepositoryTest ("a DNS failure keeps its identity
@@ -317,6 +329,7 @@ class DocumentRepository @Inject constructor(
             // not since this change — and CleartextNotAllowlistedException still burns the
             // full ladder as a plain IOException. Claiming otherwise took credit for
             // someone else's fix and was false about the one case it named.
+            partialFile?.delete()
             Result.failure(PaperlessException.from(e))
         }
     }
