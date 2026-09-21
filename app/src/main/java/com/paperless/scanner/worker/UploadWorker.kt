@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
@@ -37,6 +36,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.paperless.scanner.util.AppLogger
 
 @HiltWorker
 class UploadWorker @AssistedInject constructor(
@@ -68,7 +68,7 @@ class UploadWorker @AssistedInject constructor(
 
         // Pre-check: Ensure we have validated internet before starting uploads
         if (!networkMonitor.hasValidatedInternet()) {
-            Log.w(TAG, "No validated internet connection - aborting upload worker")
+            AppLogger.w(TAG, "No validated internet connection - aborting upload worker")
             crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - no internet")
             return Result.retry() // Retry later when internet is validated
         }
@@ -80,7 +80,7 @@ class UploadWorker @AssistedInject constructor(
         // preference authoritative; the work retries until an unmetered network is available.
         // Bails before the server-health call so a deferred run does no needless work.
         if (shouldDeferForMeteredNetwork()) {
-            Log.w(TAG, "Unmetered-only upload preference active on a metered network - deferring")
+            AppLogger.w(TAG, "Unmetered-only upload preference active on a metered network - deferring")
             crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - metered (unmetered-only)")
             return Result.retry() // Retry later when on an unmetered network
         }
@@ -88,7 +88,7 @@ class UploadWorker @AssistedInject constructor(
         // Pre-check: Ensure Paperless server is reachable before starting uploads
         serverHealthMonitor.checkServerHealth()
         if (!serverHealthMonitor.isServerReachable.value) {
-            Log.w(TAG, "Paperless server not reachable (status: ${serverHealthMonitor.serverStatus.value}) - aborting upload worker")
+            AppLogger.w(TAG, "Paperless server not reachable (status: ${serverHealthMonitor.serverStatus.value}) - aborting upload worker")
             crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - server unreachable")
             return Result.retry() // Retry later when server is reachable
         }
@@ -124,7 +124,7 @@ class UploadWorker @AssistedInject constructor(
             // otherwise keep uploading over mobile data after the startup check passed.
             // Items already uploaded this run stay completed; the rest retry when unmetered.
             if (shouldDeferForMeteredNetwork()) {
-                Log.w(TAG, "Unmetered-only preference active on a metered network mid-drain - deferring remaining uploads")
+                AppLogger.w(TAG, "Unmetered-only preference active on a metered network mid-drain - deferring remaining uploads")
                 crashlyticsHelper.logStateBreadcrumb("WORKER_UPLOAD", "retry - metered mid-drain (unmetered-only)")
                 return Result.retry()
             }
@@ -133,14 +133,14 @@ class UploadWorker @AssistedInject constructor(
 
             // Safety check: bereits in diesem Run verarbeitet?
             if (pendingUpload.id in processedIds) {
-                Log.w(TAG, "Upload ${pendingUpload.id} already processed in this run, skipping")
+                AppLogger.w(TAG, "Upload ${pendingUpload.id} already processed in this run, skipping")
                 break
             }
             processedIds.add(pendingUpload.id)
 
             // Safety check: zu viele Iterationen?
             if (currentUpload >= maxIterations) {
-                Log.e(TAG, "Max iterations reached ($maxIterations), breaking loop")
+                AppLogger.e(TAG, "Max iterations reached ($maxIterations), breaking loop")
                 break
             }
 
@@ -159,9 +159,9 @@ class UploadWorker @AssistedInject constructor(
                 val uris = uploadQueueRepository.getAllUris(pendingUpload)
                 val missingFiles = uris.filterNot { FileUtils.fileExists(it) }
                 if (missingFiles.isNotEmpty()) {
-                    Log.e(TAG, "Upload ${pendingUpload.id}: ${missingFiles.size}/${uris.size} files missing!")
+                    AppLogger.e(TAG, "Upload ${pendingUpload.id}: ${missingFiles.size}/${uris.size} files missing!")
                     missingFiles.forEach { uri ->
-                        Log.e(TAG, "  Missing file: $uri")
+                        AppLogger.e(TAG, "  Missing file: $uri")
                     }
                     uploadQueueRepository.markAsFailed(
                         pendingUpload.id,
@@ -174,7 +174,7 @@ class UploadWorker @AssistedInject constructor(
                 val uri = Uri.parse(pendingUpload.uri)
                 if (!FileUtils.fileExists(uri)) {
                     val fileSize = FileUtils.getFileSize(uri)
-                    Log.e(TAG, "Upload ${pendingUpload.id}: File not found or not readable: $uri (size: $fileSize bytes)")
+                    AppLogger.e(TAG, "Upload ${pendingUpload.id}: File not found or not readable: $uri (size: $fileSize bytes)")
                     uploadQueueRepository.markAsFailed(pendingUpload.id, applicationContext.getString(R.string.upload_error_file_not_found, uri.lastPathSegment ?: ""))
                     failCount++
                     continue
@@ -251,7 +251,7 @@ class UploadWorker @AssistedInject constructor(
                 if (result.isSuccess) uploadCommitted = true
 
                 result.onSuccess {
-                    Log.d(TAG, "Upload ${pendingUpload.id}: Upload successful, task ID received")
+                    AppLogger.d(TAG, "Upload ${pendingUpload.id}: Upload successful, task ID received")
                     uploadQueueRepository.markAsCompleted(pendingUpload.id)
                     successCount++
                     successAlreadyCounted = true
@@ -268,7 +268,7 @@ class UploadWorker @AssistedInject constructor(
                             details = "${documentName}${pageInfo}"
                         )
                     } catch (historyError: Exception) {
-                        Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                        AppLogger.w(TAG, "Failed to record sync history: ${historyError.message}")
                     }
 
                     // Clean up local file copies after successful upload
@@ -277,11 +277,11 @@ class UploadWorker @AssistedInject constructor(
                     } else {
                         listOf(Uri.parse(pendingUpload.uri))
                     }
-                    Log.d(TAG, "Upload ${pendingUpload.id}: Cleaning up ${urisToClean.size} local files")
+                    AppLogger.d(TAG, "Upload ${pendingUpload.id}: Cleaning up ${urisToClean.size} local files")
                     urisToClean.forEach { uri ->
                         FileUtils.deleteLocalCopy(uri)
                     }
-                    Log.d(TAG, "Upload ${pendingUpload.id}: Cleanup complete")
+                    AppLogger.d(TAG, "Upload ${pendingUpload.id}: Cleanup complete")
                 }.onFailure { e ->
                     // Safe error message extraction (prevent secondary exceptions)
                     val uploadFailedMsg = applicationContext.getString(R.string.sync_history_upload_failed)
@@ -290,8 +290,8 @@ class UploadWorker @AssistedInject constructor(
                     } catch (_: Exception) {
                         uploadFailedMsg
                     }
-                    Log.e(TAG, "Upload failed: ${pendingUpload.id} - $safeErrorMessage", e)
-                    Log.e(TAG, "Upload failed: Exception type: ${e.javaClass.simpleName}")
+                    AppLogger.e(TAG, "Upload failed: ${pendingUpload.id} - $safeErrorMessage", e)
+                    AppLogger.e(TAG, "Upload failed: Exception type: ${e.javaClass.simpleName}")
                     uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                     failCount++
 
@@ -311,11 +311,11 @@ class UploadWorker @AssistedInject constructor(
                             details = documentName
                         )
                     } catch (historyError: Exception) {
-                        Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                        AppLogger.w(TAG, "Failed to record sync history: ${historyError.message}")
                     }
 
                     if (pendingUpload.retryCount >= MAX_RETRIES) {
-                        Log.w(TAG, "Max retries reached for: ${pendingUpload.id}")
+                        AppLogger.w(TAG, "Max retries reached for: ${pendingUpload.id}")
                         // Clean up local files on permanent failure too
                         val urisToClean = if (pendingUpload.isMultiPage) {
                             uploadQueueRepository.getAllUris(pendingUpload)
@@ -373,7 +373,7 @@ class UploadWorker @AssistedInject constructor(
                         try {
                             uploadQueueRepository.markAsCompleted(pendingUpload.id)
                         } catch (completionError: Exception) {
-                            Log.w(TAG, "Post-commit completion failed for ${pendingUpload.id}: ${completionError.message}")
+                            AppLogger.w(TAG, "Post-commit completion failed for ${pendingUpload.id}: ${completionError.message}")
                         }
                     }
                     if (!successAlreadyCounted) successCount++
@@ -387,7 +387,7 @@ class UploadWorker @AssistedInject constructor(
                 } catch (_: Exception) {
                     unexpectedErrorMsg
                 }
-                Log.e(TAG, "Unexpected error during upload: ${pendingUpload.id} - $safeErrorMessage", e)
+                AppLogger.e(TAG, "Unexpected error during upload: ${pendingUpload.id} - $safeErrorMessage", e)
                 uploadQueueRepository.markAsFailed(pendingUpload.id, safeErrorMessage)
                 failCount++
 
@@ -401,7 +401,7 @@ class UploadWorker @AssistedInject constructor(
                         details = documentName
                     )
                 } catch (historyError: Exception) {
-                    Log.w(TAG, "Failed to record sync history: ${historyError.message}")
+                    AppLogger.w(TAG, "Failed to record sync history: ${historyError.message}")
                 }
             }
         }

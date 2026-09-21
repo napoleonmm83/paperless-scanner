@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,6 +80,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.ServerOfflineBanner
 import com.paperless.scanner.data.health.ServerStatus
+import com.paperless.scanner.util.AppLogger
 
 enum class DocumentTab {
     DETAILS,
@@ -124,9 +124,15 @@ fun DocumentDetailScreen(
     // Server Health Status (Phase 2: Server Offline Detection)
     val serverStatus by viewModel.serverStatus.collectAsState()
 
-    // DEBUG: Log aiNewTagsEnabled value
-    Log.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
-    Log.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    // INTENTIONAL-UNTESTED: no Compose-UI harness here (#391); only WHEN the debug line
+    // runs changes, not what is rendered.
+    //
+    // In a LaunchedEffect, not the composable body: a line here runs on every
+    // recomposition, and since AppLogger.d started feeding the diagnostic buffer that
+    // is a synchronized append plus a sanitizer pass each time.
+    LaunchedEffect(aiNewTagsEnabled) {
+        AppLogger.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    }
 
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }

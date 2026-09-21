@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 @HiltViewModel
 class UploadViewModel @Inject constructor(
@@ -77,7 +77,7 @@ class UploadViewModel @Inject constructor(
             if (parsed == null || parsed.scheme.isNullOrBlank()) {
                 // Don't log the segment itself — content:// URIs can contain provider/file IDs
                 // that count as user-identifiable. Index + length are enough to debug.
-                Log.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})")
+                AppLogger.e(TAG, "Failed to parse URI at segment[$index] (len=${segment.length})")
                 null
             } else {
                 parsed
@@ -436,7 +436,7 @@ class UploadViewModel @Inject constructor(
                         }
                     }
                     is SuggestionResult.Error -> {
-                        Log.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
+                        AppLogger.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
                         _analysisState.update {
                             AnalysisState.Error(analyzeDocumentUseCase.localizedMessage(result.error))
                         }
@@ -450,7 +450,7 @@ class UploadViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 // #364: never surface e.message — raw exception text stays in the logs.
-                Log.e(TAG, "Document analysis failed", e)
+                AppLogger.e(TAG, "Document analysis failed", e)
                 _analysisState.update {
                     AnalysisState.Error(analyzeDocumentUseCase.analysisErrorMessage)
                 }

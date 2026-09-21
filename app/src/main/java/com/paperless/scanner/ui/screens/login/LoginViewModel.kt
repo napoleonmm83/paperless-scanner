@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.login
 
 import android.content.Context
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
@@ -32,6 +31,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
@@ -96,7 +96,7 @@ class LoginViewModel @Inject constructor(
         if (parsed is ServerUrlParser.ParseResult.Error) {
             _serverStatus.update { ServerStatus.Idle }
             detectedServerUrl = null
-            Log.d(TAG, "URL not parseable yet, status = Idle")
+            AppLogger.d(TAG, "URL not parseable yet, status = Idle")
             return
         }
 
@@ -108,7 +108,7 @@ class LoginViewModel @Inject constructor(
     }
 
     private suspend fun detectServerInternal(serverUrl: String) {
-        Log.d(TAG, "Starting detection for: $serverUrl")
+        AppLogger.d(TAG, "Starting detection for: $serverUrl")
 
         // Issue #233: pre-detection gate. When the user typed http:// explicitly
         // for a non-loopback host they have not yet accepted, surface the
@@ -124,7 +124,7 @@ class LoginViewModel @Inject constructor(
             if (!isHardAllowed && !isUserAccepted) {
                 withContext(Dispatchers.Main) {
                     _serverStatus.update { ServerStatus.RequiresHttpAccept(host, ServerStatus.RequiresHttpAccept.Reason.USER_CHOSE_HTTP) }
-                    Log.d(TAG, "Status = RequiresHttpAccept(USER_CHOSE_HTTP, host=$host)")
+                    AppLogger.d(TAG, "Status = RequiresHttpAccept(USER_CHOSE_HTTP, host=$host)")
                 }
                 return
             }
@@ -136,7 +136,7 @@ class LoginViewModel @Inject constructor(
         // Update status on Main thread
         withContext(Dispatchers.Main) {
             _serverStatus.update { ServerStatus.Checking }
-            Log.d(TAG, "Status = Checking")
+            AppLogger.d(TAG, "Status = Checking")
         }
 
         // Do network call on IO
@@ -153,7 +153,7 @@ class LoginViewModel @Inject constructor(
                     val isHttpFallback = !isHttps && !userExplicitlyUsedHttp
                     detectedServerUrl = url
                     _serverStatus.update { ServerStatus.Success(url, isHttps, isHttpFallback) }
-                    Log.d(TAG, "Status = Success, url = $url, isHttps = $isHttps, isHttpFallback = $isHttpFallback")
+                    AppLogger.d(TAG, "Status = Success, url = $url, isHttps = $isHttps, isHttpFallback = $isHttpFallback")
                 }
                 .onFailure { exception ->
                     detectedServerUrl = null
@@ -171,7 +171,7 @@ class LoginViewModel @Inject constructor(
                             )
                         }
                         _serverStatus.update { ServerStatus.Error(context.getString(R.string.error_certificate_changed_explain)) }
-                        Log.d(TAG, "Status = CertChanged (detection), host = ${exception.host}")
+                        AppLogger.d(TAG, "Status = CertChanged (detection), host = ${exception.host}")
                         return@onFailure
                     }
                     // Issue #233: a CleartextBlocked failure means the interceptor
@@ -181,11 +181,11 @@ class LoginViewModel @Inject constructor(
                     // explain "HTTPS unreachable, allow HTTP fallback?".
                     if (exception is PaperlessException.CleartextBlocked) {
                         _serverStatus.update { ServerStatus.RequiresHttpAccept(exception.host, ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED) }
-                        Log.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
+                        AppLogger.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
                     } else {
                         val message = exception.message ?: context.getString(R.string.error_server_unreachable)
                         _serverStatus.update { ServerStatus.Error(message) }
-                        Log.d(TAG, "Status = Error, message = $message")
+                        AppLogger.d(TAG, "Status = Error, message = $message")
                     }
                 }
         }
@@ -201,7 +201,7 @@ class LoginViewModel @Inject constructor(
     fun onHttpAcceptedForRequiresHttpAccept(host: String, serverUrl: String) {
         viewModelScope.launch {
             tokenManager.acceptHttpForHost(host)
-            Log.d(TAG, "HTTP accepted (RequiresHttpAccept path) for host: $host")
+            AppLogger.d(TAG, "HTTP accepted (RequiresHttpAccept path) for host: $host")
             // Allow allowlist Flow to propagate to HttpAllowlistHolder's atomic cache.
             delay(50L)
             detectServerInternal(serverUrl)
@@ -212,7 +212,7 @@ class LoginViewModel @Inject constructor(
         detectionJob?.cancel()
         _serverStatus.update { ServerStatus.Idle }
         detectedServerUrl = null
-        Log.d(TAG, "Status cleared to Idle")
+        AppLogger.d(TAG, "Status cleared to Idle")
     }
 
     private fun checkBiometricAvailability() {
@@ -262,7 +262,7 @@ class LoginViewModel @Inject constructor(
             else -> detectedServerUrl ?: serverUrl.trimEnd('/')
         }
 
-        Log.d(TAG, "Starting login with URL: $urlToUse")
+        AppLogger.d(TAG, "Starting login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
         viewModelScope.launch(ioDispatcher) {
@@ -369,7 +369,7 @@ class LoginViewModel @Inject constructor(
             else -> detectedServerUrl ?: serverUrl.trimEnd('/')
         }
 
-        Log.d(TAG, "Starting token login with URL: $urlToUse")
+        AppLogger.d(TAG, "Starting token login with URL: $urlToUse")
         analyticsService.trackEvent(AnalyticsEvent.LoginStarted)
 
         viewModelScope.launch(ioDispatcher) {
@@ -461,7 +461,7 @@ class LoginViewModel @Inject constructor(
     fun acceptSslCertificate(host: String) {
         viewModelScope.launch {
             tokenManager.acceptSslForHost(host)
-            Log.d(TAG, "SSL certificate accepted for host: $host")
+            AppLogger.d(TAG, "SSL certificate accepted for host: $host")
             // Reset state to allow retry
             _uiState.update { LoginUiState.Idle }
         }
@@ -483,12 +483,12 @@ class LoginViewModel @Inject constructor(
             val newPin = observed?.actualPin
             if (newPin != null) {
                 certificatePinStore.replacePin(host, newPin)
-                Log.d(TAG, "Certificate change re-trusted for host: $host")
+                AppLogger.d(TAG, "Certificate change re-trusted for host: $host")
             } else {
                 // No observed mismatch (e.g. process death): drop the stale pin so
                 // the next connection re-captures via TOFU instead of blocking forever.
                 certificatePinStore.removePin(host)
-                Log.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
+                AppLogger.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
             }
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Idle }
@@ -514,7 +514,7 @@ class LoginViewModel @Inject constructor(
     fun acceptHttpForHost(host: String) {
         viewModelScope.launch {
             tokenManager.acceptHttpForHost(host)
-            Log.d(TAG, "HTTP fallback accepted for host: $host")
+            AppLogger.d(TAG, "HTTP fallback accepted for host: $host")
         }
     }
 

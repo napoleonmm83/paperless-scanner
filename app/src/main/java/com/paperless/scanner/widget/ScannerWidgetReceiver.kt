@@ -3,10 +3,10 @@ package com.paperless.scanner.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Hybrid Widget Receiver that automatically selects between Glance and Legacy implementations.
@@ -37,7 +37,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
         crashlytics.setCustomKey("widget_use_legacy", useLegacy)
         crashlytics.setCustomKey("device_info", WidgetDeviceChecker.getDeviceInfo())
 
-        Log.d(TAG, "Device check: useLegacy=$useLegacy, ${WidgetDeviceChecker.getDeviceInfo()}")
+        AppLogger.d(TAG, "Device check: useLegacy=$useLegacy, ${WidgetDeviceChecker.getDeviceInfo()}")
 
         useLegacy
     }
@@ -52,7 +52,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
         if (shouldUseLegacy) {
             // Delegate to legacy RemoteViews implementation
             crashlytics.log("Using LegacyScannerWidget for update")
-            Log.d(TAG, "Delegating to LegacyScannerWidget")
+            AppLogger.d(TAG, "Delegating to LegacyScannerWidget")
 
             val legacyWidget = LegacyScannerWidget()
             legacyWidget.onUpdate(context, appWidgetManager, appWidgetIds)
@@ -60,13 +60,13 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
         } else {
             // Use Glance implementation (default)
             crashlytics.log("Using Glance ScannerWidget for update")
-            Log.d(TAG, "Using Glance ScannerWidget")
+            AppLogger.d(TAG, "Using Glance ScannerWidget")
 
             try {
                 super.onUpdate(context, appWidgetManager, appWidgetIds)
             } catch (e: Exception) {
                 // If Glance fails, fall back to legacy
-                Log.e(TAG, "Glance widget update failed, falling back to legacy", e)
+                AppLogger.e(TAG, "Glance widget update failed, falling back to legacy", e)
                 crashlytics.recordException(e)
                 crashlytics.setCustomKey("glance_fallback_triggered", true)
 
@@ -94,7 +94,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
                 super.onReceive(context, intent)
             } catch (e: Exception) {
                 // If Glance fails, fall back to legacy
-                Log.e(TAG, "Glance onReceive failed, falling back to legacy", e)
+                AppLogger.e(TAG, "Glance onReceive failed, falling back to legacy", e)
                 crashlytics.recordException(e)
                 crashlytics.setCustomKey("glance_receive_fallback", true)
 
@@ -107,7 +107,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onEnabled(context: Context) {
         val crashlytics = FirebaseCrashlytics.getInstance()
         crashlytics.log("Widget enabled: useLegacy=$shouldUseLegacy")
-        Log.d(TAG, "Widget enabled: useLegacy=$shouldUseLegacy")
+        AppLogger.d(TAG, "Widget enabled: useLegacy=$shouldUseLegacy")
 
         if (shouldUseLegacy) {
             LegacyScannerWidget().onEnabled(context)
@@ -115,7 +115,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
             try {
                 super.onEnabled(context)
             } catch (e: Exception) {
-                Log.e(TAG, "Glance onEnabled failed", e)
+                AppLogger.e(TAG, "Glance onEnabled failed", e)
                 crashlytics.recordException(e)
             }
         }
@@ -124,7 +124,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onDisabled(context: Context) {
         val crashlytics = FirebaseCrashlytics.getInstance()
         crashlytics.log("Widget disabled: useLegacy=$shouldUseLegacy")
-        Log.d(TAG, "Widget disabled: useLegacy=$shouldUseLegacy")
+        AppLogger.d(TAG, "Widget disabled: useLegacy=$shouldUseLegacy")
 
         if (shouldUseLegacy) {
             LegacyScannerWidget().onDisabled(context)
@@ -132,7 +132,7 @@ class ScannerWidgetReceiver : GlanceAppWidgetReceiver() {
             try {
                 super.onDisabled(context)
             } catch (e: Exception) {
-                Log.e(TAG, "Glance onDisabled failed", e)
+                AppLogger.e(TAG, "Glance onDisabled failed", e)
                 crashlytics.recordException(e)
             }
         }

@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.sync
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
@@ -16,6 +15,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.util.concurrent.TimeUnit
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
+import com.paperless.scanner.util.AppLogger
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
@@ -28,31 +28,31 @@ class SyncWorker @AssistedInject constructor(
     private val TAG = "SyncWorker"
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "Starting periodic sync work...")
+        AppLogger.d(TAG, "Starting periodic sync work...")
         crashlyticsHelper.logActionBreadcrumb("WORKER_SYNC", "start")
 
         return try {
             val result = syncManager.performFullSync()
 
             if (result.isSuccess) {
-                Log.d(TAG, "Periodic sync completed successfully")
+                AppLogger.d(TAG, "Periodic sync completed successfully")
                 crashlyticsHelper.logActionBreadcrumb("WORKER_SYNC", "success")
                 Result.success()
             } else {
-                Log.e(TAG, "Periodic sync failed: ${result.exceptionOrNull()?.message}")
+                AppLogger.e(TAG, "Periodic sync failed: ${result.exceptionOrNull()?.message}")
                 crashlyticsHelper.logStateBreadcrumb("WORKER_SYNC_ERROR", result.exceptionOrNull()?.message)
 
                 // Retry if we haven't exceeded max attempts
                 if (runAttemptCount < MAX_RETRIES) {
-                    Log.d(TAG, "Retrying sync (attempt ${runAttemptCount + 1}/$MAX_RETRIES)")
+                    AppLogger.d(TAG, "Retrying sync (attempt ${runAttemptCount + 1}/$MAX_RETRIES)")
                     Result.retry()
                 } else {
-                    Log.e(TAG, "Max retry attempts reached, marking as failure")
+                    AppLogger.e(TAG, "Max retry attempts reached, marking as failure")
                     Result.failure()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Periodic sync failed with exception", e)
+            AppLogger.e(TAG, "Periodic sync failed with exception", e)
             crashlyticsHelper.logStateBreadcrumb("WORKER_SYNC_ERROR", "${e.javaClass.simpleName}: ${e.message}")
 
             if (runAttemptCount < MAX_RETRIES) {
@@ -107,12 +107,12 @@ class SyncWorker @AssistedInject constructor(
                 request
             )
 
-            Log.d("SyncWorker", "Periodic sync work scheduled (30 min interval with 10 min flex)")
+            AppLogger.d("SyncWorker", "Periodic sync work scheduled (30 min interval with 10 min flex)")
         }
 
         fun cancelSync(context: Context) {
             WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
-            Log.d("SyncWorker", "Periodic sync work cancelled")
+            AppLogger.d("SyncWorker", "Periodic sync work cancelled")
         }
     }
 }

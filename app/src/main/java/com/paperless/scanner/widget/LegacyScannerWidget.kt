@@ -8,13 +8,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
 import com.paperless.scanner.util.DeepLinkHandler
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Legacy RemoteViews-based widget implementation.
@@ -90,17 +90,17 @@ class LegacyScannerWidget : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle
     ) {
-        Log.d(TAG, "Widget options changed for $appWidgetId")
+        AppLogger.d(TAG, "Widget options changed for $appWidgetId")
         updateAppWidget(context, appWidgetManager, appWidgetId)
     }
 
     override fun onEnabled(context: Context) {
-        Log.d(TAG, "Legacy widget enabled")
+        AppLogger.d(TAG, "Legacy widget enabled")
         FirebaseCrashlytics.getInstance().log("LegacyScannerWidget enabled")
     }
 
     override fun onDisabled(context: Context) {
-        Log.d(TAG, "Legacy widget disabled")
+        AppLogger.d(TAG, "Legacy widget disabled")
         FirebaseCrashlytics.getInstance().log("LegacyScannerWidget disabled")
     }
 
@@ -116,7 +116,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
             val config = try {
                 WidgetPreferences(context.applicationContext).getWidgetConfig(appWidgetId)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to read widget config, using default", e)
+                AppLogger.w(TAG, "Failed to read widget config, using default", e)
                 WidgetConfig()
             }
 
@@ -126,7 +126,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
                 WidgetType.COMBINED -> updateCombinedWidget(context, appWidgetManager, appWidgetId)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to update widget $appWidgetId", e)
+            AppLogger.e(TAG, "Failed to update widget $appWidgetId", e)
             crashlytics.recordException(e)
             crashlytics.setCustomKey("widget_update_failed", true)
             crashlytics.setCustomKey("widget_id", appWidgetId)
@@ -307,7 +307,7 @@ class LegacyScannerWidget : AppWidgetProvider() {
         val layout = if (horizontal) R.layout.widget_quick_scan_horizontal
             else R.layout.widget_quick_scan
 
-        Log.d(TAG, "Quick scan layout for widget $appWidgetId: horizontal=$horizontal")
+        AppLogger.d(TAG, "Quick scan layout for widget $appWidgetId: horizontal=$horizontal")
 
         val views = RemoteViews(context.packageName, layout)
 

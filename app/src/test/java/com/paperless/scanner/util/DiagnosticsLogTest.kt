@@ -202,13 +202,31 @@ class DiagnosticsLogTest {
         // LOG_LINE_LIMIT on the way in, so twenty fat lines are only ~8k in the buffer.
         //
         // The caps therefore divide the work: with lines at the per-line limit the
-        // character budget is reached at roughly 32000/400 ≈ 80 entries, long before 300
-        // — so for verbose logging the character cap governs, and for terse logging the
-        // line cap does. Both are load-bearing; neither alone bounds the buffer.
+        // character budget is reached at MAX_CHARS/LOG_LINE_LIMIT entries, well before
+        // MAX_LINES — so for verbose logging the character cap governs, and for terse
+        // logging the line cap does. Both are load-bearing; neither alone bounds it.
+        //
+        // The count is DERIVED, not a literal. It was 200 while MAX_CHARS was 32000,
+        // and raising the budget to 128000 would have left this test pushing far too
+        // few lines to reach the cap — passing without exercising anything, which is
+        // the failure mode a cap test cannot afford.
         val long = "x".repeat(LogSanitizer.LOG_LINE_LIMIT * 2)
-        repeat(200) { DiagnosticsLog.append("T", long) }
+        val genugFuerDieZeichengrenze =
+            (DiagnosticsLog.MAX_CHARS / LogSanitizer.LOG_LINE_LIMIT) + 50
+        repeat(genugFuerDieZeichengrenze) { DiagnosticsLog.append("T", long) }
 
         val stored = DiagnosticsLog.snapshot()
+
+        // The line cap must NOT be what fired here, or this test proves nothing about
+        // the character cap.
+        assertTrue(
+            "the line cap fired first, so the character cap was never tested",
+            genugFuerDieZeichengrenze < DiagnosticsLog.MAX_LINES
+        )
+        assertTrue(
+            "nothing was evicted at all",
+            stored.size < genugFuerDieZeichengrenze
+        )
 
         assertTrue(
             "the character cap never fired: ${stored.size} entries held",

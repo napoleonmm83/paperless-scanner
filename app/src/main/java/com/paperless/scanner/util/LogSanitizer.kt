@@ -61,8 +61,14 @@ object LogSanitizer {
     //
     // Behind an `Authorization:` header the scheme word is never prose, so ANY value goes
     // — that is where OkHttp's logging interceptor puts the real thing.
+    //
+    // `\S+`, not `\S{6,}`: the rule carried a six-character minimum that its own comment
+    // above contradicts, and a short credential is still a credential —
+    // `Authorization: Basic YTpi` is base64 for `a:b` and walked straight through. The
+    // minimum belongs to the BARE rule below, where the scheme word may genuinely be
+    // prose; here there is nothing to protect against.
     private val AUTH_HEADER_VALUE = Regex(
-        "\\b(Authorization\\s*:\\s*)(Token|Bearer|Basic)\\s+\\S{6,}",
+        "\\b(Authorization\\s*:\\s*)(Token|Bearer|Basic)\\s+\\S+",
         RegexOption.IGNORE_CASE,
     )
 
@@ -81,6 +87,39 @@ object LogSanitizer {
     private val AUTH_SCHEME_VALUE = Regex(
         "\\b(Token|Bearer|Basic)\\s+(?:(?=[A-Za-z0-9._~+/=-]*[0-9._~+/=])[A-Za-z0-9._~+/=-]{8,}|[A-Za-z]{16,})",
         RegexOption.IGNORE_CASE,
+    )
+
+    // A cookie value behind a `Cookie:` or `Set-Cookie:` header.
+    //
+    // Found on a REAL report pulled off a device (2026-09-21, 171 KB, 680 logged header
+    // lines): `Authorization` was redacted as designed, and one line below it sat
+    // `set-cookie: csrftoken=<40 chars>` completely in the clear. The Authorization rule
+    // above cannot see it — a cookie carries no scheme word — so the header needed its
+    // own rule.
+    //
+    // Only the VALUE goes; the cookie's NAME stays, because knowing that a CSRF or
+    // session cookie was set is diagnostically useful and names no secret. Everything up
+    // to the first attribute separator is redacted, so `expires` and `Max-Age` survive
+    // for the same reason.
+    //
+    // In release the interceptor logs at NONE, so today this fires only in a debug
+    // build — which is exactly the kind of reasoning that ages badly: the sanitizer is
+    // the layer that must not depend on who is careful upstream.
+    // Anchored on the HEADER, then every pair inside it — a request header carries
+    // several (`Cookie: csrftoken=…; sessionid=…`), and a rule that redacts only the
+    // first one leaves the session cookie, which is the worse of the two. The first
+    // version of this rule did exactly that.
+    private val COOKIE_HEADER_LINE = Regex(
+        "\\b((?:Set-)?Cookie\\s*:\\s*)(.+)",
+        RegexOption.IGNORE_CASE,
+    )
+    private val COOKIE_PAIR = Regex("([A-Za-z0-9_.-]+=)([^;\\s]+)")
+
+    // Cookie attributes are not secrets and stay readable; everything else in the
+    // header is treated as a value. Kept as a set rather than a regex alternation so
+    // the list reads as data.
+    private val COOKIE_ATTRIBUTES = setOf(
+        "expires", "max-age", "domain", "path", "samesite", "version", "secure", "httponly",
     )
 
     // The authority of a URL — host, optional userinfo, optional port — while the path
@@ -213,6 +252,15 @@ object LogSanitizer {
                 "${match.groupValues[1]}${match.groupValues[2]} [REDACTED]"
             }
             .replace(AUTH_SCHEME_VALUE) { match -> "${match.groupValues[1]} [REDACTED]" }
+            // Before the URL rule: a cookie value may contain characters the authority
+            // rule would rather not meet, and the name-plus-equals prefix is the most
+            // specific anchor in this chain.
+            .replace(COOKIE_HEADER_LINE) { header ->
+                header.groupValues[1] + COOKIE_PAIR.replace(header.groupValues[2]) { pair ->
+                    val name = pair.groupValues[1].dropLast(1).lowercase()
+                    if (name in COOKIE_ATTRIBUTES) pair.value else "${pair.groupValues[1]}[REDACTED]"
+                }
+            }
             .replace(SENSITIVE_JSON_FIELD) { match -> "\"${match.groupValues[1]}\":\"[REDACTED]\"" }
             .replace(URL_AUTHORITY) { match -> "${match.groupValues[1]}<server>" }
             .replace(IPV4_ADDRESS, "<ip>")

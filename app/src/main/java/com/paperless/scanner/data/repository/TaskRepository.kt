@@ -1,6 +1,5 @@
 package com.paperless.scanner.data.repository
 
-import android.util.Log
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.api.models.AcknowledgeTasksRequest
@@ -21,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 class TaskRepository @Inject constructor(
     private val api: PaperlessApi,
@@ -215,14 +215,14 @@ class TaskRepository @Inject constructor(
     suspend fun acknowledgeTasks(taskIds: List<Int>): Result<Unit> {
         return try {
             val request = AcknowledgeTasksRequest(tasks = taskIds)
-            Log.d(TAG, "Acknowledging tasks: $taskIds")
+            AppLogger.d(TAG, "Acknowledging tasks: $taskIds")
             // acknowledgeTasks is idempotent server-side; withResponseRetry
             // promotes 5xx to HttpException so the retry actually fires.
             val response = withResponseRetry { api.acknowledgeTasks(request) }
-            Log.d(TAG, "Response code: ${response.code()}")
+            AppLogger.d(TAG, "Response code: ${response.code()}")
 
             if (response.isSuccessful) {
-                Log.d(TAG, "Tasks acknowledged successfully")
+                AppLogger.d(TAG, "Tasks acknowledged successfully")
 
                 // Update cache - mark tasks as acknowledged (triggers reactive Flow update)
                 cachedTaskDao.markAsAcknowledged(taskIds)
@@ -230,16 +230,16 @@ class TaskRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 val errorBody = response.errorBody()?.string()
-                Log.e(TAG, "Failed: ${response.code()} - ${LogSanitizer.sanitizeErrorBody(errorBody)}")
+                AppLogger.e(TAG, "Failed: ${response.code()} - ${LogSanitizer.sanitizeErrorBody(errorBody)}")
                 Result.failure(PaperlessException.fromHttpCode(response.code(), errorBody))
             }
         } catch (e: IOException) {
-            Log.e(TAG, "Network error: ${e.message}", e)
+            AppLogger.e(TAG, "Network error: ${e.message}", e)
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Exception: ${e.message}", e)
+            AppLogger.e(TAG, "Exception: ${e.message}", e)
             Result.failure(PaperlessException.from(e))
         }
     }

@@ -1,6 +1,5 @@
 package com.paperless.scanner.ui.navigation
 
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,6 +12,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import com.paperless.scanner.util.AppLockManager
 import com.paperless.scanner.util.AppLockState
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Reconstructs the full route with actual argument values.
@@ -44,7 +44,7 @@ private fun reconstructRouteWithArgs(
         routeTemplate.startsWith("upload-multi/") -> {
             val currentUris = routeArgsHolder.get("documentUris")
             if (!currentUris.isNullOrEmpty()) {
-                Log.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle")
+                AppLogger.d("AppLockInterceptor", "MultiPageUpload: Using CURRENT URIs from SavedStateHandle")
                 // Encode each URI individually, keep raw '|' delimiter — matches
                 // Screen.MultiPageUpload.createRoute(): joinToString("|") { Uri.encode(it.toString()) }
                 val encodedUris = currentUris
@@ -63,7 +63,7 @@ private fun reconstructRouteWithArgs(
             // Read current page URIs from the single-source holder (where ScanViewModel mirrors them)
             val currentPageUris = routeArgsHolder.get("pageUris")
             if (currentPageUris != null && currentPageUris.isNotEmpty()) {
-                Log.d("AppLockInterceptor", "Scan: Using CURRENT page URIs from SavedStateHandle: $currentPageUris")
+                AppLogger.d("AppLockInterceptor", "Scan: Using CURRENT page URIs from SavedStateHandle: $currentPageUris")
                 // Encode the entire pipe-separated URI string
                 val encodedUris = android.net.Uri.encode(currentPageUris)
                 // Build route with query parameter
@@ -71,7 +71,7 @@ private fun reconstructRouteWithArgs(
                 return reconstructed
             } else {
                 // No pages - return base route for mode selection
-                Log.d("AppLockInterceptor", "Scan: No pages, using base route")
+                AppLogger.d("AppLockInterceptor", "Scan: No pages, using base route")
                 return "scan"
             }
         }
@@ -139,24 +139,24 @@ fun AppLockNavigationInterceptor(
             }
         } ?: true  // ← SECURITY: null = assume protected (fail-safe)
 
-        Log.d("AppLockInterceptor", "=== LOCK STATE CHANGED ===")
-        Log.d("AppLockInterceptor", "New lockState: $lockState")
-        Log.d("AppLockInterceptor", "currentRouteTemplate: $currentRouteTemplate (null=${currentRouteTemplate == null})")
-        Log.d("AppLockInterceptor", "currentFullRoute: $currentFullRoute")
-        Log.d("AppLockInterceptor", "isProtected: $isCurrentRouteProtected (null route = assume protected)")
-        Log.d("AppLockInterceptor", "==========================")
+        AppLogger.d("AppLockInterceptor", "=== LOCK STATE CHANGED ===")
+        AppLogger.d("AppLockInterceptor", "New lockState: $lockState")
+        AppLogger.d("AppLockInterceptor", "currentRouteTemplate: $currentRouteTemplate (null=${currentRouteTemplate == null})")
+        AppLogger.d("AppLockInterceptor", "currentFullRoute: $currentFullRoute")
+        AppLogger.d("AppLockInterceptor", "isProtected: $isCurrentRouteProtected (null route = assume protected)")
+        AppLogger.d("AppLockInterceptor", "==========================")
 
         when (lockState) {
             is AppLockState.Locked -> {
-                Log.d("AppLockInterceptor", "State: LOCKED")
+                AppLogger.d("AppLockInterceptor", "State: LOCKED")
                 // App is locked - navigate to AppLockScreen if not already there
                 if (isCurrentRouteProtected && currentRouteTemplate != Screen.AppLock.route) {
                     // Save FULL route with actual arguments before locking
                     // If currentFullRoute is null (cold start), save Home as fallback
                     routeBeforeLock = currentFullRoute ?: Screen.Home.route
-                    Log.d("AppLockInterceptor", "Saved FULL route before lock: $routeBeforeLock (wasNull=${currentFullRoute == null})")
+                    AppLogger.d("AppLockInterceptor", "Saved FULL route before lock: $routeBeforeLock (wasNull=${currentFullRoute == null})")
 
-                    Log.d("AppLockInterceptor", "Navigating to AppLock screen")
+                    AppLogger.d("AppLockInterceptor", "Navigating to AppLock screen")
                     try {
                         navController.navigate(Screen.AppLock.route) {
                             // Clear back stack - user must unlock
@@ -169,20 +169,20 @@ fun AppLockNavigationInterceptor(
                         }
                     } catch (e: Exception) {
                         // NavController not yet fully initialized - try simpler navigation
-                        Log.w("AppLockInterceptor", "Standard navigation failed, trying simple navigate", e)
+                        AppLogger.w("AppLockInterceptor", "Standard navigation failed, trying simple navigate", e)
                         try {
                             navController.navigate(Screen.AppLock.route)
                         } catch (e2: Exception) {
-                            Log.e("AppLockInterceptor", "Simple navigation also failed", e2)
+                            AppLogger.e("AppLockInterceptor", "Simple navigation also failed", e2)
                         }
                     }
                 } else {
-                    Log.d("AppLockInterceptor", "NOT saving route - Already on AppLock screen or route not protected (routeBeforeLock remains: $routeBeforeLock)")
+                    AppLogger.d("AppLockInterceptor", "NOT saving route - Already on AppLock screen or route not protected (routeBeforeLock remains: $routeBeforeLock)")
                 }
             }
             is AppLockState.LockedOut -> {
                 val lockedOutState = lockState as AppLockState.LockedOut
-                Log.d("AppLockInterceptor", "State: LOCKED_OUT (permanent=${lockedOutState.isPermanent})")
+                AppLogger.d("AppLockInterceptor", "State: LOCKED_OUT (permanent=${lockedOutState.isPermanent})")
 
                 if (lockedOutState.isPermanent) {
                     // User was permanently locked out - logout and go to onboarding
@@ -199,9 +199,9 @@ fun AppLockNavigationInterceptor(
                         // Save FULL route with actual arguments before locking
                         // If currentFullRoute is null (cold start), save Home as fallback
                         routeBeforeLock = currentFullRoute ?: Screen.Home.route
-                        Log.d("AppLockInterceptor", "Saved FULL route before lock (LockedOut): $routeBeforeLock (wasNull=${currentFullRoute == null})")
+                        AppLogger.d("AppLockInterceptor", "Saved FULL route before lock (LockedOut): $routeBeforeLock (wasNull=${currentFullRoute == null})")
 
-                        Log.d("AppLockInterceptor", "Navigating to AppLock screen (temporary lockout)")
+                        AppLogger.d("AppLockInterceptor", "Navigating to AppLock screen (temporary lockout)")
                         try {
                             navController.navigate(Screen.AppLock.route) {
                                 popUpTo(navController.graph.startDestinationId) {
@@ -211,26 +211,26 @@ fun AppLockNavigationInterceptor(
                                 restoreState = false
                             }
                         } catch (e: Exception) {
-                            Log.w("AppLockInterceptor", "Standard navigation failed (LockedOut), trying simple navigate", e)
+                            AppLogger.w("AppLockInterceptor", "Standard navigation failed (LockedOut), trying simple navigate", e)
                             try {
                                 navController.navigate(Screen.AppLock.route)
                             } catch (e2: Exception) {
-                                Log.e("AppLockInterceptor", "Simple navigation also failed (LockedOut)", e2)
+                                AppLogger.e("AppLockInterceptor", "Simple navigation also failed (LockedOut)", e2)
                             }
                         }
                     } else {
-                        Log.d("AppLockInterceptor", "Already on AppLock screen or route not protected")
+                        AppLogger.d("AppLockInterceptor", "Already on AppLock screen or route not protected")
                     }
                 }
             }
             is AppLockState.Unlocked -> {
-                Log.d("AppLockInterceptor", "State: UNLOCKED")
+                AppLogger.d("AppLockInterceptor", "State: UNLOCKED")
                 // ONLY navigate if we're currently ON the AppLock screen
                 // If user disabled AppLock while on Settings, DON'T navigate away
                 if (currentRouteTemplate == Screen.AppLock.route) {
                     // Use saved route, or fallback to Home for logged-in users
                     val targetRoute = routeBeforeLock ?: Screen.Home.route
-                    Log.d("AppLockInterceptor", "Currently on AppLock screen, navigating back to: $targetRoute (saved=$routeBeforeLock, fallback=${Screen.Home.route})")
+                    AppLogger.d("AppLockInterceptor", "Currently on AppLock screen, navigating back to: $targetRoute (saved=$routeBeforeLock, fallback=${Screen.Home.route})")
 
                     try {
                         // IMPORTANT: restoreState = false to avoid restoring entire back stack
@@ -243,22 +243,22 @@ fun AppLockNavigationInterceptor(
                             // Don't restore navigation state - ViewModels handle their own state via SavedStateHandle
                             restoreState = false
                         }
-                        Log.d("AppLockInterceptor", "Navigation successful to: $targetRoute")
+                        AppLogger.d("AppLockInterceptor", "Navigation successful to: $targetRoute")
                     } catch (e: Exception) {
-                        Log.e("AppLockInterceptor", "Navigation FAILED to $targetRoute", e)
+                        AppLogger.e("AppLockInterceptor", "Navigation FAILED to $targetRoute", e)
                         // Emergency fallback: try navigating to Home without any options
                         try {
                             navController.navigate(Screen.Home.route)
-                            Log.d("AppLockInterceptor", "Emergency fallback navigation to Home successful")
+                            AppLogger.d("AppLockInterceptor", "Emergency fallback navigation to Home successful")
                         } catch (e2: Exception) {
-                            Log.e("AppLockInterceptor", "Emergency fallback ALSO failed", e2)
+                            AppLogger.e("AppLockInterceptor", "Emergency fallback ALSO failed", e2)
                         }
                     }
 
                     // Clear saved route after using it
                     routeBeforeLock = null
                 } else {
-                    Log.d("AppLockInterceptor", "State changed to UNLOCKED but not on AppLock screen (current=$currentRouteTemplate), no navigation needed")
+                    AppLogger.d("AppLockInterceptor", "State changed to UNLOCKED but not on AppLock screen (current=$currentRouteTemplate), no navigation needed")
                 }
             }
         }

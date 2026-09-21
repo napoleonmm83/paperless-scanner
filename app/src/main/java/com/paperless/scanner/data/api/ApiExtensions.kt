@@ -1,6 +1,5 @@
 package com.paperless.scanner.data.api
 
-import android.util.Log
 import com.paperless.scanner.data.api.models.PaginatedResponse
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.isRetryable
@@ -15,6 +14,7 @@ import kotlinx.coroutines.withTimeout
 import retrofit2.Response
 import java.io.IOException
 import kotlin.coroutines.coroutineContext
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Extension functions for safe API calls with proper error handling.
@@ -91,7 +91,7 @@ suspend fun <T> fetchAllPages(
     if (failOnCap) {
         throw IllegalStateException("$message Refusing to report a truncated walk as complete.")
     }
-    Log.w("Pagination", "$message Returning the partial list.")
+    AppLogger.w("Pagination", "$message Returning the partial list.")
     return all
 }
 

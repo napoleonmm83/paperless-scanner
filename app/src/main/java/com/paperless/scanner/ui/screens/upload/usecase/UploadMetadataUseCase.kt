@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.upload.usecase
 
 import android.content.Context
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -19,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 /** Result of a tag-creation attempt (incl. duplicate recovery). UI-agnostic. */
 sealed interface CreateTagResult {
@@ -63,7 +63,7 @@ class UploadMetadataUseCase @Inject constructor(
                 CreateTagResult.Success(newTag)
             },
             onFailure = { e ->
-                Log.e(TAG, "Failed to create tag", e)
+                AppLogger.e(TAG, "Failed to create tag", e)
                 // Handle duplicate tag error - try to find existing tag
                 val existingTag = if (e.message?.contains("unique constraint") == true ||
                     e.message?.contains("already exists") == true

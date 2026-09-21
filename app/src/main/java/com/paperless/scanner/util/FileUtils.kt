@@ -7,11 +7,11 @@ import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import android.util.Log
 import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Utility functions for file operations.
@@ -44,7 +44,7 @@ object FileUtils {
             val persistentDir = File(context.filesDir, UPLOAD_PERSISTENT_DIR)
             if (!persistentDir.exists()) {
                 persistentDir.mkdirs()
-                Log.d(TAG, "Created persistent upload directory: ${persistentDir.absolutePath}")
+                AppLogger.d(TAG, "Created persistent upload directory: ${persistentDir.absolutePath}")
             }
 
             // Generate unique filename with original extension
@@ -58,14 +58,14 @@ object FileUtils {
                     inputStream.copyTo(outputStream)
                 }
             } ?: run {
-                Log.e(TAG, "Failed to open input stream for: $sourceUri")
+                AppLogger.e(TAG, "Failed to open input stream for: $sourceUri")
                 return null
             }
 
-            Log.d(TAG, "Copied ${sourceUri} to ${destFile.absolutePath} (${destFile.length()} bytes)")
+            AppLogger.d(TAG, "Copied ${sourceUri} to ${destFile.absolutePath} (${destFile.length()} bytes)")
             destFile.toUri()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to copy file to local storage: $sourceUri", e)
+            AppLogger.e(TAG, "Failed to copy file to local storage: $sourceUri", e)
             null
         }
     }
@@ -97,19 +97,19 @@ object FileUtils {
                 // Safety check: only delete files in our cache directory
                 if (file.exists() && file.absolutePath.contains(UPLOAD_PERSISTENT_DIR)) {
                     val deleted = file.delete()
-                    Log.d(TAG, "Deleted local copy: ${file.absolutePath}, success=$deleted")
+                    AppLogger.d(TAG, "Deleted local copy: ${file.absolutePath}, success=$deleted")
                     deleted
                 } else {
-                    Log.w(TAG, "Won't delete file outside cache: ${file.absolutePath}")
+                    AppLogger.w(TAG, "Won't delete file outside cache: ${file.absolutePath}")
                     false
                 }
             } else {
                 // Don't try to delete content URIs
-                Log.d(TAG, "Skipping delete for non-file URI: $uri")
+                AppLogger.d(TAG, "Skipping delete for non-file URI: $uri")
                 false
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete local copy: $uri", e)
+            AppLogger.e(TAG, "Failed to delete local copy: $uri", e)
             false
         }
     }
@@ -125,10 +125,10 @@ object FileUtils {
                 val deletedCount = persistentDir.listFiles()?.count { file ->
                     file.delete()
                 } ?: 0
-                Log.d(TAG, "Cleared upload directory: deleted $deletedCount files from ${persistentDir.absolutePath}")
+                AppLogger.d(TAG, "Cleared upload directory: deleted $deletedCount files from ${persistentDir.absolutePath}")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear upload directory", e)
+            AppLogger.e(TAG, "Failed to clear upload directory", e)
         }
     }
 
@@ -206,7 +206,7 @@ object FileUtils {
             // INTENTIONAL-UNTESTED: a log-line change with no behaviour attached.
             // Scheme and authority only: a SAF URI carries the document's display name
             // in its path, and the diagnostic report now exports a logcat tail.
-            Log.e(TAG, "Failed to extract filename from URI (${uri.scheme}://${uri.authority})", e)
+            AppLogger.e(TAG, "Failed to extract filename from URI (${uri.scheme}://${uri.authority})", e)
             null
         }
     }
@@ -226,7 +226,7 @@ object FileUtils {
      */
     fun fileExists(uri: Uri): Boolean {
         if (uri.scheme != "file") {
-            Log.w(TAG, "fileExists() called with non-file URI: $uri")
+            AppLogger.w(TAG, "fileExists() called with non-file URI: $uri")
             return false
         }
 
@@ -234,11 +234,11 @@ object FileUtils {
             val file = File(uri.path ?: return false)
             val exists = file.exists() && file.canRead()
             if (!exists) {
-                Log.w(TAG, "File does not exist or not readable: ${uri.path}")
+                AppLogger.w(TAG, "File does not exist or not readable: ${uri.path}")
             }
             exists
         } catch (e: Exception) {
-            Log.e(TAG, "Error checking file existence: $uri", e)
+            AppLogger.e(TAG, "Error checking file existence: $uri", e)
             false
         }
     }
@@ -258,7 +258,7 @@ object FileUtils {
             val file = File(uri.path ?: return 0)
             if (file.exists()) file.length() else 0
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting file size: $uri", e)
+            AppLogger.e(TAG, "Error getting file size: $uri", e)
             0
         }
     }
@@ -310,7 +310,7 @@ object FileUtils {
             if (uri.scheme == "file") {
                 val file = File(uri.path ?: return null)
                 if (!file.exists()) {
-                    Log.e(TAG, "PDF file does not exist: ${uri.path}")
+                    AppLogger.e(TAG, "PDF file does not exist: ${uri.path}")
                     return null
                 }
                 fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -323,7 +323,7 @@ object FileUtils {
                         inputStream.copyTo(outputStream)
                     }
                 } ?: run {
-                    Log.e(TAG, "Failed to open content URI: $uri")
+                    AppLogger.e(TAG, "Failed to open content URI: $uri")
                     return null
                 }
                 fileDescriptor = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -332,7 +332,7 @@ object FileUtils {
             try {
                 val pdfRenderer = PdfRenderer(fileDescriptor)
                 if (pdfRenderer.pageCount == 0) {
-                    Log.w(TAG, "PDF has no pages")
+                    AppLogger.w(TAG, "PDF has no pages")
                     pdfRenderer.close()
                     return null
                 }
@@ -370,7 +370,7 @@ object FileUtils {
                 page.close()
                 pdfRenderer.close()
 
-                Log.d(TAG, "Successfully rendered PDF first page: ${renderWidth}x${renderHeight}")
+                AppLogger.d(TAG, "Successfully rendered PDF first page: ${renderWidth}x${renderHeight}")
                 bitmap
             } finally {
                 fileDescriptor.close()
@@ -378,7 +378,7 @@ object FileUtils {
                 tempFile?.delete()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to render PDF first page: $uri", e)
+            AppLogger.e(TAG, "Failed to render PDF first page: $uri", e)
             null
         }
     }

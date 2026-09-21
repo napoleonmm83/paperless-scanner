@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,6 +21,7 @@ import javax.inject.Inject
 import com.paperless.scanner.data.analytics.DiagnosticReport
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
+import com.paperless.scanner.util.AppLogger
 
 /**
  * AuthRepository - Repository for authentication and server connection handling.
@@ -104,7 +104,7 @@ class AuthRepository @Inject constructor(
             }
         }
 
-        Log.d(TAG, "Detecting protocol for: $cleanHost (userScheme=$userScheme)")
+        AppLogger.d(TAG, "Detecting protocol for: $cleanHost (userScheme=$userScheme)")
 
         // Issue #233: honor the user's explicit scheme. If they typed http://,
         // do NOT probe https — that produces a TLS handshake error against a
@@ -182,7 +182,7 @@ class AuthRepository @Inject constructor(
             ?: IOException("HTTP detection failed without exception")
 
         crashlyticsHelper.logStateBreadcrumb("SERVER_DETECT_ERROR", "HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
-        Log.e(TAG, "Both protocols failed. HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
+        AppLogger.e(TAG, "Both protocols failed. HTTPS: ${httpsError.message}, HTTP: ${httpError.message}")
 
         // Log server detection failure to auth debug service
         diagnosticsReportService.logFailure(
@@ -308,7 +308,7 @@ class AuthRepository @Inject constructor(
                 }
             } else {
                 val errorBody = response.body?.string() ?: ""
-                Log.d(TAG, "Login error - Code: ${response.code}, Body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
+                AppLogger.d(TAG, "Login error - Code: ${response.code}, Body: ${LogSanitizer.sanitizeErrorBody(errorBody)}")
 
                 // Log to auth debug service with full context
                 diagnosticsReportService.logFailure(
@@ -400,7 +400,7 @@ class AuthRepository @Inject constructor(
             // Method 1: Check for requires_2fa flag (some versions)
             val requires2FA = json.optBoolean("requires_2fa", false)
             if (requires2FA) {
-                Log.d(TAG, "2FA required - requires_2fa flag found")
+                AppLogger.d(TAG, "2FA required - requires_2fa flag found")
                 return context.getString(R.string.error_2fa_enabled)
             }
 
@@ -413,13 +413,13 @@ class AuthRepository @Inject constructor(
 
                         // Check for explicit MFA messages
                         if (error.contains("mfa") || error.contains("totp") || error.contains("code is required")) {
-                            Log.d(TAG, "2FA required - MFA error message found: $error")
+                            AppLogger.d(TAG, "2FA required - MFA error message found: $error")
                             return context.getString(R.string.error_2fa_enabled)
                         }
 
                         // Some Paperless-ngx versions return generic "Unable to log in" when MFA is active
                         if (error.contains("unable to log in")) {
-                            Log.d(TAG, "2FA potentially required - generic login error with MFA possible: $error")
+                            AppLogger.d(TAG, "2FA potentially required - generic login error with MFA possible: $error")
                             return context.getString(R.string.error_2fa_enabled)
                         }
                     }
@@ -427,7 +427,7 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: Exception) {
             // Not JSON or doesn't contain 2FA info - continue with normal error handling
-            Log.d(TAG, "Error body is not JSON or doesn't contain 2FA info: ${e.message}")
+            AppLogger.d(TAG, "Error body is not JSON or doesn't contain 2FA info: ${e.message}")
         }
 
         return null // No 2FA requirement detected
@@ -524,7 +524,7 @@ class AuthRepository @Inject constructor(
             // Clean the token - remove any whitespace or line breaks from OCR
             val cleanToken = token.trim().replace("\\s+".toRegex(), "")
 
-            Log.d(TAG, "Validating token (length: ${cleanToken.length}) against: $normalizedUrl")
+            AppLogger.d(TAG, "Validating token (length: ${cleanToken.length}) against: $normalizedUrl")
 
             val request = Request.Builder()
                 .url("$normalizedUrl/api/tags/?page_size=1")
@@ -533,7 +533,7 @@ class AuthRepository @Inject constructor(
                 .build()
 
             val response = client.newCall(request).execute()
-            Log.d(TAG, "Token validation response: ${response.code}")
+            AppLogger.d(TAG, "Token validation response: ${response.code}")
 
             if (response.isSuccessful) {
                 crashlyticsHelper.logActionBreadcrumb("TOKEN_VALIDATE_SUCCESS")
@@ -577,7 +577,7 @@ class AuthRepository @Inject constructor(
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
-            Log.e(TAG, "Token validation network error", e)
+            AppLogger.e(TAG, "Token validation network error", e)
             // Log network errors to auth debug service
             diagnosticsReportService.logFailure(
                 authType = DiagnosticReport.Source.TOKEN_VALIDATION,
@@ -588,7 +588,7 @@ class AuthRepository @Inject constructor(
             Result.failure(PaperlessException.NetworkError(e))
         } catch (e: Exception) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "${e.javaClass.simpleName}: ${e.message}")
-            Log.e(TAG, "Token validation error", e)
+            AppLogger.e(TAG, "Token validation error", e)
             // Log unexpected errors to auth debug service
             diagnosticsReportService.logFailure(
                 authType = DiagnosticReport.Source.TOKEN_VALIDATION,
@@ -636,7 +636,7 @@ class AuthRepository @Inject constructor(
             try {
                 httpCache.evictAll()
             } catch (e: IOException) {
-                Log.w(TAG, "Failed to evict OkHttp cache on logout", e)
+                AppLogger.w(TAG, "Failed to evict OkHttp cache on logout", e)
                 crashlyticsHelper.logStateBreadcrumb(
                     "LOGOUT_CACHE_EVICT_FAILED",
                     "${e.javaClass.simpleName}: ${e.message}"

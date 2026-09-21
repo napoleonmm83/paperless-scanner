@@ -1,7 +1,6 @@
 package com.paperless.scanner.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -17,6 +16,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import kotlinx.coroutines.CancellationException
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Background Worker for permanent trash document deletion.
@@ -46,13 +46,13 @@ class TrashDeleteWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val documentId = inputData.getInt(KEY_DOCUMENT_ID, -1)
         if (documentId == -1) {
-            Log.e(TAG, "No document ID provided")
+            AppLogger.e(TAG, "No document ID provided")
             crashlyticsHelper.logStateBreadcrumb("WORKER_TRASH_ERROR", "no document ID")
             return Result.failure()
         }
 
         crashlyticsHelper.logActionBreadcrumb("WORKER_TRASH", "delete document $documentId")
-        Log.d(TAG, "Processing pending delete for document $documentId")
+        AppLogger.d(TAG, "Processing pending delete for document $documentId")
 
         // Check if this delete is still pending (user may have cancelled via undo)
         val pendingDeletes = tokenManager.getPendingTrashDeletesSync()
@@ -61,7 +61,7 @@ class TrashDeleteWorker @AssistedInject constructor(
         } ?: false
 
         if (!isStillPending) {
-            Log.d(TAG, "Document $documentId delete was cancelled, skipping")
+            AppLogger.d(TAG, "Document $documentId delete was cancelled, skipping")
             return Result.success()
         }
 
@@ -77,11 +77,11 @@ class TrashDeleteWorker @AssistedInject constructor(
             // Fail closed: if we can't verify the doc wasn't restored, do NOT proceed with
             // a permanent delete. Retry and keep the entry so a transient DB read error
             // can't cause the exact wrong delete this guard prevents. (#129, CodeRabbit)
-            Log.w(TAG, "Failed to verify restored state for $documentId, retrying", e)
+            AppLogger.w(TAG, "Failed to verify restored state for $documentId, retrying", e)
             return Result.retry()
         }
         if (restoredDoc != null) {
-            Log.d(TAG, "Document $documentId was restored, skipping permanent delete")
+            AppLogger.d(TAG, "Document $documentId was restored, skipping permanent delete")
             tokenManager.removePendingTrashDelete(documentId)
             return Result.success()
         }
@@ -98,7 +98,7 @@ class TrashDeleteWorker @AssistedInject constructor(
         return trashRepository.permanentlyDeleteDocument(documentId)
             .fold(
                 onSuccess = {
-                    Log.d(TAG, "Successfully deleted document $documentId")
+                    AppLogger.d(TAG, "Successfully deleted document $documentId")
                     crashlyticsHelper.logActionBreadcrumb("WORKER_TRASH", "success, document $documentId")
 
                     // The delete is committed on the server → drop the pending entry. (#129)
@@ -113,13 +113,13 @@ class TrashDeleteWorker @AssistedInject constructor(
                             documentId = documentId
                         )
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to record sync history: ${e.message}")
+                        AppLogger.w(TAG, "Failed to record sync history: ${e.message}")
                     }
 
                     Result.success()
                 },
                 onFailure = { error ->
-                    Log.e(TAG, "Failed to delete document $documentId: ${error.message}")
+                    AppLogger.e(TAG, "Failed to delete document $documentId: ${error.message}")
                     crashlyticsHelper.logStateBreadcrumb("WORKER_TRASH_ERROR", "document $documentId: ${error.message}")
 
                     // Record failure in SyncHistory with user-friendly and technical messages
@@ -140,7 +140,7 @@ class TrashDeleteWorker @AssistedInject constructor(
                             documentId = documentId
                         )
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to record sync history: ${e.message}")
+                        AppLogger.w(TAG, "Failed to record sync history: ${e.message}")
                     }
 
                     val retryable = (error as? PaperlessException)?.isRetryable == true
@@ -148,7 +148,7 @@ class TrashDeleteWorker @AssistedInject constructor(
                         // Transient (5xx) → retry with exponential backoff. Keep the pending
                         // entry so the retry re-checks it (and a restore can clear it
                         // meanwhile). (#129)
-                        Log.w(TAG, "Transient delete failure for $documentId (attempt $runAttemptCount), retrying")
+                        AppLogger.w(TAG, "Transient delete failure for $documentId (attempt $runAttemptCount), retrying")
                         Result.retry()
                     } else {
                         // Permanent (4xx) or retries exhausted → terminal. Clear the entry so

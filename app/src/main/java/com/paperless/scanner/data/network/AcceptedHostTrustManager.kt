@@ -1,11 +1,11 @@
 package com.paperless.scanner.data.network
 
-import android.util.Log
 import com.paperless.scanner.data.datastore.TokenManager
 import java.security.cert.X509Certificate
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLSession
 import javax.net.ssl.X509TrustManager
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Custom TrustManager that accepts self-signed certificates for whitelisted hosts.
@@ -38,7 +38,7 @@ class AcceptedHostTrustManager(
             }
 
             if (serverHost != null && tokenManager.isHostAcceptedForSsl(serverHost)) {
-                Log.d(TAG, "Accepting self-signed certificate for whitelisted host: $serverHost")
+                AppLogger.d(TAG, "Accepting self-signed certificate for whitelisted host: $serverHost")
                 // Host is whitelisted - accept the certificate
                 return
             }
@@ -67,7 +67,7 @@ class AcceptedHostnameVerifier(
     override fun verify(hostname: String, session: SSLSession): Boolean {
         // Check if this host is accepted
         if (tokenManager.isHostAcceptedForSsl(hostname)) {
-            Log.d(TAG, "Accepting hostname for whitelisted host: $hostname")
+            AppLogger.d(TAG, "Accepting hostname for whitelisted host: $hostname")
             return true
         }
 

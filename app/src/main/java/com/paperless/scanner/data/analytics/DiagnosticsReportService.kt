@@ -3,7 +3,6 @@ package com.paperless.scanner.data.analytics
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import com.paperless.scanner.BuildConfig
@@ -27,6 +26,7 @@ import kotlinx.coroutines.launch
 import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Collects anonymized failure reports — a login attempt, a document download, a render
@@ -207,7 +207,7 @@ class DiagnosticsReportService @Inject constructor(
             logToCrashlytics(report)
         }
 
-        Log.d(TAG, "Diagnostic report created: ${report.reportId}")
+        AppLogger.d(TAG, "Diagnostic report created: ${report.reportId}")
     }
 
     /**
@@ -373,10 +373,32 @@ class DiagnosticsReportService @Inject constructor(
         // Stated rather than hidden: a reader needs to know whether an empty section
         // means "nothing happened" or "this device would not tell us".
         appendLine("_buffer: ${buffered.size} lines · logcat: ${logcat.size} lines_")
-        appendLine()
-        appendLine("```")
-        (logcat.ifEmpty { buffered }).forEach { appendLine(it) }
-        appendLine("```")
+
+        // BOTH, in their own sections. Until now logcat won whole and the ring buffer
+        // was dropped whenever logcat produced anything at all — which threw away the
+        // lines this app writes through AppLogger with its own tags, the ones we
+        // actually chose to record. They are not interleaved because they have no
+        // shared clock; they are labelled instead, so a reader knows which is which.
+        if (logcat.isNotEmpty()) {
+            appendLine()
+            appendLine("#### logcat")
+            appendLine("```")
+            logcat.forEach { appendLine(it) }
+            appendLine("```")
+        }
+
+        if (buffered.isNotEmpty()) {
+            appendLine()
+            appendLine("#### app log buffer")
+            appendLine("```")
+            buffered.forEach { appendLine(it) }
+            appendLine("```")
+        }
+
+        if (logcat.isEmpty() && buffered.isEmpty()) {
+            appendLine()
+            appendLine("_no log lines available on this device_")
+        }
     }
 
     /**

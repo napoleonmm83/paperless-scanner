@@ -1,11 +1,11 @@
 package com.paperless.scanner.data.api
 
-import android.util.Log
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Thrown by [HttpAllowlistInterceptor] when a cleartext-HTTP request targets
@@ -68,7 +68,7 @@ class HttpAllowlistInterceptor @Inject constructor(
         }
 
         if (host in holder.snapshot()) {
-            Log.w(TAG, "Cleartext HTTP allowed for accepted host: $host")
+            AppLogger.w(TAG, "Cleartext HTTP allowed for accepted host: $host")
             return chain.proceed(request)
         }
 

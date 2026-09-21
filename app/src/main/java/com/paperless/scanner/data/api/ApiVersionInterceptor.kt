@@ -1,12 +1,12 @@
 package com.paperless.scanner.data.api
 
-import android.util.Log
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
 import okhttp3.Interceptor
 import okhttp3.Response
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Pins the Paperless-ngx REST API to a known version instead of riding the
@@ -113,7 +113,7 @@ class ApiVersionInterceptor @Inject constructor(
         // pre-2.16 server. If the retry 406s too, the cause was something else
         // (WAF, proxy, captive portal) and this server keeps its pin.
         if (retried.code != HTTP_NOT_ACCEPTABLE && serversRejectingPin.add(serverKey)) {
-            Log.i(
+            AppLogger.i(
                 TAG,
                 "Server rejected API v$PINNED_API_VERSION (406) but served the " +
                     "unversioned request; using the server default from now on " +

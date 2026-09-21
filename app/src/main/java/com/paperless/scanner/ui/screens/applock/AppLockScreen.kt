@@ -36,7 +36,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import android.util.Log
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -54,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
+import com.paperless.scanner.util.AppLogger
 
 @Composable
 fun AppLockScreen(
@@ -71,7 +71,7 @@ fun AppLockScreen(
     val context = LocalContext.current
     val activity = remember(context) {
         val act = context as? FragmentActivity
-        Log.d("AppLockScreen", "Context type: ${context::class.java.simpleName}, Activity: $act")
+        AppLogger.d("AppLockScreen", "Context type: ${context::class.java.simpleName}, Activity: $act")
         act
     }
 
@@ -84,7 +84,7 @@ fun AppLockScreen(
         if (currentState is AppLockUiState.LockedOut && !currentState.isPermanent) {
             // Initialize from ViewModel for more accurate timing
             remainingSeconds = viewModel.getRemainingLockoutSeconds()
-            Log.d("AppLockScreen", "Starting countdown timer with $remainingSeconds seconds remaining")
+            AppLogger.d("AppLockScreen", "Starting countdown timer with $remainingSeconds seconds remaining")
 
             while (remainingSeconds > 0) {
                 kotlinx.coroutines.delay(1000)
@@ -92,7 +92,7 @@ fun AppLockScreen(
             }
 
             // Countdown expired - trigger state refresh
-            Log.d("AppLockScreen", "Countdown expired, refreshing lockout state")
+            AppLogger.d("AppLockScreen", "Countdown expired, refreshing lockout state")
             viewModel.refreshLockoutState()
         }
     }
@@ -134,12 +134,12 @@ fun AppLockScreen(
     // PRIORITY: Show biometric prompt IMMEDIATELY when available
     // This ensures biometric is the primary unlock method (before PIN)
     LaunchedEffect(canUseBiometric, activity) {
-        Log.d("AppLockScreen", "LaunchedEffect: canUseBiometric=$canUseBiometric, activity=$activity")
+        AppLogger.d("AppLockScreen", "LaunchedEffect: canUseBiometric=$canUseBiometric, activity=$activity")
         if (canUseBiometric && activity != null) {
-            Log.d("AppLockScreen", "Calling viewModel.showBiometricPrompt()")
+            AppLogger.d("AppLockScreen", "Calling viewModel.showBiometricPrompt()")
             viewModel.showBiometricPrompt(activity)
         } else if (canUseBiometric && activity == null) {
-            Log.e("AppLockScreen", "Biometric available but activity is NULL!")
+            AppLogger.e("AppLockScreen", "Biometric available but activity is NULL!")
         }
     }
 

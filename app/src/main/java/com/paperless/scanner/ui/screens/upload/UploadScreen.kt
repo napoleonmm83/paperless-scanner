@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +67,7 @@ import com.paperless.scanner.ui.screens.upload.components.CustomFieldsSection
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
+import com.paperless.scanner.util.AppLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,9 +97,13 @@ fun UploadScreen(
     val isOnline by viewModel.isOnline.collectAsState()
     val isServerReachable by viewModel.isServerReachable.collectAsState()
 
-    // DEBUG: Log aiNewTagsEnabled value
-    Log.d("UploadScreen", "=== UploadScreen Debug ===")
-    Log.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    // In a LaunchedEffect, not the composable body: a line here runs on EVERY
+    // recomposition, and since AppLogger.d started feeding the diagnostic buffer that is
+    // a synchronized append plus a sanitizer pass each time. Keyed on the value, it logs
+    // when the value CHANGES — which is also the only moment the line says anything.
+    LaunchedEffect(aiNewTagsEnabled) {
+        AppLogger.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    }
 
     // Premium state
     val isPremiumActive by viewModel.isPremiumActive.collectAsState()

@@ -103,4 +103,88 @@ class LogSanitizerTest {
         assertFalse(result.contains("SUPERSECRETVALUE"))
         assertTrue(result.length <= 80)
     }
+
+    @Test
+    fun `a cookie value is redacted while its name survives`() {
+        // Found on a real 171 KB report pulled off a device: Authorization was redacted
+        // exactly as designed, and one line below it sat a set-cookie header with a CSRF
+        // token completely in the clear. The Authorization rule cannot see it — a cookie
+        // carries no scheme word.
+        val raw = "set-cookie: csrftoken=gmDMBJao3fMZ0000000000; expires=Mon, 20 Sep 2027"
+
+        val result = LogSanitizer.sanitizeText(raw)
+
+        assertFalse("the cookie value survived", result.contains("gmDMBJao3fMZ0000000000"))
+        // The NAME is diagnostically useful and names no secret: knowing a CSRF cookie
+        // was set is half the answer to an auth question.
+        assertTrue("the cookie name was shredded too", result.contains("csrftoken="))
+        assertTrue("the attributes were shredded", result.contains("expires="))
+    }
+
+    @Test
+    fun `a request cookie header is redacted as well`() {
+        val result = LogSanitizer.sanitizeText("Cookie: sessionid=abcdef1234567890")
+
+        assertFalse("the session value survived", result.contains("abcdef1234567890"))
+        assertTrue(result.contains("sessionid="))
+    }
+
+    @Test
+    fun `a SHORT credential behind the Authorization header is redacted too`() {
+        // The rule carried a six-character minimum while its own comment said any value
+        // behind the header goes. Basic YTpi is base64 for a colon-separated a:b — four
+        // characters, a real credential, and it walked straight through.
+        val result = LogSanitizer.sanitizeText("Authorization: Basic YTpi")
+
+        assertFalse("the short credential survived", result.contains("YTpi"))
+        // The scheme word stays: knowing it was Basic rather than Token is the auth
+        // diagnosis the report exists to carry.
+        assertTrue(result.contains("Basic"))
+    }
+
+    @Test
+    fun `a bare scheme word in prose still survives`() {
+        // Counter-control for the line above: the minimum was removed only for the
+        // header form. Standing in a sentence, these words are prose.
+        val raw = "Basic authentication required"
+
+        assertEquals(raw, LogSanitizer.sanitizeText(raw))
+    }
+
+    @Test
+    fun `EVERY pair of a multi-value cookie header is redacted`() {
+        // The first version of the rule stopped at the first semicolon, so in a request
+        // header it redacted the CSRF cookie and left the session cookie — the worse of
+        // the two — standing.
+        val result = LogSanitizer.sanitizeText(
+            "Cookie: csrftoken=aaaaaaaaaaaaaaaa; sessionid=bbbbbbbbbbbbbbbb; other=cccccccccccccccc"
+        )
+
+        assertFalse("csrf value survived", result.contains("aaaaaaaaaaaaaaaa"))
+        assertFalse("session value survived", result.contains("bbbbbbbbbbbbbbbb"))
+        assertFalse("third value survived", result.contains("cccccccccccccccc"))
+        assertTrue(result.contains("sessionid="))
+    }
+
+    @Test
+    fun `cookie attributes stay readable`() {
+        // expires and Max-Age are not secrets, and a report that hides them loses the
+        // answer to "was the cookie already stale".
+        val result = LogSanitizer.sanitizeText(
+            "set-cookie: csrftoken=aaaaaaaaaaaaaaaa; expires=Mon, 20 Sep 2027 12:04:42 GMT; Max-Age=31449600; Path=/"
+        )
+
+        assertFalse(result.contains("aaaaaaaaaaaaaaaa"))
+        assertTrue("expires was redacted", result.contains("expires=Mon"))
+        assertTrue("Max-Age was redacted", result.contains("Max-Age=31449600"))
+    }
+
+    @Test
+    fun `an ordinary equals sign in prose is left alone`() {
+        // The counter-control: a rule anchored on "name=" could easily swallow half the
+        // log. It must need the header word in front of it.
+        val raw = "SyncWorker: retry count=3 because status=pending"
+
+        assertEquals(raw, LogSanitizer.sanitizeText(raw))
+    }
 }

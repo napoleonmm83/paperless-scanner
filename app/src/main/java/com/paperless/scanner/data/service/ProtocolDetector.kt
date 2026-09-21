@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.service
 
 import android.content.Context
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.di.AuthClient
@@ -17,6 +16,7 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
+import com.paperless.scanner.util.AppLogger
 
 /**
  * ProtocolDetector - isolates the raw-OkHttp protocol & Paperless-server detection
@@ -54,7 +54,7 @@ class ProtocolDetector @Inject constructor(
 
     fun tryProtocol(protocol: String, host: String): Result<String> {
         val url = "$protocol://$host"
-        Log.d(TAG, "Trying $protocol: $url")
+        AppLogger.d(TAG, "Trying $protocol: $url")
 
         return try {
             // First, try to verify this is actually a Paperless server
@@ -65,17 +65,17 @@ class ProtocolDetector @Inject constructor(
                 .build()
 
             detectionClient.newCall(apiRequest).execute().use { response ->
-                Log.d(TAG, "$protocol /api/ response: ${response.code}")
+                AppLogger.d(TAG, "$protocol /api/ response: ${response.code}")
 
                 when (response.code) {
                     in 200..299 -> {
                         // Got a response - check if it's actually Paperless
                         val body = response.body?.string() ?: ""
                         if (isPaperlessApiResponse(body)) {
-                            Log.d(TAG, "$protocol - Verified as Paperless server")
+                            AppLogger.d(TAG, "$protocol - Verified as Paperless server")
                             return Result.success(url)
                         } else {
-                            Log.d(TAG, "$protocol - /api/ exists but not Paperless format")
+                            AppLogger.d(TAG, "$protocol - /api/ exists but not Paperless format")
                             // Fall through to secondary check
                         }
                     }
@@ -84,7 +84,7 @@ class ProtocolDetector @Inject constructor(
                         return verifyPaperlessWithDocumentsEndpoint(url, protocol)
                     }
                     404 -> {
-                        Log.d(TAG, "$protocol - /api/ not found")
+                        AppLogger.d(TAG, "$protocol - /api/ not found")
                         return Result.failure(PaperlessException.NetworkError(
                             IOException(context.getString(R.string.error_not_paperless_server))
                         ))
@@ -105,7 +105,7 @@ class ProtocolDetector @Inject constructor(
                         ))
                     }
                     else -> {
-                        Log.d(TAG, "$protocol - Unexpected response: ${response.code}")
+                        AppLogger.d(TAG, "$protocol - Unexpected response: ${response.code}")
                         // Fall through to secondary check
                     }
                 }
@@ -116,7 +116,7 @@ class ProtocolDetector @Inject constructor(
             verifyPaperlessWithDocumentsEndpoint(url, protocol)
 
         } catch (e: UnknownHostException) {
-            Log.e(TAG, "$protocol - Unknown host: ${e.message}")
+            AppLogger.e(TAG, "$protocol - Unknown host: ${e.message}")
             val suggestion = if (host.contains(".local") || !host.contains(".")) {
                 context.getString(R.string.error_server_not_found_local, host)
             } else {
@@ -124,12 +124,12 @@ class ProtocolDetector @Inject constructor(
             }
             Result.failure(PaperlessException.NetworkError(IOException(suggestion)))
         } catch (e: SSLHandshakeException) {
-            Log.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
+            AppLogger.d(TAG, "$protocol - SSL handshake failed: ${e.message}")
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_ssl_invalid))
             ))
         } catch (e: SSLException) {
-            Log.d(TAG, "$protocol - SSL error: ${e.message}")
+            AppLogger.d(TAG, "$protocol - SSL error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
                 message.contains("handshake") -> context.getString(R.string.error_ssl_handshake)
@@ -138,12 +138,12 @@ class ProtocolDetector @Inject constructor(
             }
             Result.failure(PaperlessException.NetworkError(IOException(errorText)))
         } catch (e: SocketTimeoutException) {
-            Log.d(TAG, "$protocol - Timeout: ${e.message}")
+            AppLogger.d(TAG, "$protocol - Timeout: ${e.message}")
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_timeout_slow))
             ))
         } catch (e: ConnectException) {
-            Log.d(TAG, "$protocol - Connection refused: ${e.message}")
+            AppLogger.d(TAG, "$protocol - Connection refused: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
                 message.contains("refused") -> context.getString(R.string.error_connection_refused_port)
@@ -156,13 +156,13 @@ class ProtocolDetector @Inject constructor(
             // CleartextNotAllowlistedException extends IOException. Surface
             // the typed exception so the UI can route to the accept-dialog
             // instead of a generic network-error toast.
-            Log.d(TAG, "$protocol - Cleartext blocked for host: ${e.host}")
+            AppLogger.d(TAG, "$protocol - Cleartext blocked for host: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
         } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
             // Issue #36: must precede the IOException catch (it extends IOException).
             // Surface the typed mismatch so the UI routes to the re-trust dialog
             // instead of a generic "server unreachable" error during detection.
-            Log.d(TAG, "$protocol - Certificate pin mismatch for host: ${e.host}")
+            AppLogger.d(TAG, "$protocol - Certificate pin mismatch for host: ${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IllegalArgumentException) {
             // A malformed host (e.g. an embedded-scheme remnant like
@@ -170,12 +170,12 @@ class ProtocolDetector @Inject constructor(
             // IllegalArgumentException ("Invalid URL port: ..."). This is NOT an
             // IOException, so without this catch it escapes uncaught and crashes
             // the app during server detection (Crashlytics f7caf99c). Fail soft.
-            Log.d(TAG, "$protocol - Malformed URL for host '$host': ${e.message}")
+            AppLogger.d(TAG, "$protocol - Malformed URL for host '$host': ${e.message}")
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_invalid_address))
             ))
         } catch (e: IOException) {
-            Log.d(TAG, "$protocol - IO error: ${e.message}")
+            AppLogger.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
             val errorText = when {
                 message.contains("network") -> context.getString(R.string.error_no_network)
@@ -206,7 +206,7 @@ class ProtocolDetector @Inject constructor(
 
         // Must contain at least 3 of these endpoints to be considered Paperless
         val matchCount = paperlessEndpoints.count { lowerBody.contains("\"$it\"") || lowerBody.contains("/$it/") }
-        Log.d(TAG, "Paperless endpoint match count: $matchCount")
+        AppLogger.d(TAG, "Paperless endpoint match count: $matchCount")
 
         return matchCount >= 3
     }
@@ -219,7 +219,7 @@ class ProtocolDetector @Inject constructor(
      * - 404 if not Paperless
      */
     private fun verifyPaperlessWithDocumentsEndpoint(url: String, protocol: String): Result<String> {
-        Log.d(TAG, "$protocol - Verifying with /api/documents/ endpoint")
+        AppLogger.d(TAG, "$protocol - Verifying with /api/documents/ endpoint")
 
         return try {
             val request = Request.Builder()
@@ -228,17 +228,17 @@ class ProtocolDetector @Inject constructor(
                 .build()
 
             detectionClient.newCall(request).execute().use { response ->
-                Log.d(TAG, "$protocol /api/documents/ response: ${response.code}")
+                AppLogger.d(TAG, "$protocol /api/documents/ response: ${response.code}")
 
                 when (response.code) {
                     in 200..299 -> {
                         // Check if response has Paperless document structure
                         val body = response.body?.string() ?: ""
                         if (body.contains("\"results\"") && (body.contains("\"count\"") || body.contains("\"id\""))) {
-                            Log.d(TAG, "$protocol - Verified as Paperless via documents endpoint")
+                            AppLogger.d(TAG, "$protocol - Verified as Paperless via documents endpoint")
                             Result.success(url)
                         } else {
-                            Log.d(TAG, "$protocol - /api/documents/ exists but wrong format")
+                            AppLogger.d(TAG, "$protocol - /api/documents/ exists but wrong format")
                             Result.failure(PaperlessException.NetworkError(
                                 IOException(context.getString(R.string.error_not_paperless_has_api))
                             ))
@@ -246,17 +246,17 @@ class ProtocolDetector @Inject constructor(
                     }
                     401, 403 -> {
                         // Auth required - this is expected for Paperless
-                        Log.d(TAG, "$protocol - Verified as Paperless (auth required)")
+                        AppLogger.d(TAG, "$protocol - Verified as Paperless (auth required)")
                         Result.success(url)
                     }
                     404 -> {
-                        Log.d(TAG, "$protocol - /api/documents/ not found - not Paperless")
+                        AppLogger.d(TAG, "$protocol - /api/documents/ not found - not Paperless")
                         Result.failure(PaperlessException.NetworkError(
                             IOException(context.getString(R.string.error_not_paperless_has_api))
                         ))
                     }
                     else -> {
-                        Log.d(TAG, "$protocol - Unexpected documents response: ${response.code}")
+                        AppLogger.d(TAG, "$protocol - Unexpected documents response: ${response.code}")
                         Result.failure(PaperlessException.NetworkError(
                             IOException(context.getString(R.string.error_unexpected_response_code, response.code))
                         ))
@@ -265,22 +265,22 @@ class ProtocolDetector @Inject constructor(
             }
         } catch (e: com.paperless.scanner.data.api.CleartextNotAllowlistedException) {
             // Issue #233: typed exception must precede IOException catch.
-            Log.d(TAG, "$protocol - Cleartext blocked at documents endpoint: ${e.host}")
+            AppLogger.d(TAG, "$protocol - Cleartext blocked at documents endpoint: ${e.host}")
             Result.failure(PaperlessException.CleartextBlocked(e.host))
         } catch (e: com.paperless.scanner.data.network.CertificatePinMismatchException) {
             // Issue #36: typed exception must precede IOException catch.
-            Log.d(TAG, "$protocol - Certificate pin mismatch at documents endpoint: ${e.host}")
+            AppLogger.d(TAG, "$protocol - Certificate pin mismatch at documents endpoint: ${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
         } catch (e: IllegalArgumentException) {
             // See tryProtocol: OkHttp throws IllegalArgumentException for a malformed
             // URL; it is not an IOException so it must be caught explicitly to avoid
             // crashing detection (Crashlytics f7caf99c).
-            Log.d(TAG, "$protocol - Malformed URL at documents endpoint ($url): ${e.message}")
+            AppLogger.d(TAG, "$protocol - Malformed URL at documents endpoint ($url): ${e.message}")
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_invalid_address))
             ))
         } catch (e: IOException) {
-            Log.e(TAG, "$protocol - Documents endpoint check failed", e)
+            AppLogger.e(TAG, "$protocol - Documents endpoint check failed", e)
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_connection_verification))
             ))

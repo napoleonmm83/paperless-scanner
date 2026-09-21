@@ -1,11 +1,11 @@
 package com.paperless.scanner.data.analytics
 
-import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
 import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Helper class for Crashlytics breadcrumb logging and custom keys.
@@ -47,7 +47,7 @@ class CrashlyticsHelper @Inject constructor(
         val message = "NAV: $screenName"
         Firebase.crashlytics.log(message)
         Firebase.crashlytics.setCustomKey(KEY_LAST_SCREEN, screenName)
-        Log.d(TAG, message)
+        AppLogger.d(TAG, message)
     }
 
     /**
@@ -66,7 +66,7 @@ class CrashlyticsHelper @Inject constructor(
             "ACTION: $action"
         }
         Firebase.crashlytics.log(message)
-        Log.d(TAG, message)
+        AppLogger.d(TAG, message)
     }
 
     /**
@@ -85,7 +85,7 @@ class CrashlyticsHelper @Inject constructor(
             "STATE: $state"
         }
         Firebase.crashlytics.log(message)
-        Log.d(TAG, message)
+        AppLogger.d(TAG, message)
     }
 
     /**
@@ -102,7 +102,7 @@ class CrashlyticsHelper @Inject constructor(
         if (!analyticsService.isAnalyticsEnabled()) return
 
         Firebase.crashlytics.recordException(throwable)
-        Log.d(TAG, "Recorded non-fatal: ${throwable.javaClass.simpleName}: ${throwable.message}")
+        AppLogger.d(TAG, "Recorded non-fatal: ${throwable.javaClass.simpleName}: ${throwable.message}")
     }
 
     /**
@@ -116,7 +116,7 @@ class CrashlyticsHelper @Inject constructor(
 
         val hash = hashServerUrl(serverUrl)
         Firebase.crashlytics.setCustomKey(KEY_SERVER_URL_HASH, hash)
-        Log.d(TAG, "Server URL hash set: $hash")
+        AppLogger.d(TAG, "Server URL hash set: $hash")
     }
 
     /**
@@ -130,7 +130,7 @@ class CrashlyticsHelper @Inject constructor(
 
         Firebase.crashlytics.setCustomKey(KEY_APP_VERSION, versionName)
         Firebase.crashlytics.setCustomKey(KEY_VERSION_CODE, versionCode)
-        Log.d(TAG, "App version set: $versionName ($versionCode)")
+        AppLogger.d(TAG, "App version set: $versionName ($versionCode)")
     }
 
     /**
@@ -142,7 +142,7 @@ class CrashlyticsHelper @Inject constructor(
         if (!analyticsService.isAnalyticsEnabled()) return
 
         Firebase.crashlytics.setCustomKey(KEY_SUBSCRIPTION_STATUS, status)
-        Log.d(TAG, "Subscription status set: $status")
+        AppLogger.d(TAG, "Subscription status set: $status")
     }
 
     /**
@@ -154,7 +154,7 @@ class CrashlyticsHelper @Inject constructor(
         if (!analyticsService.isAnalyticsEnabled()) return
 
         Firebase.crashlytics.setCustomKey(KEY_IS_OFFLINE, isOffline)
-        Log.d(TAG, "Offline state set: $isOffline")
+        AppLogger.d(TAG, "Offline state set: $isOffline")
     }
 
     /**
@@ -173,7 +173,7 @@ class CrashlyticsHelper @Inject constructor(
             val hexString = hashBytes.joinToString("") { "%02x".format(it) }
             hexString.take(16)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to hash server URL", e)
+            AppLogger.e(TAG, "Failed to hash server URL", e)
             "error"
         }
     }

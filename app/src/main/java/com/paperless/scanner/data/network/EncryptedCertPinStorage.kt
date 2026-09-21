@@ -2,13 +2,13 @@ package com.paperless.scanner.data.network
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.KeyStore
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * EncryptedSharedPreferences-backed [CertPinStorage] (Issue #36, AC: "pinned hash
@@ -45,7 +45,7 @@ class EncryptedCertPinStorage @Inject constructor(
             return try {
                 create().also { cachedPrefs = it }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to open encrypted pin storage, attempting recovery", e)
+                AppLogger.e(TAG, "Failed to open encrypted pin storage, attempting recovery", e)
                 recover()
             }
         }
@@ -68,7 +68,7 @@ class EncryptedCertPinStorage @Inject constructor(
         try {
             context.deleteSharedPreferences(PREFS_FILE)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete corrupted pin prefs", e)
+            AppLogger.e(TAG, "Failed to delete corrupted pin prefs", e)
         }
         try {
             val keyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -77,12 +77,12 @@ class EncryptedCertPinStorage @Inject constructor(
                 keyStore.deleteEntry(MASTER_KEY_ALIAS)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete master key from Keystore", e)
+            AppLogger.e(TAG, "Failed to delete master key from Keystore", e)
         }
         return try {
             create().also { cachedPrefs = it }
         } catch (e: Exception) {
-            Log.e(TAG, "Pin storage recovery failed - pinning degrades to in-memory only", e)
+            AppLogger.e(TAG, "Pin storage recovery failed - pinning degrades to in-memory only", e)
             null
         }
     }
@@ -94,7 +94,7 @@ class EncryptedCertPinStorage @Inject constructor(
                 ?.toMap()
                 ?: emptyMap()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load pins", e)
+            AppLogger.e(TAG, "Failed to load pins", e)
             emptyMap()
         }
     }
@@ -103,7 +103,7 @@ class EncryptedCertPinStorage @Inject constructor(
         try {
             prefs()?.edit()?.putString(host, pin)?.apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to persist pin", e)
+            AppLogger.e(TAG, "Failed to persist pin", e)
         }
     }
 
@@ -111,7 +111,7 @@ class EncryptedCertPinStorage @Inject constructor(
         try {
             prefs()?.edit()?.remove(host)?.apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to remove pin", e)
+            AppLogger.e(TAG, "Failed to remove pin", e)
         }
     }
 
@@ -119,7 +119,7 @@ class EncryptedCertPinStorage @Inject constructor(
         try {
             prefs()?.edit()?.clear()?.apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear pins", e)
+            AppLogger.e(TAG, "Failed to clear pins", e)
         }
     }
 }

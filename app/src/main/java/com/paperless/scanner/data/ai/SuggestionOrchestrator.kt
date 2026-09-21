@@ -2,7 +2,6 @@ package com.paperless.scanner.data.ai
 
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.Log
 import com.paperless.scanner.data.ai.models.DocumentAnalysis
 import com.paperless.scanner.data.ai.models.SuggestionError
 import com.paperless.scanner.data.ai.models.SuggestionResult
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Central orchestrator for all suggestion sources.
@@ -67,7 +67,7 @@ class SuggestionOrchestrator @Inject constructor(
         documentId: Int? = null,
         overrideWifiOnly: Boolean = false
     ): SuggestionResult = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting suggestion orchestration")
+        AppLogger.d(TAG, "Starting suggestion orchestration")
 
         val availableTags = tagRepository.observeTags().first()
         val availableCorrespondents = correspondentRepository.getCachedCorrespondents()
@@ -89,13 +89,13 @@ class SuggestionOrchestrator @Inject constructor(
 
         // Step 1: Try Firebase AI (Premium only)
         if (aiAvailable) {
-            Log.d(TAG, "Premium active - checking WiFi requirements")
+            AppLogger.d(TAG, "Premium active - checking WiFi requirements")
 
             // Check WiFi requirement
             if (aiWifiOnly && !overrideWifiOnly) {
                 val isWifiConnected = networkMonitor.isWifiConnectedSync()
                 if (!isWifiConnected) {
-                    Log.d(TAG, "WiFi-only mode active, but not connected to WiFi - skipping AI")
+                    AppLogger.d(TAG, "WiFi-only mode active, but not connected to WiFi - skipping AI")
                     // Don't attempt AI, but don't treat it as error - return WiFiRequired
                     // Continue to Paperless API / Local matching as fallback
                     if (bitmap != null || imageUri != null) {
@@ -104,10 +104,10 @@ class SuggestionOrchestrator @Inject constructor(
                         // For now, let's continue with fallback and check at the end
                         aiAttempted = true
                         aiSkippedForWifi = true
-                        Log.d(TAG, "WiFi required - will return WiFiRequired if no other suggestions available")
+                        AppLogger.d(TAG, "WiFi required - will return WiFiRequired if no other suggestions available")
                     }
                 } else {
-                    Log.d(TAG, "WiFi connected - proceeding with AI analysis")
+                    AppLogger.d(TAG, "WiFi connected - proceeding with AI analysis")
                     aiAttempted = true
 
                     val aiResult = when {
@@ -130,18 +130,18 @@ class SuggestionOrchestrator @Inject constructor(
 
                     if (aiResult != null) {
                         aiResult.onSuccess { analysis ->
-                            Log.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
+                            AppLogger.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
                             aiAnalysis = analysis
                             primarySource = SuggestionSource.FIREBASE_AI
                         }.onFailure { e ->
-                            Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
+                            AppLogger.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
                             aiError = e
                         }
                     }
                 }
             } else {
                 // WiFi-only disabled or overridden - proceed with AI
-                Log.d(TAG, "WiFi-only disabled or overridden - proceeding with AI analysis")
+                AppLogger.d(TAG, "WiFi-only disabled or overridden - proceeding with AI analysis")
                 aiAttempted = true
 
                 val aiResult = when {
@@ -164,32 +164,32 @@ class SuggestionOrchestrator @Inject constructor(
 
                 if (aiResult != null) {
                     aiResult.onSuccess { analysis ->
-                        Log.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
+                        AppLogger.d(TAG, "Firebase AI analysis successful: ${analysis.suggestedTags.size} tags")
                         aiAnalysis = analysis
                         primarySource = SuggestionSource.FIREBASE_AI
                     }.onFailure { e ->
-                        Log.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
+                        AppLogger.e(TAG, "Firebase AI analysis failed: ${e.message}", e)
                         aiError = e
                     }
                 }
             }
         } else {
-            Log.d(TAG, "Premium not active - skipping Firebase AI")
+            AppLogger.d(TAG, "Premium not active - skipping Firebase AI")
         }
 
         // Step 2: Try Paperless API (if online and documentId available)
         if (aiAnalysis == null && networkMonitor.checkOnlineStatus() && documentId != null) {
-            Log.d(TAG, "Attempting Paperless API suggestions for document $documentId")
+            AppLogger.d(TAG, "Attempting Paperless API suggestions for document $documentId")
 
             paperlessSuggestionsService.getSuggestions(documentId)
                 .onSuccess { analysis ->
-                    Log.d(TAG, "Paperless API suggestions successful: ${analysis.suggestedTags.size} tags")
+                    AppLogger.d(TAG, "Paperless API suggestions successful: ${analysis.suggestedTags.size} tags")
                     paperlessAnalysis = analysis
                     if (primarySource != SuggestionSource.FIREBASE_AI) {
                         primarySource = SuggestionSource.PAPERLESS_API
                     }
                 }.onFailure { e ->
-                    Log.w(TAG, "Paperless API suggestions failed, continuing to local matching", e)
+                    AppLogger.w(TAG, "Paperless API suggestions failed, continuing to local matching", e)
                 }
         }
 
@@ -209,16 +209,16 @@ class SuggestionOrchestrator @Inject constructor(
             val textForMatching = extractedText?.takeIf { it.isNotBlank() }
                 ?: bitmap?.takeIf { aiAvailable && !aiSkippedForWifi }?.let { ocrTextExtractor.extractText(it) }
             if (!textForMatching.isNullOrBlank()) {
-                Log.d(TAG, "No AI analysis - running local tag matching as fallback")
+                AppLogger.d(TAG, "No AI analysis - running local tag matching as fallback")
                 localSuggestions = tagMatchingEngine.findMatchingTags(textForMatching, availableTags)
-                Log.d(TAG, "Local matching found ${localSuggestions.size} suggestions")
+                AppLogger.d(TAG, "Local matching found ${localSuggestions.size} suggestions")
 
                 if (paperlessAnalysis == null) {
                     primarySource = SuggestionSource.LOCAL_MATCHING
                 }
             }
         } else {
-            Log.d(TAG, "AI analysis available - skipping local matching (AI is primary source)")
+            AppLogger.d(TAG, "AI analysis available - skipping local matching (AI is primary source)")
         }
 
         // Merge all suggestions
@@ -228,14 +228,14 @@ class SuggestionOrchestrator @Inject constructor(
             localSuggestions = localSuggestions
         )
 
-        Log.d(TAG, "Orchestration complete: ${mergedAnalysis.suggestedTags.size} total suggestions, source: $primarySource")
+        AppLogger.d(TAG, "Orchestration complete: ${mergedAnalysis.suggestedTags.size} total suggestions, source: $primarySource")
 
         // Check if WiFi was required but not available
         if (aiWifiOnly && !overrideWifiOnly && !networkMonitor.isWifiConnectedSync() &&
             aiAttempted && aiAnalysis == null && aiError == null) {
             // WiFi was required, user tried to use AI (bitmap/imageUri provided), but WiFi not available
             // Return WiFiRequired to show banner with "Use anyway" option
-            Log.d(TAG, "Returning WiFiRequired - AI skipped due to WiFi-only setting")
+            AppLogger.d(TAG, "Returning WiFiRequired - AI skipped due to WiFi-only setting")
             return@withContext SuggestionResult.WiFiRequired
         }
 
@@ -252,7 +252,7 @@ class SuggestionOrchestrator @Inject constructor(
                 aiError?.message?.contains("quota", ignoreCase = true) == true -> SuggestionError.QUOTA_EXHAUSTED
                 else -> SuggestionError.UNKNOWN
             }
-            Log.e(TAG, "All suggestion sources failed ($error). AI error: ${aiError?.message}")
+            AppLogger.e(TAG, "All suggestion sources failed ($error). AI error: ${aiError?.message}")
             return@withContext SuggestionResult.Error(error, aiError)
         }
 
@@ -274,7 +274,7 @@ class SuggestionOrchestrator @Inject constructor(
         documentId: Int,
         documentContent: String? = null
     ): SuggestionResult = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Getting suggestions for uploaded document $documentId")
+        AppLogger.d(TAG, "Getting suggestions for uploaded document $documentId")
 
         val availableTags = tagRepository.observeTags().first()
 
@@ -289,7 +289,7 @@ class SuggestionOrchestrator @Inject constructor(
                     paperlessAnalysis = analysis
                     primarySource = SuggestionSource.PAPERLESS_API
                 }.onFailure { e ->
-                    Log.w(TAG, "Paperless suggestions failed for document $documentId", e)
+                    AppLogger.w(TAG, "Paperless suggestions failed for document $documentId", e)
                 }
         }
 

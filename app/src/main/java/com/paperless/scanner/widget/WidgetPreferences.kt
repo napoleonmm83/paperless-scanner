@@ -2,10 +2,10 @@ package com.paperless.scanner.widget
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 enum class WidgetType {
     QUICK_SCAN,
@@ -46,11 +46,11 @@ class WidgetPreferences @Inject constructor(
         val type = try {
             typeString?.let { WidgetType.valueOf(it) } ?: WidgetType.QUICK_SCAN
         } catch (e: IllegalArgumentException) {
-            Log.w(TAG, "Invalid widget type '$typeString' for widget $widgetId, using default")
+            AppLogger.w(TAG, "Invalid widget type '$typeString' for widget $widgetId, using default")
             WidgetType.QUICK_SCAN
         }
 
-        Log.d(TAG, "getWidgetConfig: id=$widgetId, type=$type")
+        AppLogger.d(TAG, "getWidgetConfig: id=$widgetId, type=$type")
         return WidgetConfig(type)
     }
 
@@ -63,7 +63,7 @@ class WidgetPreferences @Inject constructor(
             .putString(widgetTypeKey(widgetId), config.type.name)
             .commit() // commit() not apply() - ensures synchronous write before widget renders
 
-        Log.d(TAG, "setWidgetConfig: id=$widgetId, type=${config.type}, success=$success")
+        AppLogger.d(TAG, "setWidgetConfig: id=$widgetId, type=${config.type}, success=$success")
         return success
     }
 
@@ -77,7 +77,7 @@ class WidgetPreferences @Inject constructor(
             .remove(widgetTypeKey(widgetId))
             .commit() // commit() not apply() - ensures synchronous delete before widget renders
 
-        Log.d(TAG, "removeWidgetConfig: id=$widgetId, success=$success")
+        AppLogger.d(TAG, "removeWidgetConfig: id=$widgetId, success=$success")
         return success
     }
 }

@@ -6,7 +6,6 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
-import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 @Singleton
 class NetworkMonitor @Inject constructor(
@@ -78,7 +78,7 @@ class NetworkMonitor @Inject constructor(
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            Log.d(TAG, "Network available")
+            AppLogger.d(TAG, "Network available")
 
             // Cancel any pending offline debounce - network is back
             offlineDebounceJob?.cancel()
@@ -99,7 +99,7 @@ class NetworkMonitor @Inject constructor(
             val isOnlineNow = checkOnlineStatus()
 
             if (_isOnline.value != isOnlineNow) {
-                Log.d(TAG, "Online status changed: $isOnlineNow (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
+                AppLogger.d(TAG, "Online status changed: $isOnlineNow (validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)})")
                 _isOnline.value = isOnlineNow
 
                 // Update widgets with new connectivity status
@@ -107,7 +107,7 @@ class NetworkMonitor @Inject constructor(
 
                 // Trigger uploads and sync ONLY when transitioning to validated online state
                 if (!wasOnline && isOnlineNow) {
-                    Log.d(TAG, "Validated internet now available - triggering upload queue and sync")
+                    AppLogger.d(TAG, "Validated internet now available - triggering upload queue and sync")
 
                     // Trigger upload queue worker
                     triggerUploadWorker()
@@ -117,7 +117,7 @@ class NetworkMonitor @Inject constructor(
                         try {
                             syncManager.performFullSync()
                         } catch (e: Exception) {
-                            Log.e(TAG, "Auto-sync failed on network reconnect", e)
+                            AppLogger.e(TAG, "Auto-sync failed on network reconnect", e)
                         }
                     }
                 }
@@ -126,7 +126,7 @@ class NetworkMonitor @Inject constructor(
             // Update WiFi status from the ACTIVE network too (see online status above)
             val isWifi = checkInitialWifiStatus()
             if (_isWifiConnected.value != isWifi) {
-                Log.d(TAG, "WiFi status changed: $isWifi")
+                AppLogger.d(TAG, "WiFi status changed: $isWifi")
                 _isWifiConnected.value = isWifi
             }
 
@@ -139,7 +139,7 @@ class NetworkMonitor @Inject constructor(
         }
 
         override fun onLost(network: Network) {
-            Log.d(TAG, "=== NETWORK LOST (debounced) ===")
+            AppLogger.d(TAG, "=== NETWORK LOST (debounced) ===")
 
             // Cancel any pending offline transition
             offlineDebounceJob?.cancel()
@@ -147,19 +147,19 @@ class NetworkMonitor @Inject constructor(
             // Debounce: Wait before declaring offline to prevent flapping
             // This handles cases where network briefly disconnects during handoff
             offlineDebounceJob = scope.launch {
-                Log.d(TAG, "Starting offline debounce (${OFFLINE_DEBOUNCE_MS}ms)")
+                AppLogger.d(TAG, "Starting offline debounce (${OFFLINE_DEBOUNCE_MS}ms)")
                 delay(OFFLINE_DEBOUNCE_MS)
 
                 // Double-check if still offline after debounce
                 val stillOffline = !checkOnlineStatus()
                 if (stillOffline) {
-                    Log.d(TAG, "Debounce complete - confirming offline state")
+                    AppLogger.d(TAG, "Debounce complete - confirming offline state")
                     _isOnline.value = false
                     _isWifiConnected.value = false
                     _isUnmetered.value = false
-                    Log.d(TAG, "NetworkMonitor state updated: isOnline=false, isWifi=false")
+                    AppLogger.d(TAG, "NetworkMonitor state updated: isOnline=false, isWifi=false")
                 } else {
-                    Log.d(TAG, "Debounce complete - network recovered, staying online")
+                    AppLogger.d(TAG, "Debounce complete - network recovered, staying online")
                     // The active network may have changed during the handoff (e.g. Wi-Fi
                     // dropped and cellular took over), so refresh the transport-specific state
                     // from the now-active network — otherwise the Sync Center banner would keep
@@ -168,7 +168,7 @@ class NetworkMonitor @Inject constructor(
                     _isUnmetered.value = checkInitialUnmetered()
                 }
             }
-            Log.d(TAG, "================================")
+            AppLogger.d(TAG, "================================")
         }
     }
 
@@ -180,13 +180,13 @@ class NetworkMonitor @Inject constructor(
             _isOnline.value = checkOnlineStatus()
             _isWifiConnected.value = checkInitialWifiStatus()
             _isUnmetered.value = checkInitialUnmetered()
-            Log.d(TAG, "Network status: online=${_isOnline.value}, wifi=${_isWifiConnected.value}")
+            AppLogger.d(TAG, "Network status: online=${_isOnline.value}, wifi=${_isWifiConnected.value}")
         }
     }
 
     private fun triggerUploadWorker() {
         try {
-            Log.d(TAG, "Triggering UploadWorker for pending uploads")
+            AppLogger.d(TAG, "Triggering UploadWorker for pending uploads")
 
             // Shared constraints (network preference + #134 battery/storage deferral) so a
             // reconnect-triggered drain honors the user's unmetered-only setting exactly like
@@ -201,9 +201,9 @@ class NetworkMonitor @Inject constructor(
                 uploadRequest
             )
 
-            Log.d(TAG, "UploadWorker enqueued successfully")
+            AppLogger.d(TAG, "UploadWorker enqueued successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to trigger UploadWorker", e)
+            AppLogger.e(TAG, "Failed to trigger UploadWorker", e)
         }
     }
 
@@ -232,18 +232,18 @@ class NetworkMonitor @Inject constructor(
 
         try {
             connectivityManager?.registerNetworkCallback(request, networkCallback)
-            Log.d(TAG, "Network monitoring started")
+            AppLogger.d(TAG, "Network monitoring started")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start network monitoring", e)
+            AppLogger.e(TAG, "Failed to start network monitoring", e)
         }
     }
 
     fun stopMonitoring() {
         try {
             connectivityManager?.unregisterNetworkCallback(networkCallback)
-            Log.d(TAG, "Network monitoring stopped")
+            AppLogger.d(TAG, "Network monitoring stopped")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to stop network monitoring", e)
+            AppLogger.e(TAG, "Failed to stop network monitoring", e)
         }
     }
 

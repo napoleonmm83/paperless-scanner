@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
-import android.util.Log
 import androidx.room.withTransaction
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
@@ -27,6 +26,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Phase 2.3 of #51 — extracted from DocumentRepository.
@@ -204,7 +204,7 @@ class DocumentMetadataRepository @Inject constructor(
         } catch (e: Exception) {
             // Read of the cached row failed. Don't abort the update — just skip the
             // tag-count delta (we have no reliable "old" set to diff against).
-            Log.w("DocumentMetadataRepository", "Failed to read old tag ids for doc $documentId", e)
+            AppLogger.w("DocumentMetadataRepository", "Failed to read old tag ids for doc $documentId", e)
             null
         }
     }

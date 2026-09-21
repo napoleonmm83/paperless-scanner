@@ -11,7 +11,7 @@ import kotlin.math.pow
  * val result = retryWithExponentialBackoff(
  *     maxAttempts = 3,
  *     initialDelay = 2000L,
- *     onRetry = { attempt -> Log.d("Retry", "Attempt $attempt") }
+ *     onRetry = { attempt -> AppLogger.d("Retry", "Attempt $attempt") }
  * ) {
  *     api.uploadDocument()
  * }

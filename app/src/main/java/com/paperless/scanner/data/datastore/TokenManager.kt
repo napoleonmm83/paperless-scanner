@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.datastore
 
 import android.content.Context
-import android.util.Log
 import androidx.annotation.WorkerThread
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
+import com.paperless.scanner.util.AppLogger
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "paperless_settings")
 
@@ -109,7 +109,7 @@ class TokenManager(
         migrateTokenToSecureStorage()
 
         secureStorage.consumeRecoveredCryptoFailure()?.let { failure ->
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "Encrypted token storage was corrupted and recovered — user must re-authenticate",
                 failure,
@@ -140,7 +140,7 @@ class TokenManager(
                 val plaintextToken = context.dataStore.data.first()[TOKEN_KEY_LEGACY]
 
                 if (plaintextToken != null) {
-                    Log.i(TAG, "Migrating token from plaintext to encrypted storage...")
+                    AppLogger.i(TAG, "Migrating token from plaintext to encrypted storage...")
 
                     // Save to encrypted storage
                     val saved = secureStorage.saveTokenResult(plaintextToken) is TokenStorageResult.Present
@@ -149,20 +149,20 @@ class TokenManager(
                         context.dataStore.edit { preferences ->
                             preferences.remove(TOKEN_KEY_LEGACY)
                         }
-                        Log.i(TAG, "Token migration completed successfully")
+                        AppLogger.i(TAG, "Token migration completed successfully")
                     } else {
-                        Log.e(TAG, "Failed to save token to encrypted storage")
+                        AppLogger.e(TAG, "Failed to save token to encrypted storage")
                         return@runBlocking
                     }
                 } else {
-                    Log.d(TAG, "No plaintext token found - nothing to migrate")
+                    AppLogger.d(TAG, "No plaintext token found - nothing to migrate")
                 }
 
                 // Mark migration as completed (even if no token existed)
                 secureStorage.setMigrationCompleted()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Token migration failed", e)
+            AppLogger.e(TAG, "Token migration failed", e)
             // Don't mark as completed - will retry on next app start
         }
     }
@@ -297,7 +297,7 @@ class TokenManager(
         // Save token to encrypted storage
         when (val result = secureStorage.saveTokenResult(token)) {
             is TokenStorageResult.Failure ->
-                Log.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
+                AppLogger.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
             else -> Unit
         }
 
@@ -402,7 +402,7 @@ class TokenManager(
             is TokenStorageResult.Present -> result.value
             TokenStorageResult.Absent -> null
             is TokenStorageResult.Failure -> {
-                Log.w(TAG, "Token read failed (${result.kind})", result.cause)
+                AppLogger.w(TAG, "Token read failed (${result.kind})", result.cause)
                 if (result.kind == TokenStorageFailureKind.CRYPTO_CORRUPTION) {
                     _storageCorruptionDetected.value = true
                 }

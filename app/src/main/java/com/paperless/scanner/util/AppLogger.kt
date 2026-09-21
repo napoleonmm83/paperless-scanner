@@ -65,6 +65,15 @@ object AppLogger {
         if (BuildConfig.DEBUG) {
             Log.d(formatTag(tag), message)
         }
+        // Buffered in EVERY build, unlike the logcat echo above.
+        //
+        // Measured on a device 2026-09-21: under app identity logcat returns ZERO lines
+        // — three runs, with --uid, with --pid and unfiltered, while the privileged
+        // shell saw 222-300 lines for the same uid in the same moment. The ring buffer
+        // is therefore the ONLY log a diagnostic report can ever contain, and a debug
+        // line that reaches neither is simply gone. That is what made the report's
+        // history look so short: it saw 56 of 692 logging call sites.
+        DiagnosticsLog.append(tag, message)
     }
 
     /**
@@ -75,9 +84,11 @@ object AppLogger {
      * @param message Lambda that produces the message (only called in debug builds)
      */
     inline fun d(tag: String, message: () -> String) {
-        if (BuildConfig.DEBUG) {
-            Log.d(formatTag(tag), message())
-        }
+        // The lambda is evaluated in every build now, which is the point of the
+        // overload turned on its head: it existed to SKIP building the string in
+        // release. Keeping that saving would mean the buffer never sees these lines.
+        // Callers with a genuinely expensive message should say so with a plain `if`.
+        d(tag, message())
     }
 
     // ==================== Info Logging ====================
@@ -148,6 +159,8 @@ object AppLogger {
         if (BuildConfig.DEBUG) {
             Log.v(formatTag(tag), message)
         }
+        // Same reason as [d]: the buffer is the only sink the report can read.
+        DiagnosticsLog.append(tag, message)
     }
 
     /**
@@ -157,8 +170,6 @@ object AppLogger {
      * @param message Lambda that produces the message
      */
     inline fun v(tag: String, message: () -> String) {
-        if (BuildConfig.DEBUG) {
-            Log.v(formatTag(tag), message())
-        }
+        v(tag, message())
     }
 }

@@ -6,7 +6,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,6 +50,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
+import com.paperless.scanner.util.AppLogger
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
@@ -252,7 +252,7 @@ class MainActivity : FragmentActivity() {
         // Handle deep links when app is already running (singleTask launch mode)
         val deepLinkAction = DeepLinkHandler.parseIntent(intent)
         if (deepLinkAction != null) {
-            Log.d("MainActivity", "onNewIntent: deepLinkAction=$deepLinkAction")
+            AppLogger.d("MainActivity", "onNewIntent: deepLinkAction=$deepLinkAction")
             _pendingDeepLink.value = deepLinkAction
         }
     }

@@ -33,10 +33,16 @@ import java.util.concurrent.TimeUnit
 object DiagnosticsLog {
 
     /** Lines kept. Older ones are dropped first. */
-    const val MAX_LINES = 300
+    const val MAX_LINES = 1500
 
-    /** Total characters kept. Whichever cap is reached first evicts. */
-    const val MAX_CHARS = 32_000
+    /**
+     * Total characters kept. Whichever cap is reached first evicts.
+     *
+     * This is resident heap for the life of the process, so the number is a real cost —
+     * 128k characters is roughly 256 KB, which is noise next to a single decoded page
+     * bitmap and buys the report a log that spans more than a few minutes.
+     */
+    const val MAX_CHARS = 128_000
 
     private val lines = ArrayDeque<String>()
     private var charCount = 0
@@ -93,10 +99,39 @@ object DiagnosticsLog {
      *
      * Blocking. Call from a background dispatcher.
      */
-    fun readLogcatTail(maxLines: Int = LOGCAT_LINES): List<String> = try {
-        val pid = android.os.Process.myPid()
+    fun readLogcatTail(maxLines: Int = LOGCAT_LINES): List<String> {
+        // By UID first, by PID only as a fallback — and NEVER unfiltered.
+        //
+        // Measured on a real device (2026-09-21, uid 10588): `--pid` returned 33 lines
+        // covering 3 minutes, `--uid` returned 246 lines across FOUR process ids
+        // covering 14 hours. The oldest of them was `FATAL EXCEPTION: main` from the
+        // previous night — a crash the PID filter can never show, because the process
+        // that crashed does not exist any more when the report is written. That is also
+        // why raising the line cap alone changed nothing: we were asking for 400 and
+        // getting 33.
+        //
+        // An unfiltered `logcat -d` is deliberately NOT the fallback. logd usually
+        // restricts an unprivileged reader to its own uid anyway, but "usually" is the
+        // wrong word for a path that would otherwise put OTHER apps' log lines into a
+        // report the user mails to us.
+        return leseLogcat(maxLines, "--uid=${android.os.Process.myUid()}")
+            ?: leseLogcat(maxLines, "--pid=${android.os.Process.myPid()}")
+            ?: emptyList()
+    }
+
+    /**
+     * One logcat run, or null when it did not RUN — which is not the same as an empty
+     * log and must not be confused with it.
+     *
+     * Older logcat builds reject `--uid`, and because stderr is merged into stdout the
+     * rejection arrives as a line of text (measured: `logcat: Unable to parse UID`).
+     * Read as output, that error would count as a successful read of one line and the
+     * fallback would never fire. The exit status is what separates the two, so it is
+     * what decides here.
+     */
+    private fun leseLogcat(maxLines: Int, filter: String): List<String>? = try {
         val process = ProcessBuilder(
-            listOf("logcat", "-d", "-t", maxLines.toString(), "--pid=$pid")
+            listOf("logcat", "-d", "-t", maxLines.toString(), filter)
         ).redirectErrorStream(true).start()
 
         // The deadline is armed BEFORE the read, and that ordering is the whole point.
@@ -109,23 +144,39 @@ object DiagnosticsLog {
         //
         // `destroyForcibly`, not `destroy`: whether a hung logcat honours SIGTERM is
         // exactly the thing we cannot assume here.
+        var abgewuergt = false
         val waechter = Thread {
             if (!process.waitFor(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                abgewuergt = true
                 process.destroyForcibly()
             }
         }.apply { isDaemon = true; start() }
 
         val output = process.inputStream.bufferedReader().use { it.readLines() }
         waechter.join(LOGCAT_TIMEOUT_SECONDS * 1000)
-        output.map { LogSanitizer.sanitizeLogLine(it) }
+
+        // A killed run counts as a run: whatever arrived before the deadline is real
+        // output, and retrying the same thing under the fallback filter would only
+        // spend the deadline twice.
+        when {
+            abgewuergt -> output.map { LogSanitizer.sanitizeLogLine(it) }
+            process.exitValue() == 0 -> output.map { LogSanitizer.sanitizeLogLine(it) }
+            else -> null
+        }
     } catch (e: Exception) {
         // Not reportable and not worth a breadcrumb: the ring buffer carries the report
         // on its own, and a device that refuses this is a fact about the device.
-        emptyList()
+        null
     }
 
-    /** Lines requested from logcat. Enough for the minutes before a failure. */
-    const val LOGCAT_LINES = 400
+    /**
+     * Lines requested from logcat.
+     *
+     * Measured against a real device buffer: filtered by uid it held 246 lines over 14
+     * hours at ~137 bytes each, so 2000 is headroom for a busy day rather than a wish —
+     * logcat cannot return lines the device no longer holds.
+     */
+    const val LOGCAT_LINES = 2000
 
     /** How long the logcat process may take to exit before it is killed. */
     const val LOGCAT_TIMEOUT_SECONDS = 3L

@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.navigation
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,6 +29,7 @@ import com.paperless.scanner.ui.screens.upload.MultiPageUploadScreen
 import com.paperless.scanner.ui.screens.upload.UploadScreen
 import com.paperless.scanner.ui.screens.home.SmartTaggingScreen
 import com.paperless.scanner.ui.screens.diagnostics.DiagnosticsScreen
+import com.paperless.scanner.util.AppLogger
 
 // Main screens that use the bottom navigation
 private val mainScreenRoutes = listOf(
@@ -103,24 +103,24 @@ fun PaperlessNavGraph(
 
         // Don't navigate if user is not logged in (on Welcome/onboarding screens)
         if (startDestination == Screen.Welcome.route) {
-            Log.d("NavGraph", "Deep link ignored: user not logged in")
+            AppLogger.d("NavGraph", "Deep link ignored: user not logged in")
             onDeepLinkConsumed()
             return@LaunchedEffect
         }
 
         // Don't navigate while AppLock is active - deep link will be handled after unlock
         if (lockState is AppLockState.Locked || lockState is AppLockState.LockedOut) {
-            Log.d("NavGraph", "Deep link deferred: app is locked (lockState=$lockState)")
+            AppLogger.d("NavGraph", "Deep link deferred: app is locked (lockState=$lockState)")
             return@LaunchedEffect
         }
 
         // Don't navigate if we're still on the AppLock screen (unlock animation in progress)
         if (currentRoute == Screen.AppLock.route) {
-            Log.d("NavGraph", "Deep link deferred: still on AppLock screen")
+            AppLogger.d("NavGraph", "Deep link deferred: still on AppLock screen")
             return@LaunchedEffect
         }
 
-        Log.d("NavGraph", "Executing deep link: $pendingDeepLink")
+        AppLogger.d("NavGraph", "Executing deep link: $pendingDeepLink")
 
         when (pendingDeepLink) {
             DeepLinkAction.SCAN -> {
