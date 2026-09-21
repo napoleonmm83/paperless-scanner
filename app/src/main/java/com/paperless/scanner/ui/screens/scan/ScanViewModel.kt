@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
-import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -52,6 +51,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Source type for scanned pages - determines origin for UI badges
@@ -157,7 +157,7 @@ class ScanViewModel @Inject constructor(
                         try {
                             Uri.parse(uriString)
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to parse URI: $uriString", e)
+                            AppLogger.e(TAG, "Failed to parse URI: $uriString", e)
                             null
                         }
                     }
@@ -308,7 +308,7 @@ class ScanViewModel @Inject constructor(
                     try {
                         Uri.parse(uriString)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to parse URI: $uriString", e)
+                        AppLogger.e(TAG, "Failed to parse URI: $uriString", e)
                         null
                     }
                 }
@@ -344,7 +344,7 @@ class ScanViewModel @Inject constructor(
                                 id to metadata
                             } else null
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to parse metadata: $pair", e)
+                            AppLogger.e(TAG, "Failed to parse metadata: $pair", e)
                             null
                         }
                     }.toMap()
@@ -375,12 +375,12 @@ class ScanViewModel @Inject constructor(
                     // (#307); SharedPreferences survives process death but this keeps
                     // the mirror authoritative even if the prior write was lost.
                     scanDraftCache.setProtectedFileNames(restoredPages.map { it.uri.toString() })
-                    Log.d(TAG, "✅ Restored ${restoredPages.size} pages from SavedStateHandle (one-time init)")
+                    AppLogger.d(TAG, "✅ Restored ${restoredPages.size} pages from SavedStateHandle (one-time init)")
                 } else {
-                    Log.w(TAG, "⚠️ Data mismatch: ${uris.size} URIs vs ${ids.size} IDs - skipping restoration")
+                    AppLogger.w(TAG, "⚠️ Data mismatch: ${uris.size} URIs vs ${ids.size} IDs - skipping restoration")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Failed to restore pages from SavedStateHandle", e)
+                AppLogger.e(TAG, "❌ Failed to restore pages from SavedStateHandle", e)
             }
         }
     }
@@ -431,7 +431,7 @@ class ScanViewModel @Inject constructor(
                 .ifEmpty { null }
             savedStateHandle[KEY_PAGE_METADATA] = metadataString
 
-            Log.d(TAG, "Synced ${pages.size} pages to SavedStateHandle")
+            AppLogger.d(TAG, "Synced ${pages.size} pages to SavedStateHandle")
         }
     }
 
@@ -758,7 +758,7 @@ class ScanViewModel @Inject constructor(
                 croppedFile
             )
         } catch (e: Exception) {
-            Log.e("ScanViewModel", "Failed to crop image", e)
+            AppLogger.e("ScanViewModel", "Failed to crop image", e)
             null
         }
     }
@@ -812,7 +812,7 @@ class ScanViewModel @Inject constructor(
 
     /** Records a page that could not be read, decoded or rotated (#402) and turns it into a [Result.failure]. */
     private fun pageProcessingFailed(page: ScannedPage, cause: Throwable): Result<List<Uri>> {
-        Log.e(TAG, "Page ${page.pageNumber} could not be processed", cause)
+        AppLogger.e(TAG, "Page ${page.pageNumber} could not be processed", cause)
         crashlyticsHelper.logActionBreadcrumb(
             "SCAN_PAGE_PROCESS_FAILED",
             "page=${page.pageNumber} scheme=${page.uri.scheme}"
@@ -893,15 +893,15 @@ class ScanViewModel @Inject constructor(
 
                 when (limitStatus) {
                     UsageLimitStatus.HARD_LIMIT_REACHED -> {
-                        Log.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
+                        AppLogger.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
                         _analysisState.update { AnalysisState.LimitReached }
                     }
                     UsageLimitStatus.SOFT_LIMIT_200 -> {
-                        Log.i(TAG, "Soft limit 200 reached - showing warning")
+                        AppLogger.i(TAG, "Soft limit 200 reached - showing warning")
                         _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
                     }
                     UsageLimitStatus.SOFT_LIMIT_100 -> {
-                        Log.i(TAG, "Soft limit 100 reached - showing info")
+                        AppLogger.i(TAG, "Soft limit 100 reached - showing info")
                         _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
                     }
                     else -> {
@@ -914,12 +914,12 @@ class ScanViewModel @Inject constructor(
                 val bitmap = if (inputStream != null) {
                     BitmapFactory.decodeStream(inputStream).also { inputStream.close() }
                 } else {
-                    Log.w(TAG, "Failed to open input stream for: ${firstPage.uri}")
+                    AppLogger.w(TAG, "Failed to open input stream for: ${firstPage.uri}")
                     null
                 }
 
                 if (bitmap == null) {
-                    Log.w(TAG, "Could not decode image for analysis")
+                    AppLogger.w(TAG, "Could not decode image for analysis")
                     _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
                     return@launch
                 }
@@ -948,13 +948,13 @@ class ScanViewModel @Inject constructor(
 
                 when (result) {
                     is SuggestionResult.WiFiRequired -> {
-                        Log.d(TAG, "WiFi required for AI suggestions")
+                        AppLogger.d(TAG, "WiFi required for AI suggestions")
                         _wifiRequired.update { true }
                         _analysisState.update { AnalysisState.Idle }
                         // Don't show error - banner will inform user
                     }
                     is SuggestionResult.Success -> {
-                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+                        AppLogger.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
 
                         // Clear WiFi required state if analysis succeeded
                         _wifiRequired.update { false }
@@ -985,7 +985,7 @@ class ScanViewModel @Inject constructor(
                         }
                     }
                     is SuggestionResult.Error -> {
-                        Log.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
+                        AppLogger.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
                         _analysisState.update { AnalysisState.Error(result.error.getLocalizedMessage(context)) }
                     }
                     is SuggestionResult.Loading -> {
@@ -994,7 +994,7 @@ class ScanViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Document analysis failed", e)
+                AppLogger.e(TAG, "Document analysis failed", e)
                 val paperlessException = PaperlessException.from(e)
                 _analysisState.update { AnalysisState.Error(paperlessException.getLocalizedMessage(context)) }
             }
@@ -1017,7 +1017,7 @@ class ScanViewModel @Inject constructor(
      * Allows user to use AI even without WiFi when they explicitly choose "Use anyway".
      */
     fun overrideWifiOnlyForSession() {
-        Log.d(TAG, "User overrode WiFi-only restriction")
+        AppLogger.d(TAG, "User overrode WiFi-only restriction")
         _wifiOnlyOverride.update { true }
         _wifiRequired.update { false }
 

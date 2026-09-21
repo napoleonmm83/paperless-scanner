@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Context
 import android.graphics.BitmapFactory
-import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -48,6 +47,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.net.URL
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 // User/Group models for permissions UI
 data class UserInfo(
@@ -682,7 +682,7 @@ class DocumentDetailViewModel @Inject constructor(
                 val authToken = state.authToken
 
                 if (thumbnailUrl == null || authToken == null) {
-                    Log.w(TAG, "Thumbnail URL or auth token not available")
+                    AppLogger.w(TAG, "Thumbnail URL or auth token not available")
                     _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
                     return@launch
                 }
@@ -692,15 +692,15 @@ class DocumentDetailViewModel @Inject constructor(
 
                 when (limitStatus) {
                     UsageLimitStatus.HARD_LIMIT_REACHED -> {
-                        Log.w(TAG, "Hard limit reached - AI disabled")
+                        AppLogger.w(TAG, "Hard limit reached - AI disabled")
                         _analysisState.update { AnalysisState.LimitReached }
                     }
                     UsageLimitStatus.SOFT_LIMIT_200 -> {
-                        Log.i(TAG, "Soft limit 200 reached")
+                        AppLogger.i(TAG, "Soft limit 200 reached")
                         _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
                     }
                     UsageLimitStatus.SOFT_LIMIT_100 -> {
-                        Log.i(TAG, "Soft limit 100 reached")
+                        AppLogger.i(TAG, "Soft limit 100 reached")
                         _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
                     }
                     else -> {
@@ -716,7 +716,7 @@ class DocumentDetailViewModel @Inject constructor(
                 }
 
                 if (bitmap == null) {
-                    Log.w(TAG, "Could not decode thumbnail image")
+                    AppLogger.w(TAG, "Could not decode thumbnail image")
                     _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
                     return@launch
                 }
@@ -731,13 +731,13 @@ class DocumentDetailViewModel @Inject constructor(
 
                 when (result) {
                     is SuggestionResult.WiFiRequired -> {
-                        Log.d(TAG, "WiFi required for AI suggestions")
+                        AppLogger.d(TAG, "WiFi required for AI suggestions")
                         _wifiRequired.update { true }
                         _analysisState.update { AnalysisState.Idle }
                         // Don't show error - banner will inform user
                     }
                     is SuggestionResult.Success -> {
-                        Log.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
+                        AppLogger.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
 
                         // Clear WiFi required state if analysis succeeded
                         _wifiRequired.update { false }
@@ -768,7 +768,7 @@ class DocumentDetailViewModel @Inject constructor(
                         }
                     }
                     is SuggestionResult.Error -> {
-                        Log.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
+                        AppLogger.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
                         _analysisState.update { AnalysisState.Error(result.error.getLocalizedMessage(context)) }
                     }
                     is SuggestionResult.Loading -> {
@@ -777,7 +777,7 @@ class DocumentDetailViewModel @Inject constructor(
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Document analysis failed", e)
+                AppLogger.e(TAG, "Document analysis failed", e)
                 val paperlessException = PaperlessException.from(e)
                 _analysisState.update { AnalysisState.Error(paperlessException.getLocalizedMessage(context)) }
             }
@@ -800,7 +800,7 @@ class DocumentDetailViewModel @Inject constructor(
      * Allows user to use AI even without WiFi when they explicitly choose "Use anyway".
      */
     fun overrideWifiOnlyForSession() {
-        Log.d(TAG, "User overrode WiFi-only restriction")
+        AppLogger.d(TAG, "User overrode WiFi-only restriction")
         _wifiOnlyOverride.update { true }
         _wifiRequired.update { false }
 

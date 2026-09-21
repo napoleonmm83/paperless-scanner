@@ -1,7 +1,6 @@
 package com.paperless.scanner.data.repository
 
 import android.content.Context
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.domain.error.PaperlessException
@@ -29,6 +28,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Phase 3.1 of #51 — extracted from DocumentRepository.
@@ -100,7 +100,7 @@ class TrashRepository @Inject constructor(
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
-                                Log.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
+                                AppLogger.w(TAG, "Failed to acknowledge tasks on server: ${e.message}")
                             }
                         }
                         Unit
@@ -109,7 +109,7 @@ class TrashRepository @Inject constructor(
                         // Already deleted on server — likely a previous attempt
                         // committed but the response was lost in transit. Local
                         // state matches reality; do NOT roll back.
-                        Log.i(TAG, "deleteDocument returned 404 — treating as already-deleted, no rollback")
+                        AppLogger.i(TAG, "deleteDocument returned 404 — treating as already-deleted, no rollback")
                         Unit
                     }
                     else -> {
@@ -120,7 +120,7 @@ class TrashRepository @Inject constructor(
                         // Read the error body EXACTLY ONCE: the stream is
                         // consumed by .string(); a second read returns empty.
                         val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                        Log.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
+                        AppLogger.e(TAG, "deleteDocument failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                         throw retrofit2.HttpException(
                             retrofit2.Response.error<Unit>(
                                 response.code(),
@@ -135,7 +135,7 @@ class TrashRepository @Inject constructor(
                 // exhausting retries. restoreDocument is idempotent (UPDATE
                 // SET isDeleted = 0), so calling it for a doc already in the
                 // restored state is a no-op.
-                Log.w(TAG, "deleteDocument API failure (HTTP ${e.code()}), rolling back optimistic delete")
+                AppLogger.w(TAG, "deleteDocument API failure (HTTP ${e.code()}), rolling back optimistic delete")
                 cachedDocumentDao.restoreDocument(documentId)
                 throw e
             } catch (e: java.io.IOException) {
@@ -154,7 +154,7 @@ class TrashRepository @Inject constructor(
             } catch (e: Exception) {
                 // ROLLBACK for non-network exceptions (timeout, etc.) where
                 // executeOrQueue will NOT trigger offline fallback.
-                Log.w(TAG, "deleteDocument API exception, rolling back: ${e.message}")
+                AppLogger.w(TAG, "deleteDocument API exception, rolling back: ${e.message}")
                 cachedDocumentDao.restoreDocument(documentId)
                 throw e
             }
@@ -191,7 +191,7 @@ class TrashRepository @Inject constructor(
                     val deletionTimestamp = try {
                         java.time.Instant.parse(doc.modified).toEpochMilli()
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to parse modified date: ${doc.modified}", e)
+                        AppLogger.e(TAG, "Failed to parse modified date: ${doc.modified}", e)
                         System.currentTimeMillis()
                     }
                     doc.toCachedEntity().copy(
@@ -241,7 +241,7 @@ class TrashRepository @Inject constructor(
                 } else {
                     // Single-read of errorBody (the stream is consumed by .string()).
                     val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                    Log.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
+                    AppLogger.e(TAG, "restoreDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                     throw retrofit2.HttpException(
                         retrofit2.Response.error<Unit>(
                             response.code(),
@@ -270,7 +270,7 @@ class TrashRepository @Inject constructor(
             } else {
                 // Single-read of errorBody (the stream is consumed by .string()).
                 val errorBody = try { response.errorBody()?.string() } catch (_: Exception) { null }
-                Log.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
+                AppLogger.e(TAG, "permanentlyDeleteDocuments failed: HTTP ${response.code()}, body: ${sanitizeErrorBody(errorBody)}")
                 throw retrofit2.HttpException(
                     retrofit2.Response.error<Unit>(
                         response.code(),
@@ -300,7 +300,7 @@ class TrashRepository @Inject constructor(
         val orphanedIds = localDeletedIds - serverTrashIds
         if (orphanedIds.isNotEmpty()) {
             cachedDocumentDao.deleteByIds(orphanedIds.toList())
-            Log.d(TAG, "Cleaned up ${orphanedIds.size} orphaned trash docs: $orphanedIds")
+            AppLogger.d(TAG, "Cleaned up ${orphanedIds.size} orphaned trash docs: $orphanedIds")
         }
     }
 }

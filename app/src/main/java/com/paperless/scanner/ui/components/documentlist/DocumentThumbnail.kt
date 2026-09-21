@@ -1,6 +1,5 @@
 package com.paperless.scanner.ui.components.documentlist
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -26,6 +25,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.paperless.scanner.R
 import com.paperless.scanner.util.ThumbnailUrlBuilder
+import com.paperless.scanner.util.AppLogger
 
 /**
  * DocumentThumbnail - Reusable thumbnail component for document previews.
@@ -70,7 +70,7 @@ fun DocumentThumbnail(
 
             when (val state = painter.state) {
                 is AsyncImagePainter.State.Error -> {
-                    Log.e(
+                    AppLogger.e(
                         "DocumentThumbnail",
                         "Failed to load doc $documentId from $thumbnailUrl: ${state.result.throwable.message}",
                         state.result.throwable

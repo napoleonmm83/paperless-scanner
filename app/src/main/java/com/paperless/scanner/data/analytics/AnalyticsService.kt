@@ -2,7 +2,6 @@ package com.paperless.scanner.data.analytics
 
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.analytics.analytics
@@ -14,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Wrapper service for Firebase Analytics, Crashlytics, and Performance Monitoring.
@@ -58,7 +58,7 @@ class AnalyticsService @Inject constructor(
         Firebase.crashlytics.setCrashlyticsCollectionEnabled(enabled)
         Firebase.performance.isPerformanceCollectionEnabled = enabled
 
-        Log.d(TAG, "Analytics collection ${if (enabled) "enabled" else "disabled"}")
+        AppLogger.d(TAG, "Analytics collection ${if (enabled) "enabled" else "disabled"}")
     }
 
     /**
@@ -67,7 +67,7 @@ class AnalyticsService @Inject constructor(
      */
     override fun trackEvent(event: AnalyticsEvent) {
         if (!isEnabled) {
-            Log.d(TAG, "Event '${event.name}' skipped (analytics disabled)")
+            AppLogger.d(TAG, "Event '${event.name}' skipped (analytics disabled)")
             return
         }
 
@@ -85,7 +85,7 @@ class AnalyticsService @Inject constructor(
         }
 
         firebaseAnalytics.logEvent(event.name, bundle)
-        Log.d(TAG, "Event tracked: ${event.name} with params: ${event.params}")
+        AppLogger.d(TAG, "Event tracked: ${event.name} with params: ${event.params}")
     }
 
     /**
@@ -101,7 +101,7 @@ class AnalyticsService @Inject constructor(
         }
 
         firebaseAnalytics.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW, bundle)
-        Log.d(TAG, "Screen tracked: $screenName")
+        AppLogger.d(TAG, "Screen tracked: $screenName")
     }
 
     /**
@@ -123,7 +123,7 @@ class AnalyticsService @Inject constructor(
 
         message?.let { Firebase.crashlytics.log(it) }
         Firebase.crashlytics.recordException(throwable)
-        Log.e(TAG, "Error logged: ${message ?: throwable.message}", throwable)
+        AppLogger.e(TAG, "Error logged: ${message ?: throwable.message}", throwable)
     }
 
     /**
@@ -162,7 +162,7 @@ class AnalyticsService @Inject constructor(
         isOffline: Boolean
     ) {
         if (!isEnabled) {
-            Log.d(TAG, "Crashlytics keys skipped (analytics disabled)")
+            AppLogger.d(TAG, "Crashlytics keys skipped (analytics disabled)")
             return
         }
 
@@ -173,7 +173,7 @@ class AnalyticsService @Inject constructor(
         Firebase.crashlytics.setCustomKey("subscription_status", subscriptionStatus)
         Firebase.crashlytics.setCustomKey("is_offline", isOffline)
 
-        Log.d(TAG, "Crashlytics keys initialized: version=$appVersion, code=$versionCode, " +
+        AppLogger.d(TAG, "Crashlytics keys initialized: version=$appVersion, code=$versionCode, " +
                 "subscription=$subscriptionStatus, offline=$isOffline")
     }
 
@@ -186,7 +186,7 @@ class AnalyticsService @Inject constructor(
     fun updateOfflineState(isOffline: Boolean) {
         if (!isEnabled) return
         Firebase.crashlytics.setCustomKey("is_offline", isOffline)
-        Log.d(TAG, "Crashlytics offline state updated: $isOffline")
+        AppLogger.d(TAG, "Crashlytics offline state updated: $isOffline")
     }
 
     /**
@@ -199,7 +199,7 @@ class AnalyticsService @Inject constructor(
     fun updateCrashlyticsSubscriptionStatus(status: String) {
         if (!isEnabled) return
         Firebase.crashlytics.setCustomKey("subscription_status", status)
-        Log.d(TAG, "Crashlytics subscription status updated: $status")
+        AppLogger.d(TAG, "Crashlytics subscription status updated: $status")
     }
 
     /**
@@ -227,7 +227,7 @@ class AnalyticsService @Inject constructor(
             val hashBytes = digest.digest(url.toByteArray(Charsets.UTF_8))
             hashBytes.joinToString("") { "%02x".format(it) }.take(16)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to hash server URL", e)
+            AppLogger.e(TAG, "Failed to hash server URL", e)
             "error"
         }
     }

@@ -2,10 +2,10 @@ package com.paperless.scanner.data.datastore
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.security.KeyStore
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Secure storage for sensitive authentication data using EncryptedSharedPreferences.
@@ -78,7 +78,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 // unavailable, disk IO) must NOT delete the user's token: returning
                 // null leaves the data intact for a later retry.
                 if (isCryptoCorruption(e)) {
-                    Log.e(TAG, "Crypto corruption detected on open", e)
+                    AppLogger.e(TAG, "Crypto corruption detected on open", e)
 
                     // #320 Phase 2: try the ciphertext snapshot BEFORE the destructive
                     // wipe — when only the prefs FILE is damaged (master key intact),
@@ -88,7 +88,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                             return createEncryptedPrefs().also {
                                 cachedPrefs = it
                                 lastOpenFailure = null
-                                Log.i(TAG, "Restored encrypted storage from backup — token preserved")
+                                AppLogger.i(TAG, "Restored encrypted storage from backup — token preserved")
                             }
                         } catch (retryError: Exception) {
                             if (!isCryptoCorruption(retryError)) {
@@ -97,21 +97,21 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                                 // data for a later attempt (codex P2).
                                 val kind = classifyFailure(retryError)
                                 lastOpenFailure = kind to retryError
-                                Log.w(TAG, "Restore retry failed transiently ($kind) — keeping data, NOT wiping", retryError)
+                                AppLogger.w(TAG, "Restore retry failed transiently ($kind) — keeping data, NOT wiping", retryError)
                                 return null
                             }
-                            Log.w(TAG, "Backup restore did not open either, falling back to wipe", retryError)
+                            AppLogger.w(TAG, "Backup restore did not open either, falling back to wipe", retryError)
                         }
                     }
 
-                    Log.e(TAG, "Recovering by wipe (stored token will be lost)")
+                    AppLogger.e(TAG, "Recovering by wipe (stored token will be lost)")
                     lastRecoveredCryptoFailure = e
                     lastOpenFailure = TokenStorageFailureKind.CRYPTO_CORRUPTION to e
                     recoverCorruptedStorage()
                 } else {
                     val kind = classifyFailure(e)
                     lastOpenFailure = kind to e
-                    Log.e(TAG, "Transient failure opening encrypted prefs ($kind) — NOT wiping, will retry later", e)
+                    AppLogger.e(TAG, "Transient failure opening encrypted prefs ($kind) — NOT wiping, will retry later", e)
                     null
                 }
             }
@@ -180,14 +180,14 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 // rename-over-existing can fail on some filesystems: delete-then-rename.
                 backup.delete()
                 if (!tmp.renameTo(backup)) {
-                    Log.w(TAG, "Failed to swap backup snapshot into place")
+                    AppLogger.w(TAG, "Failed to swap backup snapshot into place")
                     tmp.delete()
                     return false
                 }
             }
             true
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to back up encrypted prefs file", e)
+            AppLogger.w(TAG, "Failed to back up encrypted prefs file", e)
             false
         }
     }
@@ -212,7 +212,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                     backupSeedChecked = true
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to seed backup snapshot", e)
+                AppLogger.w(TAG, "Failed to seed backup snapshot", e)
             }
         }
     }
@@ -243,7 +243,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             backupSeedChecked = false
             backupGone && stagingGone
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to delete backup artifacts", e)
+            AppLogger.w(TAG, "Failed to delete backup artifacts", e)
             false
         }
     }
@@ -280,7 +280,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             cachedPrefs = null
             // Evicts the process-level cache and removes BOTH <name>.xml and <name>.xml.bak.
             if (!context.deleteSharedPreferences(ENCRYPTED_PREFS_FILE)) {
-                Log.w(TAG, "deleteSharedPreferences reported incomplete deletion — continuing restore")
+                AppLogger.w(TAG, "deleteSharedPreferences reported incomplete deletion — continuing restore")
             }
             val target = prefsFile()
             target.parentFile?.mkdirs()
@@ -288,14 +288,14 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 // rename-over-existing can fail on some filesystems: delete-then-rename.
                 target.delete()
                 if (!tmp.renameTo(target)) {
-                    Log.w(TAG, "Failed to move restored snapshot into place")
+                    AppLogger.w(TAG, "Failed to move restored snapshot into place")
                     tmp.delete()
                     return false
                 }
             }
             true
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to restore encrypted prefs from backup", e)
+            AppLogger.w(TAG, "Failed to restore encrypted prefs from backup", e)
             false
         }
     }
@@ -325,14 +325,14 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
      * The stored token is lost - user will need to re-authenticate.
      */
     private fun recoverCorruptedStorage(): SharedPreferences? {
-        Log.w(TAG, "Recovering corrupted encrypted storage - stored token will be lost")
+        AppLogger.w(TAG, "Recovering corrupted encrypted storage - stored token will be lost")
 
         try {
             // 1. Delete the corrupted SharedPreferences file
             context.deleteSharedPreferences(ENCRYPTED_PREFS_FILE)
-            Log.d(TAG, "Deleted corrupted SharedPreferences file")
+            AppLogger.d(TAG, "Deleted corrupted SharedPreferences file")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete corrupted prefs file", e)
+            AppLogger.e(TAG, "Failed to delete corrupted prefs file", e)
         }
 
         // 1b. #320 Phase 2: the snapshot did not help (or matches the corrupt
@@ -346,20 +346,20 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             keyStore.load(null)
             if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
                 keyStore.deleteEntry(MASTER_KEY_ALIAS)
-                Log.d(TAG, "Deleted corrupted master key from Keystore")
+                AppLogger.d(TAG, "Deleted corrupted master key from Keystore")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to delete master key from Keystore", e)
+            AppLogger.e(TAG, "Failed to delete master key from Keystore", e)
         }
 
         // 3. Recreate fresh EncryptedSharedPreferences
         return try {
             createEncryptedPrefs().also {
                 cachedPrefs = it
-                Log.i(TAG, "Successfully recovered encrypted storage - user must re-authenticate")
+                AppLogger.i(TAG, "Successfully recovered encrypted storage - user must re-authenticate")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Recovery failed - encrypted storage unavailable", e)
+            AppLogger.e(TAG, "Recovery failed - encrypted storage unavailable", e)
             null
         }
     }
@@ -392,7 +392,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to retrieve token", e)
+            AppLogger.e(TAG, "Failed to retrieve token", e)
             val kind = classifyFailure(e)
             if (kind == TokenStorageFailureKind.CRYPTO_CORRUPTION) {
                 // The store OPENED but the value itself is corrupt — try the snapshot
@@ -425,12 +425,12 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             when (val token = restored.getString(KEY_AUTH_TOKEN, null)) {
                 null -> TokenStorageResult.Absent
                 else -> {
-                    Log.i(TAG, "Restored token from backup after value-level corruption")
+                    AppLogger.i(TAG, "Restored token from backup after value-level corruption")
                     TokenStorageResult.Present(token)
                 }
             }
         } catch (retryError: Exception) {
-            Log.w(TAG, "Value re-read after backup restore still failing", retryError)
+            AppLogger.w(TAG, "Value re-read after backup restore still failing", retryError)
             null
         }
     }
@@ -456,7 +456,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             // Worst case of the new order (crash between delete and commit): token
             // unchanged, no snapshot → restore degrades to the wipe, never resurrects.
             if (!deleteBackupArtifacts()) {
-                Log.w(TAG, "Could not tombstone the old snapshot — aborting save (fail closed)")
+                AppLogger.w(TAG, "Could not tombstone the old snapshot — aborting save (fail closed)")
                 return TokenStorageResult.Failure(TokenStorageFailureKind.IO_ERROR)
             }
             val committed = prefs.edit()
@@ -478,7 +478,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
                 TokenStorageResult.Failure(TokenStorageFailureKind.IO_ERROR)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save token", e)
+            AppLogger.e(TAG, "Failed to save token", e)
             TokenStorageResult.Failure(classifyFailure(e), e)
         }
     }
@@ -521,7 +521,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         return try {
             getOrCreateEncryptedPrefs()?.contains(KEY_AUTH_TOKEN) ?: false
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to check token existence", e)
+            AppLogger.e(TAG, "Failed to check token existence", e)
             false
         }
     }
@@ -541,7 +541,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             // from which a later restore could resurrect the credential the user
             // just cleared (logout!). Hard gate: no tombstone, no commit.
             if (!deleteBackupArtifacts()) {
-                Log.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
+                AppLogger.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
                 return false
             }
             val committed = prefs.edit()
@@ -557,7 +557,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             }
             committed
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear token", e)
+            AppLogger.e(TAG, "Failed to clear token", e)
             false
         }
     }
@@ -569,7 +569,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         return try {
             getOrCreateEncryptedPrefs()?.getBoolean(KEY_MIGRATION_COMPLETED, false) ?: false
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to check migration status", e)
+            AppLogger.e(TAG, "Failed to check migration status", e)
             false
         }
     }
@@ -584,7 +584,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
         return try {
             val prefs = getOrCreateEncryptedPrefs() ?: return false
             if (!deleteBackupArtifacts()) {
-                Log.w(TAG, "Could not tombstone the old snapshot — aborting migration flag update (fail closed)")
+                AppLogger.w(TAG, "Could not tombstone the old snapshot — aborting migration flag update (fail closed)")
                 return false
             }
             val committed = prefs.edit()
@@ -595,7 +595,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             }
             committed
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to set migration completed", e)
+            AppLogger.e(TAG, "Failed to set migration completed", e)
             false
         }
     }
@@ -612,7 +612,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             // Tombstone-first (#359 codex P1): kill the snapshot BEFORE the commit —
             // see clearToken. Hard gate: no tombstone, no commit.
             if (!deleteBackupArtifacts()) {
-                Log.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
+                AppLogger.w(TAG, "Could not tombstone the old snapshot — aborting clear (fail closed)")
                 return false
             }
             val committed = prefs.edit()
@@ -627,7 +627,7 @@ class SecureTokenStorage(private val context: Context) : TokenStorage {
             }
             committed
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to clear all secure storage", e)
+            AppLogger.e(TAG, "Failed to clear all secure storage", e)
             false
         }
     }

@@ -1,7 +1,6 @@
 package com.paperless.scanner.util
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -20,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 private val Context.loginRateLimitDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "login_rate_limit"
@@ -89,9 +89,9 @@ class LoginRateLimiter @Inject constructor(
             val prefs = context.loginRateLimitDataStore.data.first()
             failedAttempts = prefs[FAILED_ATTEMPTS_KEY] ?: 0
             lockoutUntil = prefs[LOCKOUT_UNTIL_KEY] ?: 0L
-            Log.d(TAG, "Loaded persisted state: attempts=$failedAttempts, lockoutUntil=$lockoutUntil")
+            AppLogger.d(TAG, "Loaded persisted state: attempts=$failedAttempts, lockoutUntil=$lockoutUntil")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load persisted state", e)
+            AppLogger.e(TAG, "Failed to load persisted state", e)
         }
     }
 
@@ -104,9 +104,9 @@ class LoginRateLimiter @Inject constructor(
                 prefs[FAILED_ATTEMPTS_KEY] = failedAttempts
                 prefs[LOCKOUT_UNTIL_KEY] = lockoutUntil
             }
-            Log.d(TAG, "Persisted state: attempts=$failedAttempts, lockoutUntil=$lockoutUntil")
+            AppLogger.d(TAG, "Persisted state: attempts=$failedAttempts, lockoutUntil=$lockoutUntil")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to persist state", e)
+            AppLogger.e(TAG, "Failed to persist state", e)
         }
     }
 
@@ -194,25 +194,25 @@ class LoginRateLimiter @Inject constructor(
      */
     fun recordFailedAttempt() {
         failedAttempts++
-        Log.w(TAG, "Login failed. Total failed attempts: $failedAttempts")
+        AppLogger.w(TAG, "Login failed. Total failed attempts: $failedAttempts")
 
         // Check if lockout should be triggered
         val now = System.currentTimeMillis()
         when (failedAttempts) {
             FIRST_LOCKOUT_THRESHOLD -> {
                 lockoutUntil = now + FIRST_LOCKOUT_DURATION_MS
-                Log.w(TAG, "First lockout triggered (5 minutes)")
+                AppLogger.w(TAG, "First lockout triggered (5 minutes)")
             }
             SECOND_LOCKOUT_THRESHOLD -> {
                 lockoutUntil = now + SECOND_LOCKOUT_DURATION_MS
-                Log.w(TAG, "Second lockout triggered (15 minutes)")
+                AppLogger.w(TAG, "Second lockout triggered (15 minutes)")
             }
             THIRD_LOCKOUT_THRESHOLD -> {
                 lockoutUntil = now + THIRD_LOCKOUT_DURATION_MS
-                Log.w(TAG, "Third lockout triggered (30 minutes)")
+                AppLogger.w(TAG, "Third lockout triggered (30 minutes)")
             }
             PERMANENT_LOCKOUT_THRESHOLD -> {
-                Log.e(TAG, "PERMANENT LOCKOUT triggered - too many failed attempts")
+                AppLogger.e(TAG, "PERMANENT LOCKOUT triggered - too many failed attempts")
             }
         }
 
@@ -229,7 +229,7 @@ class LoginRateLimiter @Inject constructor(
      */
     fun recordSuccessfulLogin() {
         if (failedAttempts > 0) {
-            Log.i(TAG, "Login successful. Resetting failed attempts counter (was: $failedAttempts)")
+            AppLogger.i(TAG, "Login successful. Resetting failed attempts counter (was: $failedAttempts)")
         }
         failedAttempts = 0
         lockoutUntil = 0L
@@ -271,7 +271,7 @@ class LoginRateLimiter @Inject constructor(
         lockoutUntil = 0L
         persistState()
         updateState()
-        Log.i(TAG, "Rate limit data cleared")
+        AppLogger.i(TAG, "Rate limit data cleared")
     }
 }
 

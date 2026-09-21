@@ -2,7 +2,6 @@ package com.paperless.scanner
 
 import android.app.Application
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -33,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 @HiltAndroidApp
 class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader.Factory {
@@ -112,13 +112,13 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         try {
             // Start network monitoring for auto-sync on reconnect
             networkMonitor.startMonitoring()
-            Log.d(TAG, "Network monitoring started")
+            AppLogger.d(TAG, "Network monitoring started")
 
             // Schedule periodic sync with WorkManager
             SyncWorker.schedule(this)
-            Log.d(TAG, "Periodic sync scheduled")
+            AppLogger.d(TAG, "Periodic sync scheduled")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize offline mode", e)
+            AppLogger.e(TAG, "Failed to initialize offline mode", e)
         }
     }
 
@@ -129,7 +129,7 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                 override fun onStart(owner: LifecycleOwner) {
                     // App entered foreground - start polling every 30s
                     serverHealthMonitor.onForeground()
-                    Log.d(TAG, "Server health monitoring: Foreground mode (30s interval)")
+                    AppLogger.d(TAG, "Server health monitoring: Foreground mode (30s interval)")
 
                     // Refresh widget data when app comes to foreground
                     com.paperless.scanner.widget.WidgetUpdateWorker.enqueue(this@PaperlessApp)
@@ -138,12 +138,12 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                 override fun onStop(owner: LifecycleOwner) {
                     // App entered background - switch to 5min interval
                     serverHealthMonitor.onBackground()
-                    Log.d(TAG, "Server health monitoring: Background mode (5min interval)")
+                    AppLogger.d(TAG, "Server health monitoring: Background mode (5min interval)")
                 }
             })
-            Log.d(TAG, "Server health monitoring initialized")
+            AppLogger.d(TAG, "Server health monitoring initialized")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize server health monitoring", e)
+            AppLogger.e(TAG, "Failed to initialize server health monitoring", e)
         }
     }
 
@@ -155,14 +155,14 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
         appScope.launch {
             var wasReachable = false
             serverHealthMonitor.isServerReachable.collect { isReachable ->
-                Log.d(TAG, "Server reachability changed: wasReachable=$wasReachable, isReachable=$isReachable")
+                AppLogger.d(TAG, "Server reachability changed: wasReachable=$wasReachable, isReachable=$isReachable")
 
                 // Trigger upload queue when server transitions from offline to online.
                 // Off the main thread: this collector runs on appScope (Dispatchers.Main)
                 // and triggerUploadWorker() builds constraints via a runBlocking DataStore
                 // read in UploadConstraintsProvider.
                 if (!wasReachable && isReachable) {
-                    Log.d(TAG, "Server became reachable - triggering upload queue worker")
+                    AppLogger.d(TAG, "Server became reachable - triggering upload queue worker")
                     withContext(Dispatchers.IO) { triggerUploadWorker() }
                 }
 
@@ -191,9 +191,9 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
                 uploadRequest
             )
 
-            Log.d(TAG, "UploadWorker enqueued after server reconnect")
+            AppLogger.d(TAG, "UploadWorker enqueued after server reconnect")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to trigger UploadWorker", e)
+            AppLogger.e(TAG, "Failed to trigger UploadWorker", e)
         }
     }
 
@@ -257,10 +257,10 @@ class PaperlessApp : Application(), Configuration.Provider, SingletonImageLoader
 
                 if (deletedCount > 0) {
                     val freedMB = freedBytes / (1024.0 * 1024.0)
-                    Log.d(TAG, "Cache cleanup: $deletedCount files deleted (${String.format("%.2f", freedMB)} MB)")
+                    AppLogger.d(TAG, "Cache cleanup: $deletedCount files deleted (${String.format("%.2f", freedMB)} MB)")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Cache cleanup failed", e)
+                AppLogger.e(TAG, "Cache cleanup failed", e)
             }
         }
     }

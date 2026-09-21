@@ -7,7 +7,9 @@ import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import app.cash.turbine.test
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
+import com.paperless.scanner.util.AppLogger
 import com.paperless.scanner.util.DiagnosticReportSender
+import com.paperless.scanner.util.DiagnosticsLog
 import io.mockk.every
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -51,6 +53,9 @@ class DiagnosticsReportServiceTest {
 
     @Before
     fun setup() {
+        // Process-wide state: without this, a line appended by one test shows up in the
+        // report another test builds, and the failure lands on whichever ran second.
+        DiagnosticsLog.clear()
         context = RuntimeEnvironment.getApplication()
         analyticsService = mockk(relaxed = true)
         // NOTHING is stored. That is the production state during setup — the server URL is
@@ -276,6 +281,13 @@ class DiagnosticsReportServiceTest {
         val text = service.createFullReport()
 
         assertTrue("log section missing", text.contains("### Recent log"))
+        // The ring buffer is no longer discarded whenever logcat produces anything:
+        // under Robolectric logcat yields nothing, so the buffer section is what must
+        // carry the lines this app recorded itself.
+        AppLogger.e("RetroTest", "a line the app recorded through its own logger")
+        val mitPuffer = service.createFullReport()
+        assertTrue("app buffer section missing", mitPuffer.contains("#### app log buffer"))
+        assertTrue("the recorded line is gone", mitPuffer.contains("a line the app recorded"))
         assertTrue("app version missing", text.contains(BuildConfig.VERSION_NAME))
     }
 

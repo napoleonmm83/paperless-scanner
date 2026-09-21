@@ -1,7 +1,6 @@
 package com.paperless.scanner.util
 
 import android.content.Context
-import android.util.Log
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -12,6 +11,7 @@ import com.paperless.scanner.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 @Singleton
 class BiometricHelper @Inject constructor(
@@ -44,7 +44,7 @@ class BiometricHelper @Inject constructor(
         val resolvedTitle = title ?: context.getString(R.string.biometric_title)
         val resolvedSubtitle = subtitle ?: context.getString(R.string.biometric_subtitle)
         val resolvedNegativeButtonText = negativeButtonText ?: context.getString(R.string.biometric_negative_button)
-        Log.d("BiometricHelper", "authenticate() called with activity: ${activity::class.java.simpleName}")
+        AppLogger.d("BiometricHelper", "authenticate() called with activity: ${activity::class.java.simpleName}")
         val executor = ContextCompat.getMainExecutor(context)
 
         val callback = object : BiometricPrompt.AuthenticationCallback() {

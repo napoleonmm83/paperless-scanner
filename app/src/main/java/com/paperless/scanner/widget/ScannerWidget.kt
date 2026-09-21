@@ -7,7 +7,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import com.paperless.scanner.util.DeepLinkHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
@@ -50,6 +49,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.paperless.scanner.MainActivity
 import com.paperless.scanner.R
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Glance-based implementation of the home-screen Scanner widget.
@@ -103,20 +103,20 @@ class ScannerWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val appWidgetId = (id as? AppWidgetId)?.appWidgetId
-        Log.d("ScannerWidget", "provideGlance: glanceId=$id (${id::class.simpleName}), appWidgetId=$appWidgetId")
+        AppLogger.d("ScannerWidget", "provideGlance: glanceId=$id (${id::class.simpleName}), appWidgetId=$appWidgetId")
 
         // Sync widget type from SharedPreferences → Glance state
         // This ensures Glance state reflects the persisted config on every provideGlance call.
         if (appWidgetId != null) {
             val prefs = WidgetPreferences(context.applicationContext)
             val config = prefs.getWidgetConfig(appWidgetId)
-            Log.d("ScannerWidget", "Syncing config to Glance state: id=$appWidgetId, type=${config.type}")
+            AppLogger.d("ScannerWidget", "Syncing config to Glance state: id=$appWidgetId, type=${config.type}")
             updateAppWidgetState(context, id) { glancePrefs ->
                 glancePrefs[WIDGET_TYPE_KEY] = config.type.name
             }
         } else {
             // Surface unexpected GlanceId types instead of silently rendering the default (#118)
-            Log.w("ScannerWidget", "AppWidgetId cast failed for glanceId=$id (${id::class.simpleName}); config sync skipped, defaulting to QUICK_SCAN")
+            AppLogger.w("ScannerWidget", "AppWidgetId cast failed for glanceId=$id (${id::class.simpleName}); config sync skipped, defaulting to QUICK_SCAN")
         }
 
         provideContent {
@@ -132,7 +132,7 @@ class ScannerWidget : GlanceAppWidget() {
             val isTall = size.height >= SQUARE.height
             val isWide = size.width >= LARGE.width && isTall
 
-            Log.d("ScannerWidget", "Rendering: type=$widgetType, size=${size.width}x${size.height}, isTall=$isTall, isWide=$isWide")
+            AppLogger.d("ScannerWidget", "Rendering: type=$widgetType, size=${size.width}x${size.height}, isTall=$isTall, isWide=$isWide")
 
             when (widgetType) {
                 WidgetType.QUICK_SCAN -> when {

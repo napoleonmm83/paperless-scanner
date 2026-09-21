@@ -2,7 +2,7 @@ package com.paperless.scanner.util
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Defines the possible deep link actions that can be triggered from widgets or external sources.
@@ -66,7 +66,7 @@ object DeepLinkHandler {
         val host = uri.host ?: return null
         val path = uri.path?.trimStart('/') ?: ""
 
-        Log.d(TAG, "Parsing deep link: scheme=$SCHEME, host=$host, path=$path")
+        AppLogger.d(TAG, "Parsing deep link: scheme=$SCHEME, host=$host, path=$path")
 
         return when (host) {
             "scan" -> when (path) {
@@ -75,13 +75,13 @@ object DeepLinkHandler {
                 "file" -> DeepLinkAction.SCAN_FILE
                 "" -> DeepLinkAction.SCAN
                 else -> {
-                    Log.w(TAG, "Unknown scan path: $path")
+                    AppLogger.w(TAG, "Unknown scan path: $path")
                     null
                 }
             }
             "status" -> DeepLinkAction.STATUS
             else -> {
-                Log.w(TAG, "Unknown deep link host: $host")
+                AppLogger.w(TAG, "Unknown deep link host: $host")
                 null
             }
         }

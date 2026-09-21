@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.hilt.work.HiltWorker
@@ -19,6 +18,7 @@ import androidx.work.WorkerParameters
 import com.paperless.scanner.data.repository.UploadQueueRepositoryContract
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Worker that updates all widget instances with current pending upload count
@@ -58,7 +58,7 @@ class WidgetUpdateWorker @AssistedInject constructor(
             val pendingCount = uploadQueueRepository.getPendingUploadCount()
             val isOnline = checkNetworkConnectivity()
 
-            Log.d(TAG, "Updating widgets: pending=$pendingCount, online=$isOnline")
+            AppLogger.d(TAG, "Updating widgets: pending=$pendingCount, online=$isOnline")
 
             updateGlanceWidgets(pendingCount, isOnline)
             updateLegacyWidgets(pendingCount, isOnline)
@@ -68,7 +68,7 @@ class WidgetUpdateWorker @AssistedInject constructor(
 
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Widget update failed", e)
+            AppLogger.e(TAG, "Widget update failed", e)
             Result.retry()
         }
     }
@@ -105,7 +105,7 @@ class WidgetUpdateWorker @AssistedInject constructor(
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to update Glance widget state", e)
+            AppLogger.w(TAG, "Failed to update Glance widget state", e)
         }
     }
 

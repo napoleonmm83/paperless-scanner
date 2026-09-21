@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -64,6 +63,7 @@ import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import com.paperless.scanner.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 @AndroidEntryPoint
 class WidgetConfigActivity : ComponentActivity() {
@@ -110,7 +110,7 @@ class WidgetConfigActivity : ComponentActivity() {
 
     @SuppressLint("RestrictedApi")
     private fun saveConfigAndFinish(config: WidgetConfig) {
-        Log.d(TAG, "Saving widget config: id=$appWidgetId, type=${config.type}")
+        AppLogger.d(TAG, "Saving widget config: id=$appWidgetId, type=${config.type}")
 
         if (!WidgetDeviceChecker.shouldUseLegacyWidget()) {
             val glanceId = AppWidgetId(appWidgetId)
@@ -122,19 +122,19 @@ class WidgetConfigActivity : ComponentActivity() {
                     // the two writes.
                     val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
                     if (!committed) {
-                        Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                        AppLogger.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
                         return@launch  // resultCode stays RESULT_CANCELED; finally closes activity
                     }
                     updateAppWidgetState(this@WidgetConfigActivity, glanceId) { prefs ->
                         prefs[ScannerWidget.WIDGET_TYPE_KEY] = config.type.name
                     }
                     ScannerWidget().update(this@WidgetConfigActivity, glanceId)
-                    Log.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
+                    AppLogger.d(TAG, "Widget config saved and Glance state updated: id=$appWidgetId, type=${config.type}")
                     resultCode = RESULT_OK
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Glance update failed, sending broadcast fallback", e)
+                    AppLogger.e(TAG, "Glance update failed, sending broadcast fallback", e)
                     // SharedPrefs committed — broadcast so widget still updates eventually
                     sendWidgetUpdateBroadcast()
                     resultCode = RESULT_OK
@@ -150,7 +150,7 @@ class WidgetConfigActivity : ComponentActivity() {
             // Legacy: commit SharedPrefs synchronously, then broadcast triggers LegacyScannerWidget.onUpdate
             val committed = widgetPreferences.setWidgetConfig(appWidgetId, config)
             if (!committed) {
-                Log.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
+                AppLogger.e(TAG, "SharedPreferences commit failed for id=$appWidgetId")
                 setResult(RESULT_CANCELED)
                 finish()
                 return

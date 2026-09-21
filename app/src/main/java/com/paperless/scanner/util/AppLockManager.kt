@@ -2,7 +2,6 @@ package com.paperless.scanner.util
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import androidx.annotation.StringRes
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -26,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import org.mindrot.jbcrypt.BCrypt
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * App-Lock Manager
@@ -159,13 +159,13 @@ class AppLockManager @Inject constructor(
     }
 
     init {
-        Log.d(TAG, "AppLockManager init - Starting initialization")
+        AppLogger.d(TAG, "AppLockManager init - Starting initialization")
 
         // SECURITY: Load persisted lockout state SYNCHRONOUSLY
         // This MUST happen before any other code runs to prevent race conditions
         failedAttempts = tokenManager.getAppLockFailedAttemptsSync()
         lockoutUntil = tokenManager.getAppLockLockoutUntilSync()
-        Log.d(TAG, "Init: Loaded persisted lockout state - failedAttempts=$failedAttempts, lockoutUntil=$lockoutUntil")
+        AppLogger.d(TAG, "Init: Loaded persisted lockout state - failedAttempts=$failedAttempts, lockoutUntil=$lockoutUntil")
 
         // SECURITY (#38): Init-time invariant. A logout (permanent lockout, or a normal
         // sign-out) clears credentials, app-lock settings, and lockout state across
@@ -177,7 +177,7 @@ class AppLockManager @Inject constructor(
         // Idempotent and safe: when credentials DO exist this is a no-op (the typical
         // path skips the persisted write).
         if (!tokenManager.hasStoredCredentials() && (failedAttempts != 0 || lockoutUntil != 0L)) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "[AUDIT] Init: stale lockout residue with no credentials " +
                     "(attempts=$failedAttempts, lockoutUntil=$lockoutUntil) - repairing to clean logged-out state"
@@ -196,34 +196,34 @@ class AppLockManager @Inject constructor(
         // instead of the persisted LockedOut state (especially on crash restart)
         if (shouldLockSync()) {
             if (isInTemporaryLockout()) {
-                Log.d(TAG, "Init: Setting LockedOut state SYNCHRONOUSLY (lockoutUntil=$lockoutUntil)")
+                AppLogger.d(TAG, "Init: Setting LockedOut state SYNCHRONOUSLY (lockoutUntil=$lockoutUntil)")
                 _lockState.value = AppLockState.LockedOut(
                     isPermanent = false,
                     lockoutUntil = lockoutUntil,
                     refreshTimestamp = System.currentTimeMillis()
                 )
             } else {
-                Log.d(TAG, "Init: Setting Locked state SYNCHRONOUSLY")
+                AppLogger.d(TAG, "Init: Setting Locked state SYNCHRONOUSLY")
                 _lockState.value = AppLockState.Locked()
             }
         } else {
-            Log.d(TAG, "Init: App-lock disabled or not logged in, staying Unlocked")
+            AppLogger.d(TAG, "Init: App-lock disabled or not logged in, staying Unlocked")
         }
 
         // NOW register lifecycle observer - onStart() will see correct initial state
-        Log.d(TAG, "Init: Registering lifecycle observer (current state: ${_lockState.value})")
+        AppLogger.d(TAG, "Init: Registering lifecycle observer (current state: ${_lockState.value})")
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
         // Observe changes to app-lock settings
         scope.launch {
             tokenManager.isAppLockEnabled().collect { isEnabled ->
-                Log.d(TAG, "AppLockEnabled changed: $isEnabled, current lockState=${_lockState.value}")
+                AppLogger.d(TAG, "AppLockEnabled changed: $isEnabled, current lockState=${_lockState.value}")
                 if (!isEnabled) {
                     // SECURITY: Reset in-memory lockout state when app-lock is disabled
                     // This handles logout scenarios where DataStore is cleared but
                     // AppLockManager singleton retains old values
                     if (failedAttempts > 0 || lockoutUntil > 0L) {
-                        Log.d(TAG, "Resetting in-memory lockout state (was: attempts=$failedAttempts, lockoutUntil=$lockoutUntil)")
+                        AppLogger.d(TAG, "Resetting in-memory lockout state (was: attempts=$failedAttempts, lockoutUntil=$lockoutUntil)")
                         failedAttempts = 0
                         lockoutUntil = 0L
                     }
@@ -231,10 +231,10 @@ class AppLockManager @Inject constructor(
                     // If app-lock is disabled, unlock immediately
                     // ONLY change state if not already unlocked to avoid unnecessary state updates
                     if (_lockState.value !is AppLockState.Unlocked) {
-                        Log.d(TAG, "App-lock disabled, changing state from ${_lockState.value} to Unlocked")
+                        AppLogger.d(TAG, "App-lock disabled, changing state from ${_lockState.value} to Unlocked")
                         _lockState.update { AppLockState.Unlocked }
                     } else {
-                        Log.d(TAG, "App-lock disabled but already Unlocked, no state change needed")
+                        AppLogger.d(TAG, "App-lock disabled but already Unlocked, no state change needed")
                     }
                 }
                 // If enabled, let onStart() handle the locking
@@ -248,7 +248,7 @@ class AppLockManager @Inject constructor(
      * NOTE: Does NOT change lock state - called from Settings, not from Lock Screen
      */
     suspend fun setupAppLock(password: String) {
-        Log.d(TAG, "setupAppLock: Starting setup, current lockState=${_lockState.value}")
+        AppLogger.d(TAG, "setupAppLock: Starting setup, current lockState=${_lockState.value}")
         val passwordHash = BCrypt.hashpw(password, BCrypt.gensalt(BCRYPT_ROUNDS))
         tokenManager.setAppLockPassword(passwordHash)
         tokenManager.setAppLockEnabled(true)
@@ -260,7 +260,7 @@ class AppLockManager @Inject constructor(
         backgroundTimestamp = System.currentTimeMillis()
         // DON'T change lock state here - we're in Settings, not on Lock Screen
         // Changing state would trigger AppLockNavigationInterceptor race condition
-        Log.d(TAG, "setupAppLock: Setup complete, lockState remains ${_lockState.value}")
+        AppLogger.d(TAG, "setupAppLock: Setup complete, lockState remains ${_lockState.value}")
     }
 
     /**
@@ -270,7 +270,7 @@ class AppLockManager @Inject constructor(
     suspend fun unlockWithPassword(password: String): Boolean {
         // Check if currently in temporary lockout
         if (isInTemporaryLockout()) {
-            Log.d(TAG, "unlockWithPassword: Currently in temporary lockout until $lockoutUntil")
+            AppLogger.d(TAG, "unlockWithPassword: Currently in temporary lockout until $lockoutUntil")
             return false
         }
 
@@ -281,7 +281,7 @@ class AppLockManager @Inject constructor(
         // (or a restored backup) silently burns the lockout budget and permanently
         // locks the user out instead of surfacing the corruption.
         if (!isValidBCryptHash(storedHash)) {
-            Log.w(TAG, "[AUDIT] AppLock password hash is malformed (not BCrypt) — rejecting unlock without consuming an attempt")
+            AppLogger.w(TAG, "[AUDIT] AppLock password hash is malformed (not BCrypt) — rejecting unlock without consuming an attempt")
             return false
         }
 
@@ -308,7 +308,7 @@ class AppLockManager @Inject constructor(
             // corruption signal, NOT a failed attempt: audit it and reject WITHOUT
             // consuming the lockout budget (the prefix/length check above is a fast
             // path; this catch is the exhaustive guard the parser provides).
-            Log.w(TAG, "[AUDIT] AppLock password hash could not be parsed by BCrypt — rejecting unlock without consuming an attempt")
+            AppLogger.w(TAG, "[AUDIT] AppLock password hash could not be parsed by BCrypt — rejecting unlock without consuming an attempt")
             false
         }
     }
@@ -337,7 +337,7 @@ class AppLockManager @Inject constructor(
             val now = SystemClock.elapsedRealtime()
             if (lastBiometricAttemptTime != 0L &&
                 now - lastBiometricAttemptTime < BIOMETRIC_THROTTLE_MS) {
-                Log.w(TAG, "unlockWithBiometric: throttled (${now - lastBiometricAttemptTime} ms since last attempt)")
+                AppLogger.w(TAG, "unlockWithBiometric: throttled (${now - lastBiometricAttemptTime} ms since last attempt)")
                 return@launch
             }
             lastBiometricAttemptTime = now.coerceAtLeast(1L) // never re-arm to 0
@@ -348,11 +348,11 @@ class AppLockManager @Inject constructor(
             // a biometric-spoof flaw could circumvent the 30-minute lockout.
             val currentState = _lockState.value
             if (currentState is AppLockState.LockedOut) {
-                Log.w(TAG, "unlockWithBiometric: rejected, app is in lockout (permanent=${currentState.isPermanent})")
+                AppLogger.w(TAG, "unlockWithBiometric: rejected, app is in lockout (permanent=${currentState.isPermanent})")
                 return@launch
             }
             if (isInTemporaryLockout()) {
-                Log.w(TAG, "unlockWithBiometric: rejected, in-memory lockout still active")
+                AppLogger.w(TAG, "unlockWithBiometric: rejected, in-memory lockout still active")
                 return@launch
             }
 
@@ -365,7 +365,7 @@ class AppLockManager @Inject constructor(
                 // Reset timestamp to current time so next lock check works correctly.
                 backgroundTimestamp = System.currentTimeMillis()
                 _lockState.update { AppLockState.Unlocked }
-                Log.d(TAG, "unlockWithBiometric: Success, counters reset")
+                AppLogger.d(TAG, "unlockWithBiometric: Success, counters reset")
             }
         }
     }
@@ -382,7 +382,7 @@ class AppLockManager @Inject constructor(
      * NOTE: Does NOT change lock state - the isAppLockEnabled() observer will handle that
      */
     suspend fun disableAppLock() {
-        Log.d(TAG, "disableAppLock: Disabling app-lock, current state=${_lockState.value}")
+        AppLogger.d(TAG, "disableAppLock: Disabling app-lock, current state=${_lockState.value}")
         tokenManager.setAppLockEnabled(false)
         tokenManager.setAppLockPassword(null)
         tokenManager.setAppLockBiometricEnabled(false)
@@ -390,7 +390,7 @@ class AppLockManager @Inject constructor(
         lockoutUntil = 0L
         // DON'T change lock state here - the isAppLockEnabled() observer in init will handle it
         // This avoids double state updates that could trigger unwanted navigation
-        Log.d(TAG, "disableAppLock: Complete, state remains ${_lockState.value} (will be changed by observer)")
+        AppLogger.d(TAG, "disableAppLock: Complete, state remains ${_lockState.value} (will be changed by observer)")
     }
 
     /**
@@ -448,7 +448,7 @@ class AppLockManager @Inject constructor(
      */
     private fun suspend(reason: String) {
         if (isSuspended) {
-            Log.w(TAG, "Timeout already suspended by '$suspendedBy', ignoring duplicate suspend() call")
+            AppLogger.w(TAG, "Timeout already suspended by '$suspendedBy', ignoring duplicate suspend() call")
             return
         }
 
@@ -456,7 +456,7 @@ class AppLockManager @Inject constructor(
         suspendStartTime = SystemClock.elapsedRealtime() // Monotonic clock, immune to time changes
         suspendedBy = reason
 
-        Log.d(TAG, "⏸️ Timeout suspended for $reason (max ${MAX_SUSPEND_DURATION_MILLIS / 60000} minutes)")
+        AppLogger.d(TAG, "⏸️ Timeout suspended for $reason (max ${MAX_SUSPEND_DURATION_MILLIS / 60000} minutes)")
 
         // SECURITY: Auto-resume after MAX_SUSPEND_DURATION as safety fallback
         // Prevents permanently suspended state if resume() is never called (crash, force-kill, etc.)
@@ -464,7 +464,7 @@ class AppLockManager @Inject constructor(
         autoResumeJob = scope.launch {
             delay(MAX_SUSPEND_DURATION_MILLIS)
             if (isSuspended) {
-                Log.w(TAG, "⚠️ Max suspend duration reached (${MAX_SUSPEND_DURATION_MILLIS / 60000} min), force auto-resuming for security")
+                AppLogger.w(TAG, "⚠️ Max suspend duration reached (${MAX_SUSPEND_DURATION_MILLIS / 60000} min), force auto-resuming for security")
                 resume()
             }
         }
@@ -496,12 +496,12 @@ class AppLockManager @Inject constructor(
      */
     private fun resume() {
         if (!isSuspended) {
-            Log.w(TAG, "Timeout not suspended, ignoring resume() call")
+            AppLogger.w(TAG, "Timeout not suspended, ignoring resume() call")
             return
         }
 
         val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
-        Log.d(TAG, "▶️ Resumed from '$suspendedBy' after ${suspendDuration}ms suspend (${suspendDuration / 1000}s)")
+        AppLogger.d(TAG, "▶️ Resumed from '$suspendedBy' after ${suspendDuration}ms suspend (${suspendDuration / 1000}s)")
 
         // Cancel auto-resume job
         autoResumeJob?.cancel()
@@ -531,12 +531,12 @@ class AppLockManager @Inject constructor(
 
         // SECURITY: Force auto-resume if suspended too long
         if (suspendDuration > MAX_SUSPEND_DURATION_MILLIS) {
-            Log.w(TAG, "⚠️ Suspend duration exceeded max (${suspendDuration / 60000} min), force resuming")
+            AppLogger.w(TAG, "⚠️ Suspend duration exceeded max (${suspendDuration / 60000} min), force resuming")
             resume()
             return false
         }
 
-        Log.d(TAG, "⏸️ Timeout check skipped (suspended for ${suspendDuration / 1000}s by '$suspendedBy')")
+        AppLogger.d(TAG, "⏸️ Timeout check skipped (suspended for ${suspendDuration / 1000}s by '$suspendedBy')")
         return true
     }
 
@@ -603,10 +603,10 @@ class AppLockManager @Inject constructor(
             if (currentState is AppLockState.LockedOut && !currentState.isPermanent) {
                 if (!isInTemporaryLockout()) {
                     // Lockout expired, transition back to Locked state
-                    Log.d(TAG, "refreshLockoutState: Lockout expired, transitioning to Locked")
+                    AppLogger.d(TAG, "refreshLockoutState: Lockout expired, transitioning to Locked")
                     _lockState.update { AppLockState.Locked() }
                 } else {
-                    Log.d(TAG, "refreshLockoutState: Still in lockout, ${getRemainingLockoutSeconds()}s remaining")
+                    AppLogger.d(TAG, "refreshLockoutState: Still in lockout, ${getRemainingLockoutSeconds()}s remaining")
                 }
             }
         }
@@ -636,12 +636,12 @@ class AppLockManager @Inject constructor(
 
     private suspend fun handleFailedAttempt() {
         failedAttempts++
-        Log.d(TAG, "handleFailedAttempt: Total failed attempts: $failedAttempts")
+        AppLogger.d(TAG, "handleFailedAttempt: Total failed attempts: $failedAttempts")
 
         when {
             // After 15 total failed attempts: Permanent lockout (logout)
             failedAttempts >= MAX_TOTAL_ATTEMPTS -> {
-                Log.w(TAG, "[AUDIT] MAX_TOTAL_ATTEMPTS reached ($MAX_TOTAL_ATTEMPTS) - Permanent lockout")
+                AppLogger.w(TAG, "[AUDIT] MAX_TOTAL_ATTEMPTS reached ($MAX_TOTAL_ATTEMPTS) - Permanent lockout")
                 tokenManager.clearAppLockLockoutState() // Clear lockout before logout
                 tokenManager.clearCredentials()
                 disableAppLock()
@@ -650,14 +650,14 @@ class AppLockManager @Inject constructor(
             // Every 5 failed attempts: Temporary lockout (30 minutes)
             failedAttempts % MAX_FAILED_ATTEMPTS == 0 -> {
                 lockoutUntil = clock() + LOCKOUT_DURATION_MILLIS
-                Log.w(TAG, "[AUDIT] MAX_FAILED_ATTEMPTS reached (${failedAttempts / MAX_FAILED_ATTEMPTS}x) - Temporary lockout until $lockoutUntil")
+                AppLogger.w(TAG, "[AUDIT] MAX_FAILED_ATTEMPTS reached (${failedAttempts / MAX_FAILED_ATTEMPTS}x) - Temporary lockout until $lockoutUntil")
                 // SECURITY: Persist lockout state so it survives app restart
                 tokenManager.setAppLockLockoutState(failedAttempts, lockoutUntil)
                 _lockState.update { AppLockState.LockedOut(isPermanent = false, lockoutUntil = lockoutUntil) }
             }
             // Continue allowing attempts
             else -> {
-                Log.d(TAG, "Failed attempt $failedAttempts, ${getRemainingAttempts()} remaining")
+                AppLogger.d(TAG, "Failed attempt $failedAttempts, ${getRemainingAttempts()} remaining")
                 // Persist failed attempts count even before lockout threshold
                 tokenManager.setAppLockLockoutState(failedAttempts, lockoutUntil)
             }
@@ -674,7 +674,7 @@ class AppLockManager @Inject constructor(
         // If suspended (scanner running), we don't want to start timeout countdown
         if (!isSuspended) {
             backgroundTimestamp = System.currentTimeMillis()
-            Log.d(TAG, "onStop: App moved to background, timestamp=$backgroundTimestamp")
+            AppLogger.d(TAG, "onStop: App moved to background, timestamp=$backgroundTimestamp")
 
             // IMPORTANT: Set to Unlocked so onStart() will trigger a state change
             // This ensures LaunchedEffect(lockState) in Compose always fires
@@ -683,21 +683,21 @@ class AppLockManager @Inject constructor(
                 if (shouldLock()) {
                     val currentState = _lockState.value
                     if (currentState is AppLockState.LockedOut) {
-                        Log.d(TAG, "onStop: Currently in LockedOut state, NOT changing to Unlocked (lockout must persist)")
+                        AppLogger.d(TAG, "onStop: Currently in LockedOut state, NOT changing to Unlocked (lockout must persist)")
                     } else {
-                        Log.d(TAG, "onStop: Setting to Unlocked (will be locked by onStart if timeout elapsed)")
+                        AppLogger.d(TAG, "onStop: Setting to Unlocked (will be locked by onStart if timeout elapsed)")
                         _lockState.update { AppLockState.Unlocked }
                     }
                 }
             }
         } else {
-            Log.d(TAG, "onStop: App moved to background but timeout is SUSPENDED (scanner active), NOT setting timestamp")
+            AppLogger.d(TAG, "onStop: App moved to background but timeout is SUSPENDED (scanner active), NOT setting timestamp")
         }
     }
 
     override fun onStart(owner: LifecycleOwner) {
         super.onStart(owner)
-        Log.d(TAG, "onStart: App moved to foreground")
+        AppLogger.d(TAG, "onStart: App moved to foreground")
 
         // SECURITY: CRITICAL Cold Start Protection
         // If app starts while suspended (after process death, crash, force-kill),
@@ -707,15 +707,15 @@ class AppLockManager @Inject constructor(
         if (isSuspended) {
             val suspendDuration = SystemClock.elapsedRealtime() - suspendStartTime
             if (suspendDuration > 1000L) { // More than 1 second
-                Log.w(TAG, "⚠️ SECURITY: App started while suspended for ${suspendDuration}ms - force resuming (likely process death/crash)")
+                AppLogger.w(TAG, "⚠️ SECURITY: App started while suspended for ${suspendDuration}ms - force resuming (likely process death/crash)")
                 resume()
                 // CRITICAL: Return immediately after force-resume!
                 // DO NOT continue to timeout check, as resume() just reset backgroundTimestamp
                 // If we continue, we'll immediately lock because elapsed time is ~0ms
-                Log.d(TAG, "onStart: Force-resumed, skipping timeout check this time")
+                AppLogger.d(TAG, "onStart: Force-resumed, skipping timeout check this time")
                 return
             } else {
-                Log.d(TAG, "onStart: App suspended for only ${suspendDuration}ms - external activity just started, keeping suspended state")
+                AppLogger.d(TAG, "onStart: App suspended for only ${suspendDuration}ms - external activity just started, keeping suspended state")
             }
         }
 
@@ -723,7 +723,7 @@ class AppLockManager @Inject constructor(
         scope.launch {
             val shouldLock = shouldLock()
             val currentState = _lockState.value
-            Log.d(TAG, "onStart: shouldLock=$shouldLock, currentState=$currentState, backgroundTimestamp=$backgroundTimestamp, isSuspended=$isSuspended")
+            AppLogger.d(TAG, "onStart: shouldLock=$shouldLock, currentState=$currentState, backgroundTimestamp=$backgroundTimestamp, isSuspended=$isSuspended")
 
             if (shouldLock) {
                 // SECURITY: NEVER override LockedOut state!
@@ -733,12 +733,12 @@ class AppLockManager @Inject constructor(
                     if (!currentState.isPermanent && currentState.lockoutUntil > 0) {
                         val now = clock()
                         if (now >= currentState.lockoutUntil) {
-                            Log.d(TAG, "onStart: LockedOut state expired, transitioning to Locked")
+                            AppLogger.d(TAG, "onStart: LockedOut state expired, transitioning to Locked")
                             lockoutUntil = 0L
                             _lockState.update { AppLockState.Locked() }
                         } else {
                             val remainingSecs = (currentState.lockoutUntil - now) / 1000
-                            Log.d(TAG, "onStart: LockedOut state still active, re-emitting to trigger navigation (expires in ${remainingSecs}s)")
+                            AppLogger.d(TAG, "onStart: LockedOut state still active, re-emitting to trigger navigation (expires in ${remainingSecs}s)")
                             // Re-emit with new refreshTimestamp to trigger LaunchedEffect in interceptor
                             _lockState.update {
                                 AppLockState.LockedOut(
@@ -749,7 +749,7 @@ class AppLockManager @Inject constructor(
                             }
                         }
                     } else {
-                        Log.d(TAG, "onStart: Permanent LockedOut state, re-emitting to trigger navigation")
+                        AppLogger.d(TAG, "onStart: Permanent LockedOut state, re-emitting to trigger navigation")
                         // Re-emit with new refreshTimestamp
                         _lockState.update {
                             AppLockState.LockedOut(
@@ -764,30 +764,30 @@ class AppLockManager @Inject constructor(
 
                 // SECURITY: Skip timeout check if suspended (scanner active)
                 if (shouldSkipTimeoutCheck()) {
-                    Log.d(TAG, "onStart: Timeout check SKIPPED (scanner active)")
+                    AppLogger.d(TAG, "onStart: Timeout check SKIPPED (scanner active)")
                     return@launch
                 }
 
                 // If backgroundTimestamp is 0, this is the first start (or after cold boot)
                 // In this case, lock immediately regardless of timeout
                 if (backgroundTimestamp == 0L) {
-                    Log.d(TAG, "onStart: First start or cold boot, locking immediately")
+                    AppLogger.d(TAG, "onStart: First start or cold boot, locking immediately")
                     _lockState.update { AppLockState.Locked() }
                 } else {
                     // Check if timeout has elapsed
                     val timeoutMillis = getTimeoutMillis()
                     val elapsed = System.currentTimeMillis() - backgroundTimestamp
-                    Log.d(TAG, "onStart: elapsed=$elapsed ms, timeout=$timeoutMillis ms")
+                    AppLogger.d(TAG, "onStart: elapsed=$elapsed ms, timeout=$timeoutMillis ms")
 
                     if (elapsed >= timeoutMillis) {
-                        Log.d(TAG, "onStart: Timeout elapsed, locking")
+                        AppLogger.d(TAG, "onStart: Timeout elapsed, locking")
                         _lockState.update { AppLockState.Locked() }
                     } else {
-                        Log.d(TAG, "onStart: Timeout not elapsed, staying unlocked")
+                        AppLogger.d(TAG, "onStart: Timeout not elapsed, staying unlocked")
                     }
                 }
             } else {
-                Log.d(TAG, "onStart: shouldLock=false, keeping current state")
+                AppLogger.d(TAG, "onStart: shouldLock=false, keeping current state")
             }
         }
     }

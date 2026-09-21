@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.upload.usecase
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
@@ -21,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Outcome of an upload queueing operation, emitted as a stream so the intermediate
@@ -86,7 +86,7 @@ class PerformUploadUseCase @Inject constructor(
                 uri
             } else {
                 FileUtils.copyToLocalStorage(context, uri) ?: run {
-                    Log.e(TAG, "Failed to copy file for queue: $uri")
+                    AppLogger.e(TAG, "Failed to copy file for queue: $uri")
                     emit(UploadResult.Failed(
                         userMessage = context.getString(R.string.error_saving_file),
                         technicalDetails = context.getString(R.string.error_queue_add),
@@ -98,7 +98,7 @@ class PerformUploadUseCase @Inject constructor(
 
             // Verify file exists before queueing
             if (!FileUtils.fileExists(localUri)) {
-                Log.e(TAG, "File validation failed after copy: $localUri")
+                AppLogger.e(TAG, "File validation failed after copy: $localUri")
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_file_not_saved),
                     technicalDetails = context.getString(R.string.error_file_not_accessible, localUri.lastPathSegment ?: ""),
@@ -125,7 +125,7 @@ class PerformUploadUseCase @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error queueing upload", e)
+            AppLogger.e(TAG, "Error queueing upload", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
             emit(UploadResult.Failed(
                 userMessage = context.getString(R.string.error_adding_to_queue),
@@ -166,7 +166,7 @@ class PerformUploadUseCase @Inject constructor(
             val localUris = uris.mapIndexedNotNull { index, uri ->
                 // Log progress every 10 files for large batches
                 if (pageCount > 50 && (index + 1) % 10 == 0) {
-                    Log.d(TAG, "Copying progress: ${index + 1}/$pageCount files")
+                    AppLogger.d(TAG, "Copying progress: ${index + 1}/$pageCount files")
                 }
 
                 if (FileUtils.isLocalFileUri(uri)) {
@@ -174,7 +174,7 @@ class PerformUploadUseCase @Inject constructor(
                 } else {
                     val copiedUri = FileUtils.copyToLocalStorage(context, uri)
                     if (copiedUri == null) {
-                        Log.e(TAG, "Page ${index + 1}/$pageCount: Failed to copy: $uri")
+                        AppLogger.e(TAG, "Page ${index + 1}/$pageCount: Failed to copy: $uri")
                     } else {
                         copiedUris.add(copiedUri)
                     }
@@ -183,7 +183,7 @@ class PerformUploadUseCase @Inject constructor(
             }
 
             if (localUris.isEmpty()) {
-                Log.e(TAG, "Failed to copy any files for queue (0/${uris.size} succeeded)")
+                AppLogger.e(TAG, "Failed to copy any files for queue (0/${uris.size} succeeded)")
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_saving_file),
                     technicalDetails = context.getString(R.string.error_queue_add),
@@ -199,7 +199,7 @@ class PerformUploadUseCase @Inject constructor(
             // batch instead so the user can retry, rather than losing pages silently.
             if (localUris.size < uris.size) {
                 val failedCount = uris.size - localUris.size
-                Log.e(TAG, "Partial copy failure: $failedCount/${uris.size} files could not be copied; aborting (nothing queued)")
+                AppLogger.e(TAG, "Partial copy failure: $failedCount/${uris.size} files could not be copied; aborting (nothing queued)")
                 // Nothing gets queued, so the upload worker (which normally calls
                 // deleteLocalCopy) never runs — clean up the copies we made this run to
                 // avoid orphaned files filling app storage. Only delete OUR copies, never
@@ -219,9 +219,9 @@ class PerformUploadUseCase @Inject constructor(
             // Verify all files exist before queueing
             val missingFiles = localUris.filterNot { FileUtils.fileExists(it) }
             if (missingFiles.isNotEmpty()) {
-                Log.e(TAG, "File validation failed: ${missingFiles.size}/${localUris.size} files not accessible")
+                AppLogger.e(TAG, "File validation failed: ${missingFiles.size}/${localUris.size} files not accessible")
                 missingFiles.forEach { uri ->
-                    Log.e(TAG, "  Missing: $uri")
+                    AppLogger.e(TAG, "  Missing: $uri")
                 }
                 // As with the partial-copy abort above: nothing gets queued, so the upload
                 // worker never runs to clean up. Delete only the copies we made this run,
@@ -275,7 +275,7 @@ class PerformUploadUseCase @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error queueing multi-page upload", e)
+            AppLogger.e(TAG, "Error queueing multi-page upload", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
             emit(UploadResult.Failed(
                 userMessage = context.getString(R.string.error_adding_to_queue),
@@ -294,7 +294,7 @@ class PerformUploadUseCase @Inject constructor(
 
         // CRITICAL: Warn for large batches (50+ files can cause performance issues)
         if (pageCount > 50) {
-            Log.w(TAG, "Large batch upload detected: $pageCount pages. This may take several minutes.")
+            AppLogger.w(TAG, "Large batch upload detected: $pageCount pages. This may take several minutes.")
         }
 
         analyticsService.trackEvent(AnalyticsEvent.UploadStarted(pageCount = pageCount, isMultiPage = true))
@@ -318,7 +318,7 @@ class PerformUploadUseCase @Inject constructor(
             val localPages = pages.mapIndexedNotNull { index, page ->
                 // Log progress every 10 files for large batches
                 if (pageCount > 50 && (index + 1) % 10 == 0) {
-                    Log.d(TAG, "Copying progress: ${index + 1}/$pageCount pages")
+                    AppLogger.d(TAG, "Copying progress: ${index + 1}/$pageCount pages")
                 }
 
                 val localUri = if (FileUtils.isLocalFileUri(page.uri)) {
@@ -326,7 +326,7 @@ class PerformUploadUseCase @Inject constructor(
                 } else {
                     val copiedUri = FileUtils.copyToLocalStorage(context, page.uri)
                     if (copiedUri == null) {
-                        Log.e(TAG, "Page ${page.pageNumber}: Failed to copy: ${page.uri}")
+                        AppLogger.e(TAG, "Page ${page.pageNumber}: Failed to copy: ${page.uri}")
                     } else {
                         copiedUris.add(copiedUri)
                     }
@@ -341,7 +341,7 @@ class PerformUploadUseCase @Inject constructor(
             }
 
             if (localPages.isEmpty()) {
-                Log.e(TAG, "Failed to copy any files for queue (0/${pages.size} succeeded)")
+                AppLogger.e(TAG, "Failed to copy any files for queue (0/${pages.size} succeeded)")
                 emit(UploadResult.Failed(
                     userMessage = context.getString(R.string.error_saving_file),
                     technicalDetails = context.getString(R.string.error_queue_add),
@@ -355,7 +355,7 @@ class PerformUploadUseCase @Inject constructor(
             // never asked to skip. Abort the batch so it can be retried as a whole.
             if (localPages.size < pages.size) {
                 val failedCount = pages.size - localPages.size
-                Log.e(TAG, "Partial copy failure: $failedCount/${pages.size} pages could not be copied; aborting (nothing queued)")
+                AppLogger.e(TAG, "Partial copy failure: $failedCount/${pages.size} pages could not be copied; aborting (nothing queued)")
                 // See uploadMultiPage above: clean up only the files we copied this run
                 // since nothing is queued for the worker to clean up later. Pass-through
                 // originals are left intact for the UI to retry.
@@ -372,7 +372,7 @@ class PerformUploadUseCase @Inject constructor(
             // Verify all files exist before queueing
             val missingFiles = localPages.filterNot { FileUtils.fileExists(it.uri) }
             if (missingFiles.isNotEmpty()) {
-                Log.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
+                AppLogger.e(TAG, "File validation failed: ${missingFiles.size}/${localPages.size} files not accessible")
                 // As with the partial-copy abort above: nothing gets queued, so the upload
                 // worker never runs to clean up. Delete only the copies we made this run,
                 // never pass-through originals the UI still needs for retry.
@@ -390,7 +390,7 @@ class PerformUploadUseCase @Inject constructor(
 
             // CRITICAL: "Individuell bearbeiten" workflow ALWAYS uploads individual documents
             // Each image becomes a separate document in Paperless, even if they share metadata
-            Log.i(TAG, "Queueing ${localPages.size} pages as individual documents (${groups.size} metadata groups)")
+            AppLogger.i(TAG, "Queueing ${localPages.size} pages as individual documents (${groups.size} metadata groups)")
 
             // Create individual uploads for each page
             groups.forEach { (metadata, groupPages) ->
@@ -431,7 +431,7 @@ class PerformUploadUseCase @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error queueing pages with metadata", e)
+            AppLogger.e(TAG, "Error queueing pages with metadata", e)
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "queue_error"))
             emit(UploadResult.Failed(
                 userMessage = context.getString(R.string.error_adding_to_queue),
@@ -450,7 +450,7 @@ class PerformUploadUseCase @Inject constructor(
         val storageCheck = StorageUtil.checkStorageForUpload(context, uris)
 
         if (!storageCheck.hasEnoughSpace) {
-            Log.w(TAG, "Storage check failed: ${storageCheck.message}")
+            AppLogger.w(TAG, "Storage check failed: ${storageCheck.message}")
             analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "storage_insufficient"))
 
             return UploadResult.Failed(
@@ -463,7 +463,7 @@ class PerformUploadUseCase @Inject constructor(
         // Check individual file sizes
         uris.forEach { uri ->
             StorageUtil.validateFileSize(context, uri).onFailure { e ->
-                Log.w(TAG, "File size validation failed: ${e.message}")
+                AppLogger.w(TAG, "File size validation failed: ${e.message}")
                 analyticsService.trackEvent(AnalyticsEvent.UploadFailed(errorType = "file_too_large"))
 
                 return UploadResult.Failed(

@@ -1,0 +1,7 @@
+Version 1.5.245:
+
+🔧 Verbesserungen:
+- Fehlerbericht enthält deutlich mehr Log-Verlauf
+- Auch Einträge von vor einem App-Neustart oder Absturz
+- Eigenes App-Protokoll wird zusätzlich mitgeschickt
+- Gemessen: statt 3 Minuten jetzt viele Stunden Verlauf

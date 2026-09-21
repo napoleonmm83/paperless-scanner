@@ -1,0 +1,7 @@
+Version 1.5.245:
+
+🔧 Improvements:
+- Error report now carries far more log history
+- Includes entries from before a restart or crash
+- The app's own log is attached as well
+- Measured: hours of history instead of 3 minutes

@@ -1,6 +1,5 @@
 package com.paperless.scanner.ui.screens.upload.components
 
-import android.util.Log
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.BorderStroke
@@ -66,6 +65,7 @@ import com.paperless.scanner.data.ai.models.SuggestionSource
 import com.paperless.scanner.data.ai.models.TagSuggestion
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.screens.upload.AnalysisState
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Suggestions section for displaying AI/Paperless/Local tag suggestions.
@@ -99,11 +99,11 @@ fun SuggestionsSection(
     modifier: Modifier = Modifier
 ) {
     // DEBUG: Log parameters
-    Log.d("SuggestionsSection", "=== SuggestionsSection Debug ===")
-    Log.d("SuggestionsSection", "aiNewTagsEnabled: $aiNewTagsEnabled")
-    Log.d("SuggestionsSection", "analysisState: $analysisState")
-    Log.d("SuggestionsSection", "suggestions: $suggestions")
-    Log.d("SuggestionsSection", "suggestionSource: $suggestionSource")
+    AppLogger.d("SuggestionsSection", "=== SuggestionsSection Debug ===")
+    AppLogger.d("SuggestionsSection", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    AppLogger.d("SuggestionsSection", "analysisState: $analysisState")
+    AppLogger.d("SuggestionsSection", "suggestions: $suggestions")
+    AppLogger.d("SuggestionsSection", "suggestionSource: $suggestionSource")
 
     // Animated border setup
     val infiniteTransition = rememberInfiniteTransition(label = "border_animation")
@@ -274,8 +274,8 @@ fun SuggestionsSection(
 
                 is AnalysisState.Success -> {
                     // Show suggestions
-                    Log.d("SuggestionsSection", "Success state reached")
-                    Log.d("SuggestionsSection", "Has suggestions: ${suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)}")
+                    AppLogger.d("SuggestionsSection", "Success state reached")
+                    AppLogger.d("SuggestionsSection", "Has suggestions: ${suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)}")
 
                     if (suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)) {
                         SuggestionsContent(
@@ -290,7 +290,7 @@ fun SuggestionsSection(
                             onAnalyzeClick = onAnalyzeClick
                         )
                     } else {
-                        Log.d("SuggestionsSection", "Showing NoSuggestionsMessage with aiNewTagsEnabled=$aiNewTagsEnabled")
+                        AppLogger.d("SuggestionsSection", "Showing NoSuggestionsMessage with aiNewTagsEnabled=$aiNewTagsEnabled")
                         NoSuggestionsMessage(aiNewTagsEnabled = aiNewTagsEnabled)
                     }
                 }
@@ -392,10 +392,10 @@ private fun SuggestionsContent(
     onAnalyzeClick: () -> Unit = {}
 ) {
     // DEBUG: Log if we should show the info banner
-    Log.d("SuggestionsContent", "=== SuggestionsContent Debug ===")
-    Log.d("SuggestionsContent", "aiNewTagsEnabled: $aiNewTagsEnabled")
-    Log.d("SuggestionsContent", "suggestedTags.isEmpty(): ${suggestions.suggestedTags.isEmpty()}")
-    Log.d("SuggestionsContent", "Should show info banner: ${suggestions.suggestedTags.isEmpty() && !aiNewTagsEnabled}")
+    AppLogger.d("SuggestionsContent", "=== SuggestionsContent Debug ===")
+    AppLogger.d("SuggestionsContent", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    AppLogger.d("SuggestionsContent", "suggestedTags.isEmpty(): ${suggestions.suggestedTags.isEmpty()}")
+    AppLogger.d("SuggestionsContent", "Should show info banner: ${suggestions.suggestedTags.isEmpty() && !aiNewTagsEnabled}")
     var showAllTags by remember { mutableStateOf(false) }
 
     // Sort tags: unselected first (so user sees what's available), then by confidence
@@ -528,12 +528,12 @@ private fun SuggestionsContent(
                         Switch(
                             checked = false, // Always false here since we only show banner when disabled
                             onCheckedChange = { enabled ->
-                                Log.d("SuggestionsContent", "User toggled new tags switch to: $enabled")
+                                AppLogger.d("SuggestionsContent", "User toggled new tags switch to: $enabled")
                                 onAiNewTagsEnabledChange(enabled)
 
                                 // Auto-retry: Trigger new analysis after enabling the setting
                                 if (enabled) {
-                                    Log.d("SuggestionsContent", "Auto-retry: Triggering new analysis after enabling new tags")
+                                    AppLogger.d("SuggestionsContent", "Auto-retry: Triggering new analysis after enabling new tags")
                                     onAnalyzeClick()
                                 }
                             },
@@ -598,9 +598,9 @@ private fun SuggestionsContent(
 @Composable
 private fun NoSuggestionsMessage(aiNewTagsEnabled: Boolean = true) {
     // DEBUG: Log parameter
-    Log.d("NoSuggestionsMessage", "=== NoSuggestionsMessage Debug ===")
-    Log.d("NoSuggestionsMessage", "aiNewTagsEnabled parameter: $aiNewTagsEnabled")
-    Log.d("NoSuggestionsMessage", "Will show hint: ${!aiNewTagsEnabled}")
+    AppLogger.d("NoSuggestionsMessage", "=== NoSuggestionsMessage Debug ===")
+    AppLogger.d("NoSuggestionsMessage", "aiNewTagsEnabled parameter: $aiNewTagsEnabled")
+    AppLogger.d("NoSuggestionsMessage", "Will show hint: ${!aiNewTagsEnabled}")
 
     Column(
         modifier = Modifier

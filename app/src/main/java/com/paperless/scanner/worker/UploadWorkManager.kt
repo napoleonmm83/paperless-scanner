@@ -1,7 +1,6 @@
 package com.paperless.scanner.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
@@ -11,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 @Singleton
 class UploadWorkManager @Inject constructor(
@@ -38,18 +38,18 @@ class UploadWorkManager @Inject constructor(
      * permanently blocked.
      */
     fun scheduleImmediateUpload() {
-        Log.d(TAG, "scheduleImmediateUpload() called")
+        AppLogger.d(TAG, "scheduleImmediateUpload() called")
         val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
             .setConstraints(constraintsProvider.build())
             .build()
 
-        Log.d(TAG, "Enqueuing work with APPEND_OR_REPLACE policy, workId: ${uploadRequest.id}")
+        AppLogger.d(TAG, "Enqueuing work with APPEND_OR_REPLACE policy, workId: ${uploadRequest.id}")
         workManager.enqueueUniqueWork(
             UploadWorker.WORK_NAME,
             ExistingWorkPolicy.APPEND_OR_REPLACE,
             uploadRequest
         )
-        Log.d(TAG, "Work enqueued successfully")
+        AppLogger.d(TAG, "Work enqueued successfully")
     }
 
     /**
@@ -68,7 +68,7 @@ class UploadWorkManager @Inject constructor(
      * the way per-upload REPLACE did (#130).
      */
     fun rescheduleForConstraintChange() {
-        Log.d(TAG, "rescheduleForConstraintChange() called - re-applying upload constraints")
+        AppLogger.d(TAG, "rescheduleForConstraintChange() called - re-applying upload constraints")
         val uploadRequest = OneTimeWorkRequestBuilder<UploadWorker>()
             .setConstraints(constraintsProvider.build())
             .build()

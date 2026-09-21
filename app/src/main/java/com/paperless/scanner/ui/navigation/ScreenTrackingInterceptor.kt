@@ -1,6 +1,5 @@
 package com.paperless.scanner.ui.navigation
 
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -11,6 +10,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Screen Tracking Interceptor for Firebase Analytics and Crashlytics.
@@ -37,7 +37,7 @@ fun ScreenTrackingInterceptor(
         if (currentRoute != null && currentRoute != previousRoute) {
             val screenName = mapRouteToScreenName(currentRoute)
 
-            Log.d("ScreenTrackingInterceptor", "Screen changed: $currentRoute -> $screenName")
+            AppLogger.d("ScreenTrackingInterceptor", "Screen changed: $currentRoute -> $screenName")
 
             // Track in Firebase Analytics
             analyticsService.trackScreen(

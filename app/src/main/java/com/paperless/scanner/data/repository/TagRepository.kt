@@ -1,6 +1,5 @@
 package com.paperless.scanner.data.repository
 
-import android.util.Log
 import com.google.gson.Gson
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.domain.error.PaperlessException
@@ -25,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
+import com.paperless.scanner.util.AppLogger
 
 /**
  * TagRepository - Repository for tag management with offline-first architecture.
@@ -256,7 +256,7 @@ class TagRepository @Inject constructor(
                 } catch (e: Error) {
                     throw e
                 } catch (e: Exception) {
-                    Log.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
+                    AppLogger.w("TagRepository", "Skipped cached doc ${doc.id} during tag-$tagId cascade removal", e)
                 }
             }
         } catch (e: CancellationException) {

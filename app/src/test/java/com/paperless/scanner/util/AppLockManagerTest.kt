@@ -341,7 +341,13 @@ class AppLockManagerTest {
         repeat(5) { manager.unlockWithPassword("wrong") }
 
         // Reaching the threshold must leave a security-audit trail (no PII / hashes).
-        val auditLogs = ShadowLog.getLogsForTag("AppLockManager")
+        //
+        // The tag is DERIVED, not spelled out: the call site moved from android.util.Log
+        // to AppLogger, which prefixes every tag with "Paperless." and truncates the
+        // result to the 23 characters logcat allows — so the literal "AppLockManager"
+        // stopped matching anything, and this test failed for a reason that had nothing
+        // to do with the audit trail it guards.
+        val auditLogs = ShadowLog.getLogsForTag(AppLogger.formatTag("AppLockManager"))
             .filter { it.type == Log.WARN && it.msg.contains("[AUDIT]") }
         assertTrue(
             "Temporary-lockout threshold must emit an [AUDIT] WARN log",

@@ -1,7 +1,6 @@
 package com.paperless.scanner.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -13,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Manages background trash deletion using WorkManager.
@@ -37,7 +37,7 @@ class TrashDeleteWorkManager @Inject constructor(
      * @param delaySeconds The delay before deletion (countdown duration)
      */
     fun schedulePendingDelete(documentId: Int, delaySeconds: Long) {
-        Log.d(TAG, "Scheduling pending delete for document $documentId in $delaySeconds seconds")
+        AppLogger.d(TAG, "Scheduling pending delete for document $documentId in $delaySeconds seconds")
 
         val inputData = workDataOf(
             TrashDeleteWorker.KEY_DOCUMENT_ID to documentId
@@ -60,7 +60,7 @@ class TrashDeleteWorkManager @Inject constructor(
             deleteRequest
         )
 
-        Log.d(TAG, "Scheduled work ${deleteRequest.id} for document $documentId")
+        AppLogger.d(TAG, "Scheduled work ${deleteRequest.id} for document $documentId")
     }
 
     /**
@@ -69,7 +69,7 @@ class TrashDeleteWorkManager @Inject constructor(
      * @param documentId The document ID to delete
      */
     fun scheduleImmediateDelete(documentId: Int) {
-        Log.d(TAG, "Scheduling immediate delete for document $documentId")
+        AppLogger.d(TAG, "Scheduling immediate delete for document $documentId")
 
         val inputData = workDataOf(
             TrashDeleteWorker.KEY_DOCUMENT_ID to documentId
@@ -102,7 +102,7 @@ class TrashDeleteWorkManager @Inject constructor(
      * @param documentId The document ID to cancel deletion for
      */
     fun cancelPendingDelete(documentId: Int) {
-        Log.d(TAG, "Cancelling pending delete for document $documentId")
+        AppLogger.d(TAG, "Cancelling pending delete for document $documentId")
         workManager.cancelUniqueWork(TrashDeleteWorker.workName(documentId))
     }
 

@@ -2,7 +2,6 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,6 +80,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.ServerOfflineBanner
 import com.paperless.scanner.data.health.ServerStatus
+import com.paperless.scanner.util.AppLogger
 
 enum class DocumentTab {
     DETAILS,
@@ -125,8 +125,8 @@ fun DocumentDetailScreen(
     val serverStatus by viewModel.serverStatus.collectAsState()
 
     // DEBUG: Log aiNewTagsEnabled value
-    Log.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
-    Log.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    AppLogger.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
+    AppLogger.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
 
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }

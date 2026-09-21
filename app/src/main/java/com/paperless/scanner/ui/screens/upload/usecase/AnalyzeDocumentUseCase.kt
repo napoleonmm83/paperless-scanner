@@ -3,7 +3,6 @@ package com.paperless.scanner.ui.screens.upload.usecase
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import com.paperless.scanner.R
 import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.ai.models.SuggestionError
@@ -21,6 +20,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import com.paperless.scanner.util.AppLogger
 
 /**
  * Owns the pre-upload AI analysis extracted from `UploadViewModel` (issue #42):
@@ -79,7 +79,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
             }
 
             if (bitmap == null) {
-                Log.w(TAG, "Could not decode image for analysis")
+                AppLogger.w(TAG, "Could not decode image for analysis")
                 return@withContext SuggestionResult.Error(SuggestionError.DOCUMENT_READ_FAILED)
             }
 
@@ -95,7 +95,7 @@ class AnalyzeDocumentUseCase @Inject constructor(
             throw e
         } catch (e: Exception) {
             // #364: never put e.message into the result — raw exception text stays in logs.
-            Log.e(TAG, "Document analysis failed", e)
+            AppLogger.e(TAG, "Document analysis failed", e)
             SuggestionResult.Error(SuggestionError.DOCUMENT_READ_FAILED, e)
         }
     }

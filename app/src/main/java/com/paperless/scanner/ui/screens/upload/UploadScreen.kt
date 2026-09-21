@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.upload
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,6 +67,7 @@ import com.paperless.scanner.ui.screens.upload.components.CustomFieldsSection
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.SuggestionsSection
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
+import com.paperless.scanner.util.AppLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,8 +98,8 @@ fun UploadScreen(
     val isServerReachable by viewModel.isServerReachable.collectAsState()
 
     // DEBUG: Log aiNewTagsEnabled value
-    Log.d("UploadScreen", "=== UploadScreen Debug ===")
-    Log.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    AppLogger.d("UploadScreen", "=== UploadScreen Debug ===")
+    AppLogger.d("UploadScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
 
     // Premium state
     val isPremiumActive by viewModel.isPremiumActive.collectAsState()
