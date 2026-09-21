@@ -130,6 +130,28 @@ class LogSanitizerTest {
     }
 
     @Test
+    fun `a SHORT credential behind the Authorization header is redacted too`() {
+        // The rule carried a six-character minimum while its own comment said any value
+        // behind the header goes. Basic YTpi is base64 for a colon-separated a:b — four
+        // characters, a real credential, and it walked straight through.
+        val result = LogSanitizer.sanitizeText("Authorization: Basic YTpi")
+
+        assertFalse("the short credential survived", result.contains("YTpi"))
+        // The scheme word stays: knowing it was Basic rather than Token is the auth
+        // diagnosis the report exists to carry.
+        assertTrue(result.contains("Basic"))
+    }
+
+    @Test
+    fun `a bare scheme word in prose still survives`() {
+        // Counter-control for the line above: the minimum was removed only for the
+        // header form. Standing in a sentence, these words are prose.
+        val raw = "Basic authentication required"
+
+        assertEquals(raw, LogSanitizer.sanitizeText(raw))
+    }
+
+    @Test
     fun `EVERY pair of a multi-value cookie header is redacted`() {
         // The first version of the rule stopped at the first semicolon, so in a request
         // header it redacted the CSRF cookie and left the session cookie — the worse of

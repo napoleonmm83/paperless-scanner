@@ -61,8 +61,14 @@ object LogSanitizer {
     //
     // Behind an `Authorization:` header the scheme word is never prose, so ANY value goes
     // — that is where OkHttp's logging interceptor puts the real thing.
+    //
+    // `\S+`, not `\S{6,}`: the rule carried a six-character minimum that its own comment
+    // above contradicts, and a short credential is still a credential —
+    // `Authorization: Basic YTpi` is base64 for `a:b` and walked straight through. The
+    // minimum belongs to the BARE rule below, where the scheme word may genuinely be
+    // prose; here there is nothing to protect against.
     private val AUTH_HEADER_VALUE = Regex(
-        "\\b(Authorization\\s*:\\s*)(Token|Bearer|Basic)\\s+\\S{6,}",
+        "\\b(Authorization\\s*:\\s*)(Token|Bearer|Basic)\\s+\\S+",
         RegexOption.IGNORE_CASE,
     )
 
