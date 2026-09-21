@@ -270,7 +270,8 @@ fun SettingsScreen(
         DiagnosticReportDialog(
             onSend = {
                 showDiagnosticReportDialog = false
-                viewModel.sendDiagnosticReport { result ->
+                coroutineScope.launch {
+                    val result = viewModel.sendDiagnosticReport()
                     // Only the two SILENT outcomes need a toast, and they say different
                     // things: claiming a clipboard copy that did not happen sends the
                     // user looking for a report that is not there.
@@ -291,7 +292,8 @@ fun SettingsScreen(
                 // Through the shared helper rather than a hand-rolled cast: this used to
                 // do `as ClipboardManager` with no catch, so an OEM build without the
                 // service crashed the app on the FALLBACK path.
-                viewModel.copyDiagnosticReport { text ->
+                coroutineScope.launch {
+                    val text = viewModel.copyDiagnosticReport()
                     val message = when (DiagnosticReportSender.copyToClipboard(context, text)) {
                         DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
                             R.string.auth_debug_report_copied

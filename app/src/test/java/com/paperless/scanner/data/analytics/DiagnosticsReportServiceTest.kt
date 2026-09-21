@@ -220,7 +220,7 @@ class DiagnosticsReportServiceTest {
     }
 
     @Test
-    fun `a send that throws becomes NO_TARGET instead of killing the process`() {
+    fun `a send that throws becomes NO_TARGET instead of killing the process`() = runTest {
         // The load-bearing guard. Both callers run this inside viewModelScope, where an
         // escaping exception reaches the default handler and terminates the app — on the
         // one button whose whole job is to report a failure. startActivity catches only

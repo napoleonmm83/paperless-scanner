@@ -377,12 +377,11 @@ class SettingsViewModelTest {
         // fell back to the clipboard must reach the caller — that is the whole contract
         // of the callback. (That a THROW becomes NO_TARGET instead of killing the
         // process is pinned where the guard lives, in DiagnosticsReportServiceTest.)
-        every { diagnosticsReportService.sendFullReport(any(), any()) } returns
+        coEvery { diagnosticsReportService.sendFullReport(any(), any()) } returns
             DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD
 
         val viewModel = createViewModel()
-        var seen: DiagnosticReportSender.Result? = null
-        viewModel.sendDiagnosticReport { seen = it }
+        val seen = viewModel.sendDiagnosticReport()
         advanceUntilIdle()
 
         assertEquals(DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD, seen)

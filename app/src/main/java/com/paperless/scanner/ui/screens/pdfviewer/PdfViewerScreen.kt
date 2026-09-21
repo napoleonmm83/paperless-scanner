@@ -45,11 +45,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -149,6 +151,7 @@ fun PdfViewerScreen(
                 // decision of WHETHER to offer the report is pinned in
                 // PdfViewerViewModelTest; only the wiring lives here.
                 val context = LocalContext.current
+                val coroutineScope = rememberCoroutineScope()
                 ErrorView(
                     message = state.message,
                     onRetry = viewModel::downloadDocument,
@@ -160,7 +163,11 @@ fun PdfViewerScreen(
                             // Which Result each path produces IS pinned, in
                             // DiagnosticReportSender's own outcomes; only the choice of
                             // toast lives here.
-                            viewModel.sendDiagnosticReport { result ->
+                            // INTENTIONAL-UNTESTED: no Compose-UI harness here (#391);
+                            // the callback became a suspend call, the toast choice below
+                            // is unchanged.
+                            coroutineScope.launch {
+                                val result = viewModel.sendDiagnosticReport()
                                 // A device with no mail app and no share target must not
                                 // be left wondering whether the tap registered — and the
                                 // two silent outcomes say DIFFERENT things, so they get

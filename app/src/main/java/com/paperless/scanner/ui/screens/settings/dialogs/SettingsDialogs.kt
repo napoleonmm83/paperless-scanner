@@ -195,8 +195,9 @@ fun PurchaseResultDialog(
  * test. What the buttons DO is pinned where the logic lives —
  * `SettingsViewModel.sendDiagnosticReport` and `DiagnosticReportSender`.
  *
- * Sending is now the primary action and copying the secondary one: the report reached
- * us only if it was mailed, and the clipboard variant carries no log lines.
+ * Sending is the primary action because it delivers the report to us directly. Copying
+ * stays available as the secondary one and carries the SAME full report, log lines
+ * included — the explanation promises them for both buttons.
  */
 @Composable
 fun DiagnosticReportDialog(

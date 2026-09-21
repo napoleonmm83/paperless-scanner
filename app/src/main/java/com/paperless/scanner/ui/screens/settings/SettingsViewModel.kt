@@ -405,16 +405,14 @@ class SettingsViewModel @Inject constructor(
      * [DiagnosticsReportService.sendFullReport] so both entry points share it — a throw
      * escaping this coroutine would kill the process.
      */
-    fun sendDiagnosticReport(onResult: (DiagnosticReportSender.Result) -> Unit) {
-        viewModelScope.launch {
-            val result = withContext(dispatchers.io) {
-                // No error on screen to name here — the tag says where the report came
-                // from, which is what distinguishes it in our inbox.
-                diagnosticsReportService.sendFullReport(context.cacheDir, subjectTag = "manual")
-            }
-            analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportShared(result.name))
-            onResult(result)
+    suspend fun sendDiagnosticReport(): DiagnosticReportSender.Result {
+        val result = withContext(dispatchers.io) {
+            // No error on screen to name here — the tag says where the report came
+            // from, which is what distinguishes it in our inbox.
+            diagnosticsReportService.sendFullReport(context.cacheDir, subjectTag = "manual")
         }
+        analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportShared(result.name))
+        return result
     }
 
     /**
@@ -429,12 +427,7 @@ class SettingsViewModel @Inject constructor(
      * Off the main thread for the same reason as sending: building the report spawns a
      * logcat process, measures the network and runs two sanitizer passes.
      */
-    fun copyDiagnosticReport(onResult: (String) -> Unit) {
-        viewModelScope.launch {
-            val text = withContext(dispatchers.io) {
-                diagnosticsReportService.createFullReport()
-            }
-            onResult(text)
-        }
+    suspend fun copyDiagnosticReport(): String = withContext(dispatchers.io) {
+        diagnosticsReportService.createFullReportForSharing()
     }
 }

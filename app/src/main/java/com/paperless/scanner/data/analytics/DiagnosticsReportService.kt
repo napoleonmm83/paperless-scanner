@@ -20,6 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.Response
 import javax.inject.Inject
@@ -99,6 +100,26 @@ class DiagnosticsReportService @Inject constructor(
         scope.launch { tokenManager.serverUrl.collect { rememberHost(it) } }
         scope.launch { tokenManager.paperlessGptUrl.collect { rememberHost(it) } }
         scope.launch { tokenManager.acceptedHttpHostsFlow.collect { it.forEach(::rememberHost) } }
+    }
+
+    /**
+     * Reads the stored hosts ONCE and waits for them, before a report is built.
+     *
+     * The collectors in [init] run on their own IO scope, so a report requested right
+     * after start can be built before any of them has emitted — [knownHosts] is then
+     * empty and a host that appears in a log line survives into the report, which the
+     * report's own privacy statement says it will not. A failure-triggered report does
+     * not have that hole (it is handed the attempted URL), the MANUALLY requested one
+     * does, and that is the path this entry point exists for.
+     *
+     * Suspending rather than blocking: the values come from DataStore, and this runs on
+     * the IO dispatcher of a caller that is already suspending.
+     */
+    private suspend fun hostsBereitstellen() {
+        rememberHost(serverUrlHolder.current())
+        runCatching { rememberHost(tokenManager.serverUrl.first()) }
+        runCatching { rememberHost(tokenManager.paperlessGptUrl.first()) }
+        runCatching { tokenManager.acceptedHttpHostsFlow.first().forEach(::rememberHost) }
     }
 
     @Synchronized
@@ -198,6 +219,17 @@ class DiagnosticsReportService @Inject constructor(
 
     /** A shareable report string for manual sharing (mail, clipboard, a GitHub issue). */
     fun createShareableReport(): String = withoutKnownHost(buildShareableReport())
+
+    /**
+     * The full report for a MANUALLY requested copy — host redaction seeded first.
+     *
+     * Same reason as [sendFullReport]: without [hostsBereitstellen] a report built right
+     * after start can carry a host the redaction did not know about yet.
+     */
+    suspend fun createFullReportForSharing(): String {
+        hostsBereitstellen()
+        return createFullReport()
+    }
 
     private fun formatTime(epochMillis: Long): String =
         java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
@@ -360,8 +392,9 @@ class DiagnosticsReportService @Inject constructor(
      * the screens already translate into an honest "could not be sent" message, and the
      * cause is recorded so we learn the path exists at all.
      */
-    fun sendFullReport(cacheDir: java.io.File, subjectTag: String): DiagnosticReportSender.Result =
+    suspend fun sendFullReport(cacheDir: java.io.File, subjectTag: String): DiagnosticReportSender.Result =
         try {
+            hostsBereitstellen()
             val text = createFullReport()
             DiagnosticReportSender.send(
                 context = context,
