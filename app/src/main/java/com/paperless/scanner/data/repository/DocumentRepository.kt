@@ -17,6 +17,10 @@ import com.paperless.scanner.R
 import java.io.IOException
 import javax.inject.Named
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -219,8 +223,28 @@ class DocumentRepository @Inject constructor(
     suspend fun downloadDocument(
         documentId: Int,
         onProgress: (Float) -> Unit = {}
-    ): Result<File> {
-        return try {
+    ): Result<File> = withContext(Dispatchers.IO) {
+        // The dispatcher switch is the whole point of this line, not tidiness.
+        //
+        // `api.downloadDocument` is a suspend call and Retrofit dispatches THAT off the
+        // caller's thread by itself — which is why this looked safe for a long time. But
+        // the ResponseBody it hands back is UNREAD: the byteStream() loop below does the
+        // actual socket reads, and those run in the CALLER's context. PdfViewerViewModel
+        // calls this from viewModelScope, i.e. Dispatchers.Main (user report a9e00ce0,
+        // v1.5.245).
+        //
+        // What that costs depends on the protocol, and saying "it always threw" would be
+        // wrong — the viewer demonstrably worked for people. On HTTP/1.1 it is a real
+        // socket read and BlockGuard throws NetworkOnMainThreadException, which is the
+        // reported crash. On HTTP/2 the read comes out of an in-memory frame buffer that
+        // a separate reader thread fills, so nothing throws and the main thread simply
+        // BLOCKS for the length of the download. Same defect, two faces.
+        //
+        // It surfaced as "Unbekannter Fehler" because NetworkOnMainThreadException is a
+        // RuntimeException and PaperlessException.from() has no case for it — nothing in
+        // the message pointed at a thread. The fix belongs HERE and not in the ViewModel:
+        // this is the only place every caller passes through.
+        try {
             val response = withRetry { api.downloadDocument(documentId) }
 
             val fileName = "document_${documentId}_${System.currentTimeMillis()}.pdf"
@@ -237,6 +261,15 @@ class DocumentRepository @Inject constructor(
                     var read: Int
 
                     while (inputStream.read(buffer).also { read = it } != -1) {
+                        // This loop has no suspension point, so withContext cannot break
+                        // out of it and a blocking read on Dispatchers.IO is never
+                        // interrupted. Without this check, leaving the viewer mid-download
+                        // keeps the thread reading to EOF and writes a full file that
+                        // nobody owns — the Result is discarded, lastDownload never set,
+                        // onCleared deletes nothing, and it sits in the shared cache until
+                        // the age sweep. The old code could not reach that state: the read
+                        // died on the first byte.
+                        currentCoroutineContext().ensureActive()
                         outputStream.write(buffer, 0, read)
                         bytesRead += read
 

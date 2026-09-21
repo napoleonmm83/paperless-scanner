@@ -1,0 +1,4 @@
+Version 1.5.246:
+
+🐛 Bug fixes:
+- PDF viewer: documents load again. The download ran on the foreground thread and was stopped by the system - shown as "Unknown error".

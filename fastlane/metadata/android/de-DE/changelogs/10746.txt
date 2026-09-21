@@ -1,0 +1,4 @@
+Version 1.5.246:
+
+🐛 Fehlerbehebungen:
+- PDF-Ansicht: Dokumente werden wieder geladen. Der Download lief im Vordergrund und wurde vom System gestoppt - sichtbar als "Unbekannter Fehler".
