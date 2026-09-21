@@ -83,6 +83,27 @@ object LogSanitizer {
         RegexOption.IGNORE_CASE,
     )
 
+    // A cookie value behind a `Cookie:` or `Set-Cookie:` header.
+    //
+    // Found on a REAL report pulled off a device (2026-09-21, 171 KB, 680 logged header
+    // lines): `Authorization` was redacted as designed, and one line below it sat
+    // `set-cookie: csrftoken=<40 chars>` completely in the clear. The Authorization rule
+    // above cannot see it — a cookie carries no scheme word — so the header needed its
+    // own rule.
+    //
+    // Only the VALUE goes; the cookie's NAME stays, because knowing that a CSRF or
+    // session cookie was set is diagnostically useful and names no secret. Everything up
+    // to the first attribute separator is redacted, so `expires` and `Max-Age` survive
+    // for the same reason.
+    //
+    // In release the interceptor logs at NONE, so today this fires only in a debug
+    // build — which is exactly the kind of reasoning that ages badly: the sanitizer is
+    // the layer that must not depend on who is careful upstream.
+    private val COOKIE_HEADER_VALUE = Regex(
+        "\\b((?:Set-)?Cookie\\s*:\\s*[A-Za-z0-9_.-]+=)[^;\\s]+",
+        RegexOption.IGNORE_CASE,
+    )
+
     // The authority of a URL — host, optional userinfo, optional port — while the path
     // survives. The path is the diagnostically valuable half: /api/documents/42/download/
     // says what was attempted, the host says where the user's private server lives.
@@ -213,6 +234,10 @@ object LogSanitizer {
                 "${match.groupValues[1]}${match.groupValues[2]} [REDACTED]"
             }
             .replace(AUTH_SCHEME_VALUE) { match -> "${match.groupValues[1]} [REDACTED]" }
+            // Before the URL rule: a cookie value may contain characters the authority
+            // rule would rather not meet, and the name-plus-equals prefix is the most
+            // specific anchor in this chain.
+            .replace(COOKIE_HEADER_VALUE) { match -> "${match.groupValues[1]}[REDACTED]" }
             .replace(SENSITIVE_JSON_FIELD) { match -> "\"${match.groupValues[1]}\":\"[REDACTED]\"" }
             .replace(URL_AUTHORITY) { match -> "${match.groupValues[1]}<server>" }
             .replace(IPV4_ADDRESS, "<ip>")
