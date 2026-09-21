@@ -130,6 +130,34 @@ class LogSanitizerTest {
     }
 
     @Test
+    fun `EVERY pair of a multi-value cookie header is redacted`() {
+        // The first version of the rule stopped at the first semicolon, so in a request
+        // header it redacted the CSRF cookie and left the session cookie — the worse of
+        // the two — standing.
+        val result = LogSanitizer.sanitizeText(
+            "Cookie: csrftoken=aaaaaaaaaaaaaaaa; sessionid=bbbbbbbbbbbbbbbb; other=cccccccccccccccc"
+        )
+
+        assertFalse("csrf value survived", result.contains("aaaaaaaaaaaaaaaa"))
+        assertFalse("session value survived", result.contains("bbbbbbbbbbbbbbbb"))
+        assertFalse("third value survived", result.contains("cccccccccccccccc"))
+        assertTrue(result.contains("sessionid="))
+    }
+
+    @Test
+    fun `cookie attributes stay readable`() {
+        // expires and Max-Age are not secrets, and a report that hides them loses the
+        // answer to "was the cookie already stale".
+        val result = LogSanitizer.sanitizeText(
+            "set-cookie: csrftoken=aaaaaaaaaaaaaaaa; expires=Mon, 20 Sep 2027 12:04:42 GMT; Max-Age=31449600; Path=/"
+        )
+
+        assertFalse(result.contains("aaaaaaaaaaaaaaaa"))
+        assertTrue("expires was redacted", result.contains("expires=Mon"))
+        assertTrue("Max-Age was redacted", result.contains("Max-Age=31449600"))
+    }
+
+    @Test
     fun `an ordinary equals sign in prose is left alone`() {
         // The counter-control: a rule anchored on "name=" could easily swallow half the
         // log. It must need the header word in front of it.

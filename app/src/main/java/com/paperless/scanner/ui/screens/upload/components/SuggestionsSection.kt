@@ -43,6 +43,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -98,12 +99,20 @@ fun SuggestionsSection(
     onAiNewTagsEnabledChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // DEBUG: Log parameters
-    AppLogger.d("SuggestionsSection", "=== SuggestionsSection Debug ===")
-    AppLogger.d("SuggestionsSection", "aiNewTagsEnabled: $aiNewTagsEnabled")
-    AppLogger.d("SuggestionsSection", "analysisState: $analysisState")
-    AppLogger.d("SuggestionsSection", "suggestions: $suggestions")
-    AppLogger.d("SuggestionsSection", "suggestionSource: $suggestionSource")
+    // INTENTIONAL-UNTESTED: no Compose-UI test harness in this project (#391). What
+    // changes is WHEN these debug lines run, not what the composable renders.
+    //
+    // In a LaunchedEffect, not the composable body. This composable drives an infinite
+    // border animation, so it recomposes continuously — and since AppLogger.d started
+    // feeding the diagnostic buffer, each of these lines became a synchronized append
+    // plus a sanitizer pass per frame. Keyed on the values, they log on change, which
+    // is the only moment they carry information anyway.
+    LaunchedEffect(aiNewTagsEnabled, analysisState, suggestions, suggestionSource) {
+        AppLogger.d("SuggestionsSection", "aiNewTagsEnabled: $aiNewTagsEnabled")
+        AppLogger.d("SuggestionsSection", "analysisState: $analysisState")
+        AppLogger.d("SuggestionsSection", "suggestions: $suggestions")
+        AppLogger.d("SuggestionsSection", "suggestionSource: $suggestionSource")
+    }
 
     // Animated border setup
     val infiniteTransition = rememberInfiniteTransition(label = "border_animation")
@@ -273,10 +282,13 @@ fun SuggestionsSection(
                 }
 
                 is AnalysisState.Success -> {
-                    // Show suggestions
-                    AppLogger.d("SuggestionsSection", "Success state reached")
-                    AppLogger.d("SuggestionsSection", "Has suggestions: ${suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)}")
-
+                    // INTENTIONAL-UNTESTED: no Compose-UI harness here (#391); two debug
+                    // lines removed, nothing rendered changes.
+                    //
+                    // They ran on every recomposition of an infinitely animating
+                    // composable, and both facts they reported — the state and whether
+                    // suggestions exist — are already logged on change by the
+                    // LaunchedEffect at the top of this function.
                     if (suggestions != null && (suggestions.suggestedTags.isNotEmpty() || suggestions.suggestedTitle != null)) {
                         SuggestionsContent(
                             suggestions = suggestions,

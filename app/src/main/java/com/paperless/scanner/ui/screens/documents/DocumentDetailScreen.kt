@@ -124,9 +124,15 @@ fun DocumentDetailScreen(
     // Server Health Status (Phase 2: Server Offline Detection)
     val serverStatus by viewModel.serverStatus.collectAsState()
 
-    // DEBUG: Log aiNewTagsEnabled value
-    AppLogger.d("DocumentDetailScreen", "=== DocumentDetailScreen Debug ===")
-    AppLogger.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    // INTENTIONAL-UNTESTED: no Compose-UI harness here (#391); only WHEN the debug line
+    // runs changes, not what is rendered.
+    //
+    // In a LaunchedEffect, not the composable body: a line here runs on every
+    // recomposition, and since AppLogger.d started feeding the diagnostic buffer that
+    // is a synchronized append plus a sanitizer pass each time.
+    LaunchedEffect(aiNewTagsEnabled) {
+        AppLogger.d("DocumentDetailScreen", "aiNewTagsEnabled: $aiNewTagsEnabled")
+    }
 
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
