@@ -1,0 +1,10 @@
+Version 1.5.244:
+
+✨ New features:
+- Error report now always under Settings → About
+- Send the report by mail, recent log lines attached
+
+🔧 Improvements:
+- Every report names app version, device and network type
+- Useful even when nothing has failed yet
+- Server address and password stay out, as before

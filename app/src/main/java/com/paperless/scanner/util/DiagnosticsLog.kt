@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import java.util.ArrayDeque
+import java.util.concurrent.TimeUnit
 
 /**
  * A small in-memory ring buffer of recent log lines, for the diagnostic report a user can
@@ -99,7 +100,15 @@ object DiagnosticsLog {
         ).redirectErrorStream(true).start()
 
         val output = process.inputStream.bufferedReader().use { it.readLines() }
-        process.waitFor()
+        // Bounded on purpose. A bare `waitFor()` is an unbounded wait on a process this
+        // code does not control, and the KDoc above already grants that an OEM build may
+        // refuse logcat — one that neither serves nor exits would hang the caller
+        // forever. What the user sees then is the dialog closing and nothing else, ever:
+        // no report, no toast, no error. The lines were already read at this point, so
+        // the timeout costs the exit status, not the output.
+        if (!process.waitFor(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            process.destroy()
+        }
         output.map { LogSanitizer.sanitizeLogLine(it) }
     } catch (e: Exception) {
         // Not reportable and not worth a breadcrumb: the ring buffer carries the report
@@ -109,4 +118,7 @@ object DiagnosticsLog {
 
     /** Lines requested from logcat. Enough for the minutes before a failure. */
     const val LOGCAT_LINES = 400
+
+    /** How long the logcat process may take to exit before it is killed. */
+    const val LOGCAT_TIMEOUT_SECONDS = 3L
 }

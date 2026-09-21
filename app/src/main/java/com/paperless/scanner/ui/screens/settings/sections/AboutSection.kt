@@ -31,10 +31,18 @@ import com.paperless.scanner.R
 import com.paperless.scanner.ui.screens.settings.components.SettingsClickableItem
 import com.paperless.scanner.ui.screens.settings.components.SettingsSection
 
+/**
+ * INTENTIONAL-UNTESTED: no Compose-UI test harness exists in this project (Roborazzi is
+ * deferred as issue #391), so the presence of a settings row cannot be pinned from a
+ * unit test.
+ *
+ * The `hasDiagnosticReport` parameter is gone. It hid this row until a failure had been
+ * recorded — which removed the entry precisely in the case it exists for: the in-context
+ * report button did not appear, and the user still needs a way to send us their log.
+ */
 @Composable
 fun AboutSection(
     appVersionLabel: String,
-    hasDiagnosticReport: Boolean,
     onVersionClick: () -> Unit,
     onLicensesClick: () -> Unit,
     onDiagnosticReportClick: () -> Unit
@@ -59,27 +67,24 @@ fun AboutSection(
             onClick = onLicensesClick
         )
 
-        if (hasDiagnosticReport) {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
+        // INTENTIONAL-UNTESTED: no Compose-UI test harness exists in this project
+        // (Roborazzi is deferred as issue #391), so the presence of a settings row
+        // cannot be pinned from a unit test. Nothing is deleted here — the conditional
+        // around the row is, so the row now renders unconditionally.
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
 
-            SettingsClickableItem(
-                icon = Icons.Filled.BugReport,
-                // INTENTIONAL-UNTESTED: no Compose-UI test harness exists in this project
-                // (Roborazzi is deferred as issue #391), so a string swap in a settings
-                // row cannot be pinned from a unit test. What changes is which resource
-                // id is read; the row's behaviour is untouched.
-                //
-                // Not "Login Debug Report" any more: a failed document download or a
-                // render failure fills the same slot, and the login wording named a cause
-                // the user may never have been near.
-                title = stringResource(R.string.diagnostic_report_title),
-                value = stringResource(R.string.diagnostic_report_subtitle),
-                onClick = onDiagnosticReportClick
-            )
-        }
+        SettingsClickableItem(
+            icon = Icons.Filled.BugReport,
+            // Not "Login Debug Report" any more: a failed document download or a
+            // render failure fills the same slot, and the login wording named a cause
+            // the user may never have been near.
+            title = stringResource(R.string.diagnostic_report_title),
+            value = stringResource(R.string.diagnostic_report_subtitle),
+            onClick = onDiagnosticReportClick
+        )
     }
 }
 
@@ -121,13 +126,14 @@ fun LogoutButton(onClick: () -> Unit) {
     }
 }
 
+// INTENTIONAL-UNTESTED: previews are not executed by any test. The two below now differ
+// only in the version label — the diagnostic row has no hidden state left to show.
 @Preview
 @Composable
-private fun AboutSectionWithDebugPreview() {
+private fun AboutSectionPreview() {
     MaterialTheme {
         AboutSection(
             appVersionLabel = "1.5.138",
-            hasDiagnosticReport = true,
             onVersionClick = {},
             onLicensesClick = {},
             onDiagnosticReportClick = {}
@@ -137,11 +143,10 @@ private fun AboutSectionWithDebugPreview() {
 
 @Preview
 @Composable
-private fun AboutSectionNoDebugPreview() {
+private fun AboutSectionAiDebugPreview() {
     MaterialTheme {
         AboutSection(
             appVersionLabel = "1.5.138 (AI Debug)",
-            hasDiagnosticReport = false,
             onVersionClick = {},
             onLicensesClick = {},
             onDiagnosticReportClick = {}

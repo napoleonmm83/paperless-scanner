@@ -357,11 +357,12 @@ class PdfViewerViewModel @Inject constructor(
                 // failed write used to be reported as "no app available", which sent the
                 // user looking for a mail app they already had. With the text in hand the
                 // sender can still put it on the clipboard.
-                val text = diagnosticsReportService.createFullReport()
-                DiagnosticReportSender.send(
-                    context = context,
-                    reportFile = diagnosticsReportService.writeReportFile(context.cacheDir, text),
-                    reportText = text,
+                //
+                // Via the service rather than inline, so the exception guard covers this
+                // path too — an unguarded throw here reached the default handler and
+                // killed the process.
+                diagnosticsReportService.sendFullReport(
+                    cacheDir = context.cacheDir,
                     subjectTag = (uiState.value as? PdfViewerUiState.Error)?.message.orEmpty()
                         .take(40)
                 )

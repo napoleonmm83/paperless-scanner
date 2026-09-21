@@ -189,8 +189,18 @@ fun PurchaseResultDialog(
     )
 }
 
+/**
+ * INTENTIONAL-UNTESTED: this project has no Compose-UI test harness (Roborazzi is
+ * deferred as issue #391), so a dialog's button layout cannot be pinned from a unit
+ * test. What the buttons DO is pinned where the logic lives —
+ * `SettingsViewModel.sendDiagnosticReport` and `DiagnosticReportSender`.
+ *
+ * Sending is now the primary action and copying the secondary one: the report reached
+ * us only if it was mailed, and the clipboard variant carries no log lines.
+ */
 @Composable
 fun DiagnosticReportDialog(
+    onSend: () -> Unit,
     onCopy: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -204,13 +214,20 @@ fun DiagnosticReportDialog(
         title = { Text(stringResource(R.string.diagnostic_report_title)) },
         text = { Text(stringResource(R.string.diagnostic_report_explain)) },
         confirmButton = {
-            TextButton(onClick = onCopy) {
-                Text(stringResource(R.string.auth_debug_report_copy))
+            TextButton(onClick = onSend) {
+                Text(stringResource(R.string.diagnostic_report_send))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
+            // Both remaining actions share the dismiss slot: AlertDialog offers exactly
+            // two, and copying must stay reachable for a device with no mail app.
+            Row {
+                TextButton(onClick = onCopy) {
+                    Text(stringResource(R.string.auth_debug_report_copy))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.cancel))
+                }
             }
         }
     )

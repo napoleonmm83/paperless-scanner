@@ -1,14 +1,19 @@
 package com.paperless.scanner.data.analytics
 
 import android.content.Context
+import android.os.Build
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
 import app.cash.turbine.test
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
+import com.paperless.scanner.util.DiagnosticReportSender
 import io.mockk.every
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -193,11 +198,66 @@ class DiagnosticsReportServiceTest {
     }
 
     @Test
-    fun `the shareable report says so when nothing has happened yet`() {
-        // Not a formality: the settings entry reads lastReport to decide visibility, and
-        // an empty report that looks like a real one would waste a user's mail.
+    fun `a report requested with nothing broken still names the build and the device`() {
+        // The settings entry is reachable at any time, so this is the shape most manual
+        // reports have. It used to be the single line "No debug report available." —
+        // which told the reader neither which build wrote it nor on what.
         assertNull(service.lastReport.value)
-        assertTrue(service.createShareableReport().contains("No debug report"))
+
+        val text = service.createShareableReport()
+
+        // The VALUES, not the headings: "- App: null (0)" would satisfy a heading check
+        // and tell the reader nothing.
+        assertTrue("app version missing", text.contains(BuildConfig.VERSION_NAME))
+        assertTrue("device model missing", text.contains(Build.MODEL))
+        assertTrue("network section missing", text.contains("### Network"))
+        // The absence of a failure is STATED, not left as a gap in the report.
+        assertTrue("no-failure marker missing", text.contains("No failure recorded"))
+        // Without a failure there is no failure time to print, and printing the request
+        // time under a failure label was the defect.
+        assertTrue("request time missing", text.contains("- Requested at: "))
+        assertFalse("there is no failure, so no failure time", text.contains("- Failure at: "))
+    }
+
+    @Test
+    fun `a send that throws becomes NO_TARGET instead of killing the process`() {
+        // The load-bearing guard. Both callers run this inside viewModelScope, where an
+        // escaping exception reaches the default handler and terminates the app — on the
+        // one button whose whole job is to report a failure. startActivity catches only
+        // ActivityNotFoundException, so a mail app that cannot be granted the attachment
+        // throws SecurityException straight through.
+        mockkObject(DiagnosticReportSender)
+        try {
+            every { DiagnosticReportSender.send(any(), any(), any(), any()) } throws
+                SecurityException("mail app refused the attachment")
+
+            val before = crashlyticsHelper.recordedExceptions.size
+            val result = service.sendFullReport(
+                cacheDir = RuntimeEnvironment.getApplication().cacheDir,
+                subjectTag = "manual"
+            )
+
+            assertEquals(DiagnosticReportSender.Result.NO_TARGET, result)
+            assertEquals(
+                "the cause must be recorded, or we never learn this path exists",
+                before + 1,
+                crashlyticsHelper.recordedExceptions.size
+            )
+        } finally {
+            unmockkObject(DiagnosticReportSender)
+        }
+    }
+
+    @Test
+    fun `a report requested with nothing broken still carries the recent log`() {
+        // The whole point of the settings entry: the log is the payload when there is no
+        // recorded failure to describe.
+        assertNull(service.lastReport.value)
+
+        val text = service.createFullReport()
+
+        assertTrue("log section missing", text.contains("### Recent log"))
+        assertTrue("app version missing", text.contains(BuildConfig.VERSION_NAME))
     }
 
     @Test

@@ -6,8 +6,10 @@ import android.net.NetworkCapabilities
 import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.crashlytics.crashlytics
+import com.paperless.scanner.BuildConfig
 import com.paperless.scanner.data.datastore.ServerUrlHolder
 import com.paperless.scanner.data.datastore.TokenManager
+import com.paperless.scanner.util.DiagnosticReportSender
 import com.paperless.scanner.util.DiagnosticsLog
 import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.SharedFileCache
@@ -197,34 +199,66 @@ class DiagnosticsReportService @Inject constructor(
     /** A shareable report string for manual sharing (mail, clipboard, a GitHub issue). */
     fun createShareableReport(): String = withoutKnownHost(buildShareableReport())
 
+    private fun formatTime(epochMillis: Long): String =
+        java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            .format(java.util.Date(epochMillis))
+
+    /**
+     * The report head is built unconditionally; the failure section only when there IS a
+     * failure.
+     *
+     * This method used to open with `?: return "No debug report available."`, and that
+     * single line quietly defeated the one entry point a user reaches on purpose: a
+     * report requested from Settings, with nothing broken yet, carried no app version, no
+     * device and no network state — the reader could not even tell which build wrote it.
+     * The version was in the mail SUBJECT only, so the clipboard path carried it nowhere.
+     *
+     * Device and network are therefore taken from the recorded failure when one exists —
+     * they describe the moment that matters — and measured fresh otherwise.
+     */
     private fun buildShareableReport(): String {
-        val report = _lastReport.value ?: return "No debug report available."
+        val report = _lastReport.value
+        val deviceInfo = report?.deviceInfo ?: DiagnosticReport.DeviceInfo()
+        val networkInfo = report?.networkInfo ?: getNetworkInfo()
 
         return buildString {
             appendLine("## Paperless Scanner diagnostic report")
-            appendLine("Report ID: `${report.reportId}`")
-            appendLine("Timestamp: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date(report.timestamp))}")
+            appendLine("- App: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            appendLine("- Report ID: `${report?.reportId ?: "none"}`")
+            // TWO timestamps, and the distinction is load-bearing: the recorded failure
+            // survives until the process dies, so a report requested from Settings hours
+            // later still describes it. A single "Timestamp:" then showed the FAILURE's
+            // time on a mail whose subject says it was requested by hand — two different
+            // moments under one label.
+            appendLine("- Requested at: ${formatTime(System.currentTimeMillis())}")
+            report?.let { appendLine("- Failure at: ${formatTime(it.timestamp)}") }
             appendLine()
             // "Failure", not "Auth Attempt": the same report now covers a failed document
             // download and a render failure, and a heading that names the wrong cause is
             // exactly the class of defect this whole change set exists to remove.
             appendLine("### Failure")
-            appendLine("- Source: ${report.authType}")
-            appendLine("- Server Hash: `${report.serverUrlHash}`")
-            appendLine("- HTTP Status: ${report.httpStatusCode ?: "N/A"}")
-            appendLine("- Error Type: ${report.errorType ?: "N/A"}")
-            appendLine("- Error Message: ${report.errorMessage ?: "N/A"}")
+            if (report == null) {
+                // Stated rather than omitted: an absent section reads like a bug in the
+                // report, while this line tells the reader the log below is the payload.
+                appendLine("- No failure recorded — this report was requested manually.")
+            } else {
+                appendLine("- Source: ${report.authType}")
+                appendLine("- Server Hash: `${report.serverUrlHash}`")
+                appendLine("- HTTP Status: ${report.httpStatusCode ?: "N/A"}")
+                appendLine("- Error Type: ${report.errorType ?: "N/A"}")
+                appendLine("- Error Message: ${report.errorMessage ?: "N/A"}")
+            }
             appendLine()
             appendLine("### Device Info")
-            appendLine("- Android: ${report.deviceInfo.androidRelease} (API ${report.deviceInfo.androidVersion})")
-            appendLine("- Device: ${report.deviceInfo.manufacturer} ${report.deviceInfo.model}")
+            appendLine("- Android: ${deviceInfo.androidRelease} (API ${deviceInfo.androidVersion})")
+            appendLine("- Device: ${deviceInfo.manufacturer} ${deviceInfo.model}")
             appendLine()
             appendLine("### Network")
-            appendLine("- Type: ${report.networkInfo.networkType}")
-            appendLine("- VPN Active: ${report.networkInfo.isVpnActive}")
-            appendLine("- Has Internet: ${report.networkInfo.hasInternet}")
+            appendLine("- Type: ${networkInfo.networkType}")
+            appendLine("- VPN Active: ${networkInfo.isVpnActive}")
+            appendLine("- Has Internet: ${networkInfo.hasInternet}")
 
-            report.serverDetection?.let { sd ->
+            report?.serverDetection?.let { sd ->
                 appendLine()
                 appendLine("### Server Detection")
                 appendLine("- HTTPS Attempted: ${sd.httpsAttempted}")
@@ -235,7 +269,7 @@ class DiagnosticsReportService @Inject constructor(
                 sd.cfRayHeader?.let { appendLine("- CF-Ray: `$it`") }
             }
 
-            if (report.responseHeaders.isNotEmpty()) {
+            if (report != null && report.responseHeaders.isNotEmpty()) {
                 appendLine()
                 appendLine("### Response Headers")
                 report.responseHeaders.forEach { (key, value) ->
@@ -243,7 +277,7 @@ class DiagnosticsReportService @Inject constructor(
                 }
             }
 
-            report.responseBodyPreview?.let {
+            report?.responseBodyPreview?.let {
                 appendLine()
                 appendLine("### Response Body Preview")
                 appendLine("```")
@@ -307,6 +341,38 @@ class DiagnosticsReportService @Inject constructor(
         crashlyticsHelper.recordException(e)
         null
     }
+
+    /**
+     * Builds the full report and hands it to the mail path — the whole journey, guarded.
+     *
+     * Blocking; call from a background dispatcher.
+     *
+     * **Why this lives here and not in each ViewModel.** Both callers used to inline the
+     * same three steps with no error handling at all, and every step can throw at the
+     * user: [createFullReport] runs two regex passes over a logcat tail,
+     * `FileProvider.getUriForFile` catches only `IllegalArgumentException`, and
+     * `startActivity` catches only `ActivityNotFoundException` — a `SecurityException`
+     * from a mail app that cannot be granted the attachment goes straight through. In a
+     * `viewModelScope` that reaches the default handler and KILLS THE PROCESS: the one
+     * button whose job is to report a failure becomes the failure.
+     *
+     * A throw is therefore turned into [DiagnosticReportSender.Result.NO_TARGET], which
+     * the screens already translate into an honest "could not be sent" message, and the
+     * cause is recorded so we learn the path exists at all.
+     */
+    fun sendFullReport(cacheDir: java.io.File, subjectTag: String): DiagnosticReportSender.Result =
+        try {
+            val text = createFullReport()
+            DiagnosticReportSender.send(
+                context = context,
+                reportFile = writeReportFile(cacheDir, text),
+                reportText = text,
+                subjectTag = subjectTag
+            )
+        } catch (e: Exception) {
+            crashlyticsHelper.recordException(e)
+            DiagnosticReportSender.Result.NO_TARGET
+        }
 
     /**
      * Log detailed report to Crashlytics for non-fatal tracking.

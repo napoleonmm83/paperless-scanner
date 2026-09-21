@@ -1,5 +1,6 @@
 package com.paperless.scanner.ui.screens.settings
 
+import android.content.Context
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,8 +24,10 @@ import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
 import com.paperless.scanner.util.CoroutineDispatchers
+import com.paperless.scanner.util.DiagnosticReportSender
 import com.paperless.scanner.worker.UploadWorkManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -71,6 +74,9 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    // Needed for the diagnostic report: the mail intent, the FileProvider grant and the
+    // cache directory the attachment is written to all need an application context.
+    @ApplicationContext private val context: Context,
     private val tokenManager: TokenManager,
     private val serverStatusRepository: ServerStatusRepository,
     private val analyticsService: AnalyticsService,
@@ -387,21 +393,48 @@ class SettingsViewModel @Inject constructor(
     // ==================== Auth Debug Report Methods ====================
 
     /**
-     * Observe if there's a last auth debug report available.
+     * Mails us the FULL report — structured part plus the recent log lines — as an
+     * attachment.
+     *
+     * The clipboard path above hands over [createShareableReport], which carries no log
+     * at all; this is the one users reach when the in-context report button never
+     * appeared, so it must be the complete one.
+     *
+     * Off the main thread on purpose: the report spawns a logcat process and the
+     * attachment is written to disk. The guarding lives in
+     * [DiagnosticsReportService.sendFullReport] so both entry points share it — a throw
+     * escaping this coroutine would kill the process.
      */
-    val hasDiagnosticReport = diagnosticsReportService.lastReport
-
-    /**
-     * Get a shareable debug report string for GitHub issues.
-     */
-    fun getShareableDiagnosticReport(): String {
-        return diagnosticsReportService.createShareableReport()
+    fun sendDiagnosticReport(onResult: (DiagnosticReportSender.Result) -> Unit) {
+        viewModelScope.launch {
+            val result = withContext(dispatchers.io) {
+                // No error on screen to name here — the tag says where the report came
+                // from, which is what distinguishes it in our inbox.
+                diagnosticsReportService.sendFullReport(context.cacheDir, subjectTag = "manual")
+            }
+            analyticsService.trackEvent(AnalyticsEvent.DiagnosticReportShared(result.name))
+            onResult(result)
+        }
     }
 
     /**
-     * Clear the last auth debug report.
+     * The clipboard variant — the SAME full report, for pasting into a GitHub issue or
+     * a chat.
+     *
+     * Deliberately `createFullReport`, not `createShareableReport`: the dialog above
+     * promises "recent app log lines" for both buttons, and the shareable variant has
+     * none. Copying used to hand over a report the explanation had oversold, which is
+     * worse than having no copy button at all.
+     *
+     * Off the main thread for the same reason as sending: building the report spawns a
+     * logcat process, measures the network and runs two sanitizer passes.
      */
-    fun clearDiagnosticReport() {
-        diagnosticsReportService.clearLastReport()
+    fun copyDiagnosticReport(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val text = withContext(dispatchers.io) {
+                diagnosticsReportService.createFullReport()
+            }
+            onResult(text)
+        }
     }
 }
