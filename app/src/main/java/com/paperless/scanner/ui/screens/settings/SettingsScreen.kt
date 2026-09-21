@@ -1,7 +1,6 @@
 package com.paperless.scanner.ui.screens.settings
 
 import android.app.Activity
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer

@@ -422,9 +422,26 @@ class DiagnosticsReportService @Inject constructor(
     /**
      * Get current network info.
      */
-    private fun getNetworkInfo(): DiagnosticReport.NetworkInfo {
+    /**
+     * Guarded, because the report is the WRONG place to die.
+     *
+     * `getNetworkCapabilities` and `activeNetwork` throw `SecurityException` on some OEM
+     * builds. Until this change that only ran while a failure was being recorded; the
+     * manual report now calls it from the clipboard path too, and an escaping throw
+     * there reaches the default handler and kills the app while it copies an error
+     * report. The fallback says `unavailable` rather than a plausible-looking default —
+     * a fabricated "has internet: true" is indistinguishable from a real measurement.
+     */
+    private fun getNetworkInfo(): DiagnosticReport.NetworkInfo = try {
+        messeNetz()
+    } catch (e: RuntimeException) {
+        crashlyticsHelper.recordException(e)
+        DiagnosticReport.NetworkInfo(networkType = "unavailable")
+    }
+
+    private fun messeNetz(): DiagnosticReport.NetworkInfo {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-            ?: return DiagnosticReport.NetworkInfo()
+            ?: return DiagnosticReport.NetworkInfo(networkType = "unavailable")
 
         val network = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(network)

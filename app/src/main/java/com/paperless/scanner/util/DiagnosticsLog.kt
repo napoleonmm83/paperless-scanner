@@ -99,16 +99,24 @@ object DiagnosticsLog {
             listOf("logcat", "-d", "-t", maxLines.toString(), "--pid=$pid")
         ).redirectErrorStream(true).start()
 
+        // The deadline is armed BEFORE the read, and that ordering is the whole point.
+        // The KDoc above grants that an OEM build may refuse logcat; the case that hurts
+        // is one which neither serves nor exits — stdout stays open with no data, so
+        // `readLines()` never returns and a timeout placed after it is never reached.
+        // The caller then sees the dialog close and nothing else, ever: no report, no
+        // toast, no error. Killing the process closes stdout, which is what releases the
+        // read with whatever had arrived.
+        //
+        // `destroyForcibly`, not `destroy`: whether a hung logcat honours SIGTERM is
+        // exactly the thing we cannot assume here.
+        val waechter = Thread {
+            if (!process.waitFor(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+            }
+        }.apply { isDaemon = true; start() }
+
         val output = process.inputStream.bufferedReader().use { it.readLines() }
-        // Bounded on purpose. A bare `waitFor()` is an unbounded wait on a process this
-        // code does not control, and the KDoc above already grants that an OEM build may
-        // refuse logcat — one that neither serves nor exits would hang the caller
-        // forever. What the user sees then is the dialog closing and nothing else, ever:
-        // no report, no toast, no error. The lines were already read at this point, so
-        // the timeout costs the exit status, not the output.
-        if (!process.waitFor(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-            process.destroy()
-        }
+        waechter.join(LOGCAT_TIMEOUT_SECONDS * 1000)
         output.map { LogSanitizer.sanitizeLogLine(it) }
     } catch (e: Exception) {
         // Not reportable and not worth a breadcrumb: the ring buffer carries the report

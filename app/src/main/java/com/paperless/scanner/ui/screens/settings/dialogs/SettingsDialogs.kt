@@ -219,15 +219,15 @@ fun DiagnosticReportDialog(
             }
         },
         dismissButton = {
-            // Both remaining actions share the dismiss slot: AlertDialog offers exactly
-            // two, and copying must stay reachable for a device with no mail app.
-            Row {
-                TextButton(onClick = onCopy) {
-                    Text(stringResource(R.string.auth_debug_report_copy))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.cancel))
-                }
+            // Two buttons in the dismiss slot, NOT wrapped in a Row: Material 3 lays the
+            // slot contents out in its own flow row and wraps them child by child. A Row
+            // makes them one unbreakable child, and the labels are machine-translated
+            // into 15+ languages — the German pair alone overruns 360dp.
+            TextButton(onClick = onCopy) {
+                Text(stringResource(R.string.auth_debug_report_copy))
+            }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
             }
         }
     )
