@@ -223,8 +223,41 @@ class DocumentRepository @Inject constructor(
     suspend fun downloadDocument(
         documentId: Int,
         onProgress: (Float) -> Unit = {}
-    ): Result<File> = withContext(Dispatchers.IO) {
-        // The dispatcher switch is the whole point of this line, not tidiness.
+    ): Result<File> {
+        // Held out here, OUTSIDE withContext, and that position is the whole point.
+        //
+        // An earlier version kept it inside and cleared it right before Result.success.
+        // That misses the narrowest window there is: if the caller is cancelled AFTER the
+        // last ensureActive() — a back-press while the final chunk is written — the block
+        // finishes normally and hands back a Result, but withContext resumes a cancelled
+        // caller with CancellationException instead (prompt cancellation guarantee). The
+        // caller never receives the file, the inner catch never runs because nothing threw
+        // inside, and a complete PDF is orphaned in the shared cache until the age sweep.
+        // A cold review reproduced exactly that; the pin is the EOF-cancellation test.
+        //
+        // Out here the catch sees withContext's own cancellation, and the handover is
+        // marked only once withContext has returned — at which point the caller really
+        // does hold the file.
+        var partialFile: File? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                downloadInto(documentId, onProgress) { partialFile = it }
+            }.also {
+                // Returned normally, so the caller has the Result and owns the file.
+                partialFile = null
+            }
+        } catch (e: CancellationException) {
+            partialFile?.delete()
+            throw e
+        }
+    }
+
+    private suspend fun downloadInto(
+        documentId: Int,
+        onProgress: (Float) -> Unit,
+        onFileCreated: (File) -> Unit
+    ): Result<File> {
+        // The dispatcher switch in the caller is the whole point, not tidiness.
         //
         // `api.downloadDocument` is a suspend call and Retrofit dispatches THAT off the
         // caller's thread by itself — which is why this looked safe for a long time. But
@@ -244,14 +277,14 @@ class DocumentRepository @Inject constructor(
         // RuntimeException and PaperlessException.from() has no case for it — nothing in
         // the message pointed at a thread. The fix belongs HERE and not in the ViewModel:
         // this is the only place every caller passes through.
-        // Held outside the try so every failure exit can clean up after itself. The file
-        // exists from the moment outputStream() opens it, so an abort — cancelled caller,
-        // dropped connection, full disk — leaves a zero-byte or half-written PDF behind
-        // that no caller ever learns about: the Result is discarded or failed, so
-        // lastDownload is never set and onCleared has nothing to delete. It would sit in
-        // the shared cache until the age sweep.
+        // The file exists from the moment outputStream() opens it, so an abort — cancelled
+        // caller, dropped connection, full disk — would leave a zero-byte or half-written
+        // PDF behind that no caller ever learns about: the Result is discarded or failed,
+        // so lastDownload is never set and onCleared has nothing to delete. It would sit
+        // in the shared cache until the age sweep. onFileCreated hands the path to the
+        // caller of this function, which owns the cleanup.
         var partialFile: File? = null
-        try {
+        return try {
             val response = withRetry { api.downloadDocument(documentId) }
 
             val fileName = "document_${documentId}_${System.currentTimeMillis()}.pdf"
@@ -259,6 +292,7 @@ class DocumentRepository @Inject constructor(
             // can be shared/opened without exposing the entire cache root.
             val pdfFile = File(SharedFileCache.sharedPdfsDir(cacheDir), fileName)
             partialFile = pdfFile
+            onFileCreated(pdfFile)
 
             val contentLength = response.contentLength()
 
@@ -288,9 +322,9 @@ class DocumentRepository @Inject constructor(
                 }
             }
 
-            // Handed over: from here the caller owns the file, so the cleanup below must
-            // not fire for it.
-            partialFile = null
+            // NOT cleared here. Returning normally is not the same as the caller receiving
+            // the Result — see the comment on downloadDocument. The handover is marked one
+            // level up, after withContext has returned.
             Result.success(pdfFile)
         } catch (e: CancellationException) {
             partialFile?.delete()

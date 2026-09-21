@@ -412,6 +412,44 @@ class DocumentRepositoryTest {
     }
 
     @Test
+    fun `downloadDocument leaves no file behind when the caller is cancelled at EOF`() = runTest {
+        // The narrowest window, and the one the first attempt at this cleanup missed: the
+        // caller is cancelled AFTER the last ensureActive(), i.e. as the stream reports
+        // EOF. The block then finishes NORMALLY and returns a Result — but withContext
+        // resumes a cancelled caller with CancellationException instead (prompt
+        // cancellation guarantee), so nobody ever receives the file. Nothing threw inside,
+        // so an inner catch cannot see it; the cleanup has to sit outside withContext.
+        //
+        // Found by a cold review of the first cleanup commit, with this probe.
+        val content = ByteArray(16 * 1024) { 'x'.code.toByte() }
+        lateinit var job: Job
+        val eofCancellingStream = object : ByteArrayInputStream(content) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = super.read(b, off, len)
+                if (n == -1) job.cancel()
+                return n
+            }
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            eofCancellingStream.source().buffer().asResponseBody(null, content.size.toLong())
+
+        var received: Result<File>? = null
+        job = launch { received = documentRepository.downloadDocument(123) }
+        job.join()
+
+        assertTrue("the caller was not cancelled — the test set up nothing", job.isCancelled)
+        assertEquals("the caller received a result despite cancellation", null, received)
+        val dir = SharedFileCache.sharedPdfsDir(cacheDir)
+        val leftovers = dir.list()?.toList() ?: emptyList<String>()
+        assertEquals(
+            "a finished download was orphaned in the shared cache " +
+                "(sizes=${leftovers.map { File(dir, it).length() }})",
+            emptyList<String>(),
+            leftovers
+        )
+    }
+
+    @Test
     fun `downloadDocument leaves no partial file behind when the stream dies`() = runTest {
         // The counterpart for the ordinary failure. Cancellation and a dropped connection
         // exit through different catches, and only one of them was covered.
