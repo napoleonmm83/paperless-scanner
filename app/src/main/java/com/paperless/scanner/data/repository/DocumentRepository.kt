@@ -17,6 +17,11 @@ import com.paperless.scanner.R
 import java.io.IOException
 import javax.inject.Named
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -220,6 +225,79 @@ class DocumentRepository @Inject constructor(
         documentId: Int,
         onProgress: (Float) -> Unit = {}
     ): Result<File> {
+        // Held out here, OUTSIDE withContext, and that position is the whole point.
+        //
+        // An earlier version kept it inside and cleared it right before Result.success.
+        // That misses the narrowest window there is: if the caller is cancelled AFTER the
+        // last ensureActive() — a back-press while the final chunk is written — the block
+        // finishes normally and hands back a Result, but withContext resumes a cancelled
+        // caller with CancellationException instead (prompt cancellation guarantee). The
+        // caller never receives the file, the inner catch never runs because nothing threw
+        // inside, and a complete PDF is orphaned in the shared cache until the age sweep.
+        // A cold review reproduced exactly that; the pin is the EOF-cancellation test.
+        //
+        // Out here the catch sees withContext's own cancellation, and the handover is
+        // marked only once withContext has returned — at which point the caller really
+        // does hold the file.
+        var partialFile: File? = null
+        try {
+            return withContext(Dispatchers.IO) {
+                downloadInto(documentId, onProgress) { partialFile = it }
+            }.also {
+                // Returned normally, so the caller has the Result and owns the file.
+                partialFile = null
+            }
+        } catch (e: CancellationException) {
+            // NonCancellable + IO, and both halves are load-bearing.
+            //
+            // IO: this catch resumes in the CALLER's context, and for the documented
+            // caller that is viewModelScope — i.e. the main thread. A bare delete() here
+            // would put filesystem I/O back on the very thread this whole change exists
+            // to get off.
+            //
+            // NonCancellable: we are already inside a cancelled scope, so a plain
+            // withContext(Dispatchers.IO) would throw at its first suspension point and
+            // never reach the delete. Without it the cleanup silently stops happening —
+            // a lost function, not a slow one. The EOF test below is what catches that.
+            partialFile?.let { file ->
+                withContext(NonCancellable + Dispatchers.IO) { file.delete() }
+            }
+            throw e
+        }
+    }
+
+    private suspend fun downloadInto(
+        documentId: Int,
+        onProgress: (Float) -> Unit,
+        onFileCreated: (File) -> Unit
+    ): Result<File> {
+        // The dispatcher switch in the caller is the whole point, not tidiness.
+        //
+        // `api.downloadDocument` is a suspend call and Retrofit dispatches THAT off the
+        // caller's thread by itself — which is why this looked safe for a long time. But
+        // the ResponseBody it hands back is UNREAD: the byteStream() loop below does the
+        // actual socket reads, and those run in the CALLER's context. PdfViewerViewModel
+        // calls this from viewModelScope, i.e. Dispatchers.Main (user report a9e00ce0,
+        // v1.5.245).
+        //
+        // What that costs depends on the protocol, and saying "it always threw" would be
+        // wrong — the viewer demonstrably worked for people. On HTTP/1.1 it is a real
+        // socket read and BlockGuard throws NetworkOnMainThreadException, which is the
+        // reported crash. On HTTP/2 the read comes out of an in-memory frame buffer that
+        // a separate reader thread fills, so nothing throws and the main thread simply
+        // BLOCKS for the length of the download. Same defect, two faces.
+        //
+        // It surfaced as "Unbekannter Fehler" because NetworkOnMainThreadException is a
+        // RuntimeException and PaperlessException.from() has no case for it — nothing in
+        // the message pointed at a thread. The fix belongs HERE and not in the ViewModel:
+        // this is the only place every caller passes through.
+        // The file exists from the moment outputStream() opens it, so an abort — cancelled
+        // caller, dropped connection, full disk — would leave a zero-byte or half-written
+        // PDF behind that no caller ever learns about: the Result is discarded or failed,
+        // so lastDownload is never set and onCleared has nothing to delete. It would sit
+        // in the shared cache until the age sweep. onFileCreated hands the path to the
+        // caller of this function, which owns the cleanup.
+        var partialFile: File? = null
         return try {
             val response = withRetry { api.downloadDocument(documentId) }
 
@@ -227,6 +305,8 @@ class DocumentRepository @Inject constructor(
             // #241: write into the FileProvider-scoped subdir so the downloaded PDF
             // can be shared/opened without exposing the entire cache root.
             val pdfFile = File(SharedFileCache.sharedPdfsDir(cacheDir), fileName)
+            partialFile = pdfFile
+            onFileCreated(pdfFile)
 
             val contentLength = response.contentLength()
 
@@ -237,6 +317,15 @@ class DocumentRepository @Inject constructor(
                     var read: Int
 
                     while (inputStream.read(buffer).also { read = it } != -1) {
+                        // This loop has no suspension point, so withContext cannot break
+                        // out of it and a blocking read on Dispatchers.IO is never
+                        // interrupted. Without this check, leaving the viewer mid-download
+                        // keeps the thread reading to EOF and writes a full file that
+                        // nobody owns — the Result is discarded, lastDownload never set,
+                        // onCleared deletes nothing, and it sits in the shared cache until
+                        // the age sweep. The old code could not reach that state: the read
+                        // died on the first byte.
+                        currentCoroutineContext().ensureActive()
                         outputStream.write(buffer, 0, read)
                         bytesRead += read
 
@@ -247,8 +336,12 @@ class DocumentRepository @Inject constructor(
                 }
             }
 
+            // NOT cleared here. Returning normally is not the same as the caller receiving
+            // the Result — see the comment on downloadDocument. The handover is marked one
+            // level up, after withContext has returned.
             Result.success(pdfFile)
         } catch (e: CancellationException) {
+            partialFile?.delete()
             throw e
         } catch (e: Exception) {
             // Pinned by DocumentRepositoryTest ("a DNS failure keeps its identity
@@ -284,6 +377,7 @@ class DocumentRepository @Inject constructor(
             // not since this change — and CleartextNotAllowlistedException still burns the
             // full ladder as a plain IOException. Claiming otherwise took credit for
             // someone else's fix and was false about the one case it named.
+            partialFile?.delete()
             Result.failure(PaperlessException.from(e))
         }
     }

@@ -12,6 +12,7 @@ import com.paperless.scanner.domain.error.ServerOfflineReason
 import com.paperless.scanner.data.service.DocumentSerializer
 import com.paperless.scanner.data.service.ImageProcessorService
 import com.paperless.scanner.data.service.PdfGeneratorService
+import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -19,10 +20,16 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.buffer
+import okio.source
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -35,6 +42,8 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.net.UnknownHostException
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -312,6 +321,153 @@ class DocumentRepositoryTest {
         val error = documentRepository.downloadDocument(123).exceptionOrNull()
 
         assertTrue("the ordinary IO case changed: $error", error is PaperlessException.NetworkError)
+    }
+
+    @Test
+    fun `downloadDocument reads the response body off the calling thread`() = runTest {
+        // The pin for the NetworkOnMainThreadException of user report a9e00ce0 (v1.5.245).
+        //
+        // Retrofit dispatches the suspend CALL off-thread by itself, so mocking the api
+        // and asserting on the Result proves nothing about threads — every existing test
+        // here passes with or without the fix. What was broken is the part Retrofit does
+        // not touch: the ResponseBody arrives unread and byteStream() does the socket
+        // reads in the CALLER's context. PdfViewerViewModel calls this from viewModelScope
+        // (Dispatchers.Main), and Android throws on a socket read there.
+        //
+        // So the stream itself is the witness: it records which thread pulled bytes out of
+        // it. Remove the withContext(Dispatchers.IO) in DocumentRepository and that thread
+        // becomes this test's own thread, which is exactly the shape of the device bug.
+        // The witness is the Thread OBJECT, not its name: coroutines-test appends
+        // "@coroutine#id" to the name, so a later coroutineScope wrapper in the repository
+        // could change the id and keep a name comparison green while the same thread reads.
+        val content = ByteArray(32 * 1024) { 'x'.code.toByte() }
+        val readThread = AtomicReference<Thread>()
+        val recordingStream = object : ByteArrayInputStream(content) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                readThread.compareAndSet(null, Thread.currentThread())
+                return super.read(b, off, len)
+            }
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            recordingStream.source().buffer().asResponseBody(null, content.size.toLong())
+
+        val callerThread = Thread.currentThread()
+        val result = documentRepository.downloadDocument(123)
+
+        assertTrue("download failed: ${result.exceptionOrNull()}", result.isSuccess)
+        // Positive control: without this the assertion below passes just as well when the
+        // body was never read at all, which is a different bug wearing the same green.
+        assertNotNull("the response body was never read — the test proves nothing", readThread.get())
+        assertNotEquals(
+            "the response body was read on the calling thread (${callerThread.name}) — " +
+                "on a device that is NetworkOnMainThreadException",
+            callerThread,
+            readThread.get()
+        )
+    }
+
+    @Test
+    fun `downloadDocument stops reading once the caller is cancelled`() = runTest {
+        // The pin for the ensureActive() in the copy loop. That loop has no suspension
+        // point, so withContext cannot break out of it and a blocking read on
+        // Dispatchers.IO is never interrupted: without the check, leaving the PDF viewer
+        // mid-download keeps the thread reading to EOF and leaves a fully written file
+        // that no one owns. This state only became reachable WITH the IO dispatcher — the
+        // old code's read died on the first byte — so the fix brought its own follow-up.
+        //
+        // The existing CancellationException test above cannot see this: it throws from
+        // the api call, before the loop.
+        val content = ByteArray(64 * 1024) { 'x'.code.toByte() }
+        val reads = AtomicInteger()
+        lateinit var job: Job
+        val cancellingStream = object : ByteArrayInputStream(content) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                reads.incrementAndGet()
+                job.cancel()
+                return super.read(b, off, len)
+            }
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            cancellingStream.source().buffer().asResponseBody(null, content.size.toLong())
+
+        job = launch { documentRepository.downloadDocument(123) }
+        job.join()
+
+        assertTrue("the caller was not cancelled — the test set up nothing", job.isCancelled)
+        // 64 KiB over 8 KiB segments is eight reads if the loop runs to completion. One or
+        // two means it noticed. Drop the ensureActive() and this reads all eight.
+        assertTrue(
+            "the loop kept reading after cancellation: ${reads.get()} reads",
+            reads.get() < 4
+        )
+        // Stopping the read is only half of it: outputStream() has already created the
+        // file, so an abort leaves a zero-byte or half-written PDF that nobody learns
+        // about — the Result is discarded, so lastDownload is never set and onCleared has
+        // nothing to delete.
+        assertEquals(
+            "a partial download was left behind in the shared cache",
+            emptyList<String>(),
+            SharedFileCache.sharedPdfsDir(cacheDir).list()?.toList() ?: emptyList<String>()
+        )
+    }
+
+    @Test
+    fun `downloadDocument leaves no file behind when the caller is cancelled at EOF`() = runTest {
+        // The narrowest window, and the one the first attempt at this cleanup missed: the
+        // caller is cancelled AFTER the last ensureActive(), i.e. as the stream reports
+        // EOF. The block then finishes NORMALLY and returns a Result — but withContext
+        // resumes a cancelled caller with CancellationException instead (prompt
+        // cancellation guarantee), so nobody ever receives the file. Nothing threw inside,
+        // so an inner catch cannot see it; the cleanup has to sit outside withContext.
+        //
+        // Found by a cold review of the first cleanup commit, with this probe.
+        val content = ByteArray(16 * 1024) { 'x'.code.toByte() }
+        lateinit var job: Job
+        val eofCancellingStream = object : ByteArrayInputStream(content) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                val n = super.read(b, off, len)
+                if (n == -1) job.cancel()
+                return n
+            }
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            eofCancellingStream.source().buffer().asResponseBody(null, content.size.toLong())
+
+        var received: Result<File>? = null
+        job = launch { received = documentRepository.downloadDocument(123) }
+        job.join()
+
+        assertTrue("the caller was not cancelled — the test set up nothing", job.isCancelled)
+        assertEquals("the caller received a result despite cancellation", null, received)
+        val dir = SharedFileCache.sharedPdfsDir(cacheDir)
+        val leftovers = dir.list()?.toList() ?: emptyList<String>()
+        assertEquals(
+            "a finished download was orphaned in the shared cache " +
+                "(sizes=${leftovers.map { File(dir, it).length() }})",
+            emptyList<String>(),
+            leftovers
+        )
+    }
+
+    @Test
+    fun `downloadDocument leaves no partial file behind when the stream dies`() = runTest {
+        // The counterpart for the ordinary failure. Cancellation and a dropped connection
+        // exit through different catches, and only one of them was covered.
+        val dyingStream = object : ByteArrayInputStream(ByteArray(32 * 1024)) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int =
+                throw IOException("connection reset")
+        }
+        coEvery { api.downloadDocument(any()) } returns
+            dyingStream.source().buffer().asResponseBody(null, 32L * 1024)
+
+        val result = documentRepository.downloadDocument(123)
+
+        assertTrue("the failure was swallowed: $result", result.isFailure)
+        assertEquals(
+            "a partial download was left behind in the shared cache",
+            emptyList<String>(),
+            SharedFileCache.sharedPdfsDir(cacheDir).list()?.toList() ?: emptyList<String>()
+        )
     }
 
     @Test
