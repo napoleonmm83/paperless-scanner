@@ -18,6 +18,7 @@ import java.io.IOException
 import javax.inject.Named
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -247,7 +248,20 @@ class DocumentRepository @Inject constructor(
                 partialFile = null
             }
         } catch (e: CancellationException) {
-            partialFile?.delete()
+            // NonCancellable + IO, and both halves are load-bearing.
+            //
+            // IO: this catch resumes in the CALLER's context, and for the documented
+            // caller that is viewModelScope — i.e. the main thread. A bare delete() here
+            // would put filesystem I/O back on the very thread this whole change exists
+            // to get off.
+            //
+            // NonCancellable: we are already inside a cancelled scope, so a plain
+            // withContext(Dispatchers.IO) would throw at its first suspension point and
+            // never reach the delete. Without it the cleanup silently stops happening —
+            // a lost function, not a slow one. The EOF test below is what catches that.
+            partialFile?.let { file ->
+                withContext(NonCancellable + Dispatchers.IO) { file.delete() }
+            }
             throw e
         }
     }
