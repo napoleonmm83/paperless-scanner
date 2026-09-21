@@ -293,9 +293,14 @@ fun SettingsScreen(
                 // do `as ClipboardManager` with no catch, so an OEM build without the
                 // service crashed the app on the FALLBACK path.
                 coroutineScope.launch {
+                    // null means the host redaction could not be seeded — then there is
+                    // no report to hand over, because handing one over could carry the
+                    // server address in the clear.
                     val text = viewModel.copyDiagnosticReport()
-                    val message = when (DiagnosticReportSender.copyToClipboard(context, text)) {
-                        DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
+                    val message = when {
+                        text == null -> R.string.diagnostic_report_no_target
+                        DiagnosticReportSender.copyToClipboard(context, text) ==
+                            DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
                             R.string.auth_debug_report_copied
                         else -> R.string.diagnostic_report_no_target
                     }

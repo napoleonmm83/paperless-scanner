@@ -9,6 +9,7 @@ import app.cash.turbine.test
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
 import com.paperless.scanner.util.DiagnosticReportSender
 import io.mockk.every
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import io.mockk.mockk
@@ -246,6 +247,24 @@ class DiagnosticsReportServiceTest {
         } finally {
             unmockkObject(DiagnosticReportSender)
         }
+    }
+
+    @Test
+    fun `a failed host read yields no report at all, not an unredacted one`() = runTest {
+        // Fail CLOSED. redactKnownHosts cannot remove a host it was never told about,
+        // so a report built after a failed seed is one with incomplete redaction
+        // inputs — the exact leak the seeding exists to prevent, minus the error.
+        val kaputt = mockk<TokenManager>(relaxed = true)
+        every { kaputt.serverUrl } returns flow { throw java.io.IOException("DataStore") }
+        every { kaputt.paperlessGptUrl } returns flowOf(null)
+        every { kaputt.acceptedHttpHostsFlow } returns flowOf(emptyList())
+
+        val service = DiagnosticsReportService(
+            context, analyticsService, crashlyticsHelper, kaputt, serverUrlHolder
+        )
+
+        assertNull("a report was built although the hosts could not be read",
+            service.createFullReportForSharing())
     }
 
     @Test

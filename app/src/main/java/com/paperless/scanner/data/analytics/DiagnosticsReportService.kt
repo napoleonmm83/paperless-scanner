@@ -14,12 +14,14 @@ import com.paperless.scanner.util.DiagnosticsLog
 import com.paperless.scanner.util.LogSanitizer
 import com.paperless.scanner.util.SharedFileCache
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.Response
@@ -97,9 +99,17 @@ class DiagnosticsReportService @Inject constructor(
     init {
         // Collected rather than read on demand: a report is often built from the main
         // thread, and a settings read must not happen there.
-        scope.launch { tokenManager.serverUrl.collect { rememberHost(it) } }
-        scope.launch { tokenManager.paperlessGptUrl.collect { rememberHost(it) } }
-        scope.launch { tokenManager.acceptedHttpHostsFlow.collect { it.forEach(::rememberHost) } }
+        //
+        // Best-effort by design, and the `catch` says so: these keep the host set warm
+        // while the app runs, but they are NOT what the privacy promise rests on — that
+        // is [hostsBereitstellen], which reads once before a report and fails closed. A
+        // throwing flow here used to kill its collector outright and take the ongoing
+        // tracking with it, silently, for the rest of the process.
+        scope.launch { tokenManager.serverUrl.catch { }.collect { rememberHost(it) } }
+        scope.launch { tokenManager.paperlessGptUrl.catch { }.collect { rememberHost(it) } }
+        scope.launch {
+            tokenManager.acceptedHttpHostsFlow.catch { }.collect { it.forEach(::rememberHost) }
+        }
     }
 
     /**
@@ -114,12 +124,18 @@ class DiagnosticsReportService @Inject constructor(
      *
      * Suspending rather than blocking: the values come from DataStore, and this runs on
      * the IO dispatcher of a caller that is already suspending.
+     *
+     * **It THROWS, and that is the point.** The first version wrapped each read in a
+     * `runCatching` and carried on — which turns a failed read into a report built with
+     * incomplete redaction inputs, i.e. exactly the leak this function exists to
+     * prevent, minus the error message. `redactKnownHosts` cannot remove a host it was
+     * never told about. A privacy promise fails CLOSED: no hosts, no report.
      */
     private suspend fun hostsBereitstellen() {
         rememberHost(serverUrlHolder.current())
-        runCatching { rememberHost(tokenManager.serverUrl.first()) }
-        runCatching { rememberHost(tokenManager.paperlessGptUrl.first()) }
-        runCatching { tokenManager.acceptedHttpHostsFlow.first().forEach(::rememberHost) }
+        rememberHost(tokenManager.serverUrl.first())
+        rememberHost(tokenManager.paperlessGptUrl.first())
+        tokenManager.acceptedHttpHostsFlow.first().forEach(::rememberHost)
     }
 
     @Synchronized
@@ -226,9 +242,19 @@ class DiagnosticsReportService @Inject constructor(
      * Same reason as [sendFullReport]: without [hostsBereitstellen] a report built right
      * after start can carry a host the redaction did not know about yet.
      */
-    suspend fun createFullReportForSharing(): String {
+    suspend fun createFullReportForSharing(): String? = try {
         hostsBereitstellen()
-        return createFullReport()
+        createFullReport()
+    } catch (e: CancellationException) {
+        // Never swallowed: a cancelled job must not look like a failed one, and the
+        // caller's scope is entitled to end here.
+        throw e
+    } catch (e: Exception) {
+        // null, not a report: the seeding failed, so the redaction inputs are
+        // incomplete and the text could carry a bare host. The caller shows the
+        // could-not-be-copied message instead.
+        crashlyticsHelper.recordException(e)
+        null
     }
 
     private fun formatTime(epochMillis: Long): String =
@@ -402,6 +428,11 @@ class DiagnosticsReportService @Inject constructor(
                 reportText = text,
                 subjectTag = subjectTag
             )
+        } catch (e: CancellationException) {
+            // BEFORE the Exception branch — CancellationException IS an Exception, and
+            // recording a cancelled job as a send failure both pollutes the telemetry
+            // and breaks the caller's structured concurrency.
+            throw e
         } catch (e: Exception) {
             crashlyticsHelper.recordException(e)
             DiagnosticReportSender.Result.NO_TARGET

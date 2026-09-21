@@ -427,7 +427,7 @@ class SettingsViewModel @Inject constructor(
      * Off the main thread for the same reason as sending: building the report spawns a
      * logcat process, measures the network and runs two sanitizer passes.
      */
-    suspend fun copyDiagnosticReport(): String = withContext(dispatchers.io) {
+    suspend fun copyDiagnosticReport(): String? = withContext(dispatchers.io) {
         diagnosticsReportService.createFullReportForSharing()
     }
 }
