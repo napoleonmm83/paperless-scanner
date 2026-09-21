@@ -1,0 +1,10 @@
+Version 1.5.244:
+
+✨ Neue Features:
+- Fehlerbericht jetzt jederzeit unter Einstellungen → Info
+- Bericht per Mail senden, mit den letzten Log-Zeilen im Anhang
+
+🔧 Verbesserungen:
+- Jeder Bericht nennt App-Version, Gerät und Netzwerk-Typ
+- Auch ohne vorherigen Fehler ist der Bericht auswertbar
+- Serveradresse und Passwort bleiben wie bisher draußen

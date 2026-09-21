@@ -114,7 +114,14 @@ object DiagnosticReportSender {
      * clipboard service can be absent or refuse a write, and claiming a copy that did not
      * happen is the defect this branch exists to avoid.
      */
-    private fun copyToClipboard(context: Context, reportText: String): Result = try {
+    // `internal`, not private: the settings screen offers copying as its own action and
+    // had hand-rolled it with a hard `as` cast and no catch — the exact two failures the
+    // KDoc above says this function exists to survive.
+    //
+    // NOT yet the only clipboard path in the app: the onboarding screen still hand-rolls
+    // the same unguarded cast (SimplifiedSetupScreen, the auth-debug copy). That one is
+    // pre-existing and outside this change; it should route here too.
+    internal fun copyToClipboard(context: Context, reportText: String): Result = try {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         if (clipboard == null) {
             Result.NO_TARGET

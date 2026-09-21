@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import java.util.ArrayDeque
+import java.util.concurrent.TimeUnit
 
 /**
  * A small in-memory ring buffer of recent log lines, for the diagnostic report a user can
@@ -98,8 +99,24 @@ object DiagnosticsLog {
             listOf("logcat", "-d", "-t", maxLines.toString(), "--pid=$pid")
         ).redirectErrorStream(true).start()
 
+        // The deadline is armed BEFORE the read, and that ordering is the whole point.
+        // The KDoc above grants that an OEM build may refuse logcat; the case that hurts
+        // is one which neither serves nor exits — stdout stays open with no data, so
+        // `readLines()` never returns and a timeout placed after it is never reached.
+        // The caller then sees the dialog close and nothing else, ever: no report, no
+        // toast, no error. Killing the process closes stdout, which is what releases the
+        // read with whatever had arrived.
+        //
+        // `destroyForcibly`, not `destroy`: whether a hung logcat honours SIGTERM is
+        // exactly the thing we cannot assume here.
+        val waechter = Thread {
+            if (!process.waitFor(LOGCAT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+            }
+        }.apply { isDaemon = true; start() }
+
         val output = process.inputStream.bufferedReader().use { it.readLines() }
-        process.waitFor()
+        waechter.join(LOGCAT_TIMEOUT_SECONDS * 1000)
         output.map { LogSanitizer.sanitizeLogLine(it) }
     } catch (e: Exception) {
         // Not reportable and not worth a breadcrumb: the ring buffer carries the report
@@ -109,4 +126,7 @@ object DiagnosticsLog {
 
     /** Lines requested from logcat. Enough for the minutes before a failure. */
     const val LOGCAT_LINES = 400
+
+    /** How long the logcat process may take to exit before it is killed. */
+    const val LOGCAT_TIMEOUT_SECONDS = 3L
 }

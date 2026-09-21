@@ -1178,7 +1178,7 @@
       Shown above the report preview. Says what is included AND what is not, because the
       user is about to hand us a log file and deserves to know that before, not after.
     -->
-    <string name="diagnostic_report_explain">This report contains your device model, network type, error codes and recent app log lines. It does not contain your documents, your password, or your server address in readable form.</string>
+    <string name="diagnostic_report_explain">This report contains your app version, device model, network type, error codes and recent app log lines. It does not contain your documents, your password, or your server address in readable form.</string>
     <string name="diagnostic_report_copied">Report copied to clipboard</string>
     <string name="diagnostic_report_no_target">The report could not be sent or copied. Please try again.</string>
 

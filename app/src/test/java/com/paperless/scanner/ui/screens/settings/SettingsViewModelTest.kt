@@ -1,7 +1,9 @@
 package com.paperless.scanner.ui.screens.settings
 
+import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
+import com.paperless.scanner.util.DiagnosticReportSender
 import com.paperless.scanner.data.repository.ServerStatusRepository
 import com.paperless.scanner.domain.model.ServerStatus
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -18,6 +20,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -97,6 +100,9 @@ class SettingsViewModelTest {
 
     private fun createViewModel(): SettingsViewModel {
         return SettingsViewModel(
+            // Only reached by sendDiagnosticReport, which is exercised in its own test
+            // with the sender stubbed out.
+            context = mockk(relaxed = true),
             tokenManager = tokenManager,
             serverStatusRepository = serverStatusRepository,
             analyticsService = analyticsService,
@@ -362,6 +368,29 @@ class SettingsViewModelTest {
             advanceUntilIdle()
 
             assertEquals(quality, viewModel.uiState.value.uploadQuality)
+        }
+    }
+
+    @Test
+    fun `sendDiagnosticReport reports the outcome back and records it`() = runTest {
+        // The outcome decides whether the screen shows a toast, so a send that silently
+        // fell back to the clipboard must reach the caller — that is the whole contract
+        // of the callback. (That a THROW becomes NO_TARGET instead of killing the
+        // process is pinned where the guard lives, in DiagnosticsReportServiceTest.)
+        coEvery { diagnosticsReportService.sendFullReport(any(), any()) } returns
+            DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD
+
+        val viewModel = createViewModel()
+        val seen = viewModel.sendDiagnosticReport()
+        advanceUntilIdle()
+
+        assertEquals(DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD, seen)
+        verify {
+            analyticsService.trackEvent(
+                AnalyticsEvent.DiagnosticReportShared(
+                    DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD.name
+                )
+            )
         }
     }
 }

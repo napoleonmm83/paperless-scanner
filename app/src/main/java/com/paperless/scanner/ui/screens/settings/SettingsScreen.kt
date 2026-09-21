@@ -1,9 +1,6 @@
 package com.paperless.scanner.ui.screens.settings
 
 import android.app.Activity
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +38,7 @@ import com.paperless.scanner.ui.screens.settings.sections.ProfileHeader
 import com.paperless.scanner.ui.screens.settings.sections.SecuritySection
 import com.paperless.scanner.ui.screens.settings.sections.ServerSection
 import com.paperless.scanner.ui.screens.settings.sections.UploadSection
+import com.paperless.scanner.util.DiagnosticReportSender
 import kotlinx.coroutines.launch
 
 @Composable
@@ -54,7 +52,6 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val authDebugReport by viewModel.hasDiagnosticReport.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
@@ -135,7 +132,6 @@ fun SettingsScreen(
             } else {
                 BuildConfig.VERSION_NAME
             },
-            hasDiagnosticReport = authDebugReport != null,
             // 7-tap Easter egg DISABLED in production — no backdoor to Premium features.
             onVersionClick = { },
             onLicensesClick = { showLicensesDialog = true },
@@ -272,18 +268,44 @@ fun SettingsScreen(
 
     if (showDiagnosticReportDialog) {
         DiagnosticReportDialog(
-            onCopy = {
-                val shareableReport = viewModel.getShareableDiagnosticReport()
-                val clipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("Auth Debug Report", shareableReport)
-                clipboardManager.setPrimaryClip(clip)
-                Toast.makeText(
-                    context,
-                    context.getString(R.string.auth_debug_report_copied),
-                    Toast.LENGTH_SHORT
-                ).show()
-                viewModel.clearDiagnosticReport()
+            onSend = {
                 showDiagnosticReportDialog = false
+                coroutineScope.launch {
+                    val result = viewModel.sendDiagnosticReport()
+                    // Only the two SILENT outcomes need a toast, and they say different
+                    // things: claiming a clipboard copy that did not happen sends the
+                    // user looking for a report that is not there.
+                    val message = when (result) {
+                        DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
+                            R.string.diagnostic_report_copied
+                        DiagnosticReportSender.Result.NO_TARGET ->
+                            R.string.diagnostic_report_no_target
+                        else -> null
+                    }
+                    message?.let {
+                        Toast.makeText(context, context.getString(it), Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            onCopy = {
+                showDiagnosticReportDialog = false
+                // Through the shared helper rather than a hand-rolled cast: this used to
+                // do `as ClipboardManager` with no catch, so an OEM build without the
+                // service crashed the app on the FALLBACK path.
+                coroutineScope.launch {
+                    // null means the host redaction could not be seeded — then there is
+                    // no report to hand over, because handing one over could carry the
+                    // server address in the clear.
+                    val text = viewModel.copyDiagnosticReport()
+                    val message = when {
+                        text == null -> R.string.diagnostic_report_no_target
+                        DiagnosticReportSender.copyToClipboard(context, text) ==
+                            DiagnosticReportSender.Result.COPIED_TO_CLIPBOARD ->
+                            R.string.auth_debug_report_copied
+                        else -> R.string.diagnostic_report_no_target
+                    }
+                    Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                }
             },
             onDismiss = { showDiagnosticReportDialog = false }
         )

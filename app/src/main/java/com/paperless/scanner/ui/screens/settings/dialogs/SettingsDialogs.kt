@@ -189,8 +189,19 @@ fun PurchaseResultDialog(
     )
 }
 
+/**
+ * INTENTIONAL-UNTESTED: this project has no Compose-UI test harness (Roborazzi is
+ * deferred as issue #391), so a dialog's button layout cannot be pinned from a unit
+ * test. What the buttons DO is pinned where the logic lives —
+ * `SettingsViewModel.sendDiagnosticReport` and `DiagnosticReportSender`.
+ *
+ * Sending is the primary action because it delivers the report to us directly. Copying
+ * stays available as the secondary one and carries the SAME full report, log lines
+ * included — the explanation promises them for both buttons.
+ */
 @Composable
 fun DiagnosticReportDialog(
+    onSend: () -> Unit,
     onCopy: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -204,11 +215,18 @@ fun DiagnosticReportDialog(
         title = { Text(stringResource(R.string.diagnostic_report_title)) },
         text = { Text(stringResource(R.string.diagnostic_report_explain)) },
         confirmButton = {
-            TextButton(onClick = onCopy) {
-                Text(stringResource(R.string.auth_debug_report_copy))
+            TextButton(onClick = onSend) {
+                Text(stringResource(R.string.diagnostic_report_send))
             }
         },
         dismissButton = {
+            // Two buttons in the dismiss slot, NOT wrapped in a Row: Material 3 lays the
+            // slot contents out in its own flow row and wraps them child by child. A Row
+            // makes them one unbreakable child, and the labels are machine-translated
+            // into 15+ languages — the German pair alone overruns 360dp.
+            TextButton(onClick = onCopy) {
+                Text(stringResource(R.string.auth_debug_report_copy))
+            }
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.cancel))
             }
