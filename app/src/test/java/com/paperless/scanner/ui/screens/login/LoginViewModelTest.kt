@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.login
 
 import android.content.Context
 import android.util.Log
+import app.cash.turbine.test
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
@@ -270,10 +271,14 @@ class LoginViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.login("https://paperless.lan", "user", "password")
-        advanceUntilIdle()
-
-        assertEquals(message, (viewModel.uiState.value as LoginUiState.Error).message)
+        viewModel.uiState.test {
+            assertTrue(awaitItem() is LoginUiState.Idle)
+            viewModel.login("https://paperless.lan", "user", "password")
+            advanceUntilIdle()
+            assertTrue(awaitItem() is LoginUiState.Loading)
+            assertEquals(message, (awaitItem() as LoginUiState.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -286,10 +291,14 @@ class LoginViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.loginWithToken("https://paperless.lan", "token")
-        advanceUntilIdle()
-
-        assertEquals(message, (viewModel.uiState.value as LoginUiState.Error).message)
+        viewModel.uiState.test {
+            assertTrue(awaitItem() is LoginUiState.Idle)
+            viewModel.loginWithToken("https://paperless.lan", "token")
+            advanceUntilIdle()
+            assertTrue(awaitItem() is LoginUiState.Loading)
+            assertEquals(message, (awaitItem() as LoginUiState.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -310,6 +319,35 @@ class LoginViewModelTest {
         assertEquals(1, savedCalls)
         // Observed entry is consumed so a later success does not see a stale mismatch.
         assertTrue(observedCertHolder.peek("paperless.lan") == null)
+    }
+
+    @Test
+    fun cancelDuringPinWriteCannotTriggerASecondDecision() = runTest {
+        val mismatch = ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        var mismatchAfterCancel: ObservedCertHolder.Mismatch? = null
+        var savedCalls = 0
+        lateinit var viewModel: LoginViewModel
+        certificatePinStore = CertificatePinStore(object : CertPinStorage {
+            private val pins = mutableMapOf("paperless.lan" to "sha256/OLD")
+            override fun loadAll() = pins.toMap()
+            override fun put(host: String, pin: String) {
+                viewModel.declineCertificateChange(host)
+                mismatchAfterCancel = observedCertHolder.peek(host)
+                pins[host] = pin
+            }
+            override fun remove(host: String) { pins.remove(host) }
+            override fun clear() { pins.clear() }
+        })
+        observedCertHolder.record(mismatch)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange(mismatch.host, mismatch.actualPin) { savedCalls++ }
+        advanceUntilIdle()
+
+        assertEquals(mismatch, mismatchAfterCancel)
+        assertEquals("sha256/NEW", certificatePinStore.getPin(mismatch.host))
+        assertEquals(1, savedCalls)
     }
 
     @Test
@@ -352,16 +390,19 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         var savedCalls = 0
-        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
-        advanceUntilIdle()
-        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
-        advanceUntilIdle()
-
-        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
-        assertEquals("sha256/NEW", observedCertHolder.peek("paperless.lan")?.actualPin)
-        assertEquals(0, removals)
-        assertEquals(0, savedCalls)
-        assertTrue((viewModel.uiState.value as LoginUiState.CertChanged).saveFailed)
+        viewModel.uiState.test {
+            assertTrue((awaitItem() as LoginUiState.CertChanged).saveFailed.not())
+            viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
+            advanceUntilIdle()
+            assertTrue((awaitItem() as LoginUiState.CertChanged).saveFailed)
+            viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
+            advanceUntilIdle()
+            assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+            assertEquals("sha256/NEW", observedCertHolder.peek("paperless.lan")?.actualPin)
+            assertEquals(0, removals)
+            assertEquals(0, savedCalls)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -634,11 +675,15 @@ class LoginViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.onServerUrlChanged("paperless.lan")
-        advanceTimeBy(900)
-        advanceUntilIdle()
-
-        assertEquals(text, (viewModel.serverStatus.value as ServerStatus.Error).message)
+        viewModel.serverStatus.test {
+            assertTrue(awaitItem() is ServerStatus.Idle)
+            viewModel.onServerUrlChanged("paperless.lan")
+            advanceTimeBy(900)
+            advanceUntilIdle()
+            assertTrue(awaitItem() is ServerStatus.Checking)
+            assertEquals(text, (awaitItem() as ServerStatus.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

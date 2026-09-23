@@ -104,12 +104,16 @@ class CertReTrustViewModelTest {
         holder.record(ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW"))
         val vm = viewModel()
 
-        vm.acceptCertificateChange("paperless.lan", "sha256/NEW")
-        advanceUntilIdle()
+        vm.failedMismatch.test {
+            assertNull(awaitItem())
+            vm.acceptCertificateChange("paperless.lan", "sha256/NEW")
+            advanceUntilIdle()
 
-        assertEquals("sha256/OLD", pinStore.getPin("paperless.lan"))
-        assertNotNull(vm.pendingMismatch.value)
-        assertEquals(vm.pendingMismatch.value, vm.failedMismatch.value)
+            assertEquals(holder.peek("paperless.lan"), awaitItem())
+            assertEquals("sha256/OLD", pinStore.getPin("paperless.lan"))
+            assertNotNull(vm.pendingMismatch.value)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -162,5 +166,31 @@ class CertReTrustViewModelTest {
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun cancelDuringPinWriteCannotWithdrawAcceptedTrust() = runTest(testDispatcher) {
+        val mismatch = ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        var mismatchAfterCancel: ObservedCertHolder.Mismatch? = null
+        lateinit var vm: CertReTrustViewModel
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            private val pins = mutableMapOf("paperless.lan" to "sha256/OLD")
+            override fun loadAll() = pins.toMap()
+            override fun put(host: String, pin: String) {
+                vm.declineCertificateChange(host)
+                mismatchAfterCancel = holder.peek(host)
+                pins[host] = pin
+            }
+            override fun remove(host: String) { pins.remove(host) }
+            override fun clear() { pins.clear() }
+        })
+        holder.record(mismatch)
+        vm = viewModel()
+
+        vm.acceptCertificateChange(mismatch.host, mismatch.actualPin)
+        advanceUntilIdle()
+
+        assertEquals(mismatch, mismatchAfterCancel)
+        assertEquals("sha256/NEW", pinStore.getPin(mismatch.host))
     }
 }

@@ -124,6 +124,7 @@ fun SimplifiedSetupScreen(
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
+    val savingCertificatePin by viewModel.savingCertificatePin.collectAsState()
     val serverStatus by viewModel.serverStatus.collectAsState()
     val authDebugReport by viewModel.hasDiagnosticReport.collectAsState()
     val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
@@ -717,6 +718,7 @@ fun SimplifiedSetupScreen(
                 expectedPin = certChanged.expectedPin,
                 actualPin = certChanged.actualPin,
                 errorMessage = if (certChanged.saveFailed) stringResource(R.string.cert_pin_storage_failed) else null,
+                actionsEnabled = !savingCertificatePin,
                 onReTrust = {
                     viewModel.acceptCertificateChange(certChanged.host, certChanged.actualPin) {
                         viewModel.onServerUrlChanged(serverUrl)
