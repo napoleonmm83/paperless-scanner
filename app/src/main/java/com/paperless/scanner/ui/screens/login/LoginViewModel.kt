@@ -184,7 +184,11 @@ class LoginViewModel @Inject constructor(
                         _serverStatus.update { ServerStatus.RequiresHttpAccept(exception.host, ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED) }
                         AppLogger.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
                     } else {
-                        val message = exception.message ?: context.getString(R.string.error_server_unreachable)
+                        val message = if (exception is PaperlessException.CertificatePinStorageError) {
+                            exception.getLocalizedMessage(context)
+                        } else {
+                            exception.message ?: context.getString(R.string.error_server_unreachable)
+                        }
                         _serverStatus.update { ServerStatus.Error(message) }
                         AppLogger.d(TAG, "Status = Error, message = $message")
                     }
@@ -301,6 +305,11 @@ class LoginViewModel @Inject constructor(
                                     )
                                 }
                             }
+                            exception is PaperlessException.CertificatePinStorageError -> {
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
+                                }
+                            }
                             isSslError(exception) -> {
                                 val host = extractHostFromUrl(urlToUse)
                                 _uiState.update {
@@ -405,6 +414,11 @@ class LoginViewModel @Inject constructor(
                                     )
                                 }
                             }
+                            exception is PaperlessException.CertificatePinStorageError -> {
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
+                                }
+                            }
                             isSslError(exception) -> {
                                 val host = extractHostFromUrl(urlToUse)
                                 _uiState.update {
@@ -474,7 +488,7 @@ class LoginViewModel @Inject constructor(
      * then resets to Idle for the caller to retry. The current observation must
      * match the fingerprint the user saw in the dialog before it can be pinned.
      */
-    fun acceptCertificateChange(host: String, approvedPin: String) {
+    fun acceptCertificateChange(host: String, approvedPin: String, onSaved: () -> Unit = {}) {
         // Pin-store mutations write through to EncryptedSharedPreferences (disk +
         // AES), so run them off the main thread to avoid any ANR on slow storage.
         viewModelScope.launch(ioDispatcher) {
@@ -494,6 +508,12 @@ class LoginViewModel @Inject constructor(
                     // Keep the old pin and mismatch visible; a retry must never
                     // silently clear the old pin on a later retry.
                     AppLogger.e(TAG, "Failed to persist re-trusted certificate pin", e)
+                    _uiState.update { current ->
+                        if (current is LoginUiState.CertChanged &&
+                            current.host == host && current.actualPin == approvedPin) {
+                            current.copy(saveFailed = true)
+                        } else current
+                    }
                     return@launch
                 }
                 observedCertHolder.consumeIfMatches(host, approvedPin)
@@ -505,6 +525,7 @@ class LoginViewModel @Inject constructor(
             }
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Idle }
+                if (observed != null) onSaved()
             }
         }
     }
@@ -620,7 +641,8 @@ sealed class LoginUiState {
     data class CertChanged(
         val host: String,
         val expectedPin: String,
-        val actualPin: String
+        val actualPin: String,
+        val saveFailed: Boolean = false
     ) : LoginUiState()
 
     /**

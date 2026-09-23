@@ -4,6 +4,7 @@ import android.content.Context
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CleartextNotAllowlistedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -294,6 +295,16 @@ class PaperlessExceptionTest {
         val error = PaperlessException.from(object : RuntimeException("anonymous") {}) as PaperlessException.UnknownError
 
         assertTrue("empty tag leaked into the message", error.diagnosticTag.isNotEmpty())
+    }
+
+    @Test
+    fun pinPersistenceFailureHasLocalizedNonRetryableIdentity() {
+        val failure = CertificatePinPersistenceException("example.com", IOException())
+        val mapped = PaperlessException.from(failure)
+
+        assertTrue(mapped is PaperlessException.CertificatePinStorageError)
+        assertEquals(R.string.cert_pin_storage_failed, mapped.messageResId)
+        assertFalse(mapped.isRetryable)
     }
 
     @Test

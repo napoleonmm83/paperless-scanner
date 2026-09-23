@@ -35,6 +35,7 @@ fun CertificateChangedDialog(
     host: String,
     expectedPin: String,
     actualPin: String,
+    errorMessage: String? = null,
     onReTrust: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -87,6 +88,14 @@ fun CertificateChangedDialog(
                             pin = actualPin
                         )
                     }
+                }
+
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
 
                 Text(

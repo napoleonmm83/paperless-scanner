@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import com.paperless.scanner.data.network.CertificatePinMismatchException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import retrofit2.HttpException
@@ -37,6 +38,9 @@ suspend fun <T> withRetry(
             // Issue #36: a changed pinned cert never recovers via retry. Rethrow
             // before the IOException catch (it extends IOException) so the typed
             // mismatch reaches the caller without backoff churn.
+            throw e
+        } catch (e: CertificatePinPersistenceException) {
+            // Pin persistence cannot recover on network retry and must fail closed.
             throw e
         } catch (e: HttpException) {
             if (e.code() !in 500..599 || attempt >= maxRetries) throw e

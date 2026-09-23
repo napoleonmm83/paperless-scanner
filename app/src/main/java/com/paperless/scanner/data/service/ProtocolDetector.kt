@@ -176,7 +176,7 @@ class ProtocolDetector @Inject constructor(
                 IOException(context.getString(R.string.error_invalid_address))
             ))
         } catch (e: CertificatePinPersistenceException) {
-            Result.failure(e)
+            Result.failure(PaperlessException.CertificatePinStorageError(e.host, e))
         } catch (e: IOException) {
             AppLogger.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""

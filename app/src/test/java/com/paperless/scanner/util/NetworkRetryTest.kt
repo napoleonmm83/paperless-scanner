@@ -1,6 +1,7 @@
 package com.paperless.scanner.util
 
 import com.paperless.scanner.data.network.CertificatePinMismatchException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -60,6 +61,22 @@ class NetworkRetryTest {
         // No retry: a changed pinned cert never recovers via backoff (Issue #36).
         assertEquals(1, attempts)
         assertEquals("paperless.lan", thrown!!.host)
+    }
+
+    @Test
+    fun `CertificatePinPersistenceException is rethrown immediately without retry`() = runTest {
+        var attempts = 0
+        var thrown: CertificatePinPersistenceException? = null
+        try {
+            withRetry<String>(maxRetries = 3, initialDelayMs = 1L, maxDelayMs = 1L) {
+                attempts++
+                throw CertificatePinPersistenceException("paperless.lan", IOException())
+            }
+        } catch (e: CertificatePinPersistenceException) {
+            thrown = e
+        }
+        assertNotNull(thrown)
+        assertEquals(1, attempts)
     }
 
     @Test

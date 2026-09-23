@@ -7,6 +7,7 @@ import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.network.CertificatePinPersistenceException
+import com.paperless.scanner.data.network.CertificatePinMismatchException
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.service.ProtocolDetector
@@ -429,11 +430,14 @@ class AuthRepositoryTest {
 
     @Test
     fun pinPersistenceFailureMustNotFallBackToHttp() = runTest {
-        val detector = mockk<ProtocolDetector>()
-        val host = "paperless.example.com"
-        val failure = CertificatePinPersistenceException(host, IOException())
-        every { detector.tryProtocol("https", host) } returns Result.failure(failure)
-        every { detector.tryProtocol("http", host) } returns Result.success("http://$host")
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val detector = ProtocolDetector(context, OkHttpClient.Builder().addInterceptor { chain ->
+            if (chain.request().url.scheme == "https") {
+                throw CertificatePinPersistenceException(host, IOException())
+            }
+            chain.proceed(chain.request())
+        }.build())
         authRepository = AuthRepository(
             context, tokenManager, client, cloudflareDetectionInterceptor,
             crashlyticsHelper, diagnosticsReportService, httpCache, detector
@@ -442,16 +446,54 @@ class AuthRepositoryTest {
         val result = authRepository.detectServerProtocol(host)
 
         assertTrue(result.isFailure)
-        verify(exactly = 0) { detector.tryProtocol("http", host) }
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun pinPersistenceFailureDuringPasswordLoginHasTypedError() = runTest {
+        val host = mockWebServer.hostName
+        client = OkHttpClient.Builder().addInterceptor {
+            throw CertificatePinPersistenceException(host, IOException())
+        }.build()
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client)
+        )
+
+        val result = authRepository.login(mockWebServer.url("/").toString(), "user", "password")
+
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun pinPersistenceFailureDuringTokenValidationHasTypedError() = runTest {
+        val host = mockWebServer.hostName
+        client = OkHttpClient.Builder().addInterceptor {
+            throw CertificatePinPersistenceException(host, IOException())
+        }.build()
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client)
+        )
+
+        val result = authRepository.validateToken(mockWebServer.url("/").toString(), "token")
+
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
     }
 
     @Test
     fun pinMismatchMustNotFallBackToHttp() = runTest {
-        val detector = mockk<ProtocolDetector>()
-        val host = "paperless.example.com"
-        val mismatch = PaperlessException.CertificatePinMismatch(host, "sha256/OLD", "sha256/NEW")
-        every { detector.tryProtocol("https", host) } returns Result.failure(mismatch)
-        every { detector.tryProtocol("http", host) } returns Result.success("http://$host")
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val detector = ProtocolDetector(context, OkHttpClient.Builder().addInterceptor { chain ->
+            if (chain.request().url.scheme == "https") {
+                throw CertificatePinMismatchException(host, "sha256/OLD", "sha256/NEW")
+            }
+            chain.proceed(chain.request())
+        }.build())
         authRepository = AuthRepository(
             context, tokenManager, client, cloudflareDetectionInterceptor,
             crashlyticsHelper, diagnosticsReportService, httpCache, detector
@@ -460,7 +502,8 @@ class AuthRepositoryTest {
         val result = authRepository.detectServerProtocol(host)
 
         assertTrue(result.isFailure)
-        verify(exactly = 0) { detector.tryProtocol("http", host) }
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinMismatch)
+        assertEquals(0, mockWebServer.requestCount)
     }
 
     @Test

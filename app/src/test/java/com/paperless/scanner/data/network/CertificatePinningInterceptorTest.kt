@@ -127,7 +127,7 @@ class CertificatePinningInterceptorTest {
         every { pinStore.getPin(any()) } returns null
         every { pinStore.setPinIfAbsent(any(), any()) } returns false
 
-        assertThrows(IOException::class.java) { call(httpsClient()) }
+        assertThrows(CertificatePinPersistenceException::class.java) { call(httpsClient()) }
 
         assertEquals(0, server.requestCount)
     }

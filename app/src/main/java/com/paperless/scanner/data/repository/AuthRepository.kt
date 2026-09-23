@@ -169,6 +169,7 @@ class AuthRepository @Inject constructor(
 
         val securityFailure = httpsResult.exceptionOrNull()
         if (securityFailure is CertificatePinPersistenceException ||
+            securityFailure is PaperlessException.CertificatePinStorageError ||
             securityFailure is PaperlessException.CertificatePinMismatch) {
             return Result.failure(securityFailure)
         }
@@ -365,6 +366,9 @@ class AuthRepository @Inject constructor(
             // to the blocking re-trust dialog instead of a generic network-error toast.
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "CertPinMismatch host=${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinPersistenceException) {
+            crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "CertPinStorage host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinStorageError(e.host, e))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("LOGIN_ERROR", "NetworkError: ${e.message}")
             // Log network errors to auth debug service
@@ -582,6 +586,9 @@ class AuthRepository @Inject constructor(
             // Issue #36: precede the IOException catch (it extends IOException).
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "CertPinMismatch host=${e.host}")
             Result.failure(PaperlessException.CertificatePinMismatch(e.host, e.expectedPin, e.actualPin))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinPersistenceException) {
+            crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "CertPinStorage host=${e.host}")
+            Result.failure(PaperlessException.CertificatePinStorageError(e.host, e))
         } catch (e: IOException) {
             crashlyticsHelper.logStateBreadcrumb("TOKEN_ERROR", "NetworkError: ${e.message}")
             AppLogger.e(TAG, "Token validation network error", e)

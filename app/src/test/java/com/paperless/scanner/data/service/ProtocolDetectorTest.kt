@@ -86,7 +86,7 @@ class ProtocolDetectorTest {
 
         val result = detector.tryProtocol("https", "paperless.example.com")
 
-        assertTrue(result.exceptionOrNull() is CertificatePinPersistenceException)
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
     }
 
     @Test

@@ -997,6 +997,7 @@
     <string name="cert_changed_warning">Only re-trust if you expected this change. Re-trusting will accept the new certificate for future connections.</string>
     <string name="cert_changed_retrust">Re-Trust</string>
     <string name="error_certificate_changed_explain">The server certificate changed since your first connection. Re-trust it only if you expected this change.</string>
+    <string name="cert_pin_storage_failed">Could not save this certificate securely. The connection remains blocked. Please try again.</string>
 
     <!-- App Lock Screen - Additional -->
     <string name="app_lock_too_many_attempts">Too many failed attempts</string>

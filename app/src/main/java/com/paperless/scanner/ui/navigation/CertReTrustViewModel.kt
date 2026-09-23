@@ -7,7 +7,10 @@ import com.paperless.scanner.data.network.ObservedCertHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.paperless.scanner.util.AppLogger
 import java.io.IOException
 import javax.inject.Inject
 
@@ -33,6 +36,8 @@ class CertReTrustViewModel @Inject constructor(
 
     /** The pending app-wide certificate mismatch to surface, or null. */
     val pendingMismatch: StateFlow<ObservedCertHolder.Mismatch?> = observedCertHolder.latest
+    private val _failedMismatch = MutableStateFlow<ObservedCertHolder.Mismatch?>(null)
+    val failedMismatch: StateFlow<ObservedCertHolder.Mismatch?> = _failedMismatch.asStateFlow()
 
     /**
      * Re-trust: pin the certificate the user actually saw ([approvedPin], the
@@ -61,11 +66,14 @@ class CertReTrustViewModel @Inject constructor(
             if (observed?.actualPin != approvedPin) return@launch
             try {
                 certificatePinStore.replacePin(host, approvedPin)
-            } catch (_: IOException) {
+            } catch (e: IOException) {
                 // Keep the mismatch visible so the user can retry; the old pin
                 // remains authoritative until a durable replacement succeeds.
+                AppLogger.e("CertReTrustViewModel", "Failed to persist re-trusted certificate pin", e)
+                _failedMismatch.value = observed
                 return@launch
             }
+            _failedMismatch.value = null
             observedCertHolder.consumeIfMatches(host, approvedPin)
         }
     }
@@ -76,6 +84,7 @@ class CertReTrustViewModel @Inject constructor(
      * user re-trusts on the next attempt (the interceptor re-records the mismatch).
      */
     fun declineCertificateChange(host: String) {
+        _failedMismatch.value = null
         observedCertHolder.consume(host)
     }
 }

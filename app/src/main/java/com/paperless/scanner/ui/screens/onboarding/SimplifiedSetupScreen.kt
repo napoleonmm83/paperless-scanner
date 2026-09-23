@@ -716,16 +716,15 @@ fun SimplifiedSetupScreen(
                 host = certChanged.host,
                 expectedPin = certChanged.expectedPin,
                 actualPin = certChanged.actualPin,
+                errorMessage = if (certChanged.saveFailed) stringResource(R.string.cert_pin_storage_failed) else null,
                 onReTrust = {
-                    viewModel.acceptCertificateChange(certChanged.host, certChanged.actualPin)
+                    viewModel.acceptCertificateChange(certChanged.host, certChanged.actualPin) {
+                        viewModel.onServerUrlChanged(serverUrl)
+                    }
                     // Re-run detection with the re-trusted pin so the connection
                     // indicator refreshes and the login button re-enables. We do NOT
                     // auto-submit login here: a mismatch can surface during detection
                     // (user still typing the URL) before credentials are entered.
-                    coroutineScope.launch {
-                        delay(500)
-                        viewModel.onServerUrlChanged(serverUrl)
-                    }
                 },
                 onCancel = {
                     // #249: consume the mismatch (not just reset UI) so the app-wide

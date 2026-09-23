@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CleartextNotAllowlistedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -314,6 +315,14 @@ sealed class PaperlessException(
         override val messageResId: Int = R.string.error_certificate_changed_explain
     }
 
+    data class CertificatePinStorageError(
+        val host: String,
+        val originalException: IOException,
+    ) : PaperlessException("Certificate pin storage unavailable", originalException) {
+        @StringRes
+        override val messageResId: Int = R.string.cert_pin_storage_failed
+    }
+
     companion object {
         /**
          * Creates appropriate PaperlessException from HTTP status code.
@@ -405,6 +414,9 @@ sealed class PaperlessException(
                 // Issue #36.
                 is CertificatePinMismatchException ->
                     CertificatePinMismatch(throwable.host, throwable.expectedPin, throwable.actualPin)
+
+                is CertificatePinPersistenceException ->
+                    CertificatePinStorageError(throwable.host, throwable)
 
                 // TLS *trust* failures — before the IOException branch, because both of
                 // these extend SSLException, which extends IOException.

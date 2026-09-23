@@ -1,9 +1,14 @@
 package com.paperless.scanner.ui.navigation
 
+import android.util.Log
+
 import app.cash.turbine.test
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -43,6 +48,8 @@ class CertReTrustViewModelTest {
 
     @Before
     fun setup() {
+        mockkStatic(Log::class)
+        every { Log.e(any(), any(), any()) } returns 0
         Dispatchers.setMain(testDispatcher)
         pinStore = CertificatePinStore(FakeCertPinStorage())
         holder = ObservedCertHolder()
@@ -51,6 +58,7 @@ class CertReTrustViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Log::class)
     }
 
     private fun viewModel() = CertReTrustViewModel(pinStore, holder, testDispatcher)
@@ -101,6 +109,7 @@ class CertReTrustViewModelTest {
 
         assertEquals("sha256/OLD", pinStore.getPin("paperless.lan"))
         assertNotNull(vm.pendingMismatch.value)
+        assertEquals(vm.pendingMismatch.value, vm.failedMismatch.value)
     }
 
     @Test
