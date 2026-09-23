@@ -5,7 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.security.KeyStore
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.paperless.scanner.util.AppLogger
@@ -16,10 +16,9 @@ import com.paperless.scanner.util.AppLogger
  *
  * Each preference entry is `host -> SPKI pin`. The Android-Keystore master key is
  * device-bound and never leaves the device, so even if the prefs file is included
- * in a backup it cannot be decrypted elsewhere. Recovery from a corrupted keystore
- * mirrors [com.paperless.scanner.data.datastore.SecureTokenStorage]; on permanent
- * failure the store degrades to in-memory-only (pins re-captured via TOFU on next
- * connection) rather than crashing.
+ * in a backup it cannot be decrypted elsewhere. An unreadable pin store is kept
+ * intact and blocks new TOFU pins: deleting it would let an already accepted host
+ * silently pin a changed certificate as though this were first contact.
  */
 @Singleton
 class EncryptedCertPinStorage @Inject constructor(
@@ -30,13 +29,14 @@ class EncryptedCertPinStorage @Inject constructor(
         private const val TAG = "EncryptedCertPinStorage"
         private const val PREFS_FILE = "paperless_cert_pins"
         // Dedicated alias — NOT the AndroidX default that SecureTokenStorage uses.
-        // recover() deletes this alias on corruption; a shared alias would take the
-        // auth token's key down with it and silently sign the user out.
         private const val MASTER_KEY_ALIAS = "paperless_cert_pin_master_key"
     }
 
     @Volatile
     private var cachedPrefs: SharedPreferences? = null
+
+    @Volatile
+    private var pinLoadFailed = false
 
     private fun prefs(): SharedPreferences? {
         cachedPrefs?.let { return it }
@@ -45,8 +45,8 @@ class EncryptedCertPinStorage @Inject constructor(
             return try {
                 create().also { cachedPrefs = it }
             } catch (e: Exception) {
-                AppLogger.e(TAG, "Failed to open encrypted pin storage, attempting recovery", e)
-                recover()
+                AppLogger.e(TAG, "Failed to open encrypted pin storage", e)
+                null
             }
         }
     }
@@ -64,46 +64,31 @@ class EncryptedCertPinStorage @Inject constructor(
         )
     }
 
-    private fun recover(): SharedPreferences? {
-        try {
-            context.deleteSharedPreferences(PREFS_FILE)
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to delete corrupted pin prefs", e)
-        }
-        try {
-            val keyStore = KeyStore.getInstance("AndroidKeyStore")
-            keyStore.load(null)
-            if (keyStore.containsAlias(MASTER_KEY_ALIAS)) {
-                keyStore.deleteEntry(MASTER_KEY_ALIAS)
-            }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Failed to delete master key from Keystore", e)
-        }
-        return try {
-            create().also { cachedPrefs = it }
-        } catch (e: Exception) {
-            AppLogger.e(TAG, "Pin storage recovery failed - pinning degrades to in-memory only", e)
-            null
-        }
-    }
-
     override fun loadAll(): Map<String, String> {
         return try {
-            prefs()?.all
-                ?.mapNotNull { (k, v) -> (v as? String)?.let { k to it } }
-                ?.toMap()
-                ?: emptyMap()
+            val preferences = prefs() ?: throw IOException("Encrypted pin storage unavailable")
+            preferences.all
+                .map { (k, v) ->
+                    k to (v as? String ?: throw IOException("Invalid certificate pin entry"))
+                }
+                .toMap()
         } catch (e: Exception) {
+            pinLoadFailed = true
             AppLogger.e(TAG, "Failed to load pins", e)
             emptyMap()
         }
     }
 
     override fun put(host: String, pin: String) {
+        if (pinLoadFailed) throw IOException("Existing certificate pins unavailable")
         try {
-            prefs()?.edit()?.putString(host, pin)?.apply()
+            val preferences = prefs() ?: throw IOException("Encrypted pin storage unavailable")
+            if (!preferences.edit().putString(host, pin).commit()) {
+                throw IOException("Failed to commit certificate pin")
+            }
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to persist pin", e)
+            throw if (e is IOException) e else IOException("Failed to persist certificate pin", e)
         }
     }
 

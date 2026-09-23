@@ -6,6 +6,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.service.ProtocolDetector
@@ -29,6 +30,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 /**
  * Repository tests for [AuthRepository].
@@ -423,6 +425,42 @@ class AuthRepositoryTest {
             result.isSuccess
         )
         assertEquals("http://$host", result.getOrNull())
+    }
+
+    @Test
+    fun pinPersistenceFailureMustNotFallBackToHttp() = runTest {
+        val detector = mockk<ProtocolDetector>()
+        val host = "paperless.example.com"
+        val failure = CertificatePinPersistenceException(host, IOException())
+        every { detector.tryProtocol("https", host) } returns Result.failure(failure)
+        every { detector.tryProtocol("http", host) } returns Result.success("http://$host")
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, detector
+        )
+
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(result.isFailure)
+        verify(exactly = 0) { detector.tryProtocol("http", host) }
+    }
+
+    @Test
+    fun pinMismatchMustNotFallBackToHttp() = runTest {
+        val detector = mockk<ProtocolDetector>()
+        val host = "paperless.example.com"
+        val mismatch = PaperlessException.CertificatePinMismatch(host, "sha256/OLD", "sha256/NEW")
+        every { detector.tryProtocol("https", host) } returns Result.failure(mismatch)
+        every { detector.tryProtocol("http", host) } returns Result.success("http://$host")
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, detector
+        )
+
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(result.isFailure)
+        verify(exactly = 0) { detector.tryProtocol("http", host) }
     }
 
     @Test

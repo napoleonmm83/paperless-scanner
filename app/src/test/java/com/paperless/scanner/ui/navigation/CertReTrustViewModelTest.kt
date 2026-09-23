@@ -13,8 +13,10 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 /**
  * #249: app-wide in-session re-trust handler. Uses the real [CertificatePinStore]
@@ -81,6 +83,24 @@ class CertReTrustViewModelTest {
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `failed re-trust write leaves the old pin and dialog intact`() = runTest(testDispatcher) {
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll() = mapOf("paperless.lan" to "sha256/OLD")
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        })
+        holder.record(ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW"))
+        val vm = viewModel()
+
+        vm.acceptCertificateChange("paperless.lan", "sha256/NEW")
+        advanceUntilIdle()
+
+        assertEquals("sha256/OLD", pinStore.getPin("paperless.lan"))
+        assertNotNull(vm.pendingMismatch.value)
     }
 
     @Test

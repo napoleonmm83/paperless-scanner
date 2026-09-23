@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import javax.inject.Inject
 import com.paperless.scanner.util.AppLogger
 
@@ -470,25 +471,37 @@ class LoginViewModel @Inject constructor(
     /**
      * User explicitly re-trusts a changed server certificate (Issue #36). Replaces
      * the stored pin with the newly observed one so the next connection succeeds,
-     * then resets to Idle for the caller to retry. The new pin is read from
-     * [ObservedCertHolder] (recorded by the interceptor at mismatch time) rather
-     * than trusting the [actualPin] passed up through state, so we pin exactly the
-     * certificate that triggered the dialog.
+     * then resets to Idle for the caller to retry. The current observation must
+     * match the fingerprint the user saw in the dialog before it can be pinned.
      */
-    fun acceptCertificateChange(host: String) {
+    fun acceptCertificateChange(host: String, approvedPin: String) {
         // Pin-store mutations write through to EncryptedSharedPreferences (disk +
         // AES), so run them off the main thread to avoid any ANR on slow storage.
         viewModelScope.launch(ioDispatcher) {
-            val observed = observedCertHolder.consume(host)
-            val newPin = observed?.actualPin
-            if (newPin != null) {
-                certificatePinStore.replacePin(host, newPin)
+            val observed = observedCertHolder.peek(host)
+            if (observed != null && observed.actualPin != approvedPin) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        LoginUiState.CertChanged(host, observed.expectedPin, observed.actualPin)
+                    }
+                }
+                return@launch
+            }
+            if (observed != null) {
+                try {
+                    certificatePinStore.replacePin(host, approvedPin)
+                } catch (e: IOException) {
+                    // Keep the old pin and mismatch visible; a retry must never
+                    // silently clear the old pin on a later retry.
+                    AppLogger.e(TAG, "Failed to persist re-trusted certificate pin", e)
+                    return@launch
+                }
+                observedCertHolder.consumeIfMatches(host, approvedPin)
                 AppLogger.d(TAG, "Certificate change re-trusted for host: $host")
             } else {
-                // No observed mismatch (e.g. process death): drop the stale pin so
-                // the next connection re-captures via TOFU instead of blocking forever.
-                certificatePinStore.removePin(host)
-                AppLogger.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
+                // A process restart can lose the in-memory observation. Keep the
+                // old pin; the next connection will show a fresh mismatch.
+                AppLogger.w(TAG, "No observed cert for $host on re-trust; keeping old pin")
             }
             withContext(Dispatchers.Main) {
                 _uiState.update { LoginUiState.Idle }

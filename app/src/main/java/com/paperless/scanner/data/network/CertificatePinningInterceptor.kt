@@ -8,6 +8,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import javax.net.ssl.SSLSocket
 
+class CertificatePinPersistenceException(val host: String, cause: IOException) : IOException(cause)
+
 /**
  * Trust-on-first-use (TOFU) certificate pinning for user-provided Paperless servers
  * (Issue #36).
@@ -60,9 +62,15 @@ class CertificatePinningInterceptor @Inject constructor(
                     // this connection's cert instead of blindly proceeding — otherwise
                     // a request could go out under a cert that differs from the pin
                     // that just won the race.
-                    if (!pinStore.setPinIfAbsent(host, presentedPin)) {
+                    val captured = try {
+                        pinStore.setPinIfAbsent(host, presentedPin)
+                    } catch (e: IOException) {
+                        throw CertificatePinPersistenceException(host, e)
+                    }
+                    if (!captured) {
                         val winner = pinStore.getPin(host)
-                        if (winner != null && winner != presentedPin) {
+                        if (winner == null) throw CertificatePinPersistenceException(host, IOException())
+                        if (winner != presentedPin) {
                             observedCertHolder.record(
                                 ObservedCertHolder.Mismatch(host, winner, presentedPin)
                             )

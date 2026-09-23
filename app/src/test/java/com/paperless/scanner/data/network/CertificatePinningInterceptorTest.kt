@@ -106,6 +106,33 @@ class CertificatePinningInterceptorTest {
     }
 
     @Test
+    fun `failed first pin write blocks the request before it reaches the server`() {
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll(): Map<String, String> = emptyMap()
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        })
+
+        assertThrows(CertificatePinPersistenceException::class.java) { call(httpsClient()) }
+
+        assertEquals(0, server.requestCount)
+        assertNull(pinStore.getPin(server.url("/").host))
+    }
+
+    @Test
+    fun `pin removed during first-contact race blocks request`() {
+        server.enqueue(MockResponse())
+        pinStore = mockk()
+        every { pinStore.getPin(any()) } returns null
+        every { pinStore.setPinIfAbsent(any(), any()) } returns false
+
+        assertThrows(IOException::class.java) { call(httpsClient()) }
+
+        assertEquals(0, server.requestCount)
+    }
+
+    @Test
     fun `changed certificate throws and records the mismatch`() {
         server.enqueue(MockResponse())
         val host = server.url("/").host

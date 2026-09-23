@@ -17,6 +17,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import javax.inject.Inject
 import com.paperless.scanner.data.analytics.DiagnosticReport
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
@@ -166,7 +167,13 @@ class AuthRepository @Inject constructor(
             return httpsResult
         }
 
-        // Try HTTP as fallback
+        val securityFailure = httpsResult.exceptionOrNull()
+        if (securityFailure is CertificatePinPersistenceException ||
+            securityFailure is PaperlessException.CertificatePinMismatch) {
+            return Result.failure(securityFailure)
+        }
+
+        // Try HTTP as fallback only for connectivity failures.
         val httpResult = protocolDetector.tryProtocol("http", cleanHost)
         if (httpResult.isSuccess) {
             crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "http://$cleanHost")

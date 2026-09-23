@@ -35,26 +35,28 @@ class CertificatePinStore @Inject constructor(
      * TOFU capture: store [pin] only if no pin exists for [host] yet.
      * @return true if a new pin was captured, false if one already existed.
      */
+    @Synchronized
     fun setPinIfAbsent(host: String, pin: String): Boolean {
         val key = host.lowercase(Locale.ROOT)
-        if (cache.putIfAbsent(key, pin) == null) {
-            storage.put(key, pin)
-            return true
-        }
-        return false
+        if (cache.containsKey(key)) return false
+        storage.put(key, pin)
+        cache[key] = pin
+        return true
     }
 
     /**
      * Re-trust: overwrite an existing pin after the user explicitly approved a
      * certificate change in the blocking dialog.
      */
+    @Synchronized
     fun replacePin(host: String, pin: String) {
         val key = host.lowercase(Locale.ROOT)
-        cache[key] = pin
         storage.put(key, pin)
+        cache[key] = pin
     }
 
     /** Forget the pin for [host] (e.g. when the user removes the accepted host). */
+    @Synchronized
     fun removePin(host: String) {
         val key = host.lowercase(Locale.ROOT)
         cache.remove(key)
@@ -62,6 +64,7 @@ class CertificatePinStore @Inject constructor(
     }
 
     /** Drop all pins. Not called on logout — pins intentionally survive logout. */
+    @Synchronized
     fun clear() {
         cache.clear()
         storage.clear()

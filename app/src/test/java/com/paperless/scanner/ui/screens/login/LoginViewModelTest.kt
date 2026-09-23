@@ -36,6 +36,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
@@ -82,6 +83,7 @@ class LoginViewModelTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
         every { Log.i(any(), any()) } returns 0
         every { Log.w(any<String>(), any<String>()) } returns 0
         every { Log.v(any(), any()) } returns 0
@@ -267,7 +269,7 @@ class LoginViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.acceptCertificateChange("paperless.lan")
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW")
         advanceUntilIdle()
         // Pin replacement runs on the injected (test) ioDispatcher.
 
@@ -277,16 +279,58 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `acceptCertificateChange clears stale pin when no observed cert exists`() = runTest {
+    fun `confirmation of displayed certificate must not trust a newer observation`() = runTest {
+        certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/B")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/A")
+        advanceUntilIdle()
+
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+        assertEquals("sha256/B", observedCertHolder.peek("paperless.lan")?.actualPin)
+    }
+
+    @Test
+    fun `failed re-trust keeps old pin and observed mismatch on repeated confirmation`() = runTest {
+        val stored = mutableMapOf("paperless.lan" to "sha256/OLD")
+        var removals = 0
+        certificatePinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll() = stored.toMap()
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) { removals++; stored.remove(host) }
+            override fun clear() { stored.clear() }
+        })
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW")
+        advanceUntilIdle()
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW")
+        advanceUntilIdle()
+
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+        assertEquals("sha256/NEW", observedCertHolder.peek("paperless.lan")?.actualPin)
+        assertEquals(0, removals)
+    }
+
+    @Test
+    fun `acceptCertificateChange keeps stale pin when no observed cert exists`() = runTest {
         certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.acceptCertificateChange("paperless.lan")
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW")
         advanceUntilIdle()
 
-        // No observed mismatch (e.g. process death) -> drop the pin for TOFU re-capture.
-        assertTrue(certificatePinStore.getPin("paperless.lan") == null)
+        // No observation must not reset a previously trusted pin to TOFU.
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
     }
 
     @Test

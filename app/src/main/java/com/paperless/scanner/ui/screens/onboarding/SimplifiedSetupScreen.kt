@@ -717,7 +717,7 @@ fun SimplifiedSetupScreen(
                 expectedPin = certChanged.expectedPin,
                 actualPin = certChanged.actualPin,
                 onReTrust = {
-                    viewModel.acceptCertificateChange(certChanged.host)
+                    viewModel.acceptCertificateChange(certChanged.host, certChanged.actualPin)
                     // Re-run detection with the re-trusted pin so the connection
                     // indicator refreshes and the login button re-enables. We do NOT
                     // auto-submit login here: a mismatch can surface during detection

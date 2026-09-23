@@ -3,6 +3,7 @@ package com.paperless.scanner.data.service
 import android.content.Context
 import androidx.test.filters.SmallTest
 import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -15,6 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 /**
  * Unit tests for [ProtocolDetector], the raw-OkHttp HTTP/HTTPS + Paperless-server
@@ -73,6 +75,18 @@ class ProtocolDetectorTest {
 
         assertTrue("Paperless /api/ root must verify", result.isSuccess)
         assertEquals("http://${host()}", result.getOrNull())
+    }
+
+    @Test
+    fun pinPersistenceFailureRetainsItsType() {
+        client = OkHttpClient.Builder()
+            .addInterceptor { throw CertificatePinPersistenceException("paperless.example.com", IOException()) }
+            .build()
+        detector = ProtocolDetector(context, client)
+
+        val result = detector.tryProtocol("https", "paperless.example.com")
+
+        assertTrue(result.exceptionOrNull() is CertificatePinPersistenceException)
     }
 
     @Test

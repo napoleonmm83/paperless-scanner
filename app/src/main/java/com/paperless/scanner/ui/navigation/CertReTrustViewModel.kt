@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -54,12 +55,18 @@ class CertReTrustViewModel @Inject constructor(
         // Pin-store mutations write through to EncryptedSharedPreferences (disk +
         // AES), so run them off the main thread to avoid any ANR on slow storage.
         viewModelScope.launch(ioDispatcher) {
-            // Atomic compare-and-remove: only pin (and clear the dialog) when the
-            // live mismatch still matches the fingerprint the user approved. A
-            // newer/different cert recorded mid-dialog is left in place to re-prompt.
-            if (observedCertHolder.consumeIfMatches(host, approvedPin) != null) {
+            // Persist the approved fingerprint before removing its dialog entry.
+            // A newer/different mismatch recorded mid-write remains visible.
+            val observed = observedCertHolder.peek(host)
+            if (observed?.actualPin != approvedPin) return@launch
+            try {
                 certificatePinStore.replacePin(host, approvedPin)
+            } catch (_: IOException) {
+                // Keep the mismatch visible so the user can retry; the old pin
+                // remains authoritative until a durable replacement succeeds.
+                return@launch
             }
+            observedCertHolder.consumeIfMatches(host, approvedPin)
         }
     }
 

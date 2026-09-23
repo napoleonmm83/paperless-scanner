@@ -16,6 +16,7 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="paperless_cert_pins.xml" />
         <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
         <exclude domain="database" path="paperless_scanner_db" />
         <exclude domain="database" path="paperless_scanner_db-shm" />
@@ -23,6 +24,7 @@
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="paperless_secure_prefs.xml" />
+        <exclude domain="sharedpref" path="paperless_cert_pins.xml" />
         <exclude domain="file" path="datastore/paperless_settings.preferences_pb" />
         <exclude domain="database" path="paperless_scanner_db" />
         <exclude domain="database" path="paperless_scanner_db-shm" />
