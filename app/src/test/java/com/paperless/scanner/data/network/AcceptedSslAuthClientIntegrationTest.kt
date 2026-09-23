@@ -7,7 +7,7 @@ import com.paperless.scanner.data.datastore.TokenStorage
 import com.paperless.scanner.di.AppModule
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -49,11 +49,11 @@ class AcceptedSslAuthClientIntegrationTest {
         every { storage.isMigrationCompleted() } returns true
         every { storage.consumeRecoveredCryptoFailure() } returns null
         tokenManager = TokenManager(RuntimeEnvironment.getApplication(), storage)
-        runBlocking { tokenManager.clearCredentials() }
+        runTest { tokenManager.clearCredentials() }
     }
 
     @Test
-    fun `accepted self signed host captures its pin and blocks a changed certificate`() = runBlocking {
+    fun `accepted self signed host captures its pin and blocks a changed certificate`() = runTest {
         val requestedHost = InetAddress.getByName("localhost").canonicalHostName
         val certificate = HeldCertificate.Builder()
             .commonName(requestedHost)
