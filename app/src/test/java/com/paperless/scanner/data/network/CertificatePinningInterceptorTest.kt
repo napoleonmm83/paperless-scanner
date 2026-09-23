@@ -1,5 +1,10 @@
 package com.paperless.scanner.data.network
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import okhttp3.Connection
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -10,12 +15,14 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 import java.net.InetAddress
+import java.net.Socket
 
 class CertificatePinningInterceptorTest {
 
@@ -145,5 +152,20 @@ class CertificatePinningInterceptorTest {
         } finally {
             plain.shutdown()
         }
+    }
+
+    @Test
+    fun `https without a peer certificate fails before sending a request`() {
+        val chain = mockk<Interceptor.Chain>()
+        val connection = mockk<Connection>()
+        every { chain.request() } returns Request.Builder().url("https://example.test/").build()
+        every { chain.connection() } returns connection
+        every { connection.handshake() } returns null
+        every { connection.socket() } returns Socket()
+
+        assertThrows(IOException::class.java) {
+            CertificatePinningInterceptor(pinStore, observed).intercept(chain)
+        }
+        verify(exactly = 0) { chain.proceed(any()) }
     }
 }

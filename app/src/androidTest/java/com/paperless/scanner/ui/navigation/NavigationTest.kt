@@ -4,6 +4,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation.compose.rememberNavController
+import com.paperless.scanner.data.analytics.AnalyticsService
+import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.PaperlessScannerTheme
 import com.paperless.scanner.util.AppLockManager
@@ -29,6 +31,15 @@ class NavigationTest {
     @Inject
     lateinit var appLockManager: AppLockManager
 
+    @Inject
+    lateinit var routeArgsHolder: AppLockRouteArgsHolder
+
+    @Inject
+    lateinit var analyticsService: AnalyticsService
+
+    @Inject
+    lateinit var crashlyticsHelper: CrashlyticsHelper
+
     @Before
     fun setup() {
         hiltRule.inject()
@@ -43,7 +54,10 @@ class NavigationTest {
                     navController = navController,
                     startDestination = Screen.Login.route,
                     tokenManager = tokenManager,
-                    appLockManager = appLockManager
+                    appLockManager = appLockManager,
+                    routeArgsHolder = routeArgsHolder,
+                    analyticsService = analyticsService,
+                    crashlyticsHelper = crashlyticsHelper
                 )
             }
         }
@@ -62,7 +76,10 @@ class NavigationTest {
                     navController = navController,
                     startDestination = Screen.Scan.routeBase,
                     tokenManager = tokenManager,
-                    appLockManager = appLockManager
+                    appLockManager = appLockManager,
+                    routeArgsHolder = routeArgsHolder,
+                    analyticsService = analyticsService,
+                    crashlyticsHelper = crashlyticsHelper
                 )
             }
         }

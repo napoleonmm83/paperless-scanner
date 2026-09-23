@@ -312,6 +312,8 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.okhttp.mockwebserver)
+    androidTestImplementation(libs.okhttp.tls)
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.navigation.testing)
     kspAndroidTest(libs.hilt.compiler)
