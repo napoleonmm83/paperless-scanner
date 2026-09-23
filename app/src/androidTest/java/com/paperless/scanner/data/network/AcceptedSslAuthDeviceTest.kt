@@ -48,7 +48,7 @@ class AcceptedSslAuthDeviceTest {
         val client = AppModule.provideAuthOkHttpClient(
             tokenManager = tokenManager,
             httpAllowlistInterceptor = HttpAllowlistInterceptor(mockk<HttpAllowlistHolder>()),
-            certificatePinningInterceptor = CertificatePinningInterceptor(pinStore, observed),
+            certificatePinningInterceptor = CertificatePinningInterceptor(pinStore, observed, mockk(relaxed = true)),
         ).newBuilder().callTimeout(10, TimeUnit.SECONDS).build()
 
         fun certificate() = HeldCertificate.Builder()

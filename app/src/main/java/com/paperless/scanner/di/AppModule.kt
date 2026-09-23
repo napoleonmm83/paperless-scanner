@@ -41,6 +41,7 @@ import com.paperless.scanner.data.network.AcceptedHostnameVerifier
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinningInterceptor
 import com.paperless.scanner.data.network.EncryptedCertPinStorage
+import com.paperless.scanner.data.network.PinRecoveryCoordinator
 import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
@@ -75,6 +76,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import okhttp3.Cache
+import okhttp3.CacheControl
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
@@ -129,6 +132,19 @@ object AppModule {
             }
         }
     }
+
+    private fun createRecoveryGate(pinInterceptor: CertificatePinningInterceptor): Interceptor =
+        Interceptor { chain ->
+            val request = chain.request()
+            val host = request.url.host
+            if (request.url.isHttps) pinInterceptor.requireApplicationAccess(host)
+            val gatedRequest = if (request.url.isHttps && pinInterceptor.needsNetworkForFirstTrust(host)) {
+                request.newBuilder().cacheControl(CacheControl.FORCE_NETWORK).build()
+            } else {
+                request
+            }
+            chain.proceed(gatedRequest)
+        }
 
     /**
      * Applies standard timeout configuration to an OkHttpClient.Builder.
@@ -203,6 +219,8 @@ object AppModule {
         sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
 
         return OkHttpClient.Builder()
+            .followRedirects(false)
+            .addInterceptor(createRecoveryGate(certificatePinningInterceptor))
             // Allowlist runs first; ordering contract pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor(createLoggingInterceptor())
@@ -291,9 +309,11 @@ object AppModule {
         cache: Cache,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .followRedirects(false)
             .cache(cache)
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(dynamicBaseUrlInterceptor)
+            .addInterceptor(createRecoveryGate(certificatePinningInterceptor))
             // Allowlist must run AFTER URL rewrite (sees real host) and BEFORE
             // the token interceptor (no auth-token leak to non-allowlisted hosts).
             // This ordering contract is pinned by AppModuleInterceptorOrderTest (#221).
@@ -373,8 +393,10 @@ object AppModule {
         certificatePinningInterceptor: CertificatePinningInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .followRedirects(false)
             .addInterceptor(createLoggingInterceptor())
             .addInterceptor(paperlessGptBaseUrlInterceptor)
+            .addInterceptor(createRecoveryGate(certificatePinningInterceptor))
             // Allowlist must run AFTER URL rewrite and BEFORE the token interceptor.
             // Ordering contract pinned by AppModuleInterceptorOrderTest (#221).
             .addInterceptor(httpAllowlistInterceptor)
@@ -422,7 +444,8 @@ object AppModule {
         diagnosticsReportService: DiagnosticsReportService,
         httpCache: Cache,
         protocolDetector: ProtocolDetector,
-    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, diagnosticsReportService, httpCache, protocolDetector)
+        pinRecoveryCoordinator: PinRecoveryCoordinator,
+    ): AuthRepository = AuthRepository(context, tokenManager, client, cloudflareDetectionInterceptor, crashlyticsHelper, diagnosticsReportService, httpCache, protocolDetector, pinRecoveryCoordinator)
 
     @Provides
     @Singleton
@@ -712,6 +735,8 @@ object AppModule {
         sslContext.init(null, arrayOf<TrustManager>(acceptedHostTrustManager), SecureRandom())
 
         return OkHttpClient.Builder()
+            .followRedirects(false)
+            .addInterceptor(createRecoveryGate(certificatePinningInterceptor))
             .addInterceptor(createLoggingInterceptor())
             // Allowlist must run BEFORE the auth-token interceptor.
             // Ordering contract pinned by AppModuleInterceptorOrderTest (#221).

@@ -18,6 +18,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.io.IOException
 import com.paperless.scanner.data.network.CertificatePinPersistenceException
+import com.paperless.scanner.data.network.PinRecoveryCoordinator
+import com.paperless.scanner.data.network.PinRecoveryPhase
 import javax.inject.Inject
 import com.paperless.scanner.data.analytics.DiagnosticReport
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
@@ -75,6 +77,7 @@ class AuthRepository @Inject constructor(
     private val diagnosticsReportService: DiagnosticsReportService,
     private val httpCache: Cache,
     private val protocolDetector: ProtocolDetector,
+    private val pinRecoveryCoordinator: PinRecoveryCoordinator,
 ) {
     companion object {
         private const val TAG = "AuthRepository"
@@ -118,8 +121,7 @@ class AuthRepository @Inject constructor(
                 crashlyticsHelper.logActionBreadcrumb("SERVER_DETECT_SUCCESS", "http://$cleanHost")
                 return httpResult
             }
-            val httpError: Throwable = httpResult.exceptionOrNull()
-                ?: IOException("HTTP detection failed without exception")
+            val httpError: Throwable = httpResult.exceptionOrNull() ?: IOException("HTTP detection failed without exception")
             diagnosticsReportService.logFailure(
                 authType = DiagnosticReport.Source.SERVER_DETECTION,
                 serverUrl = cleanHost,
@@ -168,10 +170,14 @@ class AuthRepository @Inject constructor(
         }
 
         val securityFailure = httpsResult.exceptionOrNull()
-        if (securityFailure is CertificatePinPersistenceException ||
+        val recoveryActive = pinRecoveryCoordinator.recoveryRequired.value ||
+            pinRecoveryCoordinator.phase.value != PinRecoveryPhase.NONE
+        if (recoveryActive || securityFailure is CertificatePinPersistenceException ||
+            securityFailure is com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException ||
+            securityFailure is com.paperless.scanner.data.network.CertificateFirstTrustRequiredException ||
             securityFailure is PaperlessException.CertificatePinStorageError ||
             securityFailure is PaperlessException.CertificatePinMismatch) {
-            return Result.failure(securityFailure)
+            return Result.failure(securityFailure ?: IOException("HTTPS discovery failed during pin recovery"))
         }
 
         // Try HTTP as fallback only for connectivity failures.

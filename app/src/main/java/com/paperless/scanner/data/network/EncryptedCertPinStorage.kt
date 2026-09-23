@@ -6,6 +6,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
+import java.security.KeyStore
 import javax.inject.Inject
 import javax.inject.Singleton
 import com.paperless.scanner.util.AppLogger
@@ -37,6 +38,8 @@ class EncryptedCertPinStorage @Inject constructor(
 
     @Volatile
     private var pinLoadFailed = false
+
+    override fun hasLoadFailure(): Boolean = pinLoadFailed
 
     private fun prefs(): SharedPreferences? {
         cachedPrefs?.let { return it }
@@ -105,6 +108,28 @@ class EncryptedCertPinStorage @Inject constructor(
             prefs()?.edit()?.clear()?.apply()
         } catch (e: Exception) {
             AppLogger.e(TAG, "Failed to clear pins", e)
+        }
+    }
+
+    @Synchronized
+    override fun resetCorruptedStore() {
+        pinLoadFailed = true
+        cachedPrefs = null
+        try {
+            if (!context.deleteSharedPreferences(PREFS_FILE)) {
+                throw IOException("Failed to delete unreadable certificate pins")
+            }
+            val keyStore = KeyStore.getInstance("AndroidKeyStore")
+            keyStore.load(null)
+            if (keyStore.containsAlias(MASTER_KEY_ALIAS)) keyStore.deleteEntry(MASTER_KEY_ALIAS)
+            val reopened = create()
+            if (reopened.all.isNotEmpty()) throw IOException("Reset pin store is not empty")
+            cachedPrefs = reopened
+            pinLoadFailed = false
+        } catch (e: Exception) {
+            pinLoadFailed = true
+            AppLogger.e(TAG, "Failed to reset encrypted pin storage", e)
+            throw if (e is IOException) e else IOException("Failed to reset encrypted pin storage", e)
         }
     }
 }

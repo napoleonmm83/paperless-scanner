@@ -998,6 +998,17 @@
     <string name="cert_changed_retrust">Re-Trust</string>
     <string name="error_certificate_changed_explain">The server certificate changed since your first connection. Re-trust it only if you expected this change.</string>
     <string name="cert_pin_storage_failed">Could not save this certificate securely. The connection remains blocked. Please try again.</string>
+    <string name="pin_recovery_title">Certificate trust needs recovery</string>
+    <string name="pin_recovery_message">Saved certificate pins cannot be read. HTTPS connections are blocked. Resetting removes the old pins and all previously accepted self-signed certificate exceptions. You must verify each HTTPS server certificate again before sending data over HTTPS.</string>
+    <string name="pin_recovery_failed">The reset could not be completed. Connections remain blocked. Please try again.</string>
+    <string name="pin_recovery_reset">Reset certificate trust</string>
+    <string name="pin_recovery_ready_title">Certificate trust reset</string>
+    <string name="pin_recovery_ready_message">No server certificate is trusted yet. Reconnect to each server and compare its fingerprint with a trusted source before approving it. Self-signed certificates also require separate SSL approval.</string>
+    <string name="pin_recovery_continue">Continue</string>
+    <string name="pin_recovery_server_settings">Open server settings</string>
+    <string name="pin_first_trust_title">Verify server certificate</string>
+    <string name="pin_first_trust_message">Before sending data to %1$s, compare this certificate fingerprint with a trusted source. Approve only if it matches.</string>
+    <string name="pin_first_trust_confirm">Trust this fingerprint</string>
 
     <!-- App Lock Screen - Additional -->
     <string name="app_lock_too_many_attempts">Too many failed attempts</string>

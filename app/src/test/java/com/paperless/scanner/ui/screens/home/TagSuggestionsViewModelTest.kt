@@ -83,6 +83,7 @@ class TagSuggestionsViewModelTest {
         tokenManager = tokenManager,
         premiumFeatureManager = premiumFeatureManager,
         analyticsService = analyticsService,
+        thumbnailClient = io.mockk.mockk(relaxed = true),
         // Pin thumbnail downloads to the test scheduler so analyzeDocument's
         // network coroutine cannot leak onto a real IO thread and resume on a
         // torn-down Main dispatcher (root cause of the UncaughtExceptionsBeforeTest
@@ -454,4 +455,3 @@ class TagSuggestionsViewModelTest {
         assertFalse(target.analysisState is UntaggedDocAnalysisState.Idle)
     }
 }
-

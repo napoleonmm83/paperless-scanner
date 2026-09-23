@@ -39,6 +39,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -345,6 +346,15 @@ fun SimplifiedSetupScreen(
                 enabled = setupState !is SetupState.Testing && setupState !is SetupState.Success
             )
 
+            if (serverStatus is ServerStatus.Error) {
+                TextButton(
+                    onClick = { viewModel.onServerUrlChanged(serverUrl) },
+                    enabled = serverUrl.isNotBlank()
+                ) {
+                    Text(stringResource(R.string.setup_retry))
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Authentication Fields (Token or Password)
@@ -392,9 +402,9 @@ fun SimplifiedSetupScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 focusManager.clearFocus()
-                                if (serverUrl.isNotBlank() && token.isNotBlank()) {
+                                if (isServerValid && token.isNotBlank()) {
                                     coroutineScope.launch {
-                                        viewModel.loginWithToken(serverUrl, token)
+                                        viewModel.loginWithToken((serverStatus as ServerStatus.Success).url, token)
                                     }
                                 }
                             }
@@ -469,9 +479,9 @@ fun SimplifiedSetupScreen(
                         keyboardActions = KeyboardActions(
                             onDone = {
                                 focusManager.clearFocus()
-                                if (serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()) {
+                                if (isServerValid && username.isNotBlank() && password.isNotBlank()) {
                                     coroutineScope.launch {
-                                        viewModel.login(serverUrl, username, password)
+                                        viewModel.login((serverStatus as ServerStatus.Success).url, username, password)
                                     }
                                 }
                             }
@@ -693,15 +703,18 @@ fun SimplifiedSetupScreen(
                 host = sslError.host,
                 errorMessage = sslError.message,
                 onAccept = {
-                    viewModel.acceptSslCertificate(sslError.host)
-                    // Retry login after accepting
-                    coroutineScope.launch {
-                        delay(500) // Small delay to ensure certificate is accepted
-                        val urlToUse = (serverStatus as? ServerStatus.Success)?.url ?: serverUrl
-                        when (authMethod) {
-                            AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)
-                            AuthMethod.CREDENTIALS -> viewModel.login(urlToUse, username, password)
+                    if (serverStatus is ServerStatus.Success) {
+                        viewModel.acceptSslCertificate(sslError.host)
+                        coroutineScope.launch {
+                            delay(500)
+                            val urlToUse = (serverStatus as ServerStatus.Success).url
+                            when (authMethod) {
+                                AuthMethod.TOKEN -> viewModel.loginWithToken(urlToUse, token)
+                                AuthMethod.CREDENTIALS -> viewModel.login(urlToUse, username, password)
+                            }
                         }
+                    } else {
+                        viewModel.acceptSslCertificateAndRedetect(sslError.host, serverUrl)
                     }
                 },
                 onCancel = {

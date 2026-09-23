@@ -119,7 +119,8 @@ class DocumentDetailViewModelTest {
             aiUsageRepository = aiUsageRepository,
             premiumFeatureManager = premiumFeatureManager,
             networkMonitor = networkMonitor,
-            serverHealthMonitor = serverHealthMonitor
+            serverHealthMonitor = serverHealthMonitor,
+            thumbnailClient = io.mockk.mockk(relaxed = true)
         )
     }
 

@@ -42,6 +42,10 @@ suspend fun <T> withRetry(
         } catch (e: CertificatePinPersistenceException) {
             // Pin persistence cannot recover on network retry and must fail closed.
             throw e
+        } catch (e: com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException) {
+            throw e
+        } catch (e: com.paperless.scanner.data.network.CertificateFirstTrustRequiredException) {
+            throw e
         } catch (e: HttpException) {
             if (e.code() !in 500..599 || attempt >= maxRetries) throw e
         } catch (e: IOException) {

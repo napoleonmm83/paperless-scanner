@@ -177,6 +177,10 @@ class ProtocolDetector @Inject constructor(
             ))
         } catch (e: CertificatePinPersistenceException) {
             Result.failure(PaperlessException.CertificatePinStorageError(e.host, e))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException) {
+            Result.failure(e)
+        } catch (e: com.paperless.scanner.data.network.CertificateFirstTrustRequiredException) {
+            Result.failure(e)
         } catch (e: IOException) {
             AppLogger.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""

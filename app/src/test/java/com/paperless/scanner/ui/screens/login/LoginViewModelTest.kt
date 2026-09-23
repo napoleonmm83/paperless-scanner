@@ -11,6 +11,7 @@ import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
+import com.paperless.scanner.data.network.CertificateFirstTrustRequiredException
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import com.paperless.scanner.util.LoginRateLimiter
@@ -173,6 +174,20 @@ class LoginViewModelTest {
     }
 
     // ==================== Login Tests ====================
+
+    @Test
+    fun `fingerprint confirmation never opens generic SSL exception dialog`() = runTest {
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.failure(
+            PaperlessException.NetworkError(
+                CertificateFirstTrustRequiredException("paperless.lan", "sha256/NEW")
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.login("https://paperless.lan", "user", "password")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is LoginUiState.Error)
+    }
 
     @Test
     fun `login with blank serverUrl shows error`() = runTest {
@@ -702,6 +717,41 @@ class LoginViewModelTest {
             "SSL certificate invalid",
             (viewModel.serverStatus.value as ServerStatus.Error).message
         )
+        assertEquals("paperless.lan", (viewModel.uiState.value as LoginUiState.SslError).host)
+    }
+
+    @Test
+    fun sslAcceptanceFromDetectionRetriesWithoutSendingCredentials() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returnsMany listOf(
+            Result.failure(PaperlessException.NetworkError(IOException("SSL certificate invalid"))),
+            Result.success("https://paperless.lan"),
+        )
+        val viewModel = createViewModel()
+        viewModel.onServerUrlChanged("paperless.lan")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value is LoginUiState.SslError)
+
+        viewModel.acceptSslCertificateAndRedetect("paperless.lan", "paperless.lan")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { tokenManager.acceptSslForHost("paperless.lan") }
+        coVerify(exactly = 2) { authRepository.detectServerProtocol("paperless.lan") }
+        coVerify(exactly = 0) { authRepository.login(any(), any(), any()) }
+        assertTrue(viewModel.serverStatus.value is ServerStatus.Success)
+    }
+
+    @Test
+    fun `SSL discovery uses complete IPv6 host for explicit acceptance`() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            PaperlessException.NetworkError(IOException("SSL certificate invalid"))
+        )
+        val viewModel = createViewModel()
+        viewModel.onServerUrlChanged("https://[::1]:8000")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+
+        assertEquals("::1", (viewModel.uiState.value as LoginUiState.SslError).host)
     }
 
     @Test

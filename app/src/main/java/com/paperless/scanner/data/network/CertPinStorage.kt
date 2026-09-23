@@ -13,6 +13,8 @@ package com.paperless.scanner.data.network
  */
 interface CertPinStorage {
     fun loadAll(): Map<String, String>
+    fun hasLoadFailure(): Boolean = false
+    fun resetCorruptedStore(): Unit = throw UnsupportedOperationException("Pin store reset unavailable")
     /** Return only after durable persistence; throw if the pin cannot be committed. */
     fun put(host: String, pin: String)
     fun remove(host: String)

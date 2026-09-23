@@ -12,6 +12,8 @@ import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertificatePinStore
+import com.paperless.scanner.data.network.CertificateFirstTrustRequiredException
+import com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException
 import com.paperless.scanner.data.network.ObservedCertHolder
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
@@ -185,6 +187,19 @@ class LoginViewModel @Inject constructor(
                     if (exception is PaperlessException.CleartextBlocked) {
                         _serverStatus.update { ServerStatus.RequiresHttpAccept(exception.host, ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED) }
                         AppLogger.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
+                    } else if (exception is PaperlessException.CertificatePinStorageError) {
+                        _serverStatus.update { ServerStatus.Error(exception.getLocalizedMessage(context)) }
+                    } else if (exception is CertificateFirstTrustRequiredException ||
+                        exception is CertificatePinRecoveryRequiredException) {
+                        _serverStatus.update { ServerStatus.Error(exception.message ?: context.getString(R.string.error_server_unreachable)) }
+                    } else if (isSslError(exception)) {
+                        _uiState.update {
+                            LoginUiState.SslError(
+                                host = extractHostFromUrl(serverUrl),
+                                message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                            )
+                        }
+                        _serverStatus.update { ServerStatus.Error(exception.message ?: context.getString(R.string.error_ssl_certificate)) }
                     } else {
                         val message = if (exception is PaperlessException.CertificatePinStorageError) {
                             exception.getLocalizedMessage(context)
@@ -484,6 +499,14 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun acceptSslCertificateAndRedetect(host: String, serverUrl: String) {
+        viewModelScope.launch {
+            tokenManager.acceptSslForHost(host)
+            _uiState.update { LoginUiState.Idle }
+            detectServerInternal(serverUrl)
+        }
+    }
+
     /**
      * User explicitly re-trusts a changed server certificate (Issue #36). Replaces
      * the stored pin with the newly observed one so the next connection succeeds,
@@ -568,6 +591,11 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun isSslError(exception: Throwable): Boolean {
+        if (exception is CertificateFirstTrustRequiredException ||
+            exception is CertificatePinRecoveryRequiredException) return false
+        if (exception is PaperlessException.NetworkError &&
+            (exception.originalException is CertificateFirstTrustRequiredException ||
+                exception.originalException is CertificatePinRecoveryRequiredException)) return false
         val message = exception.message?.lowercase() ?: ""
         return message.contains("ssl") ||
                 message.contains("certificate") ||
@@ -605,6 +633,8 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun extractHostFromUrl(url: String): String {
+        val parsed = ServerUrlParser.parse(url)
+        if (parsed is ServerUrlParser.ParseResult.Success) return parsed.host
         return url
             .removePrefix("https://")
             .removePrefix("http://")

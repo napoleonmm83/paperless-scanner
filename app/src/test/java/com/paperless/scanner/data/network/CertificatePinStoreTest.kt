@@ -3,6 +3,7 @@ package com.paperless.scanner.data.network
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
@@ -149,5 +150,23 @@ class CertificatePinStoreTest {
 
         assertNull(store.getPin("paperless.lan"))
         assertNull(CertificatePinStore(storage).getPin("paperless.lan"))
+    }
+
+    @Test
+    fun `unreadable pin storage requires recovery before another pin can be saved`() {
+        val storage = object : CertPinStorage {
+            override fun loadAll(): Map<String, String> = emptyMap()
+            override fun hasLoadFailure(): Boolean = true
+            override fun put(host: String, pin: String) = Unit
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        }
+        val store = CertificatePinStore(storage)
+
+        assertTrue(store.recoveryRequired.value)
+        assertThrows(IOException::class.java) {
+            store.setPinIfAbsent("paperless.lan", "sha256/NEW")
+        }
+        assertNull(store.getPin("paperless.lan"))
     }
 }

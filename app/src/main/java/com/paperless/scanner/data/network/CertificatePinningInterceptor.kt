@@ -38,10 +38,16 @@ class CertificatePinPersistenceException(val host: String, cause: IOException) :
 class CertificatePinningInterceptor @Inject constructor(
     private val pinStore: CertificatePinStore,
     private val observedCertHolder: ObservedCertHolder,
+    private val recoveryCoordinator: PinRecoveryCoordinator,
 ) : Interceptor {
+
+    fun requireApplicationAccess(host: String) = recoveryCoordinator.requireNoPendingRecovery(host)
+
+    fun needsNetworkForFirstTrust(host: String) = recoveryCoordinator.needsNetworkForFirstTrust(host)
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
+        if (request.url.isHttps) recoveryCoordinator.requireNoPendingRecovery(request.url.host)
         val connection = chain.connection()
         val peerCertificate = connection?.handshake()?.peerCertificates?.firstOrNull()
             ?: (connection?.socket() as? SSLSocket)?.session?.peerCertificates?.firstOrNull()
@@ -55,6 +61,7 @@ class CertificatePinningInterceptor @Inject constructor(
             val host = request.url.host
             val presentedPin = CertificateFingerprint.spkiPin(leaf)
             val storedPin = pinStore.getPin(host)
+            recoveryCoordinator.requireNetworkAccess(host, storedPin, presentedPin)
             when {
                 storedPin == null -> {
                     // TOFU capture. If a concurrent first request already captured a

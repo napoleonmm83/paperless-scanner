@@ -9,6 +9,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Cache
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.tls.HandshakeCertificates
@@ -25,12 +28,136 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.IOException
 import java.net.InetAddress
+import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.SSLSocket
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [30], manifest = Config.NONE)
 class AcceptedSslAuthClientIntegrationTest {
+    private fun cachedAuthClient(phase: String, cache: Cache, host: String): OkHttpClient {
+        val manager = mockk<TokenManager>(relaxed = true)
+        every { manager.getPinRecoveryPhase() } returns phase
+        every { manager.isHostAcceptedForSsl(any()) } returns true
+        val allowlist = mockk<HttpAllowlistHolder>()
+        every { allowlist.snapshot() } returns setOf(host)
+        val pins = CertificatePinStore(MemoryPinStorage())
+        val observed = ObservedCertHolder()
+        return AppModule.provideAuthOkHttpClient(
+            manager,
+            HttpAllowlistInterceptor(allowlist),
+            CertificatePinningInterceptor(pins, observed, PinRecoveryCoordinator(manager, pins, observed)),
+        ).newBuilder().cache(cache).build()
+    }
+
+    @Test
+    fun `cached response cannot bypass pending pin recovery`() {
+        val cache = Cache(Files.createTempDirectory("pin-recovery-pending-cache").toFile(), 1024L * 1024L)
+        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val certificate = HeldCertificate.Builder().commonName(requestedHost)
+            .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
+        val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val server = MockWebServer().apply { useHttps(certificates.sslSocketFactory(), false) }
+        try {
+            server.enqueue(MockResponse().setBody("cached").addHeader("Cache-Control", "max-age=600"))
+            val request = Request.Builder().url(server.url("/api/")).build()
+            cachedAuthClient("none", cache, request.url.host).newCall(request).execute().close()
+            assertEquals(1, server.requestCount)
+
+            assertThrows(CertificatePinRecoveryRequiredException::class.java) {
+                cachedAuthClient("reset_pending", cache, request.url.host).newCall(request).execute().close()
+            }
+            assertEquals(1, server.requestCount)
+        } finally {
+            server.shutdown()
+            cache.delete()
+        }
+    }
+
+    @Test
+    fun `manual enrollment bypasses old HTTPS cache to demand fingerprint`() {
+        val cache = Cache(Files.createTempDirectory("pin-recovery-manual-cache").toFile(), 1024L * 1024L)
+        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val certificate = HeldCertificate.Builder().commonName(requestedHost)
+            .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
+        val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val server = MockWebServer().apply { useHttps(certificates.sslSocketFactory(), false) }
+        try {
+            server.enqueue(MockResponse().setBody("cached").addHeader("Cache-Control", "max-age=600"))
+            val request = Request.Builder().url(server.url("/api/")).build()
+            cachedAuthClient("none", cache, request.url.host).newCall(request).execute().close()
+            assertEquals(1, server.requestCount)
+
+            assertThrows(CertificateFirstTrustRequiredException::class.java) {
+                cachedAuthClient("manual_enrollment", cache, request.url.host).newCall(request).execute().close()
+            }
+            assertEquals(1, server.requestCount)
+        } finally {
+            server.shutdown()
+            cache.delete()
+        }
+    }
+
+    @Test
+    fun `auth client never redirects credentials to another origin`() = runTest {
+        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val certificate = HeldCertificate.Builder().commonName(requestedHost)
+            .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
+        val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val source = MockWebServer().apply { useHttps(certificates.sslSocketFactory(), false) }
+        val destination = MockWebServer().apply { useHttps(certificates.sslSocketFactory(), false) }
+        val pinStore = CertificatePinStore(MemoryPinStorage())
+        val observed = ObservedCertHolder()
+        val client = AppModule.provideAuthOkHttpClient(
+            tokenManager,
+            HttpAllowlistInterceptor(mockk<HttpAllowlistHolder>(relaxed = true)),
+            CertificatePinningInterceptor(pinStore, observed, PinRecoveryCoordinator(tokenManager, pinStore, observed)),
+        )
+        try {
+            tokenManager.acceptSslForHost(source.url("/").host)
+            source.enqueue(MockResponse().setResponseCode(307).addHeader("Location", destination.url("/leak")))
+            destination.enqueue(MockResponse().setResponseCode(200))
+            val request = Request.Builder().url(source.url("/token"))
+                .post("username=alice&password=secret".toRequestBody()).build()
+            client.newCall(request).execute().use { response -> assertEquals(307, response.code) }
+            assertEquals(1, source.requestCount)
+            assertEquals(0, destination.requestCount)
+        } finally {
+            source.shutdown()
+            destination.shutdown()
+            tokenManager.clearCredentials()
+        }
+    }
+
+    @Test
+    fun `auth client never follows TLS redirect to cleartext`() = runTest {
+        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val certificate = HeldCertificate.Builder().commonName(requestedHost)
+            .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
+        val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val https = MockWebServer().apply { useHttps(certificates.sslSocketFactory(), false) }
+        val http = MockWebServer()
+        val pinStore = CertificatePinStore(MemoryPinStorage())
+        val observed = ObservedCertHolder()
+        val client = AppModule.provideAuthOkHttpClient(
+            tokenManager,
+            HttpAllowlistInterceptor(mockk<HttpAllowlistHolder>(relaxed = true)),
+            CertificatePinningInterceptor(pinStore, observed, PinRecoveryCoordinator(tokenManager, pinStore, observed)),
+        )
+        try {
+            tokenManager.acceptSslForHost(https.url("/").host)
+            https.enqueue(MockResponse().setResponseCode(307).addHeader("Location", http.url("/leak")))
+            http.enqueue(MockResponse().setResponseCode(200))
+            val request = Request.Builder().url(https.url("/upload")).post("sensitive-document".toRequestBody()).build()
+            client.newCall(request).execute().use { response -> assertEquals(307, response.code) }
+            assertEquals(1, https.requestCount)
+            assertEquals(0, http.requestCount)
+        } finally {
+            https.shutdown()
+            http.shutdown()
+            tokenManager.clearCredentials()
+        }
+    }
 
     private class MemoryPinStorage : CertPinStorage {
         private val pins = mutableMapOf<String, String>()
@@ -74,7 +201,7 @@ class AcceptedSslAuthClientIntegrationTest {
         val client = AppModule.provideAuthOkHttpClient(
             tokenManager = tokenManager,
             httpAllowlistInterceptor = HttpAllowlistInterceptor(mockk<HttpAllowlistHolder>(relaxed = true)),
-            certificatePinningInterceptor = CertificatePinningInterceptor(pinStore, observed),
+            certificatePinningInterceptor = CertificatePinningInterceptor(pinStore, observed, PinRecoveryCoordinator(tokenManager, pinStore, observed)),
         )
         val rawPeerCertificateCount = AtomicInteger(-1)
         val diagnosticClient = client.newBuilder()
