@@ -645,10 +645,10 @@ class ScanViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e // must stay ahead of every other catch: cancellation is not a page error
             } catch (e: Exception) {
-                reportPageFailure(page, e, "SCAN_PAGE_CROP_FAILED", R.string.scan_page_crop_failed)
+                cropFailed(page, e)
                 return@launch
             } catch (e: OutOfMemoryError) {
-                reportPageFailure(page, e, "SCAN_PAGE_CROP_FAILED", R.string.scan_page_crop_failed)
+                cropFailed(page, e)
                 return@launch
             }
 
@@ -795,19 +795,34 @@ class ScanViewModel @Inject constructor(
 
     /** Records a page that could not be read, decoded or rotated (#402) and turns it into a [Result.failure]. */
     private fun pageProcessingFailed(page: ScannedPage, cause: Throwable): Result<List<Uri>> {
-        reportPageFailure(page, cause, "SCAN_PAGE_PROCESS_FAILED", R.string.scan_page_process_failed)
+        reportPageFailure(
+            page, cause, "SCAN_PAGE_PROCESS_FAILED", R.string.scan_page_process_failed,
+            AnalyticsEvent.ScanPageProcessFailed(cause::class.java.simpleName)
+        )
         return Result.failure(cause)
     }
 
+    /** Records a page that could not be cropped (#407); the page itself stays as it was. */
+    private fun cropFailed(page: ScannedPage, cause: Throwable) = reportPageFailure(
+        page, cause, "SCAN_PAGE_CROP_FAILED", R.string.scan_page_crop_failed,
+        AnalyticsEvent.ScanPageCropFailed(cause::class.java.simpleName)
+    )
+
     /** Logs, records and surfaces a page that could not be processed; [messageRes] takes the page number. */
-    private fun reportPageFailure(page: ScannedPage, cause: Throwable, breadcrumb: String, messageRes: Int) {
+    private fun reportPageFailure(
+        page: ScannedPage,
+        cause: Throwable,
+        breadcrumb: String,
+        messageRes: Int,
+        event: AnalyticsEvent
+    ) {
         AppLogger.e(TAG, "Page ${page.pageNumber} could not be processed ($breadcrumb)", cause)
         crashlyticsHelper.logActionBreadcrumb(
             breadcrumb,
             "page=${page.pageNumber} scheme=${page.uri.scheme}"
         )
         crashlyticsHelper.recordException(cause)
-        analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed(cause::class.java.simpleName))
+        analyticsService.trackEvent(event)
         _uiState.update {
             it.copy(error = context.getString(messageRes, page.pageNumber))
         }

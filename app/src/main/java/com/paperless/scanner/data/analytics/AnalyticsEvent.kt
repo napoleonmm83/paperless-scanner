@@ -97,6 +97,16 @@ sealed class AnalyticsEvent(
         mapOf("error_type" to errorType)
     )
 
+    /**
+     * Cropping a page failed; the page was left unchanged (#407). Kept apart from
+     * [ScanPageProcessFailed] so crop failures do not skew that event's failure rate,
+     * which is defined against [ScanCompleted]. [errorType] as there.
+     */
+    data class ScanPageCropFailed(val errorType: String) : AnalyticsEvent(
+        "scan_page_crop_failed",
+        mapOf("error_type" to errorType)
+    )
+
     /** Page removed */
     data object ScanPageRemoved : AnalyticsEvent("scan_page_removed")
 

@@ -67,9 +67,8 @@ import java.io.FileNotFoundException
  *   covered below
  * - createTag (network coupling)
  *
- * Workaround for the addPages limitation: tests that need pre-populated
- * pages set them via SavedStateHandle before constructing the VM —
- * `restorePagesFromSavedState()` runs synchronously in init.
+ * Tests that need pre-populated pages set them via SavedStateHandle before
+ * constructing the VM — `restorePagesFromSavedState()` runs synchronously in init.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -738,7 +737,9 @@ class ScanViewModelTest {
         assertEquals(context.getString(R.string.scan_page_crop_failed, 1), state.error)
         assertEquals(page, state.pages.single())
         assertEquals(1, crashlyticsHelper.recordedExceptions.size)
-        verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed("IllegalStateException")) }
+        verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageCropFailed("IllegalStateException")) }
+        // ScanPageProcessFailed is the rate against ScanCompleted; a crop must not count there.
+        verify(exactly = 0) { analyticsService.trackEvent(ofType<AnalyticsEvent.ScanPageProcessFailed>()) }
     }
 
     @Test
