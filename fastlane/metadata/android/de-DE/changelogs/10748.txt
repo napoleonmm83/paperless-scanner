@@ -1,0 +1,7 @@
+Version 1.5.248:
+
+Neu:
+- Eigenes 1×1-Widget: Ein Tipp öffnet direkt den Kamerascan.
+
+Verbessert:
+- Zuverlässigere Anmeldung bei Servern mit selbstsignierten Zertifikaten.

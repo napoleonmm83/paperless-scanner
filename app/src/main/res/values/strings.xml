@@ -418,6 +418,9 @@
 
     <string name="widget_name">Paperless Scanner</string>
     <string name="widget_description">Quick access to scan documents</string>
+    <string name="widget_single_scan_name">Paperless Camera Scan</string>
+    <string name="widget_single_scan_description">Scan a document directly with the camera</string>
+    <string name="widget_single_scan_action">Scan</string>
     <string name="widget_tap_to_scan">Tap to scan</string>
     <string name="widget_pending_format">%d pending</string>
     <string name="widget_config_title">Configure Widget</string>
