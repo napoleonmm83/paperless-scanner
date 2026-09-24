@@ -9,29 +9,19 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paperless.scanner.R
-import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.getLocalizedMessage
-import com.paperless.scanner.data.ai.models.DocumentAnalysis
-import com.paperless.scanner.data.ai.models.SuggestionResult
-import com.paperless.scanner.data.ai.models.SuggestionSource
-import com.paperless.scanner.data.ai.models.getLocalizedMessage
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.CrashlyticsHelperContract
-import com.paperless.scanner.data.billing.PremiumFeature
-import com.paperless.scanner.data.billing.PremiumFeatureManager
-import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
-import com.paperless.scanner.data.repository.UsageLimitStatus
 import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
-import com.paperless.scanner.ui.screens.upload.AnalysisState
 import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
@@ -120,9 +110,6 @@ class ScanViewModel @Inject constructor(
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
     private val correspondentRepository: CorrespondentRepository,
-    private val suggestionOrchestrator: SuggestionOrchestrator,
-    private val aiUsageRepository: AiUsageRepository,
-    private val premiumFeatureManager: PremiumFeatureManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
     private val tokenManager: com.paperless.scanner.data.datastore.TokenManager,
     val appLockManager: com.paperless.scanner.util.AppLockManager,
@@ -219,23 +206,6 @@ class ScanViewModel @Inject constructor(
     private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
     val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
 
-    // AI Suggestions State
-    private val _aiSuggestions = MutableStateFlow<DocumentAnalysis?>(null)
-    val aiSuggestions: StateFlow<DocumentAnalysis?> = _aiSuggestions.asStateFlow()
-
-    private val _analysisState = MutableStateFlow<AnalysisState>(AnalysisState.Idle)
-    val analysisState: StateFlow<AnalysisState> = _analysisState.asStateFlow()
-
-    private val _suggestionSource = MutableStateFlow<SuggestionSource?>(null)
-    val suggestionSource: StateFlow<SuggestionSource?> = _suggestionSource.asStateFlow()
-
-    // WiFi-Only State
-    private val _wifiRequired = MutableStateFlow(false)
-    val wifiRequired: StateFlow<Boolean> = _wifiRequired.asStateFlow()
-
-    private val _wifiOnlyOverride = MutableStateFlow(false)
-    val wifiOnlyOverride: StateFlow<Boolean> = _wifiOnlyOverride.asStateFlow()
-
     // Observe WiFi status for reactive UI
     val isWifiConnected: StateFlow<Boolean> = networkMonitor.isWifiConnected
 
@@ -245,19 +215,6 @@ class ScanViewModel @Inject constructor(
      */
     val usesCloudflare: StateFlow<Boolean> = tokenManager.serverUsesCloudflare
         .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, false)
-
-    /**
-     * Whether AI suggestions are available (Debug build or Premium subscription).
-     */
-    val isAiAvailable: Boolean
-        get() = premiumFeatureManager.isFeatureAvailable(PremiumFeature.AI_ANALYSIS)
-
-    // AI Usage Limit State
-    private val _usageLimitStatus = MutableStateFlow<UsageLimitStatus>(UsageLimitStatus.WITHIN_LIMITS)
-    val usageLimitStatus: StateFlow<UsageLimitStatus> = _usageLimitStatus.asStateFlow()
-
-    private val _remainingCalls = MutableStateFlow<Int>(300)
-    val remainingCalls: StateFlow<Int> = _remainingCalls.asStateFlow()
 
     // Document Types and Correspondents
     private val _documentTypes = MutableStateFlow<List<DocumentType>>(emptyList())
@@ -281,7 +238,6 @@ class ScanViewModel @Inject constructor(
         loadTags()
         observeDocumentTypes()
         observeCorrespondents()
-        observeUsageLimits()
     }
 
     /**
@@ -457,24 +413,6 @@ class ScanViewModel @Inject constructor(
         val updated = _uiState.updateAndGet { state -> transform(state) }
         syncPagesToSavedState(updated.pages)
         return updated
-    }
-
-    /**
-     * Observe AI usage limits reactively.
-     */
-    private fun observeUsageLimits() {
-        viewModelScope.launch {
-            aiUsageRepository.observeCurrentMonthCallCount().collect { callCount ->
-                _remainingCalls.update { (300 - callCount).coerceAtLeast(0) }
-                val status = when {
-                    callCount >= 300 -> UsageLimitStatus.HARD_LIMIT_REACHED
-                    callCount >= 200 -> UsageLimitStatus.SOFT_LIMIT_200
-                    callCount >= 100 -> UsageLimitStatus.SOFT_LIMIT_100
-                    else -> UsageLimitStatus.WITHIN_LIMITS
-                }
-                _usageLimitStatus.update { status }
-            }
-        }
     }
 
     private fun loadTags() {
@@ -874,167 +812,6 @@ class ScanViewModel @Inject constructor(
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()
-        }
-    }
-
-    /**
-     * Analyze the first scanned page using SuggestionOrchestrator.
-     * This provides AI-powered tag suggestions for the scanned document.
-     */
-    fun analyzeFirstPage() {
-        val firstPage = _uiState.value.pages.firstOrNull() ?: return
-
-        viewModelScope.launch(Dispatchers.IO) {
-            _analysisState.update { AnalysisState.Analyzing }
-
-            try {
-                // Check usage limits for UI feedback
-                val limitStatus = aiUsageRepository.checkUsageLimit()
-
-                when (limitStatus) {
-                    UsageLimitStatus.HARD_LIMIT_REACHED -> {
-                        AppLogger.w(TAG, "Hard limit reached - AI disabled, using fallback suggestions")
-                        _analysisState.update { AnalysisState.LimitReached }
-                    }
-                    UsageLimitStatus.SOFT_LIMIT_200 -> {
-                        AppLogger.i(TAG, "Soft limit 200 reached - showing warning")
-                        _analysisState.update { AnalysisState.LimitWarning(_remainingCalls.value) }
-                    }
-                    UsageLimitStatus.SOFT_LIMIT_100 -> {
-                        AppLogger.i(TAG, "Soft limit 100 reached - showing info")
-                        _analysisState.update { AnalysisState.LimitInfo(_remainingCalls.value) }
-                    }
-                    else -> {
-                        _analysisState.update { AnalysisState.Analyzing }
-                    }
-                }
-
-                // Load bitmap from first page URI
-                val inputStream = context.contentResolver.openInputStream(firstPage.uri)
-                val bitmap = if (inputStream != null) {
-                    BitmapFactory.decodeStream(inputStream).also { inputStream.close() }
-                } else {
-                    AppLogger.w(TAG, "Failed to open input stream for: ${firstPage.uri}")
-                    null
-                }
-
-                if (bitmap == null) {
-                    AppLogger.w(TAG, "Could not decode image for analysis")
-                    _analysisState.update { AnalysisState.Error(context.getString(R.string.error_analyze_document)) }
-                    return@launch
-                }
-
-                // Apply rotation if needed
-                val rotatedBitmap = if (firstPage.rotation != 0) {
-                    val matrix = Matrix().apply { postRotate(firstPage.rotation.toFloat()) }
-                    Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-                } else {
-                    bitmap
-                }
-
-                // Use SuggestionOrchestrator for centralized suggestion logic
-                val result = suggestionOrchestrator.getSuggestions(
-                    bitmap = rotatedBitmap,
-                    extractedText = null, // OCR runs lazily in the orchestrator's fallback step (#296)
-                    documentId = null,
-                    overrideWifiOnly = _wifiOnlyOverride.value
-                )
-
-                // Cleanup bitmaps
-                if (rotatedBitmap != bitmap) {
-                    bitmap.recycle()
-                }
-                rotatedBitmap.recycle()
-
-                when (result) {
-                    is SuggestionResult.WiFiRequired -> {
-                        AppLogger.d(TAG, "WiFi required for AI suggestions")
-                        _wifiRequired.update { true }
-                        _analysisState.update { AnalysisState.Idle }
-                        // Don't show error - banner will inform user
-                    }
-                    is SuggestionResult.Success -> {
-                        AppLogger.d(TAG, "Suggestions retrieved: ${result.analysis.suggestedTags.size} tags from ${result.source}")
-
-                        // Clear WiFi required state if analysis succeeded
-                        _wifiRequired.update { false }
-
-                        _suggestionSource.update { result.source }
-
-                        // Track AI usage if AI was used
-                        if (result.source == SuggestionSource.FIREBASE_AI) {
-                            val estimatedInputTokens = 1000
-                            val estimatedOutputTokens = 200
-
-                            aiUsageRepository.logUsage(
-                                featureType = "document_analysis",
-                                inputTokens = estimatedInputTokens,
-                                outputTokens = estimatedOutputTokens,
-                                success = true,
-                                subscriptionType = premiumFeatureManager.analyticsSubscriptionType()
-                            )
-                        }
-
-                        _aiSuggestions.update { result.analysis }
-
-                        _analysisState.update {
-                            when {
-                                limitStatus == UsageLimitStatus.HARD_LIMIT_REACHED -> AnalysisState.LimitReached
-                                else -> AnalysisState.Success
-                            }
-                        }
-                    }
-                    is SuggestionResult.Error -> {
-                        AppLogger.e(TAG, "Suggestion orchestration failed: ${result.error}", result.exception)
-                        _analysisState.update { AnalysisState.Error(result.error.getLocalizedMessage(context)) }
-                    }
-                    is SuggestionResult.Loading -> {
-                        _analysisState.update { AnalysisState.Analyzing }
-                    }
-                }
-
-            } catch (e: Exception) {
-                AppLogger.e(TAG, "Document analysis failed", e)
-                val paperlessException = PaperlessException.from(e)
-                _analysisState.update { AnalysisState.Error(paperlessException.getLocalizedMessage(context)) }
-            }
-        }
-    }
-
-    /**
-     * Clear AI suggestions.
-     */
-    fun clearSuggestions() {
-        _aiSuggestions.update { null }
-        _analysisState.update { AnalysisState.Idle }
-        _suggestionSource.update { null }
-        _wifiRequired.update { false }
-        _wifiOnlyOverride.update { false }
-    }
-
-    /**
-     * Override WiFi-only restriction for current session.
-     * Allows user to use AI even without WiFi when they explicitly choose "Use anyway".
-     */
-    fun overrideWifiOnlyForSession() {
-        AppLogger.d(TAG, "User overrode WiFi-only restriction")
-        _wifiOnlyOverride.update { true }
-        _wifiRequired.update { false }
-
-        // Re-trigger analysis with override
-        analyzeFirstPage()
-    }
-
-    /**
-     * Apply a suggested tag by adding it to the selected tags.
-     */
-    fun applySuggestedTag(tagId: Int) {
-        _uiState.update { state ->
-            if (!state.selectedTagIds.contains(tagId)) {
-                state.copy(selectedTagIds = state.selectedTagIds + tagId)
-            } else {
-                state
-            }
         }
     }
 }

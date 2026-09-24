@@ -6,20 +6,16 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.google.gson.Gson
 import com.paperless.scanner.R
-import com.paperless.scanner.data.ai.SuggestionOrchestrator
 import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
-import com.paperless.scanner.data.billing.PremiumFeatureManager
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.NetworkMonitor
-import com.paperless.scanner.data.repository.AiUsageRepository
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
 import com.paperless.scanner.util.AppLockManager
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -71,7 +67,7 @@ import java.io.FileNotFoundException
  * - rotatePage, cropPage (Bitmap I/O) — the getRotatedPageUris failure paths ARE
  *   covered below (#402); the successful rotation ends in FileProvider.getUriForFile,
  *   which Robolectric cannot serve here
- * - analyzeFirstPage, createTag (network + AI orchestrator coupling)
+ * - createTag (network coupling)
  *
  * Workaround for the addPages limitation: tests that need pre-populated
  * pages set them via SavedStateHandle before constructing the VM —
@@ -91,9 +87,6 @@ class ScanViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var correspondentRepository: CorrespondentRepository
-    private lateinit var suggestionOrchestrator: SuggestionOrchestrator
-    private lateinit var aiUsageRepository: AiUsageRepository
-    private lateinit var premiumFeatureManager: PremiumFeatureManager
     private lateinit var networkMonitor: NetworkMonitor
     private lateinit var tokenManager: TokenManager
     private lateinit var appLockManager: AppLockManager
@@ -111,9 +104,6 @@ class ScanViewModelTest {
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
-        suggestionOrchestrator = mockk(relaxed = true)
-        aiUsageRepository = mockk(relaxed = true)
-        premiumFeatureManager = mockk(relaxed = true)
         networkMonitor = mockk(relaxed = true)
         tokenManager = mockk(relaxed = true)
         appLockManager = mockk(relaxed = true)
@@ -125,10 +115,8 @@ class ScanViewModelTest {
         every { tagRepository.observeTags() } returns flowOf(emptyList())
         every { documentTypeRepository.observeDocumentTypes() } returns flowOf(emptyList())
         every { correspondentRepository.observeCorrespondents() } returns flowOf(emptyList())
-        coEvery { aiUsageRepository.observeCurrentMonthCallCount() } returns flowOf(0)
         every { networkMonitor.isWifiConnected } returns MutableStateFlow(false)
         every { tokenManager.serverUsesCloudflare } returns flowOf(false)
-        every { premiumFeatureManager.isFeatureAvailable(any()) } returns false
     }
 
     @After
@@ -146,9 +134,6 @@ class ScanViewModelTest {
         tagRepository = tagRepository,
         documentTypeRepository = documentTypeRepository,
         correspondentRepository = correspondentRepository,
-        suggestionOrchestrator = suggestionOrchestrator,
-        aiUsageRepository = aiUsageRepository,
-        premiumFeatureManager = premiumFeatureManager,
         networkMonitor = networkMonitor,
         tokenManager = tokenManager,
         appLockManager = appLockManager,
