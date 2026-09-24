@@ -64,6 +64,7 @@ class TokenManager(
 
         // SSL Certificate Preferences
         private val ACCEPTED_SSL_HOSTS_KEY = stringPreferencesKey("accepted_ssl_hosts")
+        private val PIN_RECOVERY_PHASE_KEY = stringPreferencesKey("pin_recovery_phase")
 
         // App-Lock Preferences
         private val APP_LOCK_ENABLED_KEY = booleanPreferencesKey("app_lock_enabled")
@@ -379,7 +380,11 @@ class TokenManager(
 
         // Clear DataStore preferences
         context.dataStore.edit { preferences ->
+            // Certificate trust is device-wide, not a login credential. Losing this
+            // marker on logout would silently re-enable TOFU after a reset.
+            val pinRecoveryPhase = preferences[PIN_RECOVERY_PHASE_KEY]
             preferences.clear()
+            if (pinRecoveryPhase != null) preferences[PIN_RECOVERY_PHASE_KEY] = pinRecoveryPhase
         }
         // Note: Cloudflare detection flag is also cleared since we clear ALL preferences
     }
@@ -580,6 +585,26 @@ class TokenManager(
     fun getAcceptedSslHosts(): List<String> = runBlocking {
         val hosts = context.dataStore.data.first()[ACCEPTED_SSL_HOSTS_KEY] ?: ""
         hosts.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    /** The recovery marker lives outside the damaged encrypted pin store. */
+    @WorkerThread
+    fun getPinRecoveryPhase(): String = runBlocking {
+        context.dataStore.data.first()[PIN_RECOVERY_PHASE_KEY] ?: "none"
+    }
+
+    /** One durable edit closes every old self-signed exception before pins are reset. */
+    suspend fun beginPinRecovery() {
+        context.dataStore.edit { preferences ->
+            preferences[PIN_RECOVERY_PHASE_KEY] = "reset_pending"
+            preferences[ACCEPTED_SSL_HOSTS_KEY] = ""
+        }
+    }
+
+    suspend fun finishPinRecovery() {
+        context.dataStore.edit { preferences ->
+            preferences[PIN_RECOVERY_PHASE_KEY] = "manual_enrollment"
+        }
     }
 
     // App-Lock Settings

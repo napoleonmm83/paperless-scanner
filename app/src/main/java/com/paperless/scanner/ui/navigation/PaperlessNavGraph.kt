@@ -96,6 +96,14 @@ fun PaperlessNavGraph(
         currentRoute == Screen.EditServerSettings.route
     val appLocked = lockState is AppLockState.Locked || lockState is AppLockState.LockedOut
     val onAppLockScreen = currentRoute == Screen.AppLock.route
+    PinRecoveryInterceptor(
+        enabled = !appLocked && !onAppLockScreen,
+        onOpenServerSettings = {
+            if (currentRoute != Screen.Welcome.route && currentRoute != Screen.EditServerSettings.route) {
+                navController.navigate(Screen.EditServerSettings.route)
+            }
+        },
+    )
     CertificateReTrustInterceptor(enabled = !onCertSetupRoute && !appLocked && !onAppLockScreen)
 
     LaunchedEffect(pendingDeepLink, lockState, currentRoute) {

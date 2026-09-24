@@ -7,7 +7,11 @@ import com.paperless.scanner.data.network.ObservedCertHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.paperless.scanner.util.AppLogger
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -32,6 +36,10 @@ class CertReTrustViewModel @Inject constructor(
 
     /** The pending app-wide certificate mismatch to surface, or null. */
     val pendingMismatch: StateFlow<ObservedCertHolder.Mismatch?> = observedCertHolder.latest
+    private val _failedMismatch = MutableStateFlow<ObservedCertHolder.Mismatch?>(null)
+    val failedMismatch: StateFlow<ObservedCertHolder.Mismatch?> = _failedMismatch.asStateFlow()
+    private val _savingPin = MutableStateFlow(false)
+    val savingPin: StateFlow<Boolean> = _savingPin.asStateFlow()
 
     /**
      * Re-trust: pin the certificate the user actually saw ([approvedPin], the
@@ -51,14 +59,28 @@ class CertReTrustViewModel @Inject constructor(
      *    re-prompts with the correct fingerprint.
      */
     fun acceptCertificateChange(host: String, approvedPin: String) {
+        if (!_savingPin.compareAndSet(false, true)) return
         // Pin-store mutations write through to EncryptedSharedPreferences (disk +
         // AES), so run them off the main thread to avoid any ANR on slow storage.
         viewModelScope.launch(ioDispatcher) {
-            // Atomic compare-and-remove: only pin (and clear the dialog) when the
-            // live mismatch still matches the fingerprint the user approved. A
-            // newer/different cert recorded mid-dialog is left in place to re-prompt.
-            if (observedCertHolder.consumeIfMatches(host, approvedPin) != null) {
-                certificatePinStore.replacePin(host, approvedPin)
+            try {
+                // Persist the approved fingerprint before removing its dialog entry.
+                // A newer/different mismatch recorded mid-write remains visible.
+                val observed = observedCertHolder.peek(host)
+                if (observed?.actualPin != approvedPin) return@launch
+                try {
+                    certificatePinStore.replacePin(host, approvedPin)
+                } catch (e: IOException) {
+                    // Keep the mismatch visible so the user can retry; the old pin
+                    // remains authoritative until a durable replacement succeeds.
+                    AppLogger.e("CertReTrustViewModel", "Failed to persist re-trusted certificate pin", e)
+                    _failedMismatch.value = observed
+                    return@launch
+                }
+                _failedMismatch.value = null
+                observedCertHolder.consumeIfMatches(host, approvedPin)
+            } finally {
+                _savingPin.value = false
             }
         }
     }
@@ -69,6 +91,8 @@ class CertReTrustViewModel @Inject constructor(
      * user re-trusts on the next attempt (the interceptor re-records the mismatch).
      */
     fun declineCertificateChange(host: String) {
+        if (_savingPin.value) return
+        _failedMismatch.value = null
         observedCertHolder.consume(host)
     }
 }

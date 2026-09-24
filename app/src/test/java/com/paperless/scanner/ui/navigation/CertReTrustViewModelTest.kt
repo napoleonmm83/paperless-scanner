@@ -1,9 +1,14 @@
 package com.paperless.scanner.ui.navigation
 
+import android.util.Log
+
 import app.cash.turbine.test
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
+import io.mockk.every
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -13,8 +18,10 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 /**
  * #249: app-wide in-session re-trust handler. Uses the real [CertificatePinStore]
@@ -41,6 +48,8 @@ class CertReTrustViewModelTest {
 
     @Before
     fun setup() {
+        mockkStatic(Log::class)
+        every { Log.e(any(), any(), any()) } returns 0
         Dispatchers.setMain(testDispatcher)
         pinStore = CertificatePinStore(FakeCertPinStorage())
         holder = ObservedCertHolder()
@@ -49,6 +58,7 @@ class CertReTrustViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Log::class)
     }
 
     private fun viewModel() = CertReTrustViewModel(pinStore, holder, testDispatcher)
@@ -79,6 +89,29 @@ class CertReTrustViewModelTest {
         assertEquals("sha256/NEW", pinStore.getPin("paperless.lan"))
         vm.pendingMismatch.test {
             assertNull(awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `failed re-trust write leaves the old pin and dialog intact`() = runTest(testDispatcher) {
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll() = mapOf("paperless.lan" to "sha256/OLD")
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        })
+        holder.record(ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW"))
+        val vm = viewModel()
+
+        vm.failedMismatch.test {
+            assertNull(awaitItem())
+            vm.acceptCertificateChange("paperless.lan", "sha256/NEW")
+            advanceUntilIdle()
+
+            assertEquals(holder.peek("paperless.lan"), awaitItem())
+            assertEquals("sha256/OLD", pinStore.getPin("paperless.lan"))
+            assertNotNull(vm.pendingMismatch.value)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -133,5 +166,31 @@ class CertReTrustViewModelTest {
             assertNull(awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun cancelDuringPinWriteCannotWithdrawAcceptedTrust() = runTest(testDispatcher) {
+        val mismatch = ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        var mismatchAfterCancel: ObservedCertHolder.Mismatch? = null
+        lateinit var vm: CertReTrustViewModel
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            private val pins = mutableMapOf("paperless.lan" to "sha256/OLD")
+            override fun loadAll() = pins.toMap()
+            override fun put(host: String, pin: String) {
+                vm.declineCertificateChange(host)
+                mismatchAfterCancel = holder.peek(host)
+                pins[host] = pin
+            }
+            override fun remove(host: String) { pins.remove(host) }
+            override fun clear() { pins.clear() }
+        })
+        holder.record(mismatch)
+        vm = viewModel()
+
+        vm.acceptCertificateChange(mismatch.host, mismatch.actualPin)
+        advanceUntilIdle()
+
+        assertEquals(mismatch, mismatchAfterCancel)
+        assertEquals("sha256/NEW", pinStore.getPin(mismatch.host))
     }
 }

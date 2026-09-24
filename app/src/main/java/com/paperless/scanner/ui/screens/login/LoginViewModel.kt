@@ -12,6 +12,8 @@ import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertificatePinStore
+import com.paperless.scanner.data.network.CertificateFirstTrustRequiredException
+import com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException
 import com.paperless.scanner.data.network.ObservedCertHolder
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import javax.inject.Inject
 import com.paperless.scanner.util.AppLogger
 
@@ -49,6 +52,8 @@ class LoginViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+    private val _savingCertificatePin = MutableStateFlow(false)
+    val savingCertificatePin: StateFlow<Boolean> = _savingCertificatePin.asStateFlow()
 
     private val _canUseBiometric = MutableStateFlow(false)
     val canUseBiometric: StateFlow<Boolean> = _canUseBiometric.asStateFlow()
@@ -182,8 +187,25 @@ class LoginViewModel @Inject constructor(
                     if (exception is PaperlessException.CleartextBlocked) {
                         _serverStatus.update { ServerStatus.RequiresHttpAccept(exception.host, ServerStatus.RequiresHttpAccept.Reason.HTTPS_FAILED_HTTP_BLOCKED) }
                         AppLogger.d(TAG, "Status = RequiresHttpAccept(HTTPS_FAILED_HTTP_BLOCKED, host=${exception.host})")
+                    } else if (exception is PaperlessException.CertificatePinStorageError) {
+                        _serverStatus.update { ServerStatus.Error(exception.getLocalizedMessage(context)) }
+                    } else if (exception is CertificateFirstTrustRequiredException ||
+                        exception is CertificatePinRecoveryRequiredException) {
+                        _serverStatus.update { ServerStatus.Error(exception.message ?: context.getString(R.string.error_server_unreachable)) }
+                    } else if (isSslError(exception)) {
+                        _uiState.update {
+                            LoginUiState.SslError(
+                                host = extractHostFromUrl(serverUrl),
+                                message = exception.message ?: context.getString(R.string.error_ssl_certificate)
+                            )
+                        }
+                        _serverStatus.update { ServerStatus.Error(exception.message ?: context.getString(R.string.error_ssl_certificate)) }
                     } else {
-                        val message = exception.message ?: context.getString(R.string.error_server_unreachable)
+                        val message = if (exception is PaperlessException.CertificatePinStorageError) {
+                            exception.getLocalizedMessage(context)
+                        } else {
+                            exception.message ?: context.getString(R.string.error_server_unreachable)
+                        }
                         _serverStatus.update { ServerStatus.Error(message) }
                         AppLogger.d(TAG, "Status = Error, message = $message")
                     }
@@ -300,6 +322,11 @@ class LoginViewModel @Inject constructor(
                                     )
                                 }
                             }
+                            exception is PaperlessException.CertificatePinStorageError -> {
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
+                                }
+                            }
                             isSslError(exception) -> {
                                 val host = extractHostFromUrl(urlToUse)
                                 _uiState.update {
@@ -404,6 +431,11 @@ class LoginViewModel @Inject constructor(
                                     )
                                 }
                             }
+                            exception is PaperlessException.CertificatePinStorageError -> {
+                                _uiState.update {
+                                    LoginUiState.Error(exception.getLocalizedMessage(context))
+                                }
+                            }
                             isSslError(exception) -> {
                                 val host = extractHostFromUrl(urlToUse)
                                 _uiState.update {
@@ -467,31 +499,63 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    fun acceptSslCertificateAndRedetect(host: String, serverUrl: String) {
+        viewModelScope.launch {
+            tokenManager.acceptSslForHost(host)
+            _uiState.update { LoginUiState.Idle }
+            detectServerInternal(serverUrl)
+        }
+    }
+
     /**
      * User explicitly re-trusts a changed server certificate (Issue #36). Replaces
      * the stored pin with the newly observed one so the next connection succeeds,
-     * then resets to Idle for the caller to retry. The new pin is read from
-     * [ObservedCertHolder] (recorded by the interceptor at mismatch time) rather
-     * than trusting the [actualPin] passed up through state, so we pin exactly the
-     * certificate that triggered the dialog.
+     * then resets to Idle for the caller to retry. The current observation must
+     * match the fingerprint the user saw in the dialog before it can be pinned.
      */
-    fun acceptCertificateChange(host: String) {
+    fun acceptCertificateChange(host: String, approvedPin: String, onSaved: () -> Unit = {}) {
+        if (!_savingCertificatePin.compareAndSet(false, true)) return
         // Pin-store mutations write through to EncryptedSharedPreferences (disk +
         // AES), so run them off the main thread to avoid any ANR on slow storage.
         viewModelScope.launch(ioDispatcher) {
-            val observed = observedCertHolder.consume(host)
-            val newPin = observed?.actualPin
-            if (newPin != null) {
-                certificatePinStore.replacePin(host, newPin)
-                AppLogger.d(TAG, "Certificate change re-trusted for host: $host")
-            } else {
-                // No observed mismatch (e.g. process death): drop the stale pin so
-                // the next connection re-captures via TOFU instead of blocking forever.
-                certificatePinStore.removePin(host)
-                AppLogger.w(TAG, "No observed cert for $host on re-trust; cleared pin for TOFU re-capture")
-            }
-            withContext(Dispatchers.Main) {
-                _uiState.update { LoginUiState.Idle }
+            try {
+                val observed = observedCertHolder.peek(host)
+                if (observed != null && observed.actualPin != approvedPin) {
+                    withContext(Dispatchers.Main) {
+                        _uiState.update {
+                            LoginUiState.CertChanged(host, observed.expectedPin, observed.actualPin)
+                        }
+                    }
+                    return@launch
+                }
+                if (observed != null) {
+                    try {
+                        certificatePinStore.replacePin(host, approvedPin)
+                    } catch (e: IOException) {
+                        // Keep the old pin and mismatch visible; a retry must never
+                        // silently clear the old pin on a later retry.
+                        AppLogger.e(TAG, "Failed to persist re-trusted certificate pin", e)
+                        _uiState.update { current ->
+                            if (current is LoginUiState.CertChanged &&
+                                current.host == host && current.actualPin == approvedPin) {
+                                current.copy(saveFailed = true)
+                            } else current
+                        }
+                        return@launch
+                    }
+                    observedCertHolder.consumeIfMatches(host, approvedPin)
+                    AppLogger.d(TAG, "Certificate change re-trusted for host: $host")
+                } else {
+                    // A process restart can lose the in-memory observation. Keep the
+                    // old pin; the next connection will show a fresh mismatch.
+                    AppLogger.w(TAG, "No observed cert for $host on re-trust; keeping old pin")
+                }
+                withContext(Dispatchers.Main) {
+                    _uiState.update { LoginUiState.Idle }
+                    if (observed != null) onSaved()
+                }
+            } finally {
+                _savingCertificatePin.value = false
             }
         }
     }
@@ -503,6 +567,7 @@ class LoginViewModel @Inject constructor(
      * mismatch after the user backs out of the setup flow.
      */
     fun declineCertificateChange(host: String) {
+        if (_savingCertificatePin.value) return
         observedCertHolder.consume(host)
         resetState()
     }
@@ -526,6 +591,11 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun isSslError(exception: Throwable): Boolean {
+        if (exception is CertificateFirstTrustRequiredException ||
+            exception is CertificatePinRecoveryRequiredException) return false
+        if (exception is PaperlessException.NetworkError &&
+            (exception.originalException is CertificateFirstTrustRequiredException ||
+                exception.originalException is CertificatePinRecoveryRequiredException)) return false
         val message = exception.message?.lowercase() ?: ""
         return message.contains("ssl") ||
                 message.contains("certificate") ||
@@ -563,6 +633,8 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun extractHostFromUrl(url: String): String {
+        val parsed = ServerUrlParser.parse(url)
+        if (parsed is ServerUrlParser.ParseResult.Success) return parsed.host
         return url
             .removePrefix("https://")
             .removePrefix("http://")
@@ -607,7 +679,8 @@ sealed class LoginUiState {
     data class CertChanged(
         val host: String,
         val expectedPin: String,
-        val actualPin: String
+        val actualPin: String,
+        val saveFailed: Boolean = false
     ) : LoginUiState()
 
     /**

@@ -6,6 +6,8 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
+import com.paperless.scanner.data.network.CertificatePinMismatchException
 import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.service.ProtocolDetector
@@ -29,6 +31,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.io.IOException
 
 /**
  * Repository tests for [AuthRepository].
@@ -44,6 +47,7 @@ class AuthRepositoryTest {
     private lateinit var mockWebServer: MockWebServer
     private lateinit var context: Context
     private lateinit var tokenManager: TokenManager
+    private lateinit var pinRecoveryCoordinator: com.paperless.scanner.data.network.PinRecoveryCoordinator
     private lateinit var cloudflareDetectionInterceptor: CloudflareDetectionInterceptor
     private lateinit var crashlyticsHelper: CrashlyticsHelper
     private lateinit var diagnosticsReportService: DiagnosticsReportService
@@ -60,6 +64,9 @@ class AuthRepositoryTest {
         every { context.getString(R.string.error_username_password_incorrect) } returns "Invalid username or password"
         every { context.getString(R.string.error_token_not_in_response) } returns "Token not found in response"
         tokenManager = mockk(relaxed = true)
+        pinRecoveryCoordinator = mockk(relaxed = true)
+        every { pinRecoveryCoordinator.recoveryRequired } returns kotlinx.coroutines.flow.MutableStateFlow(false)
+        every { pinRecoveryCoordinator.phase } returns kotlinx.coroutines.flow.MutableStateFlow(com.paperless.scanner.data.network.PinRecoveryPhase.NONE)
         cloudflareDetectionInterceptor = mockk(relaxed = true)
         crashlyticsHelper = mockk(relaxed = true)
         diagnosticsReportService = mockk(relaxed = true)
@@ -67,7 +74,7 @@ class AuthRepositoryTest {
         client = OkHttpClient.Builder().build()
         authRepository = AuthRepository(
             context, tokenManager, client, cloudflareDetectionInterceptor,
-            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client)
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client), pinRecoveryCoordinator
         )
     }
 
@@ -426,6 +433,105 @@ class AuthRepositoryTest {
     }
 
     @Test
+    fun pinPersistenceFailureMustNotFallBackToHttp() = runTest {
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val detector = ProtocolDetector(context, OkHttpClient.Builder().addInterceptor { chain ->
+            if (chain.request().url.scheme == "https") {
+                throw CertificatePinPersistenceException(host, IOException())
+            }
+            chain.proceed(chain.request())
+        }.build())
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, detector, pinRecoveryCoordinator
+        )
+
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun recoveryModeNeverFallsBackToHttpAfterTlsHandshakeFailure() = runTest {
+        every { pinRecoveryCoordinator.phase } returns kotlinx.coroutines.flow.MutableStateFlow(
+            com.paperless.scanner.data.network.PinRecoveryPhase.MANUAL_ENROLLMENT
+        )
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val detector = ProtocolDetector(context, OkHttpClient.Builder().addInterceptor { chain ->
+            if (chain.request().url.scheme == "https") throw IOException("TLS handshake failed")
+            chain.proceed(chain.request())
+        }.build())
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, detector, pinRecoveryCoordinator
+        )
+
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(result.isFailure)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun pinPersistenceFailureDuringPasswordLoginHasTypedError() = runTest {
+        val host = mockWebServer.hostName
+        client = OkHttpClient.Builder().addInterceptor {
+            throw CertificatePinPersistenceException(host, IOException())
+        }.build()
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client), pinRecoveryCoordinator
+        )
+
+        val result = authRepository.login(mockWebServer.url("/").toString(), "user", "password")
+
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun pinPersistenceFailureDuringTokenValidationHasTypedError() = runTest {
+        val host = mockWebServer.hostName
+        client = OkHttpClient.Builder().addInterceptor {
+            throw CertificatePinPersistenceException(host, IOException())
+        }.build()
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, client), pinRecoveryCoordinator
+        )
+
+        val result = authRepository.validateToken(mockWebServer.url("/").toString(), "token")
+
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinStorageError)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
+    fun pinMismatchMustNotFallBackToHttp() = runTest {
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+        val host = "${mockWebServer.hostName}:${mockWebServer.port}"
+        val detector = ProtocolDetector(context, OkHttpClient.Builder().addInterceptor { chain ->
+            if (chain.request().url.scheme == "https") {
+                throw CertificatePinMismatchException(host, "sha256/OLD", "sha256/NEW")
+            }
+            chain.proceed(chain.request())
+        }.build())
+        authRepository = AuthRepository(
+            context, tokenManager, client, cloudflareDetectionInterceptor,
+            crashlyticsHelper, diagnosticsReportService, httpCache, detector, pinRecoveryCoordinator
+        )
+
+        val result = authRepository.detectServerProtocol(host)
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is PaperlessException.CertificatePinMismatch)
+        assertEquals(0, mockWebServer.requestCount)
+    }
+
+    @Test
     fun `detectServerProtocol with empty host returns ContentError`() = runTest {
         val result = authRepository.detectServerProtocol("")
 
@@ -503,7 +609,7 @@ class AuthRepositoryTest {
         val wiredClient = OkHttpClient.Builder().addInterceptor(interceptor).build()
         val wiredRepo = AuthRepository(
             context, tokenManager, wiredClient, cloudflareDetectionInterceptor,
-            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, wiredClient)
+            crashlyticsHelper, diagnosticsReportService, httpCache, ProtocolDetector(context, wiredClient), pinRecoveryCoordinator
         )
 
         // Non-loopback host that the interceptor will refuse. We pass with

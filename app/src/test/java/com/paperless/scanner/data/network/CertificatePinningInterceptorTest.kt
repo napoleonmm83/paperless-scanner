@@ -1,5 +1,10 @@
 package com.paperless.scanner.data.network
 
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import okhttp3.Connection
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -10,12 +15,14 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 import java.net.InetAddress
+import java.net.Socket
 
 class CertificatePinningInterceptorTest {
 
@@ -67,10 +74,34 @@ class CertificatePinningInterceptorTest {
         server.shutdown()
     }
 
-    private fun httpsClient(): OkHttpClient = OkHttpClient.Builder()
+    private fun httpsClient(
+        coordinator: PinRecoveryCoordinator = mockk(relaxed = true),
+    ): OkHttpClient = OkHttpClient.Builder()
         .sslSocketFactory(clientCertificates.sslSocketFactory(), clientCertificates.trustManager)
-        .addNetworkInterceptor(CertificatePinningInterceptor(pinStore, observed))
+        .addNetworkInterceptor(CertificatePinningInterceptor(pinStore, observed, coordinator))
         .build()
+
+    @Test
+    fun `manual enrollment sends no authorization before fingerprint confirmation`() {
+        val tokenManager = mockk<com.paperless.scanner.data.datastore.TokenManager>()
+        every { tokenManager.getPinRecoveryPhase() } returns "manual_enrollment"
+        val coordinator = PinRecoveryCoordinator(tokenManager, pinStore, observed)
+        val client = httpsClient(coordinator)
+        val request = Request.Builder().url(server.url("/api/"))
+            .header("Authorization", "Token SECRET").build()
+
+        assertThrows(CertificateFirstTrustRequiredException::class.java) {
+            client.newCall(request).execute().close()
+        }
+        assertEquals(0, server.requestCount)
+        val host = server.url("/").host
+        val candidate = observed.peekFirstTrust(host)!!
+        assertTrue(coordinator.confirmFirstTrust(host, candidate.presentedPin))
+
+        server.enqueue(MockResponse().setResponseCode(200))
+        client.newCall(request).execute().close()
+        assertEquals(1, server.requestCount)
+    }
 
     private fun call(client: OkHttpClient) {
         client.newCall(Request.Builder().url(server.url("/")).build()).execute().close()
@@ -96,6 +127,33 @@ class CertificatePinningInterceptorTest {
 
         call(client) // TOFU
         call(client) // must not throw — same cert
+    }
+
+    @Test
+    fun `failed first pin write blocks the request before it reaches the server`() {
+        pinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll(): Map<String, String> = emptyMap()
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        })
+
+        assertThrows(CertificatePinPersistenceException::class.java) { call(httpsClient()) }
+
+        assertEquals(0, server.requestCount)
+        assertNull(pinStore.getPin(server.url("/").host))
+    }
+
+    @Test
+    fun `pin removed during first-contact race blocks request`() {
+        server.enqueue(MockResponse())
+        pinStore = mockk()
+        every { pinStore.getPin(any()) } returns null
+        every { pinStore.setPinIfAbsent(any(), any()) } returns false
+
+        assertThrows(CertificatePinPersistenceException::class.java) { call(httpsClient()) }
+
+        assertEquals(0, server.requestCount)
     }
 
     @Test
@@ -129,6 +187,24 @@ class CertificatePinningInterceptorTest {
     }
 
     @Test
+    fun `pending TLS recovery leaves explicitly allowed cleartext transport unchanged`() {
+        val cleartext = MockWebServer()
+        cleartext.enqueue(MockResponse().setResponseCode(200))
+        val tokenManager = mockk<com.paperless.scanner.data.datastore.TokenManager>()
+        every { tokenManager.getPinRecoveryPhase() } returns "reset_pending"
+        val coordinator = PinRecoveryCoordinator(tokenManager, pinStore, observed)
+        val client = OkHttpClient.Builder()
+            .addNetworkInterceptor(CertificatePinningInterceptor(pinStore, observed, coordinator))
+            .build()
+        try {
+            client.newCall(Request.Builder().url(cleartext.url("/api/")).build()).execute().close()
+            assertEquals(1, cleartext.requestCount)
+        } finally {
+            cleartext.shutdown()
+        }
+    }
+
+    @Test
     fun `cleartext connection without handshake is not pinned`() {
         val plain = MockWebServer()
         try {
@@ -137,7 +213,7 @@ class CertificatePinningInterceptorTest {
             val host = plain.url("/").host
 
             val client = OkHttpClient.Builder()
-                .addNetworkInterceptor(CertificatePinningInterceptor(pinStore, observed))
+                .addNetworkInterceptor(CertificatePinningInterceptor(pinStore, observed, mockk(relaxed = true)))
                 .build()
             client.newCall(Request.Builder().url(plain.url("/")).build()).execute().close()
 
@@ -145,5 +221,20 @@ class CertificatePinningInterceptorTest {
         } finally {
             plain.shutdown()
         }
+    }
+
+    @Test
+    fun `https without a peer certificate fails before sending a request`() {
+        val chain = mockk<Interceptor.Chain>()
+        val connection = mockk<Connection>()
+        every { chain.request() } returns Request.Builder().url("https://example.test/").build()
+        every { chain.connection() } returns connection
+        every { connection.handshake() } returns null
+        every { connection.socket() } returns Socket()
+
+        assertThrows(IOException::class.java) {
+            CertificatePinningInterceptor(pinStore, observed, mockk(relaxed = true)).intercept(chain)
+        }
+        verify(exactly = 0) { chain.proceed(any()) }
     }
 }

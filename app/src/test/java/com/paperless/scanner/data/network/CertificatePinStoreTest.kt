@@ -3,8 +3,10 @@ package com.paperless.scanner.data.network
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 class CertificatePinStoreTest {
 
@@ -90,6 +92,34 @@ class CertificatePinStoreTest {
     }
 
     @Test
+    fun `successful first pin remains after restart`() {
+        val storage = FakeCertPinStorage()
+        CertificatePinStore(storage).setPinIfAbsent("paperless.lan", "sha256/AAA")
+
+        assertEquals("sha256/AAA", CertificatePinStore(storage).getPin("paperless.lan"))
+    }
+
+    @Test
+    fun `failed re-trust write keeps the old pin in memory`() {
+        val storage = object : CertPinStorage {
+            override fun loadAll() = mapOf("paperless.lan" to "sha256/AAA")
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        }
+        val store = CertificatePinStore(storage)
+
+        try {
+            store.replacePin("paperless.lan", "sha256/BBB")
+            org.junit.Assert.fail("A failed re-trust write must reject the new pin")
+        } catch (_: IOException) {
+            // The previously committed pin remains authoritative.
+        }
+
+        assertEquals("sha256/AAA", store.getPin("paperless.lan"))
+    }
+
+    @Test
     fun `writes are mirrored to persistent storage`() {
         val storage = FakeCertPinStorage()
         val store = CertificatePinStore(storage)
@@ -99,5 +129,44 @@ class CertificatePinStoreTest {
 
         assertEquals("sha256/AAA", storage.persisted["paperless.lan"])
         assertEquals("sha256/CCC", storage.persisted["other.lan"])
+    }
+
+    @Test
+    fun `failed first write never publishes a pin in memory or after restart`() {
+        val storage = object : CertPinStorage {
+            override fun loadAll(): Map<String, String> = emptyMap()
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        }
+        val store = CertificatePinStore(storage)
+
+        try {
+            store.setPinIfAbsent("paperless.lan", "sha256/AAA")
+            org.junit.Assert.fail("A failed write must reject the first pin")
+        } catch (_: IOException) {
+            // The request cannot proceed with an unpersisted pin.
+        }
+
+        assertNull(store.getPin("paperless.lan"))
+        assertNull(CertificatePinStore(storage).getPin("paperless.lan"))
+    }
+
+    @Test
+    fun `unreadable pin storage requires recovery before another pin can be saved`() {
+        val storage = object : CertPinStorage {
+            override fun loadAll(): Map<String, String> = emptyMap()
+            override fun hasLoadFailure(): Boolean = true
+            override fun put(host: String, pin: String) = Unit
+            override fun remove(host: String) = Unit
+            override fun clear() = Unit
+        }
+        val store = CertificatePinStore(storage)
+
+        assertTrue(store.recoveryRequired.value)
+        assertThrows(IOException::class.java) {
+            store.setPinIfAbsent("paperless.lan", "sha256/NEW")
+        }
+        assertNull(store.getPin("paperless.lan"))
     }
 }

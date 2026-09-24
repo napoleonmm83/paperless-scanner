@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.login
 
 import android.content.Context
 import android.util.Log
+import app.cash.turbine.test
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
@@ -10,6 +11,7 @@ import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.data.network.CertPinStorage
 import com.paperless.scanner.data.network.CertificatePinStore
 import com.paperless.scanner.data.network.ObservedCertHolder
+import com.paperless.scanner.data.network.CertificateFirstTrustRequiredException
 import com.paperless.scanner.data.repository.AuthRepository
 import com.paperless.scanner.util.BiometricHelper
 import com.paperless.scanner.util.LoginRateLimiter
@@ -36,6 +38,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
@@ -82,6 +85,7 @@ class LoginViewModelTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any()) } returns 0
+        every { Log.e(any(), any(), any()) } returns 0
         every { Log.i(any(), any()) } returns 0
         every { Log.w(any<String>(), any<String>()) } returns 0
         every { Log.v(any(), any()) } returns 0
@@ -172,6 +176,20 @@ class LoginViewModelTest {
     // ==================== Login Tests ====================
 
     @Test
+    fun `fingerprint confirmation never opens generic SSL exception dialog`() = runTest {
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.failure(
+            PaperlessException.NetworkError(
+                CertificateFirstTrustRequiredException("paperless.lan", "sha256/NEW")
+            )
+        )
+        val viewModel = createViewModel()
+        viewModel.login("https://paperless.lan", "user", "password")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value is LoginUiState.Error)
+    }
+
+    @Test
     fun `login with blank serverUrl shows error`() = runTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -259,6 +277,46 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun passwordLoginPinStorageFailureShowsLocalizedError() = runTest {
+        val message = "Could not save certificate"
+        every { context.getString(R.string.cert_pin_storage_failed) } returns message
+        coEvery { authRepository.login(any(), any(), any()) } returns Result.failure(
+            PaperlessException.CertificatePinStorageError("paperless.lan", IOException())
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            assertTrue(awaitItem() is LoginUiState.Idle)
+            viewModel.login("https://paperless.lan", "user", "password")
+            advanceUntilIdle()
+            assertTrue(awaitItem() is LoginUiState.Loading)
+            assertEquals(message, (awaitItem() as LoginUiState.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun tokenLoginPinStorageFailureShowsLocalizedError() = runTest {
+        val message = "Could not save certificate"
+        every { context.getString(R.string.cert_pin_storage_failed) } returns message
+        coEvery { authRepository.validateToken(any(), any()) } returns Result.failure(
+            PaperlessException.CertificatePinStorageError("paperless.lan", IOException())
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            assertTrue(awaitItem() is LoginUiState.Idle)
+            viewModel.loginWithToken("https://paperless.lan", "token")
+            advanceUntilIdle()
+            assertTrue(awaitItem() is LoginUiState.Loading)
+            assertEquals(message, (awaitItem() as LoginUiState.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `acceptCertificateChange replaces the pin with the observed certificate`() = runTest {
         certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
         observedCertHolder.record(
@@ -267,26 +325,112 @@ class LoginViewModelTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.acceptCertificateChange("paperless.lan")
+        var savedCalls = 0
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
         advanceUntilIdle()
         // Pin replacement runs on the injected (test) ioDispatcher.
 
         assertEquals("sha256/NEW", certificatePinStore.getPin("paperless.lan"))
+        assertEquals(1, savedCalls)
         // Observed entry is consumed so a later success does not see a stale mismatch.
         assertTrue(observedCertHolder.peek("paperless.lan") == null)
     }
 
     @Test
-    fun `acceptCertificateChange clears stale pin when no observed cert exists`() = runTest {
+    fun cancelDuringPinWriteCannotTriggerASecondDecision() = runTest {
+        val mismatch = ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        var mismatchAfterCancel: ObservedCertHolder.Mismatch? = null
+        var savedCalls = 0
+        lateinit var viewModel: LoginViewModel
+        certificatePinStore = CertificatePinStore(object : CertPinStorage {
+            private val pins = mutableMapOf("paperless.lan" to "sha256/OLD")
+            override fun loadAll() = pins.toMap()
+            override fun put(host: String, pin: String) {
+                viewModel.declineCertificateChange(host)
+                mismatchAfterCancel = observedCertHolder.peek(host)
+                pins[host] = pin
+            }
+            override fun remove(host: String) { pins.remove(host) }
+            override fun clear() { pins.clear() }
+        })
+        observedCertHolder.record(mismatch)
+        viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange(mismatch.host, mismatch.actualPin) { savedCalls++ }
+        advanceUntilIdle()
+
+        assertEquals(mismatch, mismatchAfterCancel)
+        assertEquals("sha256/NEW", certificatePinStore.getPin(mismatch.host))
+        assertEquals(1, savedCalls)
+    }
+
+    @Test
+    fun `confirmation of displayed certificate must not trust a newer observation`() = runTest {
+        certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/B")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/A")
+        advanceUntilIdle()
+
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+        assertEquals("sha256/B", observedCertHolder.peek("paperless.lan")?.actualPin)
+    }
+
+    @Test
+    fun `failed re-trust keeps old pin and observed mismatch on repeated confirmation`() = runTest {
+        val stored = mutableMapOf("paperless.lan" to "sha256/OLD")
+        var removals = 0
+        certificatePinStore = CertificatePinStore(object : CertPinStorage {
+            override fun loadAll() = stored.toMap()
+            override fun put(host: String, pin: String): Unit = throw IOException("disk write failed")
+            override fun remove(host: String) { removals++; stored.remove(host) }
+            override fun clear() { stored.clear() }
+        })
+        observedCertHolder.record(
+            ObservedCertHolder.Mismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            PaperlessException.CertificatePinMismatch("paperless.lan", "sha256/OLD", "sha256/NEW")
+        )
+        viewModel.onServerUrlChanged("paperless.lan")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+
+        var savedCalls = 0
+        viewModel.uiState.test {
+            assertTrue((awaitItem() as LoginUiState.CertChanged).saveFailed.not())
+            viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
+            advanceUntilIdle()
+            assertTrue((awaitItem() as LoginUiState.CertChanged).saveFailed)
+            viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW") { savedCalls++ }
+            advanceUntilIdle()
+            assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
+            assertEquals("sha256/NEW", observedCertHolder.peek("paperless.lan")?.actualPin)
+            assertEquals(0, removals)
+            assertEquals(0, savedCalls)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `acceptCertificateChange keeps stale pin when no observed cert exists`() = runTest {
         certificatePinStore.replacePin("paperless.lan", "sha256/OLD")
         val viewModel = createViewModel()
         advanceUntilIdle()
 
-        viewModel.acceptCertificateChange("paperless.lan")
+        viewModel.acceptCertificateChange("paperless.lan", "sha256/NEW")
         advanceUntilIdle()
 
-        // No observed mismatch (e.g. process death) -> drop the pin for TOFU re-capture.
-        assertTrue(certificatePinStore.getPin("paperless.lan") == null)
+        // No observation must not reset a previously trusted pin to TOFU.
+        assertEquals("sha256/OLD", certificatePinStore.getPin("paperless.lan"))
     }
 
     @Test
@@ -534,6 +678,80 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.serverStatus.value is ServerStatus.Error)
+    }
+
+    @Test
+    fun pinStorageFailureUsesLocalizedDetectionError() = runTest {
+        val text = "Could not save certificate"
+        every { context.getString(R.string.cert_pin_storage_failed) } returns text
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            PaperlessException.CertificatePinStorageError("paperless.lan", IOException())
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.serverStatus.test {
+            assertTrue(awaitItem() is ServerStatus.Idle)
+            viewModel.onServerUrlChanged("paperless.lan")
+            advanceTimeBy(900)
+            advanceUntilIdle()
+            assertTrue(awaitItem() is ServerStatus.Checking)
+            assertEquals(text, (awaitItem() as ServerStatus.Error).message)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun sslDetectionErrorKeepsSpecificMessage() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            PaperlessException.NetworkError(IOException("SSL certificate invalid"))
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onServerUrlChanged("paperless.lan")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+
+        assertEquals(
+            "SSL certificate invalid",
+            (viewModel.serverStatus.value as ServerStatus.Error).message
+        )
+        assertEquals("paperless.lan", (viewModel.uiState.value as LoginUiState.SslError).host)
+    }
+
+    @Test
+    fun sslAcceptanceFromDetectionRetriesWithoutSendingCredentials() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returnsMany listOf(
+            Result.failure(PaperlessException.NetworkError(IOException("SSL certificate invalid"))),
+            Result.success("https://paperless.lan"),
+        )
+        val viewModel = createViewModel()
+        viewModel.onServerUrlChanged("paperless.lan")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value is LoginUiState.SslError)
+
+        viewModel.acceptSslCertificateAndRedetect("paperless.lan", "paperless.lan")
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { tokenManager.acceptSslForHost("paperless.lan") }
+        coVerify(exactly = 2) { authRepository.detectServerProtocol("paperless.lan") }
+        coVerify(exactly = 0) { authRepository.login(any(), any(), any()) }
+        assertTrue(viewModel.serverStatus.value is ServerStatus.Success)
+    }
+
+    @Test
+    fun `SSL discovery uses complete IPv6 host for explicit acceptance`() = runTest {
+        coEvery { authRepository.detectServerProtocol(any()) } returns Result.failure(
+            PaperlessException.NetworkError(IOException("SSL certificate invalid"))
+        )
+        val viewModel = createViewModel()
+        viewModel.onServerUrlChanged("https://[::1]:8000")
+        advanceTimeBy(900)
+        advanceUntilIdle()
+
+        assertEquals("::1", (viewModel.uiState.value as LoginUiState.SslError).host)
     }
 
     @Test

@@ -45,7 +45,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.net.URL
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import com.paperless.scanner.di.AuthClient
 import javax.inject.Inject
 import com.paperless.scanner.util.AppLogger
 
@@ -134,7 +136,8 @@ class DocumentDetailViewModel @Inject constructor(
     private val aiUsageRepository: AiUsageRepository,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val networkMonitor: com.paperless.scanner.data.network.NetworkMonitor,
-    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor
+    private val serverHealthMonitor: com.paperless.scanner.data.health.ServerHealthMonitor,
+    @AuthClient private val thumbnailClient: OkHttpClient,
 ) : ViewModel() {
 
     companion object {
@@ -709,10 +712,10 @@ class DocumentDetailViewModel @Inject constructor(
                 }
 
                 // Download thumbnail image
-                val connection = URL(thumbnailUrl).openConnection()
-                connection.setRequestProperty("Authorization", "Token $authToken")
-                val bitmap = connection.getInputStream().use { inputStream ->
-                    BitmapFactory.decodeStream(inputStream)
+                val request = Request.Builder().url(thumbnailUrl)
+                    .header("Authorization", "Token $authToken").build()
+                val bitmap = thumbnailClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) null else response.body?.byteStream()?.use(BitmapFactory::decodeStream)
                 }
 
                 if (bitmap == null) {

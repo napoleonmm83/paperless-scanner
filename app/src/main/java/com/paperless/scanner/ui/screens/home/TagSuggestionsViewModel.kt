@@ -31,7 +31,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.URL
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import com.paperless.scanner.di.AuthClient
+import java.util.concurrent.TimeUnit
 import java.util.logging.Level
 import java.util.logging.Logger
 import javax.inject.Inject
@@ -73,6 +76,7 @@ class TagSuggestionsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val premiumFeatureManager: PremiumFeatureManager,
     private val analyticsService: AnalyticsService,
+    @AuthClient private val thumbnailClient: OkHttpClient,
     // Injected so unit tests can pin thumbnail downloads to the test scheduler.
     // With the hardcoded Dispatchers.IO, downloadThumbnail's network coroutine
     // leaked onto a real IO thread, outlived the test, then resumed on a
@@ -197,12 +201,13 @@ class TagSuggestionsViewModel @Inject constructor(
     ): android.graphics.Bitmap? = withContext(ioDispatcher) {
         try {
             val thumbnailUrl = "$serverUrl/api/documents/$documentId/thumb/"
-            val connection = URL(thumbnailUrl).openConnection()
-            connection.setRequestProperty("Authorization", "Token $authToken")
-            connection.connectTimeout = timeoutMs
-            connection.readTimeout = timeoutMs
-            connection.getInputStream().use { inputStream ->
-                BitmapFactory.decodeStream(inputStream)
+            val request = Request.Builder().url(thumbnailUrl)
+                .header("Authorization", "Token $authToken").build()
+            val client = thumbnailClient.newBuilder()
+                .connectTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS)
+                .readTimeout(timeoutMs.toLong(), TimeUnit.MILLISECONDS).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) null else response.body?.byteStream()?.use(BitmapFactory::decodeStream)
             }
         } catch (e: Exception) {
             logger.log(Level.WARNING, "Failed to download thumbnail for doc $documentId: ${e.message}")

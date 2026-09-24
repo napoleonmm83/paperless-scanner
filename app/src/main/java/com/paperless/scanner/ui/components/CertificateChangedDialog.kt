@@ -35,11 +35,13 @@ fun CertificateChangedDialog(
     host: String,
     expectedPin: String,
     actualPin: String,
+    errorMessage: String? = null,
+    actionsEnabled: Boolean = true,
     onReTrust: () -> Unit,
     onCancel: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = onCancel,
+        onDismissRequest = { if (actionsEnabled) onCancel() },
         icon = {
             Icon(
                 imageVector = Icons.Default.Warning,
@@ -89,6 +91,14 @@ fun CertificateChangedDialog(
                     }
                 }
 
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
                 Text(
                     text = stringResource(R.string.cert_changed_warning),
                     style = MaterialTheme.typography.bodySmall,
@@ -99,7 +109,7 @@ fun CertificateChangedDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onReTrust) {
+            TextButton(onClick = onReTrust, enabled = actionsEnabled) {
                 Text(
                     text = stringResource(R.string.cert_changed_retrust),
                     color = MaterialTheme.colorScheme.error,
@@ -108,7 +118,7 @@ fun CertificateChangedDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onCancel) {
+            TextButton(onClick = onCancel, enabled = actionsEnabled) {
                 Text(
                     text = stringResource(R.string.cancel),
                     color = MaterialTheme.colorScheme.onSurface

@@ -25,6 +25,30 @@ import javax.inject.Singleton
 @Singleton
 class ObservedCertHolder @Inject constructor() {
 
+    data class FirstTrust(val host: String, val presentedPin: String)
+
+    private val firstTrustPending = ConcurrentHashMap<String, FirstTrust>()
+    private val _firstTrust = MutableStateFlow<FirstTrust?>(null)
+    val firstTrust: StateFlow<FirstTrust?> = _firstTrust.asStateFlow()
+
+    fun recordFirstTrust(host: String, pin: String) {
+        val candidate = FirstTrust(host, pin)
+        firstTrustPending[host.lowercase()] = candidate
+        _firstTrust.value = candidate
+    }
+
+    fun peekFirstTrust(host: String): FirstTrust? = firstTrustPending[host.lowercase()]
+
+    fun consumeFirstTrustIfMatches(host: String, pin: String): Boolean {
+        val key = host.lowercase()
+        val candidate = firstTrustPending[key] ?: return false
+        if (candidate.presentedPin != pin || !firstTrustPending.remove(key, candidate)) return false
+        _firstTrust.update { current ->
+            if (current == candidate) firstTrustPending.values.firstOrNull() else current
+        }
+        return true
+    }
+
     data class Mismatch(
         val host: String,
         val expectedPin: String,

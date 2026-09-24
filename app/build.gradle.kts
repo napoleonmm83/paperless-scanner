@@ -191,6 +191,11 @@ tasks.withType<JavaCompile>().configureEach {
     exclude("**/byRounds/**")
 }
 
+// Pin the instrumentation runtime used to prove certificate-recovery dialogs.
+configurations.matching { it.name == "debugAndroidTestRuntimeClasspath" }.configureEach {
+    resolutionStrategy.activateDependencyLocking()
+}
+
 dependencies {
     // Custom detekt rules (Compose conventions: touch targets, label typography, typed nav)
     detektPlugins(project(":detekt-rules"))
@@ -312,6 +317,8 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.okhttp.mockwebserver)
+    androidTestImplementation(libs.okhttp.tls)
     androidTestImplementation(libs.hilt.android.testing)
     androidTestImplementation(libs.navigation.testing)
     kspAndroidTest(libs.hilt.compiler)

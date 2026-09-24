@@ -3,7 +3,9 @@ package com.paperless.scanner.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.paperless.scanner.R
 import com.paperless.scanner.ui.components.CertificateChangedDialog
 
 /**
@@ -22,12 +24,16 @@ fun CertificateReTrustInterceptor(
     viewModel: CertReTrustViewModel = hiltViewModel(),
 ) {
     val mismatch by viewModel.pendingMismatch.collectAsState()
+    val failedMismatch by viewModel.failedMismatch.collectAsState()
+    val savingPin by viewModel.savingPin.collectAsState()
     if (enabled) {
         mismatch?.let { m ->
             CertificateChangedDialog(
                 host = m.host,
                 expectedPin = m.expectedPin,
                 actualPin = m.actualPin,
+                errorMessage = if (failedMismatch == m) stringResource(R.string.cert_pin_storage_failed) else null,
+                actionsEnabled = !savingPin,
                 onReTrust = { viewModel.acceptCertificateChange(m.host, m.actualPin) },
                 onCancel = { viewModel.declineCertificateChange(m.host) },
             )

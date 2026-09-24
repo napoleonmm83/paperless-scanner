@@ -3,6 +3,7 @@ package com.paperless.scanner.data.service
 import android.content.Context
 import com.paperless.scanner.R
 import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import com.paperless.scanner.di.AuthClient
 import com.paperless.scanner.util.NetworkConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -174,6 +175,12 @@ class ProtocolDetector @Inject constructor(
             Result.failure(PaperlessException.NetworkError(
                 IOException(context.getString(R.string.error_invalid_address))
             ))
+        } catch (e: CertificatePinPersistenceException) {
+            Result.failure(PaperlessException.CertificatePinStorageError(e.host, e))
+        } catch (e: com.paperless.scanner.data.network.CertificatePinRecoveryRequiredException) {
+            Result.failure(e)
+        } catch (e: com.paperless.scanner.data.network.CertificateFirstTrustRequiredException) {
+            Result.failure(e)
         } catch (e: IOException) {
             AppLogger.d(TAG, "$protocol - IO error: ${e.message}")
             val message = e.message?.lowercase() ?: ""
