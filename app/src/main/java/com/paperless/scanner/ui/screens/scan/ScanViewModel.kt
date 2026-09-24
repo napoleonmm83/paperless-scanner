@@ -2,6 +2,10 @@ package com.paperless.scanner.ui.screens.scan
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapRegionDecoder
+import android.graphics.Rect
+import android.os.Build
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -21,6 +25,7 @@ import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
+import com.paperless.scanner.data.service.calculateInSampleSize
 import com.paperless.scanner.data.service.decodeSampledBitmap
 import com.paperless.scanner.util.CoroutineDispatchers
 import com.paperless.scanner.util.ScanDraftCache
@@ -662,28 +667,51 @@ class ScanViewModel @Inject constructor(
         }
     }
 
-    /** Throws on any failure; [cropPage] turns that into a user-facing error (#407). */
+    /**
+     * Decodes ONLY the cropped region, capped at 16MP (#407). Sampling the whole photo first
+     * would shrink a small crop of a large photo far below its original resolution (20% of a
+     * 50MP photo: 10MP before, 2.5MP after); the region decoder keeps it while memory scales
+     * with the crop, not the photo. Throws on any failure; [cropPage] reports it.
+     */
     private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri {
-        val originalBitmap = decodePage(uri)
-        try {
-            // Calculate crop rectangle in pixel coordinates (normalized, so sampling is transparent)
-            val left = (originalBitmap.width * cropRect.left).toInt().coerceIn(0, originalBitmap.width)
-            val top = (originalBitmap.height * cropRect.top).toInt().coerceIn(0, originalBitmap.height)
-            val width = (originalBitmap.width * (cropRect.right - cropRect.left)).toInt()
-                .coerceIn(1, originalBitmap.width - left)
-            val height = (originalBitmap.height * (cropRect.bottom - cropRect.top)).toInt()
-                .coerceIn(1, originalBitmap.height - top)
+        val openStream = {
+            context.contentResolver.openInputStream(uri)
+                ?: throw FileNotFoundException(context.getString(R.string.error_open_input_stream))
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openStream().use { BitmapFactory.decodeStream(it, null, bounds) }
+        val imageWidth = bounds.outWidth
+        val imageHeight = bounds.outHeight
+        check(imageWidth > 0 && imageHeight > 0) { context.getString(R.string.error_decode_image) }
 
-            val croppedBitmap = Bitmap.createBitmap(originalBitmap, left, top, width, height)
-            try {
-                // Save to cache — #241: scoped subdir exposed by the FileProvider.
-                val croppedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "cropped_${System.currentTimeMillis()}.jpg")
-                return saveJpeg(croppedBitmap, croppedFile)
-            } finally {
-                if (croppedBitmap != originalBitmap) croppedBitmap.recycle()
+        // Calculate crop rectangle in pixel coordinates
+        val left = (imageWidth * cropRect.left).toInt().coerceIn(0, imageWidth)
+        val top = (imageHeight * cropRect.top).toInt().coerceIn(0, imageHeight)
+        val width = (imageWidth * (cropRect.right - cropRect.left)).toInt().coerceIn(1, imageWidth - left)
+        val height = (imageHeight * (cropRect.bottom - cropRect.top)).toInt().coerceIn(1, imageHeight - top)
+        val region = Rect(left, top, left + width, top + height)
+        val options = BitmapFactory.Options().apply { inSampleSize = calculateInSampleSize(width, height) }
+
+        val croppedBitmap = openStream().use { stream ->
+            val decoder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                BitmapRegionDecoder.newInstance(stream)
+            } else {
+                @Suppress("DEPRECATION")
+                BitmapRegionDecoder.newInstance(stream, false)
             }
+            try {
+                decoder?.decodeRegion(region, options)
+            } finally {
+                decoder?.recycle()
+            }
+        } ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
+
+        try {
+            // Save to cache — #241: scoped subdir exposed by the FileProvider.
+            val croppedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "cropped_${System.currentTimeMillis()}.jpg")
+            return saveJpeg(croppedBitmap, croppedFile)
         } finally {
-            originalBitmap.recycle()
+            croppedBitmap.recycle()
         }
     }
 
@@ -773,14 +801,16 @@ class ScanViewModel @Inject constructor(
      * become the page that gets uploaded.
      */
     private fun saveJpeg(bitmap: Bitmap, file: File): Uri {
-        val encoded = FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+        try {
+            val encoded = FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            check(encoded) { context.getString(R.string.error_image_process_failed) }
+            return FileProvider.getUriForFile(context, SharedFileCache.authority(context.packageName), file)
+        } catch (e: Throwable) {
+            file.delete() // no half-written page may linger in the shared cache
+            throw e
         }
-        if (!encoded) {
-            file.delete()
-            throw IllegalStateException(context.getString(R.string.error_image_process_failed))
-        }
-        return FileProvider.getUriForFile(context, SharedFileCache.authority(context.packageName), file)
     }
 
     private fun rotateAndSaveImage(uri: Uri, rotation: Int): Uri {

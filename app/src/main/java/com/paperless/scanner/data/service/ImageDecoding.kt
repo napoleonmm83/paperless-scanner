@@ -12,7 +12,6 @@ const val MAX_DECODE_PIXELS = 16_000_000L
  * Long arithmetic prevents Int overflow for very large source images (>2GP).
  */
 fun calculateInSampleSize(width: Int, height: Int, maxPixels: Long = MAX_DECODE_PIXELS): Int {
-    if (width.toLong() * height.toLong() <= maxPixels) return 1
     var sample = 1
     while ((width.toLong() / sample) * (height / sample) > maxPixels) {
         sample *= 2
