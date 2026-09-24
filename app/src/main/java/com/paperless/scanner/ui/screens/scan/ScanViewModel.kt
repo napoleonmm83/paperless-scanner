@@ -668,10 +668,11 @@ class ScanViewModel @Inject constructor(
     }
 
     /**
-     * Decodes ONLY the cropped region, capped at 16MP (#407). Sampling the whole photo first
+     * Crops at the page's own resolution, capped at 16MP (#407). Sampling the whole photo first
      * would shrink a small crop of a large photo far below its original resolution (20% of a
-     * 50MP photo: 10MP before, 2.5MP after); the region decoder keeps it while memory scales
-     * with the crop, not the photo. Throws on any failure; [cropPage] reports it.
+     * 50MP photo: 10MP before, 2.5MP after), so JPEG/PNG/WebP/HEIF decode ONLY the region — the
+     * decoded pixels scale with the crop. Formats the region decoder rejects (GIF, BMP) fall back
+     * to cutting a sampled full decode. Throws on any failure; [cropPage] reports it.
      */
     private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri {
         val openStream = {
@@ -680,31 +681,10 @@ class ScanViewModel @Inject constructor(
         }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         openStream().use { BitmapFactory.decodeStream(it, null, bounds) }
-        val imageWidth = bounds.outWidth
-        val imageHeight = bounds.outHeight
-        check(imageWidth > 0 && imageHeight > 0) { context.getString(R.string.error_decode_image) }
+        check(bounds.outWidth > 0 && bounds.outHeight > 0) { context.getString(R.string.error_decode_image) }
 
-        // Calculate crop rectangle in pixel coordinates
-        val left = (imageWidth * cropRect.left).toInt().coerceIn(0, imageWidth)
-        val top = (imageHeight * cropRect.top).toInt().coerceIn(0, imageHeight)
-        val width = (imageWidth * (cropRect.right - cropRect.left)).toInt().coerceIn(1, imageWidth - left)
-        val height = (imageHeight * (cropRect.bottom - cropRect.top)).toInt().coerceIn(1, imageHeight - top)
-        val region = Rect(left, top, left + width, top + height)
-        val options = BitmapFactory.Options().apply { inSampleSize = calculateInSampleSize(width, height) }
-
-        val croppedBitmap = openStream().use { stream ->
-            val decoder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                BitmapRegionDecoder.newInstance(stream)
-            } else {
-                @Suppress("DEPRECATION")
-                BitmapRegionDecoder.newInstance(stream, false)
-            }
-            try {
-                decoder?.decodeRegion(region, options)
-            } finally {
-                decoder?.recycle()
-            }
-        } ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
+        val region = cropRegion(bounds.outWidth, bounds.outHeight, cropRect)
+        val croppedBitmap = decodeRegion(openStream, region) ?: cropSampledPage(uri, cropRect)
 
         try {
             // Save to cache — #241: scoped subdir exposed by the FileProvider.
@@ -713,6 +693,57 @@ class ScanViewModel @Inject constructor(
         } finally {
             croppedBitmap.recycle()
         }
+    }
+
+    /** Crop rectangle in pixel coordinates of a [width] x [height] image (maths unchanged since before #407). */
+    private fun cropRegion(width: Int, height: Int, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Rect {
+        val left = (width * cropRect.left).toInt().coerceIn(0, width)
+        val top = (height * cropRect.top).toInt().coerceIn(0, height)
+        val regionWidth = (width * (cropRect.right - cropRect.left)).toInt().coerceIn(1, width - left)
+        val regionHeight = (height * (cropRect.bottom - cropRect.top)).toInt().coerceIn(1, height - top)
+        return Rect(left, top, left + regionWidth, top + regionHeight)
+    }
+
+    /**
+     * Decodes [region] sampled to <=16MP, or returns null when the region decoder does not
+     * support the format (it throws IOException for GIF/BMP) so the caller can fall back.
+     */
+    private fun decodeRegion(openStream: () -> java.io.InputStream, region: Rect): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(region.width(), region.height())
+        }
+        return openStream().use { stream ->
+            val decoder = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    BitmapRegionDecoder.newInstance(stream)
+                } else {
+                    @Suppress("DEPRECATION")
+                    BitmapRegionDecoder.newInstance(stream, false)
+                }
+            } catch (e: java.io.IOException) {
+                AppLogger.w(TAG, "Region decoder unsupported for this image, cropping a sampled decode", e)
+                null
+            }
+            try {
+                decoder?.decodeRegion(region, options)
+            } finally {
+                decoder?.recycle()
+            }
+        }
+    }
+
+    /** Fallback crop: cut the region out of a <=16MP full decode (the pre-region-decoder path). */
+    private fun cropSampledPage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Bitmap {
+        val page = decodePage(uri)
+        val cropped = try {
+            val region = cropRegion(page.width, page.height, cropRect)
+            Bitmap.createBitmap(page, region.left, region.top, region.width(), region.height())
+        } catch (e: Throwable) {
+            page.recycle()
+            throw e
+        }
+        if (cropped != page) page.recycle()
+        return cropped
     }
 
     fun clearPages() {
