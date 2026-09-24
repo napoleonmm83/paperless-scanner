@@ -67,7 +67,6 @@ fun ScanScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
-    val wifiRequired by viewModel.wifiRequired.collectAsState()
     val isWifiConnected by viewModel.isWifiConnected.collectAsState()
     val usesCloudflare by viewModel.usesCloudflare.collectAsState()
     val uploadAsSingleDocument by viewModel.uploadAsSingleDocument.collectAsState()
@@ -277,12 +276,10 @@ fun ScanScreen(
                 // Multi-Page View with scanned pages
                 MultiPageContent(
                     uiState = uiState,
-                    wifiRequired = wifiRequired,
                     isWifiConnected = isWifiConnected,
                     usesCloudflare = usesCloudflare,
                     uploadAsSingleDocument = uploadAsSingleDocument,
                     onUploadModeChange = { viewModel.setUploadAsSingleDocument(it) },
-                    onUseAnywayClick = { viewModel.overrideWifiOnlyForSession() },
                     onAddMore = { showAddMoreDialog = true },
                     onRemovePage = { viewModel.removePage(it) },
                     onRotatePage = { viewModel.rotatePage(it) },

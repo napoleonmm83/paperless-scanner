@@ -56,12 +56,10 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 @Composable
 fun MultiPageContent(
     uiState: ScanUiState,
-    wifiRequired: Boolean,
     isWifiConnected: Boolean,
     usesCloudflare: Boolean,
     uploadAsSingleDocument: Boolean,
     onUploadModeChange: (Boolean) -> Unit,
-    onUseAnywayClick: () -> Unit,
     onAddMore: () -> Unit,
     onRemovePage: (String) -> Unit,
     onRotatePage: (String) -> Unit,
@@ -166,15 +164,7 @@ fun MultiPageContent(
             )
         }
 
-        // WiFi Banner - shown when AI requires WiFi but device is not connected
-        if (wifiRequired && !isWifiConnected) {
-            Spacer(modifier = Modifier.height(16.dp))
-            WifiRequiredBanner(
-                onUseAnywayClick = onUseAnywayClick,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
+        // INTENTIONAL-UNTESTED: #408 removed the unreachable WiFi-required banner (its only trigger lived in the deleted ScanViewModel.analyzeFirstPage); first-page AI analysis runs in the upload flow.
         // Cloudflare Timeout Warning - shown when:
         // 1. Server uses Cloudflare (cf-ray header detected)
         // 2. Single PDF mode (not individual documents)
@@ -330,12 +320,10 @@ private fun MultiPageContentPreview() {
                     ScannedPage(uri = Uri.EMPTY, pageNumber = 2)
                 )
             ),
-            wifiRequired = false,
             isWifiConnected = true,
             usesCloudflare = false,
             uploadAsSingleDocument = false,
             onUploadModeChange = {},
-            onUseAnywayClick = {},
             onAddMore = {},
             onRemovePage = {},
             onRotatePage = {},
