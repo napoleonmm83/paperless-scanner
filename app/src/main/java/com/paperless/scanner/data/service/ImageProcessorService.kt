@@ -2,7 +2,6 @@ package com.paperless.scanner.data.service
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import com.paperless.scanner.R
 import com.paperless.scanner.data.analytics.CrashlyticsHelper
@@ -29,43 +28,11 @@ class ImageProcessorService @Inject constructor(
 ) {
     fun getImageBytesFromUri(uri: Uri): ByteArray {
         crashlyticsHelper.logActionBreadcrumb("IMAGE_PROCESS", uri.lastPathSegment ?: "unknown")
-        // First pass: Get image dimensions without loading into memory.
-        // Fail-fast on null InputStream so the second pass doesn't operate on outWidth/outHeight = 0.
-        val options = BitmapFactory.Options().apply {
-            inJustDecodeBounds = true
-        }
-        val boundsStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
-        boundsStream.use { stream ->
-            BitmapFactory.decodeStream(stream, null, options)
-        }
-
-        // Calculate sample size for large images to prevent OOM
-        val maxPixels = 16_000_000L // 16MP max
-        val imagePixels = options.outWidth.toLong() * options.outHeight.toLong()
-        val sampleSize = if (imagePixels > maxPixels) {
-            var sample = 1
-            // Long arithmetic prevents Int overflow for very large source images (>2GP).
-            while ((options.outWidth.toLong() / sample) * (options.outHeight / sample) > maxPixels) {
-                sample *= 2
-            }
-            sample
-        } else {
-            1
-        }
-
-        // Second pass: Load the actual bitmap with calculated sample size
-        val decodeOptions = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize
-        }
-
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
-
-        val bitmap = inputStream.use { stream ->
-            BitmapFactory.decodeStream(stream, null, decodeOptions)
-                ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
-        }
+        // Sampled to <=16MP to prevent OOM; a null stream fails fast on either pass.
+        val bitmap = decodeSampledBitmap({
+            context.contentResolver.openInputStream(uri)
+                ?: throw IllegalArgumentException(context.getString(R.string.error_open_input_stream))
+        }) ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
 
         return try {
             val quality = calculateCompressionQuality(bitmap)

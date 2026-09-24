@@ -3,6 +3,9 @@ package com.paperless.scanner.ui.screens.scan
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapRegionDecoder
+import android.graphics.Rect
+import android.os.Build
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -22,12 +25,14 @@ import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
+import com.paperless.scanner.data.service.calculateInSampleSize
+import com.paperless.scanner.data.service.decodeSampledBitmap
+import com.paperless.scanner.util.CoroutineDispatchers
 import com.paperless.scanner.util.ScanDraftCache
 import com.paperless.scanner.util.SharedFileCache
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -114,7 +119,9 @@ class ScanViewModel @Inject constructor(
     private val tokenManager: com.paperless.scanner.data.datastore.TokenManager,
     val appLockManager: com.paperless.scanner.util.AppLockManager,
     @dagger.hilt.android.qualifiers.ApplicationContext private val context: Context,
-    private val gson: Gson
+    private val gson: Gson,
+    // Injected so tests can drive addPages/rotation/crop on the test scheduler (#407).
+    private val dispatchers: CoroutineDispatchers
 ) : ViewModel() {
 
     companion object {
@@ -506,7 +513,7 @@ class ScanViewModel @Inject constructor(
             }
 
             try {
-                withContext(Dispatchers.Default) {
+                withContext(dispatchers.default) {
                     val startIndex = _uiState.value.pageCount
                     val newPages = uris.mapIndexed { index, uri ->
                         ScannedPage(
@@ -516,7 +523,7 @@ class ScanViewModel @Inject constructor(
                         )
                     }
 
-                    withContext(Dispatchers.Main) {
+                    withContext(dispatchers.main) {
                         _uiState.update { state ->
                             val newTotalPages = state.pageCount + uris.size
                             analyticsService.trackEvent(AnalyticsEvent.ScanPageAdded(totalPages = newTotalPages))
@@ -626,12 +633,24 @@ class ScanViewModel @Inject constructor(
      * @param cropRect Crop rectangle (normalized 0-1)
      */
     fun cropPage(pageId: String, cropRect: com.paperless.scanner.ui.screens.scan.CropRect) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(dispatchers.io) {
             // Find the page to crop
             val page = _uiState.value.pages.find { it.id == pageId } ?: return@launch
 
-            // Perform heavy I/O operation OUTSIDE the state update block
-            val croppedUri = cropAndSaveImage(page.uri, cropRect) ?: page.uri
+            // Perform heavy I/O operation OUTSIDE the state update block. A failed crop is
+            // reported and leaves the page untouched — it used to fall back to the uncropped
+            // page silently, the same silent failure #402 removed from rotation (#407).
+            val croppedUri = try {
+                cropAndSaveImage(page.uri, cropRect)
+            } catch (e: CancellationException) {
+                throw e // must stay ahead of every other catch: cancellation is not a page error
+            } catch (e: Exception) {
+                cropFailed(page, e)
+                return@launch
+            } catch (e: OutOfMemoryError) {
+                cropFailed(page, e)
+                return@launch
+            }
 
             // Only update state with the result (fast operation)
             _uiState.update { state ->
@@ -642,63 +661,89 @@ class ScanViewModel @Inject constructor(
             }
 
             // Sync to SavedStateHandle on Main thread
-            withContext(Dispatchers.Main) {
+            withContext(dispatchers.main) {
                 syncPagesToSavedState(_uiState.value.pages)
             }
         }
     }
 
-    private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri? {
-        return try {
-            // Load bitmap
-            val inputStream = context.contentResolver.openInputStream(uri)
-                ?: return null
-            val originalBitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream.close()
+    /**
+     * Crops at the page's own resolution, capped at 16MP (#407). Sampling the whole photo first
+     * would shrink a small crop of a large photo far below its original resolution (20% of a
+     * 50MP photo: 10MP before, 2.5MP after), so JPEG/PNG/WebP/HEIF decode ONLY the region — the
+     * decoded pixels scale with the crop. Formats the region decoder rejects (GIF, BMP) fall back
+     * to cutting a sampled full decode. Throws on any failure; [cropPage] reports it.
+     */
+    private fun cropAndSaveImage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Uri {
+        val openStream = {
+            context.contentResolver.openInputStream(uri)
+                ?: throw FileNotFoundException(context.getString(R.string.error_open_input_stream))
+        }
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        openStream().use { BitmapFactory.decodeStream(it, null, bounds) }
+        check(bounds.outWidth > 0 && bounds.outHeight > 0) { context.getString(R.string.error_decode_image) }
 
-            // Check if bitmap loaded successfully
-            if (originalBitmap == null) {
-                return null
-            }
+        val region = cropRegion(bounds.outWidth, bounds.outHeight, cropRect)
+        val croppedBitmap = decodeRegion(openStream, region) ?: cropSampledPage(uri, cropRect)
 
-            // Calculate crop rectangle in pixel coordinates
-            val left = (originalBitmap.width * cropRect.left).toInt().coerceIn(0, originalBitmap.width)
-            val top = (originalBitmap.height * cropRect.top).toInt().coerceIn(0, originalBitmap.height)
-            val width = (originalBitmap.width * (cropRect.right - cropRect.left)).toInt()
-                .coerceIn(1, originalBitmap.width - left)
-            val height = (originalBitmap.height * (cropRect.bottom - cropRect.top)).toInt()
-                .coerceIn(1, originalBitmap.height - top)
-
-            // Crop bitmap
-            val croppedBitmap = Bitmap.createBitmap(
-                originalBitmap,
-                left,
-                top,
-                width,
-                height
-            )
-
+        try {
             // Save to cache — #241: scoped subdir exposed by the FileProvider.
             val croppedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "cropped_${System.currentTimeMillis()}.jpg")
-            FileOutputStream(croppedFile).use { out ->
-                croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-            }
-
-            // Cleanup
-            if (croppedBitmap != originalBitmap) {
-                originalBitmap.recycle()
-            }
+            return saveJpeg(croppedBitmap, croppedFile)
+        } finally {
             croppedBitmap.recycle()
-
-            FileProvider.getUriForFile(
-                context,
-                SharedFileCache.authority(context.packageName),
-                croppedFile
-            )
-        } catch (e: Exception) {
-            AppLogger.e("ScanViewModel", "Failed to crop image", e)
-            null
         }
+    }
+
+    /** Crop rectangle in pixel coordinates of a [width] x [height] image (maths unchanged since before #407). */
+    private fun cropRegion(width: Int, height: Int, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Rect {
+        val left = (width * cropRect.left).toInt().coerceIn(0, width)
+        val top = (height * cropRect.top).toInt().coerceIn(0, height)
+        val regionWidth = (width * (cropRect.right - cropRect.left)).toInt().coerceIn(1, width - left)
+        val regionHeight = (height * (cropRect.bottom - cropRect.top)).toInt().coerceIn(1, height - top)
+        return Rect(left, top, left + regionWidth, top + regionHeight)
+    }
+
+    /**
+     * Decodes [region] sampled to <=16MP, or returns null when the region decoder does not
+     * support the format (it throws IOException for GIF/BMP) so the caller can fall back.
+     */
+    private fun decodeRegion(openStream: () -> java.io.InputStream, region: Rect): Bitmap? {
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(region.width(), region.height())
+        }
+        return openStream().use { stream ->
+            val decoder = try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    BitmapRegionDecoder.newInstance(stream)
+                } else {
+                    @Suppress("DEPRECATION")
+                    BitmapRegionDecoder.newInstance(stream, false)
+                }
+            } catch (e: java.io.IOException) {
+                AppLogger.w(TAG, "Region decoder unsupported for this image, cropping a sampled decode", e)
+                null
+            }
+            try {
+                decoder?.decodeRegion(region, options)
+            } finally {
+                decoder?.recycle()
+            }
+        }
+    }
+
+    /** Fallback crop: cut the region out of a <=16MP full decode (the pre-region-decoder path). */
+    private fun cropSampledPage(uri: Uri, cropRect: com.paperless.scanner.ui.screens.scan.CropRect): Bitmap {
+        val page = decodePage(uri)
+        val cropped = try {
+            val region = cropRegion(page.width, page.height, cropRect)
+            Bitmap.createBitmap(page, region.left, region.top, region.width(), region.height())
+        } catch (e: Throwable) {
+            page.recycle()
+            throw e
+        }
+        if (cropped != page) page.recycle()
+        return cropped
     }
 
     fun clearPages() {
@@ -722,7 +767,7 @@ class ScanViewModel @Inject constructor(
      * process. The failure is published to [ScanUiState.error] for the Screen to show, so
      * callers only need to abort their navigation.
      */
-    suspend fun getRotatedPageUris(): Result<List<Uri>> = withContext(Dispatchers.IO) {
+    suspend fun getRotatedPageUris(): Result<List<Uri>> = withContext(dispatchers.io) {
         val pages = _uiState.value.pages
         // A previous attempt's error is stale now. Without this reset, a Screen that navigated
         // away before its snackbar finished (navigation cancels the effect ahead of clearError)
@@ -737,8 +782,8 @@ class ScanViewModel @Inject constructor(
             } catch (e: Exception) {
                 return@withContext pageProcessingFailed(page, e)
             } catch (e: OutOfMemoryError) {
-                // Decode + rotation hold two full-resolution bitmaps; on a large scan the
-                // allocation can fail. Same user-facing outcome as an undecodable page.
+                // Decode + rotation hold two bitmaps of up to 16MP; on a low-memory device the
+                // allocation can still fail. Same user-facing outcome as an undecodable page.
                 return@withContext pageProcessingFailed(page, e)
             }
         }
@@ -750,33 +795,76 @@ class ScanViewModel @Inject constructor(
 
     /** Records a page that could not be read, decoded or rotated (#402) and turns it into a [Result.failure]. */
     private fun pageProcessingFailed(page: ScannedPage, cause: Throwable): Result<List<Uri>> {
-        AppLogger.e(TAG, "Page ${page.pageNumber} could not be processed", cause)
-        crashlyticsHelper.logActionBreadcrumb(
-            "SCAN_PAGE_PROCESS_FAILED",
-            "page=${page.pageNumber} scheme=${page.uri.scheme}"
+        reportPageFailure(
+            page, cause, "SCAN_PAGE_PROCESS_FAILED", R.string.scan_page_process_failed,
+            AnalyticsEvent.ScanPageProcessFailed(cause::class.java.simpleName)
         )
-        crashlyticsHelper.recordException(cause)
-        analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed(cause::class.java.simpleName))
-        _uiState.update {
-            it.copy(error = context.getString(R.string.scan_page_process_failed, page.pageNumber))
-        }
         return Result.failure(cause)
     }
 
+    /** Records a page that could not be cropped (#407); the page itself stays as it was. */
+    private fun cropFailed(page: ScannedPage, cause: Throwable) = reportPageFailure(
+        page, cause, "SCAN_PAGE_CROP_FAILED", R.string.scan_page_crop_failed,
+        AnalyticsEvent.ScanPageCropFailed(cause::class.java.simpleName)
+    )
+
+    /** Logs, records and surfaces a page that could not be processed; [messageRes] takes the page number. */
+    private fun reportPageFailure(
+        page: ScannedPage,
+        cause: Throwable,
+        breadcrumb: String,
+        messageRes: Int,
+        event: AnalyticsEvent
+    ) {
+        AppLogger.e(TAG, "Page ${page.pageNumber} could not be processed ($breadcrumb)", cause)
+        crashlyticsHelper.logActionBreadcrumb(
+            breadcrumb,
+            "page=${page.pageNumber} scheme=${page.uri.scheme}"
+        )
+        crashlyticsHelper.recordException(cause)
+        analyticsService.trackEvent(event)
+        _uiState.update {
+            it.copy(error = context.getString(messageRes, page.pageNumber))
+        }
+    }
+
+    /**
+     * Decodes a page sampled to <=16MP (#407), so a large gallery photo never has to fit in memory
+     * at full resolution twice. A null stream means the provider no longer serves the page;
+     * decodeStream returns null (no exception) for unreadable, corrupt or unsupported data and when
+     * native pixel allocation fails — #402 crashed on exactly that. Distinct exceptions keep the two
+     * causes apart in Crashlytics.
+     */
+    private fun decodePage(uri: Uri): Bitmap =
+        decodeSampledBitmap({
+            context.contentResolver.openInputStream(uri)
+                ?: throw FileNotFoundException(context.getString(R.string.error_open_input_stream))
+        }) ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
+
+    /**
+     * Encodes [bitmap] into [file] and returns its FileProvider URI. compress reports an encoder or
+     * I/O failure (e.g. disk full) as false, not as an exception; a half-written file must not
+     * become the page that gets uploaded.
+     */
+    private fun saveJpeg(bitmap: Bitmap, file: File): Uri {
+        try {
+            val encoded = FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
+            }
+            check(encoded) { context.getString(R.string.error_image_process_failed) }
+            return FileProvider.getUriForFile(context, SharedFileCache.authority(context.packageName), file)
+        } catch (e: Throwable) {
+            file.delete() // no half-written page may linger in the shared cache
+            throw e
+        }
+    }
+
     private fun rotateAndSaveImage(uri: Uri, rotation: Int): Uri {
-        // Load bitmap. A null stream means the provider no longer serves the page; decodeStream
-        // returns null (no exception) for unreadable, corrupt or unsupported data and when native
-        // pixel allocation fails — #402 crashed on exactly that. Distinct exceptions keep the two
-        // causes apart in Crashlytics.
-        val inputStream = context.contentResolver.openInputStream(uri)
-            ?: throw FileNotFoundException(context.getString(R.string.error_open_input_stream))
-        val originalBitmap = inputStream.use { BitmapFactory.decodeStream(it) }
-            ?: throw IllegalStateException(context.getString(R.string.error_decode_image))
+        val originalBitmap = decodePage(uri)
 
         // Rotate, encode, recycle. The finally blocks matter on the failure paths #402 opened up:
         // an exception between decode and cleanup used to kill the process; now it must not leave
-        // two full-resolution bitmaps waiting for the GC under the very memory pressure that can
-        // cause it.
+        // two bitmaps waiting for the GC under the very memory pressure that can cause it.
         try {
             val matrix = Matrix().apply { postRotate(rotation.toFloat()) }
             val rotatedBitmap = Bitmap.createBitmap(
@@ -787,20 +875,7 @@ class ScanViewModel @Inject constructor(
             try {
                 // Save to cache — #241: scoped subdir exposed by the FileProvider.
                 val rotatedFile = File(SharedFileCache.sharedImagesDir(context.cacheDir), "rotated_${System.currentTimeMillis()}.jpg")
-                // compress reports an encoder or I/O failure (e.g. disk full) as false, not as an
-                // exception; a half-written file must not become the page that gets uploaded.
-                val encoded = FileOutputStream(rotatedFile).use { out ->
-                    rotatedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
-                }
-                if (!encoded) {
-                    rotatedFile.delete()
-                    throw IllegalStateException(context.getString(R.string.error_image_process_failed))
-                }
-                return FileProvider.getUriForFile(
-                    context,
-                    SharedFileCache.authority(context.packageName),
-                    rotatedFile
-                )
+                return saveJpeg(rotatedBitmap, rotatedFile)
             } finally {
                 if (rotatedBitmap != originalBitmap) rotatedBitmap.recycle()
             }
