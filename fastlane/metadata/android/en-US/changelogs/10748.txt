@@ -1,0 +1,7 @@
+Version 1.5.248:
+
+New:
+- Separate 1×1 widget: tap to open the camera scanner directly.
+
+Improved:
+- More reliable sign-in to servers with self-signed certificates.
