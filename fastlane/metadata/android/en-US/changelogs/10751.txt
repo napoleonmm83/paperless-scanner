@@ -1,0 +1,8 @@
+Version 1.5.251:
+
+Fixed:
+- A failed crop is now reported instead of silently keeping the uncropped page.
+
+Improved:
+- Very large photos rotate and crop more reliably.
+- Tapping Continue processes rotated pages only once.

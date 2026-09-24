@@ -287,19 +287,23 @@ fun ScanScreen(
                     onMovePage = { from, to -> viewModel.movePage(from, to) },
                     onClear = { viewModel.clearPages() },
                     onContinue = {
-                        // Get rotated URIs in coroutine scope
-                        scope.launch {
-                            val uris = viewModel.getRotatedPageUris().getOrElse { return@launch }
-                            // DO NOT clear pages here - pages should persist until upload succeeds
-                            // This allows user to navigate back and add more pages or make changes
-                            if (uris.size == 1) {
-                                onDocumentScanned(uris.first())
-                            } else if (uploadAsSingleDocument) {
-                                // Single PDF: Direct to MultiPageUploadScreen
-                                onMultipleDocumentsScanned(uris, true)
-                            } else {
-                                // Individual Documents: Show metadata choice dialog
-                                showMetadataChoiceDialog = true
+                        // DO NOT clear pages here - pages should persist until upload succeeds
+                        // This allows user to navigate back and add more pages or make changes.
+                        // Branch on the page count and rotate only where we navigate right away:
+                        // the metadata dialog's actions rotate themselves, and rotating here too
+                        // ran every page twice and counted scan_completed twice (#407).
+                        if (uiState.pageCount > 1 && !uploadAsSingleDocument) {
+                            // Individual Documents: Show metadata choice dialog
+                            showMetadataChoiceDialog = true
+                        } else {
+                            scope.launch {
+                                val uris = viewModel.getRotatedPageUris().getOrElse { return@launch }
+                                if (uris.size == 1) {
+                                    onDocumentScanned(uris.first())
+                                } else {
+                                    // Single PDF: Direct to MultiPageUploadScreen
+                                    onMultipleDocumentsScanned(uris, true)
+                                }
                             }
                         }
                     }
