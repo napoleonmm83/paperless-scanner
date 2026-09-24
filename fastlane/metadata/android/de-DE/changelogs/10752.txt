@@ -1,4 +1,4 @@
-Version 1.5.252:
+Version 1.5.250 – 1.5.252:
 
 Behoben:
 - Fehlgeschlagenes Zuschneiden wird jetzt gemeldet, statt still die ungeschnittene Seite zu behalten.
@@ -6,3 +6,4 @@ Behoben:
 Verbessert:
 - Sehr große Fotos lassen sich stabiler drehen und zuschneiden.
 - Weiter-Tippen verarbeitet gedrehte Seiten nur noch einmal.
+- Interne Aufräumarbeiten und zuverlässigere Tests.
