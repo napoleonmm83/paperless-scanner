@@ -1,4 +1,4 @@
-Version 1.5.251:
+Version 1.5.252:
 
 Fixed:
 - A failed crop is now reported instead of silently keeping the uncropped page.

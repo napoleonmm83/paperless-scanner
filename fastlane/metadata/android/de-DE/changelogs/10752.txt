@@ -1,4 +1,4 @@
-Version 1.5.251:
+Version 1.5.252:
 
 Behoben:
 - Fehlgeschlagenes Zuschneiden wird jetzt gemeldet, statt still die ungeschnittene Seite zu behalten.
