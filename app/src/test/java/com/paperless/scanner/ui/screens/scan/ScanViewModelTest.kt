@@ -2,6 +2,7 @@ package com.paperless.scanner.ui.screens.scan
 
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.google.gson.Gson
@@ -16,6 +17,7 @@ import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
 import com.paperless.scanner.testing.fakes.FakeCrashlyticsHelper
 import com.paperless.scanner.util.AppLockManager
+import com.paperless.scanner.util.CoroutineDispatchers
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -57,16 +59,12 @@ import java.io.FileNotFoundException
  * - Tag selection: toggleTag / clearSelectedTags / getSelectedTagIds
  * - Page accessors: getPageUris / getPages
  * - setProcessing / setUploadAsSingleDocument
+ * - addPages (dispatchers are injected since #407, so advanceUntilIdle drives it)
  *
- * Out of scope (Dispatchers.Default coupling — would require production
- * dispatcher injection refactor):
- * - addPages (uses withContext(Dispatchers.Default), advanceUntilIdle does
- *   not drive Default)
- *
- * Out of scope (file I/O / AI heavy paths):
- * - rotatePage, cropPage (Bitmap I/O) — the getRotatedPageUris failure paths ARE
- *   covered below (#402); the successful rotation ends in FileProvider.getUriForFile,
- *   which Robolectric cannot serve here
+ * Out of scope (file I/O heavy paths):
+ * - successful rotation/crop — both end in FileProvider.getUriForFile, which Robolectric
+ *   cannot serve here; the getRotatedPageUris (#402) and cropPage (#407) failure paths ARE
+ *   covered below
  * - createTag (network coupling)
  *
  * Workaround for the addPages limitation: tests that need pre-populated
@@ -138,7 +136,8 @@ class ScanViewModelTest {
         tokenManager = tokenManager,
         appLockManager = appLockManager,
         context = context,
-        gson = gson
+        gson = gson,
+        dispatchers = CoroutineDispatchers(testDispatcher, testDispatcher, testDispatcher)
     )
 
     /**
@@ -701,5 +700,59 @@ class ScanViewModelTest {
         assertNull(state.error)
         assertNotNull(state.lastRemovedPage)
         assertEquals(0, state.pageCount)
+    }
+
+    // ==================== addPages / cropPage (#407) ====================
+
+    @Test
+    fun `addPages appends numbered pages and mirrors them to SavedStateHandle`() = runTest {
+        val viewModel = viewModelWithPages(listOf("existing"))
+        advanceUntilIdle()
+        val added = listOf(Uri.parse("file:///tmp/a.jpg"), Uri.parse("file:///tmp/b.jpg"))
+
+        viewModel.addPages(added, PageSource.GALLERY)
+        advanceUntilIdle()
+
+        val pages = viewModel.uiState.value.pages
+        assertEquals(listOf(1, 2, 3), pages.map { it.pageNumber })
+        assertEquals(added, pages.drop(1).map { it.uri })
+        assertTrue(pages.drop(1).all { it.source == PageSource.GALLERY })
+        assertFalse(viewModel.uiState.value.isProcessing)
+        val persisted = savedStateHandle.get<String>(ScanViewModel.KEY_PAGE_URIS)
+        assertEquals(pages.joinToString("|") { it.uri.toString() }, persisted)
+    }
+
+    @Test
+    fun `cropPage reports a failed crop and leaves the page unchanged instead of silently keeping it`() = runTest {
+        ShadowBitmapFactory.setAllowInvalidImageData(false)
+        val viewModel = viewModelWithPages(listOf("p0"))
+        advanceUntilIdle()
+        val page = viewModel.uiState.value.pages.single()
+        shadowOf(context.contentResolver)
+            .registerInputStream(page.uri, ByteArrayInputStream(byteArrayOf(1, 2, 3)))
+
+        viewModel.cropPage(page.id, CropRect(0.1f, 0.1f, 0.9f, 0.9f))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(context.getString(R.string.scan_page_crop_failed, 1), state.error)
+        assertEquals(page, state.pages.single())
+        assertEquals(1, crashlyticsHelper.recordedExceptions.size)
+        verify { analyticsService.trackEvent(AnalyticsEvent.ScanPageProcessFailed("IllegalStateException")) }
+    }
+
+    @Test
+    fun `cropPage lets cancellation through without reporting a page error`() = runTest {
+        val viewModel = viewModelWithPages(listOf("p0"))
+        advanceUntilIdle()
+        val page = viewModel.uiState.value.pages.single()
+        shadowOf(context.contentResolver)
+            .registerInputStreamSupplier(page.uri) { throw CancellationException("test") }
+
+        viewModel.cropPage(page.id, CropRect(0f, 0f, 1f, 1f))
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.error)
+        assertTrue(crashlyticsHelper.recordedExceptions.isEmpty())
     }
 }
