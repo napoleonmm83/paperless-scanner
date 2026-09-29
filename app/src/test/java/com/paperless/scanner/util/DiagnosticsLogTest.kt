@@ -45,7 +45,9 @@ class DiagnosticsLogTest {
         // host says where someone's private server lives.
         DiagnosticsLog.append("Repo", "GET https://paperless.private.example:8443/api/documents/42/download/ -> 502")
 
-        val stored = DiagnosticsLog.snapshot().single()
+        // Drop the leading epoch-millis timestamp: "8443" is just four digits, and the clock
+        // spells it out every so often (1790284430xxx did on 2026-09-24 and failed CI).
+        val stored = DiagnosticsLog.snapshot().single().substringAfter(' ')
 
         assertFalse("the host was stored", stored.contains("paperless.private.example"))
         assertFalse("the port was stored", stored.contains("8443"))
