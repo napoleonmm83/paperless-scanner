@@ -7,6 +7,9 @@ import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptBaseUrlInterceptor
 import com.paperless.scanner.data.ai.paperlessgpt.PaperlessGptRepository
 import com.paperless.scanner.data.api.AdaptiveWriteTimeoutInterceptor
 import com.paperless.scanner.data.api.ApiVersionInterceptor
+import com.paperless.scanner.data.api.ServerCapabilityInterceptor
+import com.paperless.scanner.data.api.ServerCapabilityStore
+import com.paperless.scanner.data.api.ServerRequestSession
 import com.paperless.scanner.data.api.CacheControlInterceptor
 import com.paperless.scanner.data.api.CloudflareDetectionInterceptor
 import com.paperless.scanner.data.datastore.CloudflareDetectionHolder
@@ -181,8 +184,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTokenManager(
-        @ApplicationContext context: Context
-    ): TokenManager = TokenManager(context)
+        @ApplicationContext context: Context,
+        serverCapabilities: ServerCapabilityStore,
+    ): TokenManager = TokenManager(context, serverCapabilities = serverCapabilities)
 
     @Provides
     @Singleton
@@ -299,6 +303,9 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(
         tokenManager: TokenManager,
+        serverUrlHolder: com.paperless.scanner.data.datastore.ServerUrlHolder,
+        serverCapabilities: ServerCapabilityStore,
+        serverCapabilityInterceptor: ServerCapabilityInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
         httpAllowlistInterceptor: HttpAllowlistInterceptor,
         apiVersionInterceptor: ApiVersionInterceptor,
@@ -320,10 +327,15 @@ object AppModule {
             .addInterceptor(httpAllowlistInterceptor)
             .addInterceptor { chain ->
                 // Token interceptor - runs on OkHttp thread pool, not main thread
+                val generation = serverCapabilities.snapshotGeneration()
                 val token = tokenManager.getTokenSync()
                 val request = if (token != null) {
                     chain.request().newBuilder()
                         .addHeader("Authorization", "Token $token")
+                        .tag(
+                            ServerRequestSession::class.java,
+                            serverCapabilities.captureRequest(serverUrlHolder.current(), generation),
+                        )
                         .build()
                 } else {
                     chain.request()
@@ -338,6 +350,7 @@ object AppModule {
             // 406 path), which is why this placement is documented rather than
             // pinned by a test.
             .addInterceptor(apiVersionInterceptor)
+            .addInterceptor(serverCapabilityInterceptor)
             .addInterceptor(cloudflareDetectionInterceptor)
             .addInterceptor(adaptiveWriteTimeoutInterceptor)
             // TOFU pin enforcement first among network interceptors: it aborts on a

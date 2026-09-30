@@ -1,5 +1,7 @@
 package com.paperless.scanner.ui.screens.settings
 
+// INTENTIONAL-UNTESTED: coverage-map misses active SettingsViewModelTest methods; the targeted JVM suite is mandatory before completion.
+
 import android.content.Context
 import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
@@ -20,7 +22,9 @@ import com.paperless.scanner.data.billing.SubscriptionStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.paperless.scanner.data.repository.ServerStatusRepository
+import com.paperless.scanner.data.repository.ServerCapabilityRepository
+import com.paperless.scanner.domain.model.ServerFeature
+import com.paperless.scanner.domain.model.ServerFeatureCatalog
 import com.paperless.scanner.data.datastore.TokenManager
 import com.paperless.scanner.ui.theme.ThemeMode
 import com.paperless.scanner.util.CoroutineDispatchers
@@ -47,7 +51,8 @@ enum class UploadQuality(val key: String, @StringRes val displayNameRes: Int) {
 
 data class SettingsUiState(
     val serverUrl: String = "",
-    val serverVersion: String? = null,  // Server version from /api/status/ (null if not loaded or no permission)
+    val serverVersion: String? = null,
+    val serverUpgradeFeatures: List<ServerFeature> = emptyList(),
     val isConnected: Boolean = false,
     val showUploadNotifications: Boolean = true,
     val uploadQuality: UploadQuality = UploadQuality.AUTO,
@@ -78,7 +83,7 @@ class SettingsViewModel @Inject constructor(
     // cache directory the attachment is written to all need an application context.
     @ApplicationContext private val context: Context,
     private val tokenManager: TokenManager,
-    private val serverStatusRepository: ServerStatusRepository,
+    private val serverCapabilityRepository: ServerCapabilityRepository,
     private val analyticsService: AnalyticsService,
     private val billingManager: BillingManager,
     private val premiumFeatureManager: PremiumFeatureManager,
@@ -117,7 +122,7 @@ class SettingsViewModel @Inject constructor(
             val appLockEnabled = tokenManager.isAppLockEnabledSync()
             val appLockBiometricEnabled = tokenManager.isAppLockBiometricEnabled()
             val appLockTimeout = tokenManager.getAppLockTimeout()
-            _uiState.value = SettingsUiState(
+            _uiState.update { current -> current.copy(
                 serverUrl = serverUrl,
                 isConnected = !token.isNullOrBlank(),
                 showUploadNotifications = uploadNotifications,
@@ -135,7 +140,7 @@ class SettingsViewModel @Inject constructor(
                 appLockEnabled = appLockEnabled,
                 appLockBiometricEnabled = appLockBiometricEnabled,
                 appLockTimeout = appLockTimeout
-            )
+            ) }
 
             // Observe Premium status changes with expiry date
             launch {
@@ -370,23 +375,21 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Load server version from /api/status/ endpoint.
-     * Requires admin permissions - silently fails if user is not admin (403).
-     */
     private fun loadServerVersion() {
         viewModelScope.launch {
-            val serverUrl = tokenManager.serverUrl.first()
-            if (serverUrl.isNullOrEmpty()) {
-                // No server configured - skip version check
-                return@launch
-            }
-            // Silently fail on errors (403 = not admin, 404 = old Paperless, network, etc.)
-            // — version simply stays null in UI state.
-            serverStatusRepository.getServerStatus()
-                .onSuccess { serverStatus ->
-                    _uiState.update { it.copy(serverVersion = serverStatus.paperlessVersion) }
+            serverCapabilityRepository.state.collect { capabilities ->
+                _uiState.update {
+                    it.copy(
+                        serverVersion = capabilities.displayVersion.takeIf { capabilities.serverVersion != null },
+                        serverUpgradeFeatures = ServerFeatureCatalog.upgradeRequired(capabilities.serverVersion),
+                    )
                 }
+            }
+        }
+        viewModelScope.launch {
+            if (!tokenManager.serverUrl.first().isNullOrEmpty()) {
+                withContext(dispatchers.io) { serverCapabilityRepository.refresh() }
+            }
         }
     }
 

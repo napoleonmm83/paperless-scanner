@@ -73,10 +73,14 @@ class AppModuleInterceptorOrderTest {
 
         val cacheDir = Files.createTempDirectory("okhttp-allowlist-order-test").toFile()
         val cache = Cache(cacheDir, 1024L * 1024L)
+        val serverCapabilities = ServerCapabilityStore()
 
         try {
             val client = AppModule.provideOkHttpClient(
                 tokenManager = tokenManager,
+                serverUrlHolder = serverUrlHolder,
+                serverCapabilities = serverCapabilities,
+                serverCapabilityInterceptor = ServerCapabilityInterceptor(serverCapabilities),
                 dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
                 httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
                 apiVersionInterceptor = ApiVersionInterceptor(mockk(relaxed = true)),
@@ -139,6 +143,9 @@ class AppModuleInterceptorOrderTest {
         try {
             val default = AppModule.provideOkHttpClient(
                 tokenManager = tokenManager,
+                serverUrlHolder = serverUrlHolder,
+                serverCapabilities = ServerCapabilityStore(),
+                serverCapabilityInterceptor = ServerCapabilityInterceptor(ServerCapabilityStore()),
                 dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
                 httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
                 apiVersionInterceptor = ApiVersionInterceptor(mockk(relaxed = true)),

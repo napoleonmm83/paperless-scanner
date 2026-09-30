@@ -1451,4 +1451,18 @@
     <string name="setup_http_accept_dialog_message_explicit">You entered an http:// URL for %1$s. Traffic — including your password and API token — will not be encrypted. Only allow this on a network you fully trust.</string>
     <string name="setup_http_accept_dialog_message_fallback">%1$s does not respond to HTTPS. The app can fall back to HTTP, but your password and API token will not be encrypted. Only allow this on a network you fully trust.</string>
     <string name="setup_generate_diagnostic">Generate diagnostic report</string>
+    <string name="settings_server_version_unknown">Not detected yet. Compatibility of additional features has not been confirmed.</string>
+    <string name="settings_server_update_features_title">Additional features with a server update</string>
+    <string name="settings_server_update_features_description">Update your Paperless server to use these additional features:</string>
+    <string name="settings_server_feature_minimum_version">Requires Paperless %1$s or later</string>
+    <string name="server_feature_share_links">Share links</string>
+    <string name="server_feature_saved_views">Saved views</string>
+    <string name="server_feature_bulk_edit">Bulk editing</string>
+    <string name="server_feature_similar_documents">Similar documents</string>
+    <string name="server_feature_custom_fields_search">Search by custom fields</string>
+    <string name="server_feature_search_assistance">Search suggestions and highlighted matches</string>
+    <string name="server_feature_pdf_edit">Edit archived PDFs</string>
+    <string name="server_feature_storage_paths">Select storage paths</string>
+    <string name="server_feature_file_versions">Document versions</string>
+    <string name="server_feature_additional_function">Additional function</string>
 </resources>
