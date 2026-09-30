@@ -1,12 +1,10 @@
 package com.paperless.scanner.detekt
 
-import io.gitlab.arturbosch.detekt.api.CodeSmell
-import io.gitlab.arturbosch.detekt.api.Config
-import io.gitlab.arturbosch.detekt.api.Debt
-import io.gitlab.arturbosch.detekt.api.Entity
-import io.gitlab.arturbosch.detekt.api.Issue
-import io.gitlab.arturbosch.detekt.api.Rule
-import io.gitlab.arturbosch.detekt.api.Severity
+import dev.detekt.api.Config
+import dev.detekt.api.Entity
+import dev.detekt.api.Finding
+import dev.detekt.api.Rule
+import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtConstantExpression
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
@@ -19,13 +17,11 @@ import org.jetbrains.kotlin.psi.KtValueArgument
  * scalable `.em` token. Token references and `.em` values are not flagged.
  * Plan-04 (#266 enforcement).
  */
-class LabelLetterSpacingOverrideRule(config: Config = Config.empty) : Rule(config) {
-    override val issue = Issue(
-        id = "LabelLetterSpacingOverride",
-        severity = Severity.Warning,
-        description = "Hardcoded letterSpacing .sp override instead of a typography token.",
-        debt = Debt.FIVE_MINS,
-    )
+class LabelLetterSpacingOverrideRule(config: Config = Config.empty) : Rule(
+    config,
+    description = "Hardcoded letterSpacing .sp override instead of a typography token.",
+) {
+    override val ruleName = RuleName("LabelLetterSpacingOverride")
 
     override fun visitArgument(argument: KtValueArgument) {
         super.visitArgument(argument)
@@ -38,8 +34,7 @@ class LabelLetterSpacingOverrideRule(config: Config = Config.empty) : Rule(confi
             receiver.text.toDoubleOrNull() != 0.0
         ) {
             report(
-                CodeSmell(
-                    issue,
+                Finding(
                     Entity.from(value),
                     "Hardcoded letterSpacing ${value.text} — use a typography token " +
                         "(e.g. Type.kt labelSmall with .em) instead of an inline .sp literal.",

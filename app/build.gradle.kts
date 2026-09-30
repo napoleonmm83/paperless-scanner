@@ -3,7 +3,6 @@ import java.time.Duration
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
@@ -48,7 +47,7 @@ val canSign = signingKeystoreFile != null && signingKeystorePassword != null && 
 
 android {
     namespace = "com.paperless.scanner"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.paperless.scanner"
@@ -101,9 +100,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 
     buildFeatures {
         compose = true
@@ -174,6 +170,12 @@ android {
                 it.timeout.set(Duration.ofMinutes(20))
             }
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -329,18 +331,17 @@ dependencies {
 // Detekt configuration
 // Run: ./gradlew detekt
 detekt {
-    buildUponDefaultConfig = true
-    allRules = false
+    buildUponDefaultConfig.set(true)
+    allRules.set(false)
     config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
-    baseline = file("$rootDir/config/detekt/baseline.xml")
-    parallel = true
+    baseline.set(file("$rootDir/config/detekt/baseline.xml"))
+    parallel.set(true)
 }
 
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
     reports {
         html.required.set(true)
-        xml.required.set(true)
-        txt.required.set(false)
+        checkstyle.required.set(true)
         sarif.required.set(false)
     }
 }
@@ -349,14 +350,18 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 // rules (module :detekt-rules). Stock detekt stays advisory via the main detekt.yml, so
 // this gate enforces the a11y/nav invariants without baselining the pre-existing debt.
 // Run: ./gradlew :app:detektComposeRules
-val detektComposeRules by tasks.registering(io.gitlab.arturbosch.detekt.Detekt::class) {
+val detektComposeRules by tasks.registering(dev.detekt.gradle.Detekt::class) {
     description = "Lints only the custom paperless-compose Compose-convention rules (blocking)."
     group = "verification"
     setSource(files("src/main/java", "src/main/kotlin"))
     include("**/*.kt")
     config.setFrom(files("$rootDir/config/detekt/detekt-compose.yml"))
-    buildUponDefaultConfig = false
-    parallel = true
+    buildUponDefaultConfig.set(false)
+    disableDefaultRuleSets.set(true)
+    parallel.set(true)
+    ignoreFailures.set(false)
+    failOnSeverity.set(dev.detekt.gradle.extensions.FailOnSeverity.Error)
+    dependsOn(":detekt-rules:jar")
     detektClasspath.setFrom(configurations["detekt"])
     pluginClasspath.setFrom(configurations["detektPlugins"])
 }

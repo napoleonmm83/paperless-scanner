@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -122,6 +123,7 @@ fun SimplifiedSetupScreen(
     var httpFallbackAcceptedForSession by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
@@ -640,7 +642,7 @@ fun SimplifiedSetupScreen(
                                     clipboardManager.setPrimaryClip(clip)
                                     Toast.makeText(
                                         context,
-                                        context.getString(R.string.auth_debug_report_copied),
+                                        resources.getString(R.string.auth_debug_report_copied),
                                         Toast.LENGTH_LONG
                                     ).show()
                                     viewModel.clearDiagnosticReport()

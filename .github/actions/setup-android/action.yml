@@ -73,6 +73,60 @@ runs:
           exit 1
         fi
 
+    - name: Ensure Android API 37 platform (Linux/macOS)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+        platform_jar="$sdk_root/platforms/android-37.0/android.jar"
+        if [ ! -f "$platform_jar" ]; then
+          manager="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$manager" ]; then
+            manager="$(command -v sdkmanager)"
+          fi
+          "$manager" --sdk_root="$sdk_root" 'platforms;android-37.0' || true
+          if [ ! -f "$platform_jar" ]; then
+            "$manager" --sdk_root="$sdk_root" 'platforms/android-37.0'
+          fi
+        fi
+        test -f "$platform_jar"
+
+    - name: Ensure Android API 37 platform (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        $sdkRoot = $env:ANDROID_HOME
+        if (-not $sdkRoot) { $sdkRoot = $env:ANDROID_SDK_ROOT }
+        if (-not $sdkRoot) { throw 'Android SDK root is missing' }
+        if ($sdkRoot -match '["\r\n]') { throw 'Android SDK root contains invalid Windows path characters' }
+        $platformJar = Join-Path $sdkRoot 'platforms/android-37.0/android.jar'
+        if (-not (Test-Path -LiteralPath $platformJar -PathType Leaf)) {
+          $manager = Join-Path $sdkRoot 'cmdline-tools/latest/bin/sdkmanager.bat'
+          if (-not (Test-Path -LiteralPath $manager -PathType Leaf)) {
+            $manager = (Get-Command sdkmanager.bat -ErrorAction Stop).Source
+          }
+          if ($manager -match '["\r\n]') { throw 'SDK manager contains invalid Windows path characters' }
+          $previousManager = $env:CG_ANDROID_SDK_MANAGER
+          $previousRoot = $env:CG_ANDROID_SDK_ROOT
+          try {
+            $env:CG_ANDROID_SDK_MANAGER = $manager
+            $env:CG_ANDROID_SDK_ROOT = $sdkRoot
+            # Expand paths once inside quoted cmd arguments, preserving percent signs and semicolons.
+            & $env:ComSpec /d /v:off /s /c '""%CG_ANDROID_SDK_MANAGER%" "--sdk_root=%CG_ANDROID_SDK_ROOT%" "platforms;android-37.0""'
+            if (-not (Test-Path -LiteralPath $platformJar -PathType Leaf)) {
+              & $env:ComSpec /d /v:off /s /c '""%CG_ANDROID_SDK_MANAGER%" "--sdk_root=%CG_ANDROID_SDK_ROOT%" "platforms/android-37.0""'
+            }
+          } finally {
+            $env:CG_ANDROID_SDK_MANAGER = $previousManager
+            $env:CG_ANDROID_SDK_ROOT = $previousRoot
+          }
+        }
+        if (-not (Test-Path -LiteralPath $platformJar -PathType Leaf)) {
+          throw 'Android API 37 installation did not produce android.jar'
+        }
+        exit 0
+
     - name: Grant execute permission for gradlew
       if: runner.os != 'Windows'
       shell: bash

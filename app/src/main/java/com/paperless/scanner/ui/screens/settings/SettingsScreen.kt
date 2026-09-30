@@ -17,6 +17,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +52,7 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val coroutineScope = rememberCoroutineScope()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -193,23 +195,23 @@ fun SettingsScreen(
                     coroutineScope.launch {
                         when (val result = viewModel.launchPurchaseFlow(activity, productId)) {
                             is PurchaseResult.Success -> {
-                                purchaseResultMessage = context.getString(R.string.premium_purchase_success)
+                                purchaseResultMessage = resources.getString(R.string.premium_purchase_success)
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Pending -> {
-                                purchaseResultMessage = context.getString(R.string.premium_purchase_pending)
+                                purchaseResultMessage = resources.getString(R.string.premium_purchase_pending)
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Cancelled -> {
                                 showPremiumUpgradeSheet = false
                             }
                             is PurchaseResult.Error -> {
-                                purchaseResultMessage = context.getString(R.string.premium_purchase_error, result.message)
+                                purchaseResultMessage = resources.getString(R.string.premium_purchase_error, result.message)
                             }
                         }
                     }
                 } else {
-                    purchaseResultMessage = context.getString(R.string.error_unable_launch_purchase)
+                    purchaseResultMessage = resources.getString(R.string.error_unable_launch_purchase)
                     showPremiumUpgradeSheet = false
                 }
             },
@@ -217,14 +219,14 @@ fun SettingsScreen(
                 coroutineScope.launch {
                     when (val result = viewModel.restorePurchases()) {
                         is RestoreResult.Success -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_success, result.restoredCount)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_success, result.restoredCount)
                             showPremiumUpgradeSheet = false
                         }
                         is RestoreResult.NoPurchasesFound -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_none)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_none)
                         }
                         is RestoreResult.Error -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_error, result.message)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_error, result.message)
                         }
                     }
                 }
@@ -251,14 +253,14 @@ fun SettingsScreen(
                 coroutineScope.launch {
                     when (val result = viewModel.restorePurchases()) {
                         is RestoreResult.Success -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_success, result.restoredCount)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_success, result.restoredCount)
                             viewModel.loadSubscriptionInfo()
                         }
                         is RestoreResult.NoPurchasesFound -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_none)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_none)
                         }
                         is RestoreResult.Error -> {
-                            purchaseResultMessage = context.getString(R.string.premium_restore_error, result.message)
+                            purchaseResultMessage = resources.getString(R.string.premium_restore_error, result.message)
                         }
                     }
                 }
@@ -283,7 +285,7 @@ fun SettingsScreen(
                         else -> null
                     }
                     message?.let {
-                        Toast.makeText(context, context.getString(it), Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, resources.getString(it), Toast.LENGTH_LONG).show()
                     }
                 }
             },
@@ -304,7 +306,7 @@ fun SettingsScreen(
                             R.string.auth_debug_report_copied
                         else -> R.string.diagnostic_report_no_target
                     }
-                    Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, resources.getString(message), Toast.LENGTH_SHORT).show()
                 }
             },
             onDismiss = { showDiagnosticReportDialog = false }

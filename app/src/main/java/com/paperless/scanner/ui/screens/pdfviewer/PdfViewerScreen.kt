@@ -83,6 +83,7 @@ import coil3.request.crossfade
 // state dispatch below.
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import com.paperless.scanner.util.DiagnosticReportSender
 import java.io.File
 
@@ -151,6 +152,7 @@ fun PdfViewerScreen(
                 // decision of WHETHER to offer the report is pinned in
                 // PdfViewerViewModelTest; only the wiring lives here.
                 val context = LocalContext.current
+                val resources = LocalResources.current
                 val coroutineScope = rememberCoroutineScope()
                 ErrorView(
                     message = state.message,
@@ -184,7 +186,7 @@ fun PdfViewerScreen(
                                 message?.let {
                                     Toast.makeText(
                                         context,
-                                        context.getString(it),
+                                        resources.getString(it),
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }

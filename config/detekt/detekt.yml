@@ -1,16 +1,6 @@
 # Detekt Configuration for Paperless Scanner
 # https://detekt.dev/docs/rules/
 
-build:
-  maxIssues: 0
-  excludeCorrectable: false
-  weights:
-    complexity: 2
-    formatting: 1
-    LongParameterList: 1
-    style: 1
-    comments: 1
-
 config:
   validation: true
   warningsAsErrors: false
@@ -21,14 +11,11 @@ processors:
 console-reports:
   active: true
 
-output-reports:
-  active: true
-
 comments:
   active: true
-  CommentOverPrivateFunction:
+  DocumentationOverPrivateFunction:
     active: false
-  CommentOverPrivateProperty:
+  DocumentationOverPrivateProperty:
     active: false
   UndocumentedPublicClass:
     active: false
@@ -41,27 +28,27 @@ complexity:
   active: true
   CognitiveComplexMethod:
     active: true
-    threshold: 15
+    allowedComplexity: 15
   ComplexCondition:
     active: true
-    threshold: 4
+    allowedConditions: 4
   ComplexInterface:
     active: false
   CyclomaticComplexMethod:
     active: true
-    threshold: 15
+    allowedComplexity: 15
   LabeledExpression:
     active: false
   LargeClass:
     active: true
-    threshold: 600
+    allowedLines: 600
   LongMethod:
     active: true
-    threshold: 60
+    allowedLines: 60
   LongParameterList:
     active: true
-    functionThreshold: 6
-    constructorThreshold: 10
+    allowedFunctionParameters: 6
+    allowedConstructorParameters: 10
     ignoreDefaultParameters: true
     ignoreDataClasses: true
     ignoreAnnotatedParameter: ['Composable']
@@ -71,7 +58,7 @@ complexity:
     active: false
   NestedBlockDepth:
     active: true
-    threshold: 4
+    allowedDepth: 4
   NestedScopeFunctions:
     active: false
   ReplaceSafeCallChainWithRun:
@@ -80,11 +67,11 @@ complexity:
     active: false
   TooManyFunctions:
     active: true
-    thresholdInFiles: 20
-    thresholdInClasses: 20
-    thresholdInInterfaces: 20
-    thresholdInObjects: 20
-    thresholdInEnums: 20
+    allowedFunctionsPerFile: 20
+    allowedFunctionsPerClass: 20
+    allowedFunctionsPerInterface: 20
+    allowedFunctionsPerObject: 20
+    allowedFunctionsPerEnum: 20
     ignoreDeprecated: true
     ignorePrivate: true
     ignoreOverridden: true
@@ -124,7 +111,7 @@ empty-blocks:
     active: true
   EmptyInitBlock:
     active: true
-  EmptyKtFile:
+  EmptyKotlinFile:
     active: true
   EmptySecondaryConstructor:
     active: true
@@ -192,9 +179,9 @@ naming:
     enumEntryPattern: '[A-Z][_a-zA-Z0-9]*'
   ForbiddenClassName:
     active: false
-  FunctionMaxLength:
+  FunctionNameMaxLength:
     active: false
-  FunctionMinLength:
+  FunctionNameMinLength:
     active: false
   FunctionNaming:
     active: true
@@ -364,7 +351,7 @@ style:
     active: true
   MagicNumber:
     active: false
-  MandatoryBracesIfStatements:
+  BracesOnIfStatements:
     active: false
   MandatoryBracesLoops:
     active: false
@@ -377,7 +364,7 @@ style:
     excludeImportStatements: true
     excludeCommentStatements: false
     excludeRawStrings: true
-  MayBeConst:
+  MayBeConstant:
     active: true
   ModifierOrder:
     active: true
@@ -399,15 +386,13 @@ style:
     active: true
   OptionalUnit:
     active: false
-  PreferToOverPairSyntax:
-    active: false
   ProtectedMemberInFinalClass:
     active: true
   RedundantExplicitType:
     active: false
   RedundantHigherOrderMapUsage:
     active: true
-  RedundantVisibilityModifierRule:
+  RedundantVisibilityModifier:
     active: false
   ReturnCount:
     active: true
@@ -419,7 +404,7 @@ style:
     active: true
   SerialVersionUIDInSerializableClass:
     active: true
-  SpacingBetweenPackageAndImports:
+  SpacingAfterPackageAndImports:
     active: true
   ThrowsCount:
     active: true
@@ -430,10 +415,10 @@ style:
     active: false
   UnderscoresInNumericLiterals:
     active: false
-  UnnecessaryAbstractClass:
+  AbstractClassCanBeConcreteClass:
     active: true
-  UnnecessaryAnnotationUseSiteTarget:
-    active: false
+  AbstractClassCanBeInterface:
+    active: true
   UnnecessaryApply:
     active: true
   UnnecessaryBackticks:
@@ -448,16 +433,16 @@ style:
     active: true
   UnnecessaryParentheses:
     active: false
-  UntilInsteadOfRangeTo:
+  RangeUntilInsteadOfRangeTo:
     active: false
-  UnusedImports:
+  UnusedImport:
     active: true
   UnusedParameter:
     active: true
     allowedNames: 'ignored|expected'
   UnusedPrivateClass:
     active: true
-  UnusedPrivateMember:
+  UnusedPrivateFunction:
     active: true
     allowedNames: '(_|ignored|expected|serialVersionUID)'
   UnusedPrivateProperty:
@@ -503,6 +488,7 @@ style:
 
 # Custom Paperless Compose-convention rules (module :detekt-rules)
 paperless-compose:
+  active: true
   TouchTargetSize:
     active: true
   LabelLetterSpacingOverride:

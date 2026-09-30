@@ -1,6 +1,6 @@
 package com.paperless.scanner.detekt
 
-import io.gitlab.arturbosch.detekt.test.lint
+import dev.detekt.test.lint
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
