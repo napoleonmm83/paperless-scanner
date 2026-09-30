@@ -266,6 +266,42 @@ class ProcessingTasksViewModelTest {
     }
 
     @Test
+    fun `single acknowledgment failure is exposed and refreshes tasks`() = runTest {
+        val flow = MutableStateFlow(listOf(task(1, status = PaperlessTask.STATUS_SUCCESS)))
+        every { taskRepository.observeUnacknowledgedTasksExcludingDeleted() } returns flow
+        coEvery { taskRepository.acknowledgeTasks(any()) } returns
+            Result.failure(IllegalStateException("acknowledgment rejected"))
+        val vm = createViewModel()
+        runCurrent()
+
+        vm.acknowledgeTask(1)
+        runCurrent()
+
+        assertNotNull(vm.error.value)
+        coVerify(exactly = 2) { taskRepository.getTasks(forceRefresh = true) }
+        vm.clearError()
+        assertNull(vm.error.value)
+        vm.resetState()
+    }
+
+    @Test
+    fun `bulk acknowledgment failure is exposed and refreshes tasks`() = runTest {
+        val flow = MutableStateFlow(listOf(task(1, status = PaperlessTask.STATUS_SUCCESS)))
+        every { taskRepository.observeUnacknowledgedTasksExcludingDeleted() } returns flow
+        coEvery { taskRepository.acknowledgeTasks(any()) } returns
+            Result.failure(IllegalStateException("acknowledgment rejected"))
+        val vm = createViewModel()
+        runCurrent()
+
+        vm.acknowledgeCompletedTasks()
+        runCurrent()
+
+        assertNotNull(vm.error.value)
+        coVerify(exactly = 2) { taskRepository.getTasks(forceRefresh = true) }
+        vm.resetState()
+    }
+
+    @Test
     fun `toggleShowAll flips showAll`() = runTest {
         val vm = createViewModel()
         runCurrent()

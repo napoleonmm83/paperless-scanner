@@ -51,6 +51,7 @@ data class ProcessingTasksUiState(
 
 sealed class ProcessingTasksError {
     data class LoadFailed(val source: String, val cause: Throwable) : ProcessingTasksError()
+    data class AcknowledgeFailed(val cause: Throwable) : ProcessingTasksError()
 }
 
 /**
@@ -224,6 +225,7 @@ class ProcessingTasksViewModel @Inject constructor(
                 .onSuccess { logger.log(Level.FINE, "Task $taskId acknowledged successfully") }
                 .onFailure { error ->
                     logger.log(Level.WARNING, "Failed to acknowledge task $taskId: ${error.message}")
+                    _error.value = ProcessingTasksError.AcknowledgeFailed(error)
                     // Resync from server so the optimistically-removed task reappears
                     // if the ack failed — matches acknowledgeCompletedTasks recovery.
                     refreshTasks()
@@ -259,6 +261,7 @@ class ProcessingTasksViewModel @Inject constructor(
                 .onSuccess { logger.log(Level.INFO, "Successfully acknowledged ${taskIds.size} tasks") }
                 .onFailure { error ->
                     logger.log(Level.WARNING, "Failed to acknowledge tasks: ${error.message}")
+                    _error.value = ProcessingTasksError.AcknowledgeFailed(error)
                     refreshTasks()
                 }
         }
