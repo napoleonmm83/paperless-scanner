@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.paperless.scanner.domain.model.DocumentFilter
+import com.paperless.scanner.data.api.ServerCapabilityStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,7 +26,8 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(na
 
 class TokenManager(
     private val context: Context,
-    private val secureStorage: TokenStorage = SecureTokenStorage(context)
+    private val secureStorage: TokenStorage = SecureTokenStorage(context),
+    private val serverCapabilities: ServerCapabilityStore = ServerCapabilityStore(),
 ) : TokenManagerContract {
 
     companion object {
@@ -295,16 +297,23 @@ class TokenManager(
     }
 
     suspend fun saveCredentials(serverUrl: String, token: String) {
-        // Save token to encrypted storage
-        when (val result = secureStorage.saveTokenResult(token)) {
-            is TokenStorageResult.Failure ->
-                AppLogger.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
-            else -> Unit
-        }
+        val generation = serverCapabilities.beginCredentialChange()
+        var savedServer: String? = null
+        try {
+            // Save token to encrypted storage
+            when (val result = secureStorage.saveTokenResult(token)) {
+                is TokenStorageResult.Failure ->
+                    AppLogger.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
+                else -> Unit
+            }
 
-        // Save server URL to DataStore (not sensitive)
-        context.dataStore.edit { preferences ->
-            preferences[SERVER_URL_KEY] = serverUrl.trimEnd('/')
+            // Save server URL to DataStore (not sensitive)
+            context.dataStore.edit { preferences ->
+                preferences[SERVER_URL_KEY] = serverUrl.trimEnd('/')
+            }
+            savedServer = serverUrl
+        } finally {
+            serverCapabilities.finishCredentialChange(generation, savedServer)
         }
     }
 
@@ -375,18 +384,23 @@ class TokenManager(
     }
 
     suspend fun clearCredentials() {
-        // Clear encrypted token storage
-        secureStorage.clearToken()
+        val generation = serverCapabilities.beginCredentialChange()
+        try {
+            // Clear encrypted token storage
+            secureStorage.clearToken()
 
-        // Clear DataStore preferences
-        context.dataStore.edit { preferences ->
+            // Clear DataStore preferences
+            context.dataStore.edit { preferences ->
             // Certificate trust is device-wide, not a login credential. Losing this
             // marker on logout would silently re-enable TOFU after a reset.
-            val pinRecoveryPhase = preferences[PIN_RECOVERY_PHASE_KEY]
-            preferences.clear()
-            if (pinRecoveryPhase != null) preferences[PIN_RECOVERY_PHASE_KEY] = pinRecoveryPhase
+                val pinRecoveryPhase = preferences[PIN_RECOVERY_PHASE_KEY]
+                preferences.clear()
+                if (pinRecoveryPhase != null) preferences[PIN_RECOVERY_PHASE_KEY] = pinRecoveryPhase
+            }
+            // Note: Cloudflare detection flag is also cleared since we clear ALL preferences
+        } finally {
+            serverCapabilities.finishCredentialChange(generation, null)
         }
-        // Note: Cloudflare detection flag is also cleared since we clear ALL preferences
     }
 
     /**
