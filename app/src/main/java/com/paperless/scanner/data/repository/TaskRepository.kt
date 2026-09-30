@@ -18,6 +18,8 @@ import com.paperless.scanner.util.withRetry
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.IOException
 import javax.inject.Inject
 import com.paperless.scanner.util.AppLogger
@@ -30,6 +32,10 @@ class TaskRepository @Inject constructor(
     companion object {
         private const val TAG = "TaskRepository"
     }
+
+    // Serialize network reads through their cache writes so older responses
+    // cannot replace a newer snapshot or resurrect a task after a detail fetch.
+    private val refreshMutex = Mutex()
 
     /**
      * Fetches every page of `/api/tasks/`.
@@ -48,6 +54,12 @@ class TaskRepository @Inject constructor(
         fetchAllPages(failOnCap = true) { page ->
             api.getTasks(page = page, pageSize = NetworkConfig.TASKS_PAGE_SIZE)
         }
+
+    private suspend fun refreshTaskCache(): List<ApiPaperlessTask> = refreshMutex.withLock {
+        val tasks = fetchAllTasks()
+        cachedTaskDao.replaceFromServer(tasks.map { it.toCachedEntity() })
+        tasks
+    }
 
     /**
      * BEST PRACTICE: Reactive Flow for automatic UI updates.
@@ -123,10 +135,7 @@ class TaskRepository @Inject constructor(
 
             // Network fetch (if online and forceRefresh or cache empty)
             if (networkMonitor.checkOnlineStatus()) {
-                val response = fetchAllTasks()
-                // Update cache - triggers reactive Flow update automatically
-                val cachedEntities = response.map { it.toCachedEntity() }
-                cachedTaskDao.insertAll(cachedEntities)
+                val response = refreshTaskCache()
                 Result.success(response.map { it.apiTaskToDomain() })
             } else {
                 // Offline, no cache
@@ -149,9 +158,10 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = withRetry { api.getTask(taskId) }.results.firstOrNull()
-                response?.let {
-                    cachedTaskDao.insert(it.toCachedEntity())
+                val response = refreshMutex.withLock {
+                    val task = withRetry { api.getTask(taskId) }.results.firstOrNull()
+                    task?.let { cachedTaskDao.upsertFromServer(listOf(it.toCachedEntity())) }
+                    task
                 }
                 Result.success(response?.apiTaskToDomain())
             } else {
@@ -174,9 +184,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = fetchAllTasks().filter { it.isPending }
-                val cachedEntities = response.map { it.toCachedEntity() }
-                cachedTaskDao.insertAll(cachedEntities)
+                val response = refreshTaskCache().filter { it.isPending }
                 Result.success(response.map { it.apiTaskToDomain() })
             } else {
                 Result.success(emptyList())
@@ -198,9 +206,7 @@ class TaskRepository @Inject constructor(
 
             // Fallback to API
             if (networkMonitor.checkOnlineStatus()) {
-                val response = fetchAllTasks().filter { !it.acknowledged }
-                val cachedEntities = response.map { it.toCachedEntity() }
-                cachedTaskDao.insertAll(cachedEntities)
+                val response = refreshTaskCache().filter { !it.acknowledged }
                 Result.success(response.map { it.apiTaskToDomain() })
             } else {
                 Result.success(emptyList())

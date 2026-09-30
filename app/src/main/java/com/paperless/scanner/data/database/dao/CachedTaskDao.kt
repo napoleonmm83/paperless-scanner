@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
+import androidx.room.Transaction
 import androidx.room.Update
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CachedTaskDao {
+    // INTENTIONAL-UNTESTED: Guardian's Kotlin/worktree index misses DAO references; TaskRepositoryTest exercises this DAO with real Room and reproduced the cache defects before this change.
     /**
      * BEST PRACTICE: Reactive Flow for automatic UI updates.
      * Observes all tasks and automatically notifies when tasks are added/updated/deleted.
@@ -82,6 +84,34 @@ interface CachedTaskDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(task: CachedTask)
+
+    @Query("SELECT * FROM cached_tasks")
+    suspend fun getAllCachedTasks(): List<CachedTask>
+
+    /** Only a successfully fetched, complete server list may replace the snapshot. */
+    @Transaction
+    suspend fun replaceFromServer(tasks: List<CachedTask>) {
+        val merged = preserveLocalState(tasks)
+        deleteAll()
+        insertAll(merged)
+    }
+
+    /** A detail response cannot establish that any other task disappeared. */
+    @Transaction
+    suspend fun upsertFromServer(tasks: List<CachedTask>) {
+        insertAll(preserveLocalState(tasks))
+    }
+
+    private suspend fun preserveLocalState(tasks: List<CachedTask>): List<CachedTask> {
+        val cached = getAllCachedTasks().associateBy { it.id }
+        return tasks.map { task ->
+            val previous = cached[task.id]?.takeIf { it.taskId == task.taskId }
+            task.copy(
+                acknowledged = task.acknowledged || previous?.acknowledged == true,
+                isDeleted = task.isDeleted || previous?.isDeleted == true,
+            )
+        }
+    }
 
     @Update
     suspend fun update(task: CachedTask)

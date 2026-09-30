@@ -126,6 +126,7 @@ fun HomeScreen(
     val processingTasksError by processingTasksViewModel.error.collectAsState()
     val processingTasksErrorMessage = when (processingTasksError) {
         is ProcessingTasksError.LoadFailed -> stringResource(R.string.error_load_data)
+        is ProcessingTasksError.AcknowledgeFailed -> stringResource(R.string.error_action_failed)
         null -> null
     }
 
