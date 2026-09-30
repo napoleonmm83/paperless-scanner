@@ -3,8 +3,10 @@
 ## Umsetzung vom 2026-09-30
 
 Der freigegebene Auftrag zur Aufloesung der offenen PRs ersetzt die damalige
-Stage-4-Zurueckstellung. Lifecycle2.11 benoetigt API37 und AGP9.2;
-die gemeinsame Migration verwendet AGP9.2.1, Gradle9.4.1, Kotlin2.4.20,
+Stage-4-Zurueckstellung. Die verwendeten Lifecycle-Compose-Artefakte 2.11.0
+deklarieren compileSdk 37 und mindestens AGP 9.1.0 in ihren AAR-Metadaten.
+Fuer API 37.0 nennt [Googles Mindestversionstabelle](https://developer.android.com/build/releases/about-agp)
+AGP 9.1.1. Die gemeinsame Migration verwendet AGP9.2.1, Gradle9.4.1, Kotlin2.4.20,
 KSP2.3.12, Hilt2.60.1, OkHttp5.4.0 und Coil3.5.0.
 compileSdk ist37, targetSdk bleibt auf dem aktuellen main-Wert36, minSdk26
 und JVM-Target17 bleiben erhalten. Der Daemon laeuft mit JDK21.
