@@ -329,12 +329,17 @@ object AppModule {
                 // Token interceptor - runs on OkHttp thread pool, not main thread
                 val generation = serverCapabilities.snapshotGeneration()
                 val token = tokenManager.getTokenSync()
+                val capturedSession = serverCapabilities.captureRequest(serverUrlHolder.current(), generation)
+                val requiredSession = chain.request().tag(ServerRequestSession::class.java)
+                if (requiredSession != null && requiredSession != capturedSession) {
+                    throw java.io.IOException("Server session changed")
+                }
                 val request = if (token != null) {
                     chain.request().newBuilder()
                         .addHeader("Authorization", "Token $token")
                         .tag(
                             ServerRequestSession::class.java,
-                            serverCapabilities.captureRequest(serverUrlHolder.current(), generation),
+                            capturedSession,
                         )
                         .build()
                 } else {

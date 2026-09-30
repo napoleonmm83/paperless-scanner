@@ -36,12 +36,28 @@ class ServerFeatureTest {
 
     @Test fun `catalog never presents future work as a server upgrade`() {
         assertEquals(9, ServerFeatureCatalog.features.size)
-        ServerFeatureCatalog.features.forEach {
+        val futureFeatures = ServerFeatureCatalog.features.filter { it.id != "share_links" }
+        assertEquals(8, futureFeatures.size)
+        futureFeatures.forEach {
             assertFalse(it.implemented)
             assertNull(it.minimumVersion)
             assertEquals(FeatureStatus.NOT_IMPLEMENTED, it.evaluate(PaperlessServerVersion.parse("1.0.0")))
         }
-        assertTrue(ServerFeatureCatalog.upgradeRequired(PaperlessServerVersion.parse("1.0.0")).isEmpty())
+        assertEquals(listOf("share_links"), ServerFeatureCatalog.upgradeRequired(PaperlessServerVersion.parse("1.0.0")).map { it.id })
+    }
+
+    @Test fun `share links require stable Paperless 2 and are available on newer servers`() {
+        val shareLinks = ServerFeatureCatalog.features.single { it.id == "share_links" }
+        assertTrue(shareLinks.implemented)
+        assertEquals("2.0.0", shareLinks.minimumVersion.toString())
+        assertEquals(FeatureStatus.UNKNOWN, shareLinks.evaluate(null))
+        listOf("1.17.4", "2.0.0-rc.1").forEach {
+            assertEquals(FeatureStatus.UPDATE_REQUIRED, shareLinks.evaluate(PaperlessServerVersion.parse(it)))
+        }
+        listOf("2.0.0", "2.20.0", "3.0.0").forEach {
+            assertEquals(FeatureStatus.AVAILABLE, shareLinks.evaluate(PaperlessServerVersion.parse(it)))
+            assertTrue(ServerFeatureCatalog.upgradeRequired(PaperlessServerVersion.parse(it)).isEmpty())
+        }
     }
 
     @Test fun `only implemented version gated features can require update`() {

@@ -19,6 +19,8 @@ class ServerCapabilityStore @Inject constructor() {
     private val mutableState = MutableStateFlow(ServerCapabilityState())
     val state: StateFlow<ServerCapabilityState> = mutableState.asStateFlow()
     private var generation = 0L
+    private val mutableGeneration = MutableStateFlow(0L)
+    val sessionGeneration: StateFlow<Long> = mutableGeneration.asStateFlow()
     private var initialized = false
     private var active = false
     private var base: HttpUrl? = null
@@ -26,6 +28,7 @@ class ServerCapabilityStore @Inject constructor() {
     @Synchronized
     fun beginCredentialChange(): Long {
         generation++
+        mutableGeneration.value = generation
         initialized = true
         active = false
         base = null
@@ -44,6 +47,10 @@ class ServerCapabilityStore @Inject constructor() {
 
     @Synchronized
     fun snapshotGeneration(): Long = generation
+
+    @Synchronized
+    fun isCurrent(session: ServerRequestSession): Boolean =
+        active && session.generation == generation && session.serverBase == base
 
     @Synchronized
     fun captureRequest(serverUrl: String?, generation: Long): ServerRequestSession? {

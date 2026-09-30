@@ -20,7 +20,10 @@ object ServerFeatureCatalog {
     val features: List<ServerFeature> = listOf(
         "share_links", "saved_views", "bulk_edit", "similar_documents", "custom_fields_search",
         "search_assistance", "pdf_edit", "storage_paths", "file_versions"
-    ).map { ServerFeature(it, implemented = false, minimumVersion = null) }
+    ).map {
+        if (it == "share_links") ServerFeature(it, true, PaperlessServerVersion.parse("2.0.0"))
+        else ServerFeature(it, implemented = false, minimumVersion = null)
+    }
 
     fun upgradeRequired(serverVersion: PaperlessServerVersion?): List<ServerFeature> =
         features.filter { it.evaluate(serverVersion) == FeatureStatus.UPDATE_REQUIRED }
