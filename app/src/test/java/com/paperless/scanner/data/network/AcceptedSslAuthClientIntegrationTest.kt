@@ -27,7 +27,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.IOException
-import java.net.InetAddress
 import java.nio.file.Files
 import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.SSLSocket
@@ -53,7 +52,7 @@ class AcceptedSslAuthClientIntegrationTest {
     @Test
     fun `cached response cannot bypass pending pin recovery`() {
         val cache = Cache(Files.createTempDirectory("pin-recovery-pending-cache").toFile(), 1024L * 1024L)
-        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val requestedHost = "localhost"
         val certificate = HeldCertificate.Builder().commonName(requestedHost)
             .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
         val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
@@ -77,7 +76,7 @@ class AcceptedSslAuthClientIntegrationTest {
     @Test
     fun `manual enrollment bypasses old HTTPS cache to demand fingerprint`() {
         val cache = Cache(Files.createTempDirectory("pin-recovery-manual-cache").toFile(), 1024L * 1024L)
-        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val requestedHost = "localhost"
         val certificate = HeldCertificate.Builder().commonName(requestedHost)
             .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
         val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
@@ -100,7 +99,7 @@ class AcceptedSslAuthClientIntegrationTest {
 
     @Test
     fun `auth client never redirects credentials to another origin`() = runTest {
-        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val requestedHost = "localhost"
         val certificate = HeldCertificate.Builder().commonName(requestedHost)
             .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
         val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
@@ -131,7 +130,7 @@ class AcceptedSslAuthClientIntegrationTest {
 
     @Test
     fun `auth client never follows TLS redirect to cleartext`() = runTest {
-        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        val requestedHost = "localhost"
         val certificate = HeldCertificate.Builder().commonName(requestedHost)
             .addSubjectAlternativeName(requestedHost).addSubjectAlternativeName("localhost").build()
         val certificates = HandshakeCertificates.Builder().heldCertificate(certificate).build()
@@ -181,7 +180,8 @@ class AcceptedSslAuthClientIntegrationTest {
 
     @Test
     fun `accepted self signed host captures its pin and blocks a changed certificate`() = runTest {
-        val requestedHost = InetAddress.getByName("localhost").canonicalHostName
+        // MockWebServer 5 publishes localhost; reverse DNS can name the host differently.
+        val requestedHost = "localhost"
         val certificate = HeldCertificate.Builder()
             .commonName(requestedHost)
             .addSubjectAlternativeName(requestedHost)

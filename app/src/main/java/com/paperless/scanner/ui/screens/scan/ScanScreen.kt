@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.paperless.scanner.R
@@ -64,6 +66,7 @@ fun ScanScreen(
     viewModel: ScanViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val uiState by viewModel.uiState.collectAsState()
@@ -189,9 +192,9 @@ fun ScanScreen(
     LaunchedEffect(uiState.lastRemovedPage) {
         uiState.lastRemovedPage?.let { removedInfo ->
             val result = snackbarHostState.showTypedSnackbar(
-                message = context.getString(R.string.scan_page_removed, removedInfo.page.pageNumber),
+                message = resources.getString(R.string.scan_page_removed, removedInfo.page.pageNumber),
                 icon = SnackbarIcon.INFO,
-                actionLabel = context.getString(R.string.scan_undo),
+                actionLabel = resources.getString(R.string.scan_undo),
                 withDismissAction = true
             )
             when (result) {
@@ -234,7 +237,7 @@ fun ScanScreen(
                 // No need to resume here - we never suspended in this failure path
                 scope.launch {
                     snackbarHostState.showTypedSnackbar(
-                        message = context.getString(R.string.scan_scanner_error, e.message ?: ""),
+                        message = resources.getString(R.string.scan_scanner_error, e.message ?: ""),
                         icon = SnackbarIcon.ERROR
                     )
                 }
@@ -357,12 +360,12 @@ fun ScanScreen(
                         strokeWidth = 6.dp
                     )
                     Text(
-                        text = context.getString(R.string.scan_processing_files),
+                        text = stringResource(R.string.scan_processing_files),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = context.getString(R.string.scan_please_wait),
+                        text = stringResource(R.string.scan_please_wait),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

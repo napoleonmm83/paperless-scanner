@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
@@ -68,7 +69,7 @@ fun DocumentThumbnail(
                     .build()
             )
 
-            when (val state = painter.state) {
+            when (val state = painter.state.collectAsStateWithLifecycle().value) {
                 is AsyncImagePainter.State.Error -> {
                     AppLogger.e(
                         "DocumentThumbnail",

@@ -6,9 +6,9 @@ plugins {
 // Consumed by :app via detektPlugins(project(":detekt-rules")).
 
 dependencies {
-    compileOnly("io.gitlab.arturbosch.detekt:detekt-api:${libs.versions.detekt.get()}")
+    compileOnly("dev.detekt:detekt-api:${libs.versions.detekt.get()}")
 
-    testImplementation("io.gitlab.arturbosch.detekt:detekt-test:${libs.versions.detekt.get()}")
+    testImplementation("dev.detekt:detekt-test:${libs.versions.detekt.get()}")
     testImplementation("junit:junit:${libs.versions.junit.get()}")
 }
 

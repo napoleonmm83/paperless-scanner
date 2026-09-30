@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -36,7 +37,6 @@ import com.paperless.scanner.data.billing.SubscriptionInfo
 import com.paperless.scanner.data.billing.SubscriptionInfoStatus
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +126,7 @@ fun SubscriptionManagementSheet(
 
 @Composable
 private fun SubscriptionInfoCard(info: SubscriptionInfo) {
+    val locale = LocalConfiguration.current.locales[0]
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -167,7 +168,7 @@ private fun SubscriptionInfoCard(info: SubscriptionInfo) {
             )
 
             info.renewalDateMs?.let { renewalMs ->
-                val renewalDate = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+                val renewalDate = SimpleDateFormat("dd.MM.yyyy", locale)
                     .format(Date(renewalMs))
 
                 SubscriptionInfoRow(

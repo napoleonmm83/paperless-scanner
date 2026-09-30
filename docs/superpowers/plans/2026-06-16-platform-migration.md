@@ -1,5 +1,31 @@
 # Platform-Migration Plan — Kotlin 2.4 / compileSdk 36 / AGP 9
 
+## Umsetzung vom 2026-09-30
+
+Der freigegebene Auftrag zur Aufloesung der offenen PRs ersetzt die damalige
+Stage-4-Zurueckstellung. Lifecycle2.11 benoetigt API37 und AGP9.2;
+die gemeinsame Migration verwendet AGP9.2.1, Gradle9.4.1, Kotlin2.4.20,
+KSP2.3.12, Hilt2.60.1, OkHttp5.4.0 und Coil3.5.0.
+compileSdk ist37, targetSdk bleibt auf dem aktuellen main-Wert36, minSdk26
+und JVM-Target17 bleiben erhalten. Der Daemon laeuft mit JDK21.
+
+Hilt2.59.2 aus dem urspruenglichen PR liest Kotlin2.4-Metadaten nicht;
+der echte Release-Compilerfehler begruendet2.60.1 mit dem offiziellen Fix.
+AGP verwendet Built-in-Kotlin. Die explizite Property
+android.onlyEnableUnitTestForTheTestedBuildType=false erhaelt Release-UnitTests.
+FirebasePerformance2.0.2 und ktlint14.2.0 passen zur AGP9-Toolchain.
+
+Die Customrules bleiben ein blockierendes Gate mit Detekt2.0.0-alpha.6,
+unveraenderten Regel-IDs, ServiceLoader-Vertragstest und Error-Severity.
+Der damalige Fallback zur Deaktivierung des Gates wird nicht verwendet.
+Bestehende Baselines werden nicht neu generiert. Paparazzi wurde bereits
+auf main entfernt und wird nicht wieder eingefuehrt. Room2.8.4,
+Robolectric4.16.1, MockK1.13.13 und die Compose-BOM bleiben gepinnt;
+ihre Kompatibilitaet wird durch echte Builds und Tests geprueft.
+
+Die folgenden Abschnitte dokumentieren die historische Entscheidungslage
+vom Juni und sind keine aktuellen Versions- oder Ziel-SDK-Anweisungen.
+
 **Datum:** 2026-06-16
 **Ausgangslage:** main @ v1.5.230, clean & green, 0 offene Issues
 **Ziel:** Die drei zurückgestellten Dependabot-PRs entsperren — #382 (coil 3.0.4→3.5.0), #383 (kotlin 2.1.10→2.4.0), #384 (hilt 2.53.1→2.59.2)

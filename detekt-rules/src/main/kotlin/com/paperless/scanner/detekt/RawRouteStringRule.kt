@@ -1,12 +1,10 @@
 package com.paperless.scanner.detekt
 
-import io.gitlab.arturbosch.detekt.api.CodeSmell
-import io.gitlab.arturbosch.detekt.api.Config
-import io.gitlab.arturbosch.detekt.api.Debt
-import io.gitlab.arturbosch.detekt.api.Entity
-import io.gitlab.arturbosch.detekt.api.Issue
-import io.gitlab.arturbosch.detekt.api.Rule
-import io.gitlab.arturbosch.detekt.api.Severity
+import dev.detekt.api.Config
+import dev.detekt.api.Entity
+import dev.detekt.api.Finding
+import dev.detekt.api.Rule
+import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -17,14 +15,12 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * `Screen.<X>.createRoute(...)` factories (centralized `Uri.encode`, compile-time
  * param types). Raw string routes are typo-prone and fail silently. Plan-08 (#45).
  */
-class RawRouteStringRule(config: Config = Config.empty) : Rule(config) {
-    override val issue = Issue(
-        id = "RawRouteString",
-        severity = Severity.Maintainability,
-        description = "Navigation routes must use Screen.<X>.route or " +
-            "Screen.<X>.createRoute(), not raw strings.",
-        debt = Debt.FIVE_MINS,
-    )
+class RawRouteStringRule(config: Config = Config.empty) : Rule(
+    config,
+    description = "Navigation routes must use Screen.<X>.route or " +
+        "Screen.<X>.createRoute(), not raw strings.",
+) {
+    override val ruleName = RuleName("RawRouteString")
 
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
@@ -33,8 +29,7 @@ class RawRouteStringRule(config: Config = Config.empty) : Rule(config) {
             val argExpr = argument.getArgumentExpression() as? KtStringTemplateExpression ?: continue
             if (looksLikeRoute(argExpr.text)) {
                 report(
-                    CodeSmell(
-                        issue,
+                    Finding(
                         Entity.from(argExpr),
                         "Raw route string ${argExpr.text} passed to navigate() — use " +
                             "Screen.<X>.route or Screen.<X>.createRoute() instead.",

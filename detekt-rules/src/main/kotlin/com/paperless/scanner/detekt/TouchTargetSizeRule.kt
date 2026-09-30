@@ -1,12 +1,10 @@
 package com.paperless.scanner.detekt
 
-import io.gitlab.arturbosch.detekt.api.CodeSmell
-import io.gitlab.arturbosch.detekt.api.Config
-import io.gitlab.arturbosch.detekt.api.Debt
-import io.gitlab.arturbosch.detekt.api.Entity
-import io.gitlab.arturbosch.detekt.api.Issue
-import io.gitlab.arturbosch.detekt.api.Rule
-import io.gitlab.arturbosch.detekt.api.Severity
+import dev.detekt.api.Config
+import dev.detekt.api.Entity
+import dev.detekt.api.Finding
+import dev.detekt.api.Rule
+import dev.detekt.api.RuleName
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
@@ -19,13 +17,11 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
  * fill modifier (`fillMaxSize`/`fillMaxWidth`/`fillMaxHeight`/`matchParentSize`), or
  * an explicit size modifier of >=48.dp. Plan-04 (#264/#266 enforcement).
  */
-class TouchTargetSizeRule(config: Config = Config.empty) : Rule(config) {
-    override val issue = Issue(
-        id = "TouchTargetSize",
-        severity = Severity.Warning,
-        description = "Clickable Modifier without a >=48dp touch target.",
-        debt = Debt.FIVE_MINS,
-    )
+class TouchTargetSizeRule(config: Config = Config.empty) : Rule(
+    config,
+    description = "Clickable Modifier without a >=48dp touch target.",
+) {
+    override val ruleName = RuleName("TouchTargetSize")
 
     override fun visitCallExpression(expression: KtCallExpression) {
         super.visitCallExpression(expression)
@@ -39,8 +35,7 @@ class TouchTargetSizeRule(config: Config = Config.empty) : Rule(config) {
         }
         if (chainCalls(expression).none { it.isTouchTargetGuard() }) {
             report(
-                CodeSmell(
-                    issue,
+                Finding(
                     Entity.from(expression),
                     "clickable Modifier without a >=48dp touch target — add " +
                         ".minimumInteractiveComponentSize() (or a >=48.dp size) before .clickable.",
