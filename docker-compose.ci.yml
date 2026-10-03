@@ -11,7 +11,7 @@
 services:
   # Base CI service
   ci-base:
-    image: fabernovel/android:api-34-gcloud-v1.10.1
+    image: fabernovel/android:api-34-gcloud-v1.11.0
     working_dir: /app
     volumes:
       - .:/app
