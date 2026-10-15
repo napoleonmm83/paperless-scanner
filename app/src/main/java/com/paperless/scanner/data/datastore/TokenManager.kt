@@ -301,10 +301,11 @@ class TokenManager(
         var savedServer: String? = null
         try {
             // Save token to encrypted storage
-            when (val result = secureStorage.saveTokenResult(token)) {
-                is TokenStorageResult.Failure ->
-                    AppLogger.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
-                else -> Unit
+            // Without a stored token the server must not become active (savedServer stays null).
+            val result = secureStorage.saveTokenResult(token)
+            if (result is TokenStorageResult.Failure) {
+                AppLogger.e(TAG, "Failed to save token to encrypted storage (${result.kind})", result.cause)
+                return
             }
 
             // Save server URL to DataStore (not sensitive)

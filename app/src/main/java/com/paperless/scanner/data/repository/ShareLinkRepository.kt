@@ -26,7 +26,7 @@ class ShareLinkRepository @Inject constructor(
     suspend fun refreshCapabilities() = capabilities.refresh()
 
     private fun session(expectedGeneration: Long): ServerRequestSession {
-        capabilities.requireFeature("share_links")
+        capabilities.requireFeature("share_links").getOrThrow()
         return store.captureRequest(capabilityState.value.serverBase, expectedGeneration)
             ?: throw ServerSessionChangedException()
     }

@@ -111,6 +111,21 @@ class TokenManagerTest {
     }
 
     @Test
+    fun tokenStorageFailureWritesNoServerAndActivatesNoCapabilities() = runTest {
+        val url = "https://paperless.example.com"
+        every { secureStorage.saveTokenResult(any()) } returns TokenStorageResult.Failure(
+            TokenStorageFailureKind.KEYSTORE_UNAVAILABLE,
+            java.security.KeyStoreException("keystore busy"),
+        )
+
+        tokenManager.saveCredentials(url, "account")
+
+        assertNull(tokenManager.serverUrl.first())
+        assertNull(capabilities.state.value.serverBase)
+        assertNull(capabilities.captureRequest(url, capabilities.snapshotGeneration()))
+    }
+
+    @Test
     fun `storageCorruptionDetected stays false when no corruption recovery happened`() = runTest {
         tokenManager.storageCorruptionDetected.test {
             assertFalse(awaitItem())

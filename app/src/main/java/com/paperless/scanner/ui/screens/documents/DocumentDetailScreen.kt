@@ -2,8 +2,11 @@ package com.paperless.scanner.ui.screens.documents
 
 import android.content.Intent
 import android.content.ClipData
+import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.Build
+import android.os.PersistableBundle
 import android.widget.Toast
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -382,7 +385,16 @@ fun DocumentDetailScreen(
                     onCopy = { id ->
                         shareLinksViewModel.urlFor(id)?.let { url ->
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText(shareLinksTitle, url))
+                            // A public share link is a bearer secret: keep it out of clipboard previews.
+                            val clip = ClipData.newPlainText(shareLinksTitle, url).apply {
+                                val sensitiveKey = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    ClipDescription.EXTRA_IS_SENSITIVE
+                                } else {
+                                    "android.content.extra.IS_SENSITIVE"
+                                }
+                                description.extras = PersistableBundle().apply { putBoolean(sensitiveKey, true) }
+                            }
+                            clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, R.string.share_links_copied, Toast.LENGTH_SHORT).show()
                         }
                     },

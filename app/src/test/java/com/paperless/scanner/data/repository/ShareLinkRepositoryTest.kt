@@ -8,7 +8,7 @@ import com.paperless.scanner.domain.model.ShareFileVersion
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.Dispatcher
@@ -69,7 +69,7 @@ class ShareLinkRepositoryTest {
 
     private fun request(): RecordedRequest = requireNotNull(server.takeRequest(1, TimeUnit.SECONDS))
 
-    @Test fun `reloading never reuses cached metadata or link list`() = runBlocking {
+    @Test fun `reloading never reuses cached metadata or link list`() = runTest {
         repeat(2) { index ->
             server.enqueue(json("""{"has_archive_version":false}""").setHeader("Cache-Control", "public, max-age=300"))
             server.enqueue(json(if (index == 0) "[${link()}]" else "[]").setHeader("Cache-Control", "public, max-age=300"))
@@ -81,7 +81,7 @@ class ShareLinkRepositoryTest {
         assertEquals(0, client.cache!!.hitCount())
     }
 
-    @Test fun `create original sends document version and seven day UTC expiration`() = runBlocking {
+    @Test fun `create original sends document version and seven day UTC expiration`() = runTest {
         server.enqueue(json(link()))
         val before = Instant.now()
         assertEquals(17, repository.create(42, 7, ShareFileVersion.ORIGINAL).getOrThrow().id)
@@ -98,7 +98,7 @@ class ShareLinkRepositoryTest {
         assertFalse(expiration.isAfter(after.plus(Duration.ofDays(7))))
     }
 
-    @Test fun `unlimited expiration creates original without an expiration date`() = runBlocking {
+    @Test fun `unlimited expiration creates original without an expiration date`() = runTest {
         server.enqueue(json(link()))
         assertTrue(repository.create(42, null, ShareFileVersion.ORIGINAL).isSuccess)
         val body = JsonParser.parseString(request().body.readUtf8()).asJsonObject
@@ -106,14 +106,14 @@ class ShareLinkRepositoryTest {
         assertTrue(!body.has("expiration") || body["expiration"].isJsonNull)
     }
 
-    @Test fun `archive creation checks actual archive availability before publishing`() = runBlocking {
+    @Test fun `archive creation checks actual archive availability before publishing`() = runTest {
         server.enqueue(json("""{"has_archive_version":false}"""))
         assertTrue(repository.create(42, 7, ShareFileVersion.ARCHIVE).isFailure)
         assertEquals("/paperless/api/documents/42/metadata/", request().path)
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `archive creation publishes only after metadata confirms archive`() = runBlocking {
+    @Test fun `archive creation publishes only after metadata confirms archive`() = runTest {
         server.enqueue(json("""{"has_archive_version":true}"""))
         server.enqueue(json(link()))
         assertTrue(repository.create(42, 7, ShareFileVersion.ARCHIVE).isSuccess)
@@ -123,7 +123,7 @@ class ShareLinkRepositoryTest {
         assertEquals("archive", JsonParser.parseString(post.body.readUtf8()).asJsonObject["file_version"].asString)
     }
 
-    @Test fun `revoke accepts empty 204 response`() = runBlocking {
+    @Test fun `revoke accepts empty 204 response`() = runTest {
         server.enqueue(MockResponse().setResponseCode(204))
         assertTrue(repository.delete(17).isSuccess)
         val delete = request()
@@ -131,7 +131,7 @@ class ShareLinkRepositoryTest {
         assertEquals("/paperless/api/share_links/17/", delete.path)
     }
 
-    @Test fun `revoke preserves permission denial as failure`() = runBlocking {
+    @Test fun `revoke preserves permission denial as failure`() = runTest {
         server.enqueue(json("""{"detail":"Permission denied"}""").setResponseCode(403))
         val error = repository.delete(17).exceptionOrNull()
         assertTrue(error is HttpException)
@@ -139,7 +139,7 @@ class ShareLinkRepositoryTest {
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `list permission denial is reported instead of returning an empty list`() = runBlocking {
+    @Test fun `list permission denial is reported instead of returning an empty list`() = runTest {
         server.enqueue(json("""{"has_archive_version":true}"""))
         server.enqueue(json("""{"detail":"Permission denied"}""").setResponseCode(403))
         val error = repository.load(42).exceptionOrNull()
@@ -148,13 +148,13 @@ class ShareLinkRepositoryTest {
         assertEquals(2, server.requestCount)
     }
 
-    @Test fun `server supplied slug cannot redirect public link to an arbitrary destination`() = runBlocking {
+    @Test fun `server supplied slug cannot redirect public link to an arbitrary destination`() = runTest {
         server.enqueue(json(link(slug = "https://other.invalid/token")))
         assertTrue(repository.create(42, 7, ShareFileVersion.ORIGINAL).isFailure)
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `old prerelease and unknown servers reject all actions before HTTP`() = runBlocking {
+    @Test fun `old prerelease and unknown servers reject all actions before HTTP`() = runTest {
         listOf(null, "1.17.4", "2.0.0-rc.1").forEach { version ->
             establishVersion(version)
             assertTrue(repository.load(42).exceptionOrNull() is UnsupportedOperationException)
@@ -164,7 +164,7 @@ class ShareLinkRepositoryTest {
         assertEquals(0, server.requestCount)
     }
 
-    @Test fun `late created link from old account is discarded`() = runBlocking {
+    @Test fun `late created link from old account is discarded`() = runTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 establishVersion("2.0.0") // Same server, different credentials generation.
@@ -176,7 +176,7 @@ class ShareLinkRepositoryTest {
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `account change after metadata prevents subsequent list request`() = runBlocking {
+    @Test fun `account change after metadata prevents subsequent list request`() = runTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 establishVersion("2.0.0")
@@ -187,7 +187,7 @@ class ShareLinkRepositoryTest {
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `account change during archive check prevents publication`() = runBlocking {
+    @Test fun `account change during archive check prevents publication`() = runTest {
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 establishVersion("2.0.0")
@@ -198,7 +198,7 @@ class ShareLinkRepositoryTest {
         assertEquals(1, server.requestCount)
     }
 
-    @Test fun `response slug length and positive identifier boundaries reject malformed links`() = runBlocking {
+    @Test fun `response slug length and positive identifier boundaries reject malformed links`() = runTest {
         val cases = listOf(Triple("a".repeat(128), 1, true), Triple("a".repeat(129), 1, false), Triple("ok", 0, false), Triple("", 1, false))
         cases.forEach { (slug, id, accepted) ->
             server.enqueue(json("""{"has_archive_version":false}"""))
@@ -207,7 +207,7 @@ class ShareLinkRepositoryTest {
         }
     }
 
-    @Test fun `expected old click session cannot create or revoke in new account`() = runBlocking {
+    @Test fun `expected old click session cannot create or revoke in new account`() = runTest {
         val clickedGeneration = store.snapshotGeneration()
         establishVersion("2.0.0")
         assertTrue(repository.create(42, 7, ShareFileVersion.ORIGINAL, clickedGeneration).isFailure)
@@ -216,7 +216,7 @@ class ShareLinkRepositoryTest {
         assertEquals(0, server.requestCount)
     }
 
-    @Test fun `invalid creation and revoke input never reaches server`() = runBlocking {
+    @Test fun `invalid creation and revoke input never reaches server`() = runTest {
         listOf(0, -1, 366).forEach { days ->
             assertTrue(repository.create(42, days, ShareFileVersion.ORIGINAL).isFailure)
         }

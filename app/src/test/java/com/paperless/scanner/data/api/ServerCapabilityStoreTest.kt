@@ -72,7 +72,7 @@ class ServerCapabilityStoreTest {
     @Test fun `invalid bases and generation mismatch cannot capture requests`() {
         assertNull(store.captureRequest(base, store.snapshotGeneration() + 1))
         assertNull(store.captureRequest("invalid", store.snapshotGeneration()))
-        assertNull(store.captureRequest("https://user:password@example.test/", store.snapshotGeneration()))
+        assertNull(store.captureRequest("https://user:x@example.test/", store.snapshotGeneration()))
         assertNotNull(store.captureRequest(base, store.snapshotGeneration()))
     }
 

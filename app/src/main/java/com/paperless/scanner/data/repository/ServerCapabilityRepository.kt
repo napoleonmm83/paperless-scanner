@@ -26,11 +26,13 @@ class ServerCapabilityRepository @Inject constructor(
     }
 
     /** A call-site guard; role/configuration failures are still handled by the endpoint. */
-    fun requireFeature(featureId: String) {
+    internal fun requireFeature(featureId: String): Result<Unit> {
         val feature = ServerFeatureCatalog.features.find { it.id == featureId }
         val status = feature?.evaluate(state.value.serverVersion)
-        if (status != FeatureStatus.AVAILABLE) {
-            throw UnsupportedOperationException("Server feature unavailable: $featureId ($status)")
+        return if (status == FeatureStatus.AVAILABLE) {
+            Result.success(Unit)
+        } else {
+            Result.failure(UnsupportedOperationException("Server feature unavailable: $featureId ($status)"))
         }
     }
 }

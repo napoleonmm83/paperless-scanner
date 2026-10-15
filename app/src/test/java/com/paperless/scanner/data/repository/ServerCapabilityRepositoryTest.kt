@@ -39,10 +39,7 @@ class ServerCapabilityRepositoryTest {
 
     @Test fun `future feature call guard rejects before network access`() {
         listOf("share_links", "pdf_edit", "unknown_feature").forEach { id ->
-            try {
-                repository.requireFeature(id)
-                fail("Unavailable feature must be rejected")
-            } catch (_: UnsupportedOperationException) { }
+            assertTrue(id, repository.requireFeature(id).exceptionOrNull() is UnsupportedOperationException)
         }
         coVerify(exactly = 0) { api.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
