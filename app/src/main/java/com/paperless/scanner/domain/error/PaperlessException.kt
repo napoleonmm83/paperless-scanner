@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.StringRes
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CleartextNotAllowlistedException
+import com.paperless.scanner.data.api.ServerSessionChangedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
 import com.paperless.scanner.data.network.CertificatePinPersistenceException
 import java.io.IOException
@@ -323,6 +324,17 @@ sealed class PaperlessException(
         override val messageResId: Int = R.string.cert_pin_storage_failed
     }
 
+    /**
+     * The request belonged to a server or account that is no longer active.
+     * Translated from [ServerSessionChangedException]; not a connectivity problem.
+     */
+    data class ServerSessionChanged(
+        val originalException: ServerSessionChangedException,
+    ) : PaperlessException("Server session changed", originalException) {
+        @StringRes
+        override val messageResId: Int = R.string.error_server_session_changed
+    }
+
     companion object {
         /**
          * Creates appropriate PaperlessException from HTTP status code.
@@ -417,6 +429,9 @@ sealed class PaperlessException(
 
                 is CertificatePinPersistenceException ->
                     CertificatePinStorageError(throwable.host, throwable)
+
+                // Also an IOException; an account switch must not read as "check your internet".
+                is ServerSessionChangedException -> ServerSessionChanged(throwable)
 
                 // TLS *trust* failures — before the IOException branch, because both of
                 // these extend SSLException, which extends IOException.
