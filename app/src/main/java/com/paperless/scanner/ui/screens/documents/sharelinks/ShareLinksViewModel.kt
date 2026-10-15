@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 data class ShareLinksUiState(
     val availability: FeatureStatus = FeatureStatus.UNKNOWN,
@@ -133,7 +134,10 @@ class ShareLinksViewModel @Inject constructor(
             AnalyticsEvent.ShareLinkFailed(
                 operation = operationName,
                 errorType = error::class.simpleName ?: "Unknown",
-                diagnosticTag = (error as? PaperlessException)?.diagnosticTag
+                // The repository hands back raw exceptions, so a 403/404/500 arrives as
+                // HttpException; keep the status, which is what tells those apart.
+                diagnosticTag = (error as? HttpException)?.let { "HTTP ${it.code()}" }
+                    ?: (error as? PaperlessException)?.diagnosticTag
                     ?: error::class.simpleName ?: "Unknown"
             )
         )

@@ -35,6 +35,10 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ShareLinksViewModelTest {
@@ -138,6 +142,18 @@ class ShareLinksViewModelTest {
         verify(exactly = 1) {
             analytics.trackEvent(AnalyticsEvent.ShareLinkFailed("load", "ServerSessionChangedException", "ServerSessionChangedException"))
         }
+    }
+
+    @Test fun `http failure reports the status code as diagnostic tag`() = runTest {
+        val error = HttpException(
+            Response.error<Any>(403, "{}".toResponseBody("application/json".toMediaType()))
+        )
+        coEvery { repository.load(42, any()) } returns Result.failure(error)
+        val vm = ShareLinksViewModel(repository, analytics, crashlytics)
+        runCurrent()
+        vm.open(42)
+        runCurrent()
+        verify(exactly = 1) { analytics.trackEvent(AnalyticsEvent.ShareLinkFailed("load", "HttpException", "HTTP 403")) }
     }
 
     @Test fun `failed revocation retains link and exposes error`() = runTest {
