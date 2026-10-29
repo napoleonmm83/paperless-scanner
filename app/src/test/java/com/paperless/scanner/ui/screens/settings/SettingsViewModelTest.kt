@@ -4,9 +4,9 @@ import com.paperless.scanner.data.analytics.AnalyticsEvent
 import com.paperless.scanner.data.analytics.AnalyticsService
 import com.paperless.scanner.data.analytics.DiagnosticsReportService
 import com.paperless.scanner.util.DiagnosticReportSender
-import com.paperless.scanner.data.repository.ServerStatusRepository
-import com.paperless.scanner.domain.model.ServerStatus
-import okhttp3.ResponseBody.Companion.toResponseBody
+import com.paperless.scanner.data.repository.ServerCapabilityRepository
+import com.paperless.scanner.domain.model.ServerCapabilityState
+import com.paperless.scanner.domain.model.PaperlessServerVersion
 import com.paperless.scanner.data.billing.BillingManager
 import com.paperless.scanner.data.billing.LaunchPromoManager
 import com.paperless.scanner.data.billing.LaunchPromoState
@@ -41,7 +41,8 @@ import org.junit.Test
 class SettingsViewModelTest {
 
     private lateinit var tokenManager: TokenManager
-    private lateinit var serverStatusRepository: ServerStatusRepository
+    private lateinit var serverCapabilityRepository: ServerCapabilityRepository
+    private val capabilityState = MutableStateFlow(ServerCapabilityState())
     private lateinit var analyticsService: AnalyticsService
     private lateinit var billingManager: BillingManager
     private lateinit var premiumFeatureManager: PremiumFeatureManager
@@ -56,9 +57,10 @@ class SettingsViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         tokenManager = mockk(relaxed = true)
-        serverStatusRepository = mockk(relaxed = true)
-        // Default: server status fetch fails (matches the old "silent fail" behavior).
-        coEvery { serverStatusRepository.getServerStatus() } returns Result.failure(Exception("not stubbed"))
+        capabilityState.value = ServerCapabilityState()
+        serverCapabilityRepository = mockk(relaxed = true)
+        every { serverCapabilityRepository.state } returns capabilityState
+        coEvery { serverCapabilityRepository.refresh() } returns Result.failure(Exception("offline"))
         analyticsService = mockk(relaxed = true)
         billingManager = mockk(relaxed = true)
         premiumFeatureManager = mockk(relaxed = true)
@@ -104,7 +106,7 @@ class SettingsViewModelTest {
             // with the sender stubbed out.
             context = mockk(relaxed = true),
             tokenManager = tokenManager,
-            serverStatusRepository = serverStatusRepository,
+            serverCapabilityRepository = serverCapabilityRepository,
             analyticsService = analyticsService,
             billingManager = billingManager,
             premiumFeatureManager = premiumFeatureManager,
@@ -119,9 +121,12 @@ class SettingsViewModelTest {
     // ==================== Initial State Tests ====================
 
     @Test
-    fun `loadServerVersion populates serverVersion on success`() = runTest {
-        coEvery { serverStatusRepository.getServerStatus() } returns
-            Result.success(ServerStatus(paperlessVersion = "2.6.0"))
+    fun `server version follows capabilities without admin status endpoint`() = runTest {
+        capabilityState.value = ServerCapabilityState(
+            serverVersion = PaperlessServerVersion.parse("2.6.0"),
+            displayVersion = "2.6.0",
+            serverBase = "https://paperless.example.com/",
+        )
 
         val viewModel = createViewModel()
         advanceUntilIdle()
@@ -130,19 +135,51 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `loadServerVersion leaves serverVersion null on failure`() = runTest {
-        // Default mock already returns Result.failure — explicit re-stub for clarity.
-        coEvery { serverStatusRepository.getServerStatus() } returns
-            Result.failure(retrofit2.HttpException(retrofit2.Response.error<Any>(403, "".toResponseBody())))
-
+    fun `unknown server leaves upgrade list empty on probe failure`() = runTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         assertEquals(null, viewModel.uiState.value.serverVersion)
+        assertTrue(viewModel.uiState.value.serverUpgradeFeatures.isEmpty())
     }
 
     @Test
-    fun `initial uiState has correct defaults`() = runTest {
+    fun knownVersionSurvivesDelayedSettingsLoad() = runTest {
+        capabilityState.value = ServerCapabilityState(
+            serverVersion = PaperlessServerVersion.parse("2.6.0"),
+            displayVersion = "2.6.0",
+        )
+        every { tokenManager.serverUrl } returns kotlinx.coroutines.flow.flow {
+            kotlinx.coroutines.delay(100)
+            emit("https://paperless.example.com")
+        }
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals("2.6.0", viewModel.uiState.value.serverVersion)
+    }
+
+    @Test
+    fun `account change clears version even with same server URL`() = runTest {
+        capabilityState.value = ServerCapabilityState(
+            serverVersion = PaperlessServerVersion.parse("3.0.0"),
+            displayVersion = "3.0.0",
+            serverBase = "https://paperless.example.com/",
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+        assertEquals("3.0.0", viewModel.uiState.value.serverVersion)
+
+        capabilityState.value = ServerCapabilityState()
+        advanceUntilIdle()
+
+        assertEquals(null, viewModel.uiState.value.serverVersion)
+        assertTrue(viewModel.uiState.value.serverUpgradeFeatures.isEmpty())
+    }
+
+    @Test
+    fun initialUiStateHasCorrectDefaults() = runTest {
         val viewModel = createViewModel()
         advanceUntilIdle()
 

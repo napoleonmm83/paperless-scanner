@@ -5,6 +5,7 @@ import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CleartextNotAllowlistedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
 import com.paperless.scanner.data.network.CertificatePinPersistenceException
+import com.paperless.scanner.domain.model.FeatureStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -305,6 +306,19 @@ class PaperlessExceptionTest {
         assertTrue(mapped is PaperlessException.CertificatePinStorageError)
         assertEquals(R.string.cert_pin_storage_failed, mapped.messageResId)
         assertFalse(mapped.isRetryable)
+    }
+
+    @Test
+    fun `unavailable server feature keeps its identity and a localized message`() {
+        val error = PaperlessException.ServerFeatureUnavailable("share_links", FeatureStatus.UPDATE_REQUIRED)
+
+        assertTrue(PaperlessException.from(error) === error)
+        assertEquals(R.string.error_server_feature_unavailable, error.messageResId)
+        assertEquals("share_links:UPDATE_REQUIRED", error.diagnosticTag)
+        assertEquals("share_links:UNKNOWN_FEATURE", PaperlessException.ServerFeatureUnavailable("share_links", null).diagnosticTag)
+        // Crashlytics receives the raw throwable without custom keys, so the status must stay in the message.
+        assertTrue(error.message.contains("UPDATE_REQUIRED"))
+        assertFalse(error.isRetryable)
     }
 
     @Test
