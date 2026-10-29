@@ -4,6 +4,7 @@ import com.google.gson.JsonParser
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.ServerCapabilityStore
 import com.paperless.scanner.data.api.ServerSessionChangedException
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.model.ShareFileVersion
 import java.time.Duration
 import java.time.Instant
@@ -157,9 +158,9 @@ class ShareLinkRepositoryTest {
     @Test fun `old prerelease and unknown servers reject all actions before HTTP`() = runTest {
         listOf(null, "1.17.4", "2.0.0-rc.1").forEach { version ->
             establishVersion(version)
-            assertTrue(repository.load(42).exceptionOrNull() is UnsupportedOperationException)
-            assertTrue(repository.create(42, 7, ShareFileVersion.ORIGINAL).exceptionOrNull() is UnsupportedOperationException)
-            assertTrue(repository.delete(17).exceptionOrNull() is UnsupportedOperationException)
+            assertTrue(repository.load(42).exceptionOrNull() is PaperlessException.ServerFeatureUnavailable)
+            assertTrue(repository.create(42, 7, ShareFileVersion.ORIGINAL).exceptionOrNull() is PaperlessException.ServerFeatureUnavailable)
+            assertTrue(repository.delete(17).exceptionOrNull() is PaperlessException.ServerFeatureUnavailable)
         }
         assertEquals(0, server.requestCount)
     }

@@ -1466,6 +1466,7 @@
     <string name="server_feature_storage_paths">Select storage paths</string>
     <string name="server_feature_file_versions">Document versions</string>
     <string name="server_feature_additional_function">Additional function</string>
+    <string name="error_server_feature_unavailable">This feature isn\'t available for the connected Paperless server.</string>
     <string name="share_links_title">Share links</string>
     <string name="share_links_public_notice">Anyone with this link can access the file without signing in.</string>
     <string name="share_links_unavailable">Share links require a detected Paperless version of 2.0.0 or later.</string>

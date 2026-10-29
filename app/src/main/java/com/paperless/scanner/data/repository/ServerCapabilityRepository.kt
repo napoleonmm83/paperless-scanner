@@ -2,6 +2,7 @@ package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.ServerCapabilityStore
+import com.paperless.scanner.domain.error.PaperlessException
 import com.paperless.scanner.domain.model.FeatureStatus
 import com.paperless.scanner.domain.model.ServerFeatureCatalog
 import javax.inject.Inject
@@ -32,7 +33,7 @@ class ServerCapabilityRepository @Inject constructor(
         return if (status == FeatureStatus.AVAILABLE) {
             Result.success(Unit)
         } else {
-            Result.failure(UnsupportedOperationException("Server feature unavailable: $featureId ($status)"))
+            Result.failure(PaperlessException.ServerFeatureUnavailable(featureId, status))
         }
     }
 }

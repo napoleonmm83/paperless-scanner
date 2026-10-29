@@ -156,6 +156,20 @@ class ShareLinksViewModelTest {
         verify(exactly = 1) { analytics.trackEvent(AnalyticsEvent.ShareLinkFailed("load", "HttpException", "HTTP 403")) }
     }
 
+    @Test fun `unavailable feature reports its status tag and a localized message`() = runTest {
+        val error = PaperlessException.ServerFeatureUnavailable("share_links", FeatureStatus.UPDATE_REQUIRED)
+        coEvery { repository.load(42, any()) } returns Result.failure(error)
+        val vm = ShareLinksViewModel(repository, analytics, crashlytics)
+        runCurrent()
+        vm.open(42)
+        runCurrent()
+        assertSame(error, vm.state.value.error)
+        assertEquals(R.string.error_server_feature_unavailable, PaperlessException.from(error).messageResId)
+        verify(exactly = 1) {
+            analytics.trackEvent(AnalyticsEvent.ShareLinkFailed("load", "ServerFeatureUnavailable", "share_links:UPDATE_REQUIRED"))
+        }
+    }
+
     @Test fun `failed revocation retains link and exposes error`() = runTest {
         val error = IOException("revoke denied")
         coEvery { repository.delete(17, any()) } returns Result.failure(error)

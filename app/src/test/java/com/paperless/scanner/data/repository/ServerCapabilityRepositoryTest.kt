@@ -2,6 +2,8 @@ package com.paperless.scanner.data.repository
 
 import com.paperless.scanner.data.api.PaperlessApi
 import com.paperless.scanner.data.api.ServerCapabilityStore
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.model.FeatureStatus
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -38,8 +40,13 @@ class ServerCapabilityRepositoryTest {
     }
 
     @Test fun `future feature call guard rejects before network access`() {
-        listOf("share_links", "pdf_edit", "unknown_feature").forEach { id ->
-            assertTrue(id, repository.requireFeature(id).exceptionOrNull() is UnsupportedOperationException)
+        mapOf(
+            "share_links" to FeatureStatus.UNKNOWN,
+            "pdf_edit" to FeatureStatus.NOT_IMPLEMENTED,
+            "unknown_feature" to null,
+        ).forEach { (id, status) ->
+            val error = repository.requireFeature(id).exceptionOrNull()
+            assertEquals(id, PaperlessException.ServerFeatureUnavailable(id, status), error)
         }
         coVerify(exactly = 0) { api.getDocuments(any(), any(), any(), any(), any(), any(), any(), any()) }
     }
