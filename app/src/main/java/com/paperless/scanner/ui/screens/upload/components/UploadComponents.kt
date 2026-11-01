@@ -55,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -143,7 +144,7 @@ fun CorrespondentDropdown(
     var expanded by remember { mutableStateOf(false) }
     val selectedName = correspondents.find { it.id == selectedId }?.name
     // Re-seeded when the selected name changes (incl. a freshly created correspondent).
-    var query by remember(selectedName) { mutableStateOf(selectedName.orEmpty()) }
+    var query by rememberSaveable(selectedName) { mutableStateOf(selectedName.orEmpty()) }
     val trimmed = query.trim()
     val visible = if (trimmed.isEmpty() || trimmed == selectedName) {
         correspondents

@@ -9,7 +9,9 @@ import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.screens.upload.CreateCorrespondentState
 import com.paperless.scanner.ui.screens.upload.usecase.CreateCorrespondentResult
 import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
+import app.cash.turbine.test
 import io.mockk.coEvery
+import kotlinx.coroutines.CompletableDeferred
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -69,17 +71,22 @@ class StepByStepMetadataViewModelTest {
     @Test
     fun `createCorrespondent goes Creating then Success`() = runTest {
         val created = Correspondent(id = 5, name = "ACME AG")
-        coEvery { uploadMetadataUseCase.createCorrespondent("ACME AG") } returns
+        val gate = CompletableDeferred<Unit>()
+        coEvery { uploadMetadataUseCase.createCorrespondent("ACME AG") } coAnswers {
+            gate.await() // hold the call open so the Creating state is observable
             CreateCorrespondentResult.Success(created)
+        }
         val viewModel = createViewModel()
 
-        viewModel.createCorrespondent("ACME AG")
-        assertEquals(CreateCorrespondentState.Idle, viewModel.createCorrespondentState.value)
-        runCurrent()
-
-        assertEquals(CreateCorrespondentState.Success(created), viewModel.createCorrespondentState.value)
-        viewModel.resetCreateCorrespondentState()
-        assertEquals(CreateCorrespondentState.Idle, viewModel.createCorrespondentState.value)
+        viewModel.createCorrespondentState.test {
+            assertEquals(CreateCorrespondentState.Idle, awaitItem())
+            viewModel.createCorrespondent("ACME AG")
+            assertEquals(CreateCorrespondentState.Creating, awaitItem())
+            gate.complete(Unit)
+            assertEquals(CreateCorrespondentState.Success(created), awaitItem())
+            viewModel.resetCreateCorrespondentState()
+            assertEquals(CreateCorrespondentState.Idle, awaitItem())
+        }
     }
 
     @Test

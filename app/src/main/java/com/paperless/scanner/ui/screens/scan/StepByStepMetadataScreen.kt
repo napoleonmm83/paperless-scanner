@@ -135,7 +135,10 @@ fun StepByStepMetadataScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.scan_step_metadata_back)
