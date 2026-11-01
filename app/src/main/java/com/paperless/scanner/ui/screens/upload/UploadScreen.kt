@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -157,6 +158,9 @@ fun UploadScreen(
         }
     }
 
+    // Swallow system Back while creating, else the call is cancelled after the server may already
+    // have created the correspondent (exists, but never selected).
+    BackHandler(enabled = createCorrespondentState is CreateCorrespondentState.Creating) {}
     LaunchedEffect(createCorrespondentState) {
         (createCorrespondentState as? CreateCorrespondentState.Success)?.let {
             selectedCorrespondentId = it.correspondent.id
@@ -212,7 +216,10 @@ fun UploadScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.upload_title)) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.upload_back)

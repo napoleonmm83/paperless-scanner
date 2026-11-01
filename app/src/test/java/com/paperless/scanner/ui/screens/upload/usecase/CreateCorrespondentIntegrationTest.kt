@@ -13,15 +13,10 @@ import com.paperless.scanner.testing.BaseRoomRepositoryTest
 import com.paperless.scanner.util.CoroutineDispatchers
 import io.mockk.coEvery
 import io.mockk.mockk
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -42,20 +37,20 @@ class CreateCorrespondentIntegrationTest : BaseRoomRepositoryTest() {
     private val context: Context get() = RuntimeEnvironment.getApplication()
     private val api: PaperlessApi = mockk()
     private val networkMonitor: NetworkMonitor = mockk(relaxed = true)
-    private val sharingScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
     private lateinit var repository: CorrespondentRepository
 
     @Before
     fun setup() {
         coEvery { networkMonitor.checkOnlineStatus() } returns true
-        repository = CorrespondentRepository(
-            api, database.cachedCorrespondentDao(), database.pendingChangeDao(), networkMonitor, sharingScope,
-        )
     }
 
-    // The dispatcher MUST share runTest's scheduler: on a foreign scheduler the refresh path's
+    // Everything MUST run on runTest's scheduler: on a foreign scheduler the refresh path's
     // timeout/retry delays are never advanced and the test hangs (measured: 20-min task timeout).
+    // backgroundScope is on that scheduler and is cancelled by runTest, so no @After is needed.
     private fun TestScope.useCase(): UploadMetadataUseCase {
+        repository = CorrespondentRepository(
+            api, database.cachedCorrespondentDao(), database.pendingChangeDao(), networkMonitor, backgroundScope,
+        )
         val io = UnconfinedTestDispatcher(testScheduler)
         return UploadMetadataUseCase(
             context = context,
@@ -67,9 +62,6 @@ class CreateCorrespondentIntegrationTest : BaseRoomRepositoryTest() {
             dispatchers = CoroutineDispatchers(io = io, default = io, main = io),
         )
     }
-
-    @After
-    fun tearDown() = sharingScope.cancel()
 
     @Test
     fun `created correspondent is returned and lands in the cache the dropdown observes`() = runTest {
