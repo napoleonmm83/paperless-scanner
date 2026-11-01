@@ -225,7 +225,8 @@ fun StepByStepMetadataScreen(
                     // Correspondent Dropdown
                     CorrespondentDropdown(
                         correspondents = correspondents,
-                        selectedId = selectedCorrespondentId,
+                        // 0 is this screen's "none"; the dropdown expects null for that.
+                        selectedId = selectedCorrespondentId.takeIf { it > 0 },
                         onSelect = {
                             selectedCorrespondentId = it ?: 0
                             viewModel.resetCreateCorrespondentState()

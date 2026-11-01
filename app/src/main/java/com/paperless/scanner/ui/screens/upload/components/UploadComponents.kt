@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,8 +144,16 @@ fun CorrespondentDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedName = correspondents.find { it.id == selectedId }?.name
-    // Re-seeded when the selected name changes (incl. a freshly created correspondent).
-    var query by rememberSaveable(selectedName) { mutableStateOf(selectedName.orEmpty()) }
+    var query by rememberSaveable { mutableStateOf(selectedName.orEmpty()) }
+    // Which selection `query` was last seeded from. Saved with it, so a list that (re)loads after
+    // recreation can't overwrite restored typing — only a real selection change re-seeds.
+    var seededKey by rememberSaveable { mutableStateOf(UNSEEDED) }
+    LaunchedEffect(selectedId, selectedName) {
+        correspondentQueryReseedKey(seededKey, selectedId, selectedName)?.let {
+            query = selectedName.orEmpty()
+            seededKey = it
+        }
+    }
     val trimmed = query.trim()
     val visible = if (trimmed.isEmpty() || trimmed == selectedName) {
         correspondents
@@ -237,6 +246,18 @@ fun CorrespondentDropdown(
             }
         }
     }
+}
+
+private const val UNSEEDED = "unseeded"
+
+/**
+ * Returns the new seed key if the dropdown text must be re-seeded from the selection, else null.
+ * Re-seeds only when the *selection* differs from the one last seeded; waits while a selected
+ * id's name is still unknown (list not loaded yet) instead of seeding an empty string.
+ */
+internal fun correspondentQueryReseedKey(seededKey: String, selectedId: Int?, selectedName: String?): String? {
+    val key = selectedId?.toString() ?: "none"
+    return key.takeIf { it != seededKey && (selectedId == null || selectedName != null) }
 }
 
 /** The trimmed name to offer for creation, or null if blank or it already exists (case-insensitive). */
