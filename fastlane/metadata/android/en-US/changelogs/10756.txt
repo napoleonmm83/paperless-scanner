@@ -1,0 +1,8 @@
+Version 1.5.256:
+
+✨ New Features:
+- Create a new correspondent right in the upload form
+- Type in the correspondent field to filter
+
+🔧 Improvements:
+- Clear error message if creating fails offline

@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -88,6 +89,7 @@ fun UploadScreen(
     val customFields by viewModel.customFields.collectAsState()
     val customFieldValues by viewModel.customFieldValues.collectAsState()
     val createTagState by viewModel.createTagState.collectAsState()
+    val createCorrespondentState by viewModel.createCorrespondentState.collectAsState()
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
     val suggestionSource by viewModel.suggestionSource.collectAsState()
@@ -156,6 +158,16 @@ fun UploadScreen(
         }
     }
 
+    // Swallow system Back while creating, else the call is cancelled after the server may already
+    // have created the correspondent (exists, but never selected).
+    BackHandler(enabled = createCorrespondentState is CreateCorrespondentState.Creating) {}
+    LaunchedEffect(createCorrespondentState) {
+        (createCorrespondentState as? CreateCorrespondentState.Success)?.let {
+            selectedCorrespondentId = it.correspondent.id
+            viewModel.resetCreateCorrespondentState()
+        }
+    }
+
     LaunchedEffect(createTagState) {
         when (val tagState = createTagState) {
             is CreateTagState.Success -> {
@@ -204,7 +216,10 @@ fun UploadScreen(
                 TopAppBar(
                     title = { Text(stringResource(R.string.upload_title)) },
                     navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
+                        IconButton(
+                            onClick = onNavigateBack,
+                            enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
+                        ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.upload_back)
@@ -262,7 +277,13 @@ fun UploadScreen(
             CorrespondentDropdown(
                 correspondents = correspondents,
                 selectedId = selectedCorrespondentId,
-                onSelect = { selectedCorrespondentId = it }
+                onSelect = {
+                    selectedCorrespondentId = it
+                    viewModel.resetCreateCorrespondentState()
+                },
+                onCreate = viewModel::createCorrespondent,
+                isCreating = createCorrespondentState is CreateCorrespondentState.Creating,
+                errorMessage = (createCorrespondentState as? CreateCorrespondentState.Error)?.message,
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -449,7 +470,9 @@ fun UploadScreen(
                         customFields = customFieldValues
                     )
                 },
-                enabled = uiState !is UploadUiState.Queuing,
+                // Wait for an inline correspondent creation, else the upload goes out without it.
+                enabled = uiState !is UploadUiState.Queuing &&
+                    createCorrespondentState !is CreateCorrespondentState.Creating,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)

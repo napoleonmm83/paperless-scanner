@@ -33,6 +33,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.screens.upload.CreateCorrespondentState
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -105,6 +108,17 @@ fun StepByStepMetadataScreen(
         mutableIntStateOf(viewModel.getCurrentPageMetadata()?.documentType ?: 0)
     }
 
+    val createCorrespondentState by viewModel.createCorrespondentState.collectAsState()
+    // Swallow system Back while creating: leaving would cancel the call after the server may
+    // already have created the correspondent, so it would exist but never be selected.
+    BackHandler(enabled = createCorrespondentState is CreateCorrespondentState.Creating) {}
+    LaunchedEffect(createCorrespondentState) {
+        (createCorrespondentState as? CreateCorrespondentState.Success)?.let {
+            selectedCorrespondentId = it.correspondent.id
+            viewModel.resetCreateCorrespondentState()
+        }
+    }
+
     // Save metadata when navigating or finishing
     fun saveCurrentPageMetadata() {
         val metadata = PageMetadata(
@@ -126,7 +140,10 @@ fun StepByStepMetadataScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(
+                        onClick = onNavigateBack,
+                        enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.scan_step_metadata_back)
@@ -211,11 +228,22 @@ fun StepByStepMetadataScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Correspondent Dropdown
-                    CorrespondentDropdown(
-                        correspondents = correspondents,
-                        selectedId = selectedCorrespondentId,
-                        onSelect = { selectedCorrespondentId = it ?: 0 }
-                    )
+                    // Fresh dropdown state per page: unconfirmed typing must not carry over,
+                    // even when both pages have no correspondent (no selection change to react to).
+                    key(uiState.currentPageIndex) {
+                        CorrespondentDropdown(
+                            correspondents = correspondents,
+                            // 0 is this screen's "none"; the dropdown expects null for that.
+                            selectedId = selectedCorrespondentId.takeIf { it > 0 },
+                            onSelect = {
+                                selectedCorrespondentId = it ?: 0
+                                viewModel.resetCreateCorrespondentState()
+                            },
+                            onCreate = viewModel::createCorrespondent,
+                            isCreating = createCorrespondentState is CreateCorrespondentState.Creating,
+                            errorMessage = (createCorrespondentState as? CreateCorrespondentState.Error)?.message,
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -250,6 +278,7 @@ fun StepByStepMetadataScreen(
                                 saveCurrentPageMetadata()
                                 viewModel.previousPage()
                             },
+                            enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -281,6 +310,8 @@ fun StepByStepMetadataScreen(
                                 viewModel.nextPage()
                             }
                         },
+                        // A pending creation would otherwise land on the next page's state.
+                        enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),

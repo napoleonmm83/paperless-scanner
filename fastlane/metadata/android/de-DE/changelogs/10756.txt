@@ -1,0 +1,8 @@
+Version 1.5.256:
+
+✨ Neue Features:
+- Neuen Korrespondenten direkt beim Upload anlegen
+- Im Korrespondent-Feld tippen und filtern
+
+🔧 Verbesserungen:
+- Klare Fehlermeldung, wenn Anlegen offline scheitert
