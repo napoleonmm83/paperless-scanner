@@ -10,6 +10,9 @@ import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Correspondent
+import com.paperless.scanner.ui.screens.upload.CreateCorrespondentState
+import com.paperless.scanner.ui.screens.upload.usecase.CreateCorrespondentResult
+import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +44,8 @@ class StepByStepMetadataViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val tagRepository: TagRepository,
     private val documentTypeRepository: DocumentTypeRepository,
-    private val correspondentRepository: CorrespondentRepository
+    private val correspondentRepository: CorrespondentRepository,
+    private val uploadMetadataUseCase: UploadMetadataUseCase,
 ) : ViewModel() {
 
     companion object {
@@ -61,6 +65,9 @@ class StepByStepMetadataViewModel @Inject constructor(
 
     private val _correspondents = MutableStateFlow<List<Correspondent>>(emptyList())
     val correspondents: StateFlow<List<Correspondent>> = _correspondents.asStateFlow()
+
+    private val _createCorrespondentState = MutableStateFlow<CreateCorrespondentState>(CreateCorrespondentState.Idle)
+    val createCorrespondentState: StateFlow<CreateCorrespondentState> = _createCorrespondentState.asStateFlow()
 
     init {
         observeTagsReactively()
@@ -126,7 +133,24 @@ class StepByStepMetadataViewModel @Inject constructor(
         }
     }
 
+    /** Inline creation from the correspondent dropdown; same use-case path as the upload screens. */
+    fun createCorrespondent(name: String) {
+        viewModelScope.launch {
+            _createCorrespondentState.update { CreateCorrespondentState.Creating }
+            val next = when (val result = uploadMetadataUseCase.createCorrespondent(name)) {
+                is CreateCorrespondentResult.Success -> CreateCorrespondentState.Success(result.correspondent)
+                is CreateCorrespondentResult.Failure -> CreateCorrespondentState.Error(result.message)
+            }
+            _createCorrespondentState.update { next }
+        }
+    }
+
+    fun resetCreateCorrespondentState() {
+        _createCorrespondentState.update { CreateCorrespondentState.Idle }
+    }
+
     fun nextPage() {
+        resetCreateCorrespondentState() // a page-1 error must not show on page 2
         _uiState.update { state ->
             if (state.hasNext) {
                 val newIndex = state.currentPageIndex + 1
@@ -139,6 +163,7 @@ class StepByStepMetadataViewModel @Inject constructor(
     }
 
     fun previousPage() {
+        resetCreateCorrespondentState()
         _uiState.update { state ->
             if (state.hasPrevious) {
                 val newIndex = state.currentPageIndex - 1

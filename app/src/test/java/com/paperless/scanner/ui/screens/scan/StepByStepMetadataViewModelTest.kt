@@ -4,7 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import com.paperless.scanner.data.repository.CorrespondentRepository
 import com.paperless.scanner.data.repository.DocumentTypeRepository
 import com.paperless.scanner.data.repository.TagRepository
+import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.ui.screens.upload.CreateCorrespondentState
+import com.paperless.scanner.ui.screens.upload.usecase.CreateCorrespondentResult
+import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -32,6 +36,7 @@ class StepByStepMetadataViewModelTest {
     private lateinit var tagRepository: TagRepository
     private lateinit var documentTypeRepository: DocumentTypeRepository
     private lateinit var correspondentRepository: CorrespondentRepository
+    private lateinit var uploadMetadataUseCase: UploadMetadataUseCase
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -41,6 +46,7 @@ class StepByStepMetadataViewModelTest {
         tagRepository = mockk(relaxed = true)
         documentTypeRepository = mockk(relaxed = true)
         correspondentRepository = mockk(relaxed = true)
+        uploadMetadataUseCase = mockk(relaxed = true)
 
         every { tagRepository.observeTags() } returns MutableStateFlow(emptyList())
         every { documentTypeRepository.observeDocumentTypes() } returns MutableStateFlow(emptyList())
@@ -57,7 +63,53 @@ class StepByStepMetadataViewModelTest {
         tagRepository = tagRepository,
         documentTypeRepository = documentTypeRepository,
         correspondentRepository = correspondentRepository,
+        uploadMetadataUseCase = uploadMetadataUseCase,
     )
+
+    @Test
+    fun `createCorrespondent goes Creating then Success`() = runTest {
+        val created = Correspondent(id = 5, name = "ACME AG")
+        coEvery { uploadMetadataUseCase.createCorrespondent("ACME AG") } returns
+            CreateCorrespondentResult.Success(created)
+        val viewModel = createViewModel()
+
+        viewModel.createCorrespondent("ACME AG")
+        assertEquals(CreateCorrespondentState.Idle, viewModel.createCorrespondentState.value)
+        runCurrent()
+
+        assertEquals(CreateCorrespondentState.Success(created), viewModel.createCorrespondentState.value)
+        viewModel.resetCreateCorrespondentState()
+        assertEquals(CreateCorrespondentState.Idle, viewModel.createCorrespondentState.value)
+    }
+
+    @Test
+    fun `page change clears a correspondent creation error`() = runTest {
+        coEvery { uploadMetadataUseCase.createCorrespondent(any()) } returns
+            CreateCorrespondentResult.Failure("No internet connection")
+        val viewModel = createViewModel()
+        viewModel.initializePages(listOf(mockk(relaxed = true), mockk(relaxed = true)))
+        viewModel.createCorrespondent("ACME AG")
+        runCurrent()
+
+        viewModel.nextPage()
+
+        assertEquals(CreateCorrespondentState.Idle, viewModel.createCorrespondentState.value)
+    }
+
+    @Test
+    fun `createCorrespondent failure exposes the user-facing message`() = runTest {
+        coEvery { uploadMetadataUseCase.createCorrespondent(any()) } returns
+            CreateCorrespondentResult.Failure("No internet connection")
+        val viewModel = createViewModel()
+
+        viewModel.createCorrespondent("ACME AG")
+        runCurrent()
+
+        assertEquals(
+            CreateCorrespondentState.Error("No internet connection"),
+            viewModel.createCorrespondentState.value,
+        )
+    }
 
     @Test
     fun `openCreateTagDialog shows the dialog and resets the error`() = runTest {

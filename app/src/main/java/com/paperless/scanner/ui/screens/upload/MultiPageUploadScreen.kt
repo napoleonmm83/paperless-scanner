@@ -106,6 +106,7 @@ fun MultiPageUploadScreen(
     val customFields by viewModel.customFields.collectAsState()
     val customFieldValues by viewModel.customFieldValues.collectAsState()
     val createTagState by viewModel.createTagState.collectAsState()
+    val createCorrespondentState by viewModel.createCorrespondentState.collectAsState()
     val aiSuggestions by viewModel.aiSuggestions.collectAsState()
     val analysisState by viewModel.analysisState.collectAsState()
     val suggestionSource by viewModel.suggestionSource.collectAsState()
@@ -165,6 +166,13 @@ fun MultiPageUploadScreen(
                 snackbarHostState.showTypedSnackbar(state.userMessage, SnackbarIcon.ERROR)
             }
             else -> {}
+        }
+    }
+
+    LaunchedEffect(createCorrespondentState) {
+        (createCorrespondentState as? CreateCorrespondentState.Success)?.let {
+            selectedCorrespondentId = it.correspondent.id
+            viewModel.resetCreateCorrespondentState()
         }
     }
 
@@ -335,7 +343,13 @@ fun MultiPageUploadScreen(
             CorrespondentDropdown(
                 correspondents = correspondents,
                 selectedId = selectedCorrespondentId,
-                onSelect = { selectedCorrespondentId = it }
+                onSelect = {
+                    selectedCorrespondentId = it
+                    viewModel.resetCreateCorrespondentState()
+                },
+                onCreate = viewModel::createCorrespondent,
+                isCreating = createCorrespondentState is CreateCorrespondentState.Creating,
+                errorMessage = (createCorrespondentState as? CreateCorrespondentState.Error)?.message,
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -540,7 +554,9 @@ fun MultiPageUploadScreen(
                         customFields = customFieldValues
                     )
                 },
-                enabled = uiState !is UploadUiState.Queuing,
+                // Wait for an inline correspondent creation, else the upload goes out without it.
+                enabled = uiState !is UploadUiState.Queuing &&
+                    createCorrespondentState !is CreateCorrespondentState.Creating,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)

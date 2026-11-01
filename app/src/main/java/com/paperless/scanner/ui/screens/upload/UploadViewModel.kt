@@ -14,6 +14,7 @@ import com.paperless.scanner.domain.model.Tag
 import com.paperless.scanner.ui.navigation.AppLockRouteArgsHolder
 import com.paperless.scanner.ui.screens.scan.ScannedPage
 import com.paperless.scanner.ui.screens.upload.usecase.AnalyzeDocumentUseCase
+import com.paperless.scanner.ui.screens.upload.usecase.CreateCorrespondentResult
 import com.paperless.scanner.ui.screens.upload.usecase.CreateTagResult
 import com.paperless.scanner.ui.screens.upload.usecase.PerformUploadUseCase
 import com.paperless.scanner.ui.screens.upload.usecase.UploadMetadataUseCase
@@ -105,6 +106,9 @@ class UploadViewModel @Inject constructor(
 
     private val _createTagState = MutableStateFlow<CreateTagState>(CreateTagState.Idle)
     val createTagState: StateFlow<CreateTagState> = _createTagState.asStateFlow()
+
+    private val _createCorrespondentState = MutableStateFlow<CreateCorrespondentState>(CreateCorrespondentState.Idle)
+    val createCorrespondentState: StateFlow<CreateCorrespondentState> = _createCorrespondentState.asStateFlow()
 
     // AI Suggestions State
     private val _aiSuggestions = MutableStateFlow<DocumentAnalysis?>(null)
@@ -368,6 +372,22 @@ class UploadViewModel @Inject constructor(
         _createTagState.update { CreateTagState.Idle }
     }
 
+    /** Inline creation from the correspondent dropdown; the Room flow updates the list itself. */
+    fun createCorrespondent(name: String) {
+        viewModelScope.launch {
+            _createCorrespondentState.update { CreateCorrespondentState.Creating }
+            val next = when (val result = uploadMetadataUseCase.createCorrespondent(name)) {
+                is CreateCorrespondentResult.Success -> CreateCorrespondentState.Success(result.correspondent)
+                is CreateCorrespondentResult.Failure -> CreateCorrespondentState.Error(result.message)
+            }
+            _createCorrespondentState.update { next }
+        }
+    }
+
+    fun resetCreateCorrespondentState() {
+        _createCorrespondentState.update { CreateCorrespondentState.Idle }
+    }
+
     /**
      * Analyze document image using centralized SuggestionOrchestrator.
      *
@@ -511,6 +531,13 @@ sealed class CreateTagState {
     data object Creating : CreateTagState()
     data class Success(val tag: Tag) : CreateTagState()
     data class Error(val message: String) : CreateTagState()
+}
+
+sealed class CreateCorrespondentState {
+    data object Idle : CreateCorrespondentState()
+    data object Creating : CreateCorrespondentState()
+    data class Success(val correspondent: Correspondent) : CreateCorrespondentState()
+    data class Error(val message: String) : CreateCorrespondentState()
 }
 
 sealed class AnalysisState {

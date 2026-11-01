@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.paperless.scanner.R
+import com.paperless.scanner.ui.screens.upload.CreateCorrespondentState
 import com.paperless.scanner.ui.screens.upload.components.CorrespondentDropdown
 import com.paperless.scanner.ui.screens.upload.components.DocumentTypeDropdown
 import com.paperless.scanner.ui.screens.upload.components.TagSelectionSection
@@ -103,6 +104,14 @@ fun StepByStepMetadataScreen(
     }
     var selectedDocumentTypeId by remember(uiState.currentPageIndex) {
         mutableIntStateOf(viewModel.getCurrentPageMetadata()?.documentType ?: 0)
+    }
+
+    val createCorrespondentState by viewModel.createCorrespondentState.collectAsState()
+    LaunchedEffect(createCorrespondentState) {
+        (createCorrespondentState as? CreateCorrespondentState.Success)?.let {
+            selectedCorrespondentId = it.correspondent.id
+            viewModel.resetCreateCorrespondentState()
+        }
     }
 
     // Save metadata when navigating or finishing
@@ -214,7 +223,13 @@ fun StepByStepMetadataScreen(
                     CorrespondentDropdown(
                         correspondents = correspondents,
                         selectedId = selectedCorrespondentId,
-                        onSelect = { selectedCorrespondentId = it ?: 0 }
+                        onSelect = {
+                            selectedCorrespondentId = it ?: 0
+                            viewModel.resetCreateCorrespondentState()
+                        },
+                        onCreate = viewModel::createCorrespondent,
+                        isCreating = createCorrespondentState is CreateCorrespondentState.Creating,
+                        errorMessage = (createCorrespondentState as? CreateCorrespondentState.Error)?.message,
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -250,6 +265,7 @@ fun StepByStepMetadataScreen(
                                 saveCurrentPageMetadata()
                                 viewModel.previousPage()
                             },
+                            enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -281,6 +297,8 @@ fun StepByStepMetadataScreen(
                                 viewModel.nextPage()
                             }
                         },
+                        // A pending creation would otherwise land on the next page's state.
+                        enabled = createCorrespondentState !is CreateCorrespondentState.Creating,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),

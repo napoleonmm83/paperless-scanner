@@ -135,9 +135,22 @@ fun CorrespondentDropdown(
     correspondents: List<Correspondent>,
     selectedId: Int?,
     onSelect: (Int?) -> Unit,
-    modifier: Modifier = Modifier
+    onCreate: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    isCreating: Boolean = false,
+    errorMessage: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val selectedName = correspondents.find { it.id == selectedId }?.name
+    // Re-seeded when the selected name changes (incl. a freshly created correspondent).
+    var query by remember(selectedName) { mutableStateOf(selectedName.orEmpty()) }
+    val trimmed = query.trim()
+    val visible = if (trimmed.isEmpty() || trimmed == selectedName) {
+        correspondents
+    } else {
+        correspondents.filter { it.name.contains(trimmed, ignoreCase = true) }
+    }
+    val createCandidate = correspondentCreateCandidate(query, correspondents)
 
     Column(modifier = modifier) {
         Text(
@@ -150,37 +163,72 @@ fun CorrespondentDropdown(
 
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = { expanded = it },
+            onExpandedChange = { if (!isCreating) expanded = it },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
             OutlinedTextField(
-                value = correspondents.find { it.id == selectedId }?.name ?: stringResource(R.string.upload_not_selected),
-                onValueChange = {},
-                readOnly = true,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                value = query,
+                onValueChange = {
+                    query = it
+                    expanded = true
+                },
+                readOnly = isCreating,
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.upload_not_selected)) },
+                isError = errorMessage != null,
+                supportingText = errorMessage?.let { { Text(it) } },
+                trailingIcon = {
+                    if (isCreating) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    }
+                },
                 modifier = Modifier
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .menuAnchor(MenuAnchorType.PrimaryEditable)
                     .fillMaxWidth()
             )
 
             ExposedDropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = {
+                    expanded = false
+                    query = selectedName.orEmpty()
+                }
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.upload_not_selected)) },
                     onClick = {
                         onSelect(null)
+                        query = ""
                         expanded = false
                     }
                 )
-                correspondents.forEach { correspondent ->
+                visible.forEach { correspondent ->
                     DropdownMenuItem(
                         text = { Text(correspondent.name) },
                         onClick = {
                             onSelect(correspondent.id)
+                            query = correspondent.name
+                            expanded = false
+                        }
+                    )
+                }
+                if (createCandidate != null) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(R.string.correspondent_create_new, createCandidate),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        },
+                        onClick = {
+                            onCreate(createCandidate)
                             expanded = false
                         }
                     )
@@ -188,6 +236,12 @@ fun CorrespondentDropdown(
             }
         }
     }
+}
+
+/** The trimmed name to offer for creation, or null if blank or it already exists (case-insensitive). */
+internal fun correspondentCreateCandidate(query: String, correspondents: List<Correspondent>): String? {
+    val trimmed = query.trim()
+    return trimmed.takeIf { it.isNotEmpty() && correspondents.none { c -> c.name.equals(it, ignoreCase = true) } }
 }
 
 private const val MAX_VISIBLE_TAGS = 8

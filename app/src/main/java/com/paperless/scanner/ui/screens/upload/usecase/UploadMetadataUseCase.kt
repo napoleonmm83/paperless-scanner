@@ -12,6 +12,8 @@ import com.paperless.scanner.domain.model.Correspondent
 import com.paperless.scanner.domain.model.CustomField
 import com.paperless.scanner.domain.model.DocumentType
 import com.paperless.scanner.domain.model.Tag
+import com.paperless.scanner.domain.error.PaperlessException
+import com.paperless.scanner.domain.error.getLocalizedMessage
 import com.paperless.scanner.util.CoroutineDispatchers
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +26,12 @@ import com.paperless.scanner.util.AppLogger
 sealed interface CreateTagResult {
     data class Success(val tag: Tag) : CreateTagResult
     data class Failure(val message: String) : CreateTagResult
+}
+
+/** Result of a correspondent-creation attempt; [Failure.message] is already user-facing. */
+sealed interface CreateCorrespondentResult {
+    data class Success(val correspondent: Correspondent) : CreateCorrespondentResult
+    data class Failure(val message: String) : CreateCorrespondentResult
 }
 
 /**
@@ -81,6 +89,34 @@ class UploadMetadataUseCase @Inject constructor(
                 } else {
                     CreateTagResult.Failure(e.message ?: context.getString(R.string.error_create_tag))
                 }
+            }
+        )
+    }
+
+    /**
+     * Creates a correspondent by name (matching rule left to the server default).
+     * A [PaperlessException.ClientError] may mean the name already exists server-side but not yet
+     * in the local cache: refresh and resolve it by name so the caller selects it instead of
+     * seeing an error. If no such name exists, the localized client error is shown.
+     * Any other failure carries the localized [PaperlessException] message (offline, timeout, 403…).
+     */
+    suspend fun createCorrespondent(name: String): CreateCorrespondentResult = withContext(dispatchers.io) {
+        val trimmed = name.trim()
+        correspondentRepository.createCorrespondent(trimmed).fold(
+            onSuccess = { CreateCorrespondentResult.Success(it) },
+            onFailure = { e ->
+                AppLogger.e(TAG, "Failed to create correspondent", e)
+                val existing = if (e is PaperlessException.ClientError) {
+                    correspondentRepository.getCorrespondents(forceRefresh = true).getOrNull()
+                        ?.find { it.name.equals(trimmed, ignoreCase = true) }
+                } else {
+                    null
+                }
+                existing?.let { CreateCorrespondentResult.Success(it) }
+                    ?: CreateCorrespondentResult.Failure(
+                        (e as? PaperlessException)?.getLocalizedMessage(context)
+                            ?: context.getString(R.string.error_create_correspondent)
+                    )
             }
         )
     }

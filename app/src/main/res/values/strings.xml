@@ -391,6 +391,7 @@
     <string name="error_queue_add">Failed to add to queue</string>
     <string name="error_create_tag">Failed to create tag</string>
     <string name="error_create_correspondent">Failed to create correspondent</string>
+    <string name="correspondent_create_new">Create correspondent \"%1$s\"</string>
     <string name="error_create_document_type">Failed to create document type</string>
     <string name="error_create_custom_field">Failed to create custom field</string>
     <string name="error_update_tag">Failed to update tag</string>
