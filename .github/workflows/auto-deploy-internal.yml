@@ -174,12 +174,12 @@ jobs:
 
       - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
-        run: gradlew.bat testReleaseUnitTest --refresh-dependencies --no-daemon
+        run: gradlew.bat testReleaseUnitTest --no-daemon
         shell: cmd
 
       - name: Run unit tests (Linux/macOS)
         if: runner.os != 'Windows'
-        run: ./gradlew testReleaseUnitTest --refresh-dependencies
+        run: ./gradlew testReleaseUnitTest
         shell: bash
 
       - name: Validate changelog length (Windows)
