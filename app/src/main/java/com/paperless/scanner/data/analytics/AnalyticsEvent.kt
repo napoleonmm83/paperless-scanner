@@ -136,6 +136,24 @@ sealed class AnalyticsEvent(
     /** Document downloaded/shared */
     data object DocumentShared : AnalyticsEvent("document_shared")
 
+    /**
+     * Loading, creating or revoking a share link failed. [operation] is "load",
+     * "create" or "revoke"; [errorType] and [diagnosticTag] as in
+     * [PdfViewerDownloadFailed]. Full detail goes to Crashlytics via recordException.
+     */
+    data class ShareLinkFailed(
+        val operation: String,
+        val errorType: String,
+        val diagnosticTag: String = errorType
+    ) : AnalyticsEvent(
+        "share_link_failed",
+        mapOf(
+            "operation" to operation,
+            "error_type" to errorType,
+            "diagnostic_tag" to diagnosticTag
+        )
+    )
+
     // ==================== Feature Usage Events ====================
 
     /** Offline mode activated */

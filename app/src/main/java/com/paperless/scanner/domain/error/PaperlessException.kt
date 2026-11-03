@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.annotation.StringRes
 import com.paperless.scanner.R
 import com.paperless.scanner.data.api.CleartextNotAllowlistedException
+import com.paperless.scanner.data.api.ServerSessionChangedException
 import com.paperless.scanner.data.network.CertificatePinMismatchException
 import com.paperless.scanner.data.network.CertificatePinPersistenceException
+import com.paperless.scanner.domain.model.FeatureStatus
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -60,8 +62,9 @@ sealed class PaperlessException(
      * would make the event useless and a leaked host would make it a privacy problem.
      *
      * The default — the subclass name — is right for every type whose message already
-     * names its own cause. Two override it: [UnknownError], which has nothing else to
-     * say, and [ContentError], whose own [message] is the fixed string "Content error"
+     * names its own cause. Subclasses whose class name alone hides the cause override it
+     * (e.g. [ServerUnreachable], [ServerFeatureUnavailable]); among them [UnknownError],
+     * which has nothing else to say, and [ContentError], whose own [message] is the fixed string "Content error"
      * and would otherwise drop the HTTP status on the floor. That last case is the whole
      * reason this property exists rather than a cast at the call site: reporting
      * "ContentError" without the code reproduces, one level up, exactly the defect this
@@ -323,6 +326,33 @@ sealed class PaperlessException(
         override val messageResId: Int = R.string.cert_pin_storage_failed
     }
 
+    /**
+     * A capability guard refused the call before any network access. [status] says why:
+     * UPDATE_REQUIRED (server too old), UNKNOWN (no version detected yet), NOT_IMPLEMENTED
+     * (the app lacks it); null means [featureId] is not in the catalog. [message] is log
+     * text only (it keeps the status for Crashlytics); the UI resolves [messageResId].
+     */
+    data class ServerFeatureUnavailable(
+        val featureId: String,
+        val status: FeatureStatus?,
+    ) : PaperlessException("Server feature unavailable: $featureId (${status ?: "UNKNOWN_FEATURE"})") {
+        @StringRes
+        override val messageResId: Int = R.string.error_server_feature_unavailable
+
+        override val diagnosticTag: String = "$featureId:${status ?: "UNKNOWN_FEATURE"}"
+    }
+
+    /**
+     * The request belonged to a server or account that is no longer active.
+     * Translated from [ServerSessionChangedException]; not a connectivity problem.
+     */
+    data class ServerSessionChanged(
+        val originalException: ServerSessionChangedException,
+    ) : PaperlessException("Server session changed", originalException) {
+        @StringRes
+        override val messageResId: Int = R.string.error_server_session_changed
+    }
+
     companion object {
         /**
          * Creates appropriate PaperlessException from HTTP status code.
@@ -417,6 +447,9 @@ sealed class PaperlessException(
 
                 is CertificatePinPersistenceException ->
                     CertificatePinStorageError(throwable.host, throwable)
+
+                // Also an IOException; an account switch must not read as "check your internet".
+                is ServerSessionChangedException -> ServerSessionChanged(throwable)
 
                 // TLS *trust* failures — before the IOException branch, because both of
                 // these extend SSLException, which extends IOException.
