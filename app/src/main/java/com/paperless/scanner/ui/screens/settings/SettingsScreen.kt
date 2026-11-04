@@ -95,6 +95,7 @@ fun SettingsScreen(
         ServerSection(
             serverUrl = uiState.serverUrl,
             serverVersion = uiState.serverVersion,
+            upgradeFeatures = uiState.serverUpgradeFeatures,
             onNavigateToDiagnostics = onNavigateToDiagnostics,
             onNavigateToEditServer = onNavigateToEditServer
         )

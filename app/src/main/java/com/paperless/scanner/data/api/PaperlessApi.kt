@@ -48,6 +48,11 @@ import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
+import retrofit2.http.Tag as RequestTag
+import retrofit2.http.Url
+import com.paperless.scanner.data.api.models.ShareLinkResponse
+import com.paperless.scanner.data.api.models.CreateShareLinkRequest
+import com.paperless.scanner.data.api.models.ShareDocumentMetadata
 
 /**
  * PaperlessApi - Retrofit interface for Paperless-ngx REST API.
@@ -78,6 +83,20 @@ import retrofit2.http.Streaming
  * @see com.paperless.scanner.di.NetworkModule For Retrofit configuration
  */
 interface PaperlessApi {
+    // Absolute, captured-session URLs preserve installations under a subpath.
+    @GET
+    @Headers("Cache-Control: no-store")
+    suspend fun getDocumentShareLinks(@Url url: String, @RequestTag session: ServerRequestSession): List<ShareLinkResponse>
+
+    @GET
+    @Headers("Cache-Control: no-store")
+    suspend fun getShareDocumentMetadata(@Url url: String, @RequestTag session: ServerRequestSession): ShareDocumentMetadata
+
+    @POST
+    suspend fun createShareLink(@Url url: String, @Body body: CreateShareLinkRequest, @RequestTag session: ServerRequestSession): ShareLinkResponse
+
+    @DELETE
+    suspend fun deleteShareLink(@Url url: String, @RequestTag session: ServerRequestSession): Response<Unit>
 
     /**
      * Authenticate user and obtain API token.

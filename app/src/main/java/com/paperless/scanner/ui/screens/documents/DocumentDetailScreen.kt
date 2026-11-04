@@ -1,6 +1,10 @@
 package com.paperless.scanner.ui.screens.documents
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +41,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -81,6 +86,9 @@ import com.paperless.scanner.ui.screens.upload.CreateTagDialog
 import com.paperless.scanner.ui.components.ServerOfflineBanner
 import com.paperless.scanner.data.health.ServerStatus
 import com.paperless.scanner.util.AppLogger
+import com.paperless.scanner.domain.model.FeatureStatus
+import com.paperless.scanner.ui.screens.documents.sharelinks.ShareLinksViewModel
+import com.paperless.scanner.ui.screens.documents.sharelinks.ShareLinksDialog
 
 enum class DocumentTab {
     DETAILS,
@@ -98,10 +106,12 @@ fun DocumentDetailScreen(
     onOpenPdf: (Int, String) -> Unit,
     onNavigateToSettings: () -> Unit = {},
     navBackStackEntry: NavBackStackEntry? = null,
-    viewModel: DocumentDetailViewModel = hiltViewModel()
+    viewModel: DocumentDetailViewModel = hiltViewModel(),
+    shareLinksViewModel: ShareLinksViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val documentId by viewModel.documentId.collectAsState()
+    val shareLinksState by shareLinksViewModel.state.collectAsState()
 
     // CRITICAL: Sync documentId to Navigation SavedStateHandle for AppLock route reconstruction.
     // This is SEPARATE from ViewModel SavedStateHandle (used for process death recovery).
@@ -135,7 +145,13 @@ fun DocumentDetailScreen(
     }
 
     val context = LocalContext.current
+    val shareLinksTitle = stringResource(R.string.share_links_title)
+    val shareLinksAction = stringResource(R.string.share_links_share)
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showShareLinks by remember(documentId) { mutableStateOf(false) }
+    LaunchedEffect(showShareLinks, documentId) {
+        if (showShareLinks) shareLinksViewModel.open(documentId)
+    }
     var showEditSheet by remember { mutableStateOf(false) }
     var showCreateTagDialog by remember { mutableStateOf(false) }
     var newlyCreatedTagId by remember { mutableStateOf<Int?>(null) }
@@ -201,8 +217,15 @@ fun DocumentDetailScreen(
                 text = stringResource(R.string.document_detail_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            if (shareLinksState.availability == FeatureStatus.AVAILABLE) {
+                IconButton(onClick = { showShareLinks = true }, enabled = documentId > 0 && !uiState.isLoading && !uiState.isDeleting) {
+                    Icon(Icons.Filled.Link, contentDescription = stringResource(R.string.share_links_title))
+                }
+            }
             if (uiState.downloadUrl != null && uiState.authToken != null) {
                 IconButton(onClick = {
                     val downloadUrlWithAuth = "${uiState.downloadUrl}?auth_token=${uiState.authToken}"
@@ -347,6 +370,29 @@ fun DocumentDetailScreen(
                     }
                 }
             }
+        }
+
+        if (showShareLinks) {
+                ShareLinksDialog(
+                    state = shareLinksState,
+                    onRetry = { shareLinksViewModel.open(documentId) },
+                    onCreate = shareLinksViewModel::create,
+                    onRevoke = shareLinksViewModel::revoke,
+                    onClose = { showShareLinks = false },
+                    onCopy = { id ->
+                        shareLinksViewModel.urlFor(id)?.let { url ->
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText(shareLinksTitle, url))
+                            Toast.makeText(context, R.string.share_links_copied, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onShare = { id ->
+                        shareLinksViewModel.urlFor(id)?.let { url ->
+                            val intent = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, url)
+                            context.startActivity(Intent.createChooser(intent, shareLinksAction))
+                        }
+                    },
+                )
         }
 
         // Delete Confirmation Dialog

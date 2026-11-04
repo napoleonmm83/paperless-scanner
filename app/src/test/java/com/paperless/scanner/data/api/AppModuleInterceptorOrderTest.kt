@@ -12,13 +12,17 @@ import io.mockk.unmockkStatic
 import io.mockk.verify
 import okhttp3.Cache
 import okhttp3.Request
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 
 /**
  * Pins the interceptor ordering contract in `AppModule.provideOkHttpClient`
@@ -73,10 +77,14 @@ class AppModuleInterceptorOrderTest {
 
         val cacheDir = Files.createTempDirectory("okhttp-allowlist-order-test").toFile()
         val cache = Cache(cacheDir, 1024L * 1024L)
+        val serverCapabilities = ServerCapabilityStore()
 
         try {
             val client = AppModule.provideOkHttpClient(
                 tokenManager = tokenManager,
+                serverUrlHolder = serverUrlHolder,
+                serverCapabilities = serverCapabilities,
+                serverCapabilityInterceptor = ServerCapabilityInterceptor(serverCapabilities),
                 dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
                 httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
                 apiVersionInterceptor = ApiVersionInterceptor(mockk(relaxed = true)),
@@ -97,6 +105,77 @@ class AppModuleInterceptorOrderTest {
         } finally {
             cache.delete()
             cacheDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `captured share request cannot receive credentials from a changed account`() {
+        val server = MockWebServer()
+        server.start()
+        val serverBase = server.url("/paperless/").toString()
+        val store = ServerCapabilityStore()
+        val oldGeneration = store.beginCredentialChange()
+        store.finishCredentialChange(oldGeneration, serverBase)
+        val oldSession = requireNotNull(store.captureRequest(serverBase, oldGeneration))
+
+        val newGeneration = store.beginCredentialChange()
+        store.finishCredentialChange(newGeneration, serverBase)
+        val newSession = requireNotNull(store.captureRequest(serverBase, newGeneration))
+        val tokenManager = mockk<TokenManager>()
+        every { tokenManager.getTokenSync() } returns "new-account-token"
+        val serverUrlHolder = mockk<ServerUrlHolder>()
+        every { serverUrlHolder.current() } returns serverBase
+        val holder = mockk<HttpAllowlistHolder>()
+        every { holder.snapshot() } returns emptySet()
+
+        // Use explicit pass-through mocks so a missing session guard reaches the
+        // real HTTP server, rather than failing on an unstubbed downstream mock.
+        val cloudflare = mockk<CloudflareDetectionInterceptor>()
+        every { cloudflare.intercept(any()) } answers { firstArg<okhttp3.Interceptor.Chain>().let { it.proceed(it.request()) } }
+        val adaptive = mockk<AdaptiveWriteTimeoutInterceptor>()
+        every { adaptive.intercept(any()) } answers { firstArg<okhttp3.Interceptor.Chain>().let { it.proceed(it.request()) } }
+        val cacheControl = mockk<CacheControlInterceptor>()
+        every { cacheControl.intercept(any()) } answers { firstArg<okhttp3.Interceptor.Chain>().let { it.proceed(it.request()) } }
+        val certPinning = mockk<CertificatePinningInterceptor>()
+        every { certPinning.intercept(any()) } answers { firstArg<okhttp3.Interceptor.Chain>().let { it.proceed(it.request()) } }
+        val cacheDir = Files.createTempDirectory("okhttp-share-session-test").toFile()
+        val cache = Cache(cacheDir, 1024L * 1024L)
+        val client = AppModule.provideOkHttpClient(
+            tokenManager = tokenManager,
+            serverUrlHolder = serverUrlHolder,
+            serverCapabilities = store,
+            serverCapabilityInterceptor = ServerCapabilityInterceptor(store),
+            dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
+            httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
+            apiVersionInterceptor = ApiVersionInterceptor(mockk(relaxed = true)),
+            cloudflareDetectionInterceptor = cloudflare,
+            adaptiveWriteTimeoutInterceptor = adaptive,
+            cacheControlInterceptor = cacheControl,
+            certificatePinningInterceptor = certPinning,
+            cache = cache,
+        )
+        try {
+            server.enqueue(MockResponse().setResponseCode(200).setBody("[]"))
+            val staleRequest = Request.Builder().url(server.url("/paperless/api/share_links/"))
+                .tag(ServerRequestSession::class.java, oldSession).build()
+            val failure = assertThrows(IOException::class.java) { client.newCall(staleRequest).execute().close() }
+            assertEquals("Server session changed", failure.message)
+            assertEquals(0, server.requestCount)
+
+            // Positive control proves the production client can reach the server
+            // with the current session and correctly attach its credentials.
+            val currentRequest = staleRequest.newBuilder()
+                .tag(ServerRequestSession::class.java, newSession).build()
+            client.newCall(currentRequest).execute().use { assertEquals(200, it.code) }
+            val received = requireNotNull(server.takeRequest(1, TimeUnit.SECONDS))
+            assertEquals("Token new-account-token", received.getHeader("Authorization"))
+            assertEquals(1, server.requestCount)
+        } finally {
+            client.connectionPool.evictAll()
+            client.dispatcher.executorService.shutdown()
+            cache.delete()
+            cacheDir.deleteRecursively()
+            server.shutdown()
         }
     }
 
@@ -139,6 +218,9 @@ class AppModuleInterceptorOrderTest {
         try {
             val default = AppModule.provideOkHttpClient(
                 tokenManager = tokenManager,
+                serverUrlHolder = serverUrlHolder,
+                serverCapabilities = ServerCapabilityStore(),
+                serverCapabilityInterceptor = ServerCapabilityInterceptor(ServerCapabilityStore()),
                 dynamicBaseUrlInterceptor = DynamicBaseUrlInterceptor(serverUrlHolder),
                 httpAllowlistInterceptor = HttpAllowlistInterceptor(holder),
                 apiVersionInterceptor = ApiVersionInterceptor(mockk(relaxed = true)),

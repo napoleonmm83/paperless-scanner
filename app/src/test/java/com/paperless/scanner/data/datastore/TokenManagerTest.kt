@@ -1,6 +1,8 @@
 package com.paperless.scanner.data.datastore
 
 import android.content.Context
+import com.paperless.scanner.data.api.ServerCapabilityStore
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import app.cash.turbine.test
 import com.paperless.scanner.util.AppLockTimeout
 import io.mockk.every
@@ -41,6 +43,7 @@ class TokenManagerTest {
     private lateinit var context: Context
     private lateinit var secureStorage: TokenStorage
     private lateinit var tokenManager: TokenManager
+    private lateinit var capabilities: ServerCapabilityStore
 
     @Before
     fun setUp() {
@@ -54,7 +57,8 @@ class TokenManagerTest {
         // Default: no crypto-corruption recovery happened (#320 Phase 1). Explicit
         // because a relaxed mock would return a child-mock Exception, not null.
         every { secureStorage.consumeRecoveredCryptoFailure() } returns null
-        tokenManager = TokenManager(context, secureStorage)
+        capabilities = ServerCapabilityStore()
+        tokenManager = TokenManager(context, secureStorage, capabilities)
     }
 
     @After
@@ -65,6 +69,46 @@ class TokenManagerTest {
     }
 
     // ==================== Storage corruption signal (#320 Phase 1) ====================
+
+    @Test
+    fun sameServerLoginInvalidatesPriorAccountResponse() = runTest {
+        val url = "https://paperless.example.com"
+        tokenManager.saveCredentials(url, "first-account")
+        val previous = capabilities.captureRequest(url, capabilities.snapshotGeneration())!!
+        capabilities.observe(previous, "$url/api/documents/".toHttpUrl(), "3.0.0", "9")
+        assertEquals("3.0.0", capabilities.state.value.displayVersion)
+
+        tokenManager.saveCredentials(url, "second-account")
+        capabilities.observe(previous, "$url/api/documents/".toHttpUrl(), "3.0.0", "9")
+
+        assertNull(capabilities.state.value.serverVersion)
+    }
+
+    @Test
+    fun logoutRejectsResponseAlreadyInFlight() = runTest {
+        val url = "https://paperless.example.com"
+        tokenManager.saveCredentials(url, "account")
+        val previous = capabilities.captureRequest(url, capabilities.snapshotGeneration())!!
+
+        tokenManager.clearCredentials()
+        capabilities.observe(previous, "$url/api/documents/".toHttpUrl(), "3.0.0", "9")
+
+        assertNull(capabilities.state.value.serverBase)
+        assertNull(capabilities.state.value.serverVersion)
+    }
+
+    @Test
+    fun credentialsCannotPublishCapabilitiesDuringWrite() = runTest {
+        val url = "https://paperless.example.com"
+        every { secureStorage.saveTokenResult(any()) } answers {
+            assertNull(capabilities.captureRequest(url, capabilities.snapshotGeneration()))
+            TokenStorageResult.Present(Unit)
+        }
+
+        tokenManager.saveCredentials(url, "account")
+
+        assertTrue(capabilities.captureRequest(url, capabilities.snapshotGeneration()) != null)
+    }
 
     @Test
     fun `storageCorruptionDetected stays false when no corruption recovery happened`() = runTest {
